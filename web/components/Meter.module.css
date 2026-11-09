@@ -17,6 +17,9 @@
   top: 0;
   bottom: 0;
   background: var(--accent-soft);
+  /* The soft fill alone is too faint on the track (1.05:1 light, 1.34:1 dark); the edge is 3:1. */
+  border: 1px solid var(--border-strong);
+  box-sizing: border-box;
 }
 
 .fill {

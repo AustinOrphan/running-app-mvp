@@ -46,8 +46,23 @@ test('logging a run from the Activities page shows it in the list and on the das
   await expect(edit.getByLabel('Duration')).toHaveValue('45:00')
   await edit.getByRole('button', { name: 'Close' }).click()
   await expect(edit).toBeHidden()
-  await page.getByRole('button', { name: 'Delete', exact: true }).click()
-  await page.getByRole('button', { name: 'Delete activity' }).click()
+  const deleteButton = page.getByRole('button', { name: 'Delete', exact: true })
+  await deleteButton.click()
+  // The question is a sheet: Escape keeps the activity and gives focus back to Delete.
+  const ask = page.getByRole('dialog', { name: 'Delete this activity?' })
+  await expect(ask).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(ask).toBeHidden()
+  await expect(deleteButton).toBeFocused()
+  // The confirming button is a secondary one, not red.
+  await deleteButton.click()
+  const confirm = ask.getByRole('button', { name: 'Delete activity' })
+  const red = await confirm.evaluate((node) => {
+    const [r = 0, g = 0, b = 0] = getComputedStyle(node).color.match(/\d+/g)?.map(Number) ?? []
+    return r > 150 && g < 80 && b < 80
+  })
+  expect(red).toBe(false)
+  await confirm.click()
   await expect(toast(page, 'Activity deleted')).toBeVisible()
   await expect(page.getByText('No activities yet.')).toBeVisible()
 })

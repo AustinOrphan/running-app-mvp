@@ -3,6 +3,8 @@ import { countPhrase, formatQuantity } from '../../../shared/copy/quantity.ts'
 import type { StrengthLog, Units, WeightUnit } from '../../../shared/types.ts'
 import { useDeleteStrengthLog } from '../../api/strength.ts'
 import { Button } from '../Button.tsx'
+import { ConfirmSheet } from '../ConfirmSheet.tsx'
+import { TrashGlyph } from '../Glyphs.tsx'
 import { useToast } from '../Toast.tsx'
 import type { PageWords } from './strengthPageText.ts'
 import styles from './StrengthSections.module.css'
@@ -27,28 +29,30 @@ export function RecentSessions({ logs, words, units, weightUnit, onEdit }: Recen
   const toast = useToast()
   const remove = useDeleteStrengthLog()
   const [confirming, setConfirming] = useState<string | null>(null)
-  // Focus has to land somewhere when the question closes: back on the row's own Delete after
-  // "Keep", on the section's heading after the sets are gone with their row.
-  const restore = useRef<string | null>(null)
-  const deleteButtons = useRef(new Map<string, HTMLButtonElement>())
+  // The sheet gives focus back to the row's own Delete after "Keep". After the sets are gone with
+  // their row there is no such button, so the section's heading takes it once the sheet has closed
+  // (an effect runs after the sheet's own cleanup).
+  const focusHeading = useRef(false)
   const headingRef = useRef<HTMLHeadingElement>(null)
 
   useEffect(() => {
-    if (restore.current !== null) {
-      deleteButtons.current.get(restore.current)?.focus()
-      restore.current = null
+    if (focusHeading.current) {
+      focusHeading.current = false
+      headingRef.current?.focus()
     }
   })
+
+  const asked = logs.find((log) => log.id === confirming) ?? null
 
   function confirmDelete(log: StrengthLog): void {
     remove.mutateAsync(log.id).then(
       () => {
+        focusHeading.current = true
         setConfirming(null)
-        headingRef.current?.focus()
         toast.show(words.say('strength.page.deleted'))
       },
       () => {
-        // the failure shows under the question, and the sets stay
+        // the failure shows in the sheet, and the sets stay
       },
     )
   }
@@ -76,68 +80,54 @@ export function RecentSessions({ logs, words, units, weightUnit, onEdit }: Recen
                     minutes: words.minutes(log.durationMin),
                   })}
                 </span>
-                {confirming === log.id ? (
-                  <div role="group" aria-label={words.say('strength.page.delete-for', { date })}>
-                    <p className={styles.lead}>{words.say('strength.page.delete-ask')}</p>
-                    {remove.isError ? (
-                      <p role="alert" className={styles.error}>
-                        {words.say('strength.page.delete-error')}
-                      </p>
-                    ) : null}
-                    <div className={styles.actions}>
-                      <Button
-                        variant="danger"
-                        loading={remove.isPending}
-                        onClick={() => {
-                          confirmDelete(log)
-                        }}
-                      >
-                        {words.say('strength.page.delete-confirm')}
-                      </Button>
-                      <Button
-                        variant="quiet"
-                        onClick={() => {
-                          remove.reset()
-                          restore.current = log.id
-                          setConfirming(null)
-                        }}
-                      >
-                        {words.say('strength.page.delete-keep')}
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className={styles.flush}>
-                    <Button
-                      variant="quiet"
-                      aria-label={words.say('strength.page.edit-for', { date })}
-                      onClick={() => {
-                        onEdit(log)
-                      }}
-                    >
-                      {words.say('strength.page.edit')}
-                    </Button>
-                    <Button
-                      variant="quiet"
-                      ref={(node) => {
-                        if (node === null) deleteButtons.current.delete(log.id)
-                        else deleteButtons.current.set(log.id, node)
-                      }}
-                      aria-label={words.say('strength.page.delete-for', { date })}
-                      onClick={() => {
-                        remove.reset()
-                        setConfirming(log.id)
-                      }}
-                    >
-                      {words.say('strength.page.delete')}
-                    </Button>
-                  </div>
-                )}
+                <div className={styles.flush}>
+                  <Button
+                    variant="quiet"
+                    aria-label={words.say('strength.page.edit-for', { date })}
+                    onClick={() => {
+                      onEdit(log)
+                    }}
+                  >
+                    {words.say('strength.page.edit')}
+                  </Button>
+                  <Button
+                    variant="quiet"
+                    aria-label={words.say('strength.page.delete-for', { date })}
+                    onClick={() => {
+                      remove.reset()
+                      setConfirming(log.id)
+                    }}
+                  >
+                    <TrashGlyph />
+                    {words.say('strength.page.delete')}
+                  </Button>
+                </div>
               </li>
             )
           })}
         </ul>
       )}
+      <ConfirmSheet
+        open={asked !== null}
+        title={
+          asked === null
+            ? ''
+            : words.say('strength.page.delete-for', { date: words.day(asked.date, 'weekday') })
+        }
+        confirmLabel={words.say('strength.page.delete-confirm')}
+        keepLabel={words.say('strength.page.delete-keep')}
+        pending={remove.isPending}
+        error={remove.isError ? words.say('strength.page.delete-error') : null}
+        onConfirm={() => {
+          if (asked !== null) confirmDelete(asked)
+        }}
+        onClose={() => {
+          remove.reset()
+          setConfirming(null)
+        }}
+      >
+        {words.say('strength.page.delete-ask')}
+      </ConfirmSheet>
     </section>
   )
 }

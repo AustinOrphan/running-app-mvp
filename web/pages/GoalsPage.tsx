@@ -18,6 +18,8 @@ import { usePredictions, useTrackRecord } from '../api/predictions.ts'
 import { useSettings } from '../api/settings.ts'
 import { ActivateConfirm } from '../components/ActivateConfirm.tsx'
 import { Button } from '../components/Button.tsx'
+import { ConfirmSheet } from '../components/ConfirmSheet.tsx'
+import { TrashGlyph } from '../components/Glyphs.tsx'
 import { EmptyState } from '../components/EmptyState.tsx'
 import { ErrorState } from '../components/ErrorState.tsx'
 import { useLoadView } from '../components/loadView.ts'
@@ -758,33 +760,7 @@ function GoalRow({ goal, units, archived, result, onEdit, onRecordResult }: Goal
         </p>
       ) : null}
       {goal.isActive ? <GoalOutlook goal={goal} hasResult={result != null} /> : null}
-      {confirming ? (
-        <div className={styles.confirm}>
-          <p className={styles.confirmText}>Delete {goal.name}?</p>
-          <Button
-            variant="danger"
-            loading={remove.isPending}
-            onClick={() => {
-              remove.mutate(goal.id, {
-                onSuccess: () => {
-                  toast.show('Goal deleted')
-                },
-              })
-            }}
-          >
-            Delete goal
-          </Button>
-          <Button
-            variant="quiet"
-            onClick={() => {
-              setConfirming(false)
-              remove.reset()
-            }}
-          >
-            Cancel
-          </Button>
-        </div>
-      ) : replacing !== null ? (
+      {replacing !== null ? (
         <ActivateConfirm
           currentGoal={replacing.planGoalName}
           nextGoal={goal.name}
@@ -820,12 +796,14 @@ function GoalRow({ goal, units, archived, result, onEdit, onRecordResult }: Goal
               Edit
             </Button>
             <Button
-              variant="quiet"
+              variant="secondary"
               aria-label={`Delete ${goal.name}`}
               onClick={() => {
+                remove.reset()
                 setConfirming(true)
               }}
             >
+              <TrashGlyph />
               Delete
             </Button>
           </div>
@@ -848,6 +826,26 @@ function GoalRow({ goal, units, archived, result, onEdit, onRecordResult }: Goal
           ) : null}
         </>
       )}
+      <ConfirmSheet
+        open={confirming}
+        title={`Delete ${goal.name}?`}
+        confirmLabel="Delete goal"
+        pending={remove.isPending}
+        onConfirm={() => {
+          remove.mutate(goal.id, {
+            onSuccess: () => {
+              toast.show('Goal deleted')
+            },
+            // the refusal shows on the card, under the buttons
+            onError: () => {
+              setConfirming(false)
+            },
+          })
+        }}
+        onClose={() => {
+          setConfirming(false)
+        }}
+      />
       {error ? (
         <p role="alert" className={styles.error}>
           {error.message}

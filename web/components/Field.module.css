@@ -24,12 +24,16 @@
   line-height: var(--lh-base);
 }
 
+/* Needs attention is ochre, never red (visual design 11 and 19): a 2 px edge, a glyph and words. */
 .control[aria-invalid='true'] {
-  border: 2px solid var(--danger);
+  border: 2px solid var(--warning);
 }
 
 .control:disabled {
-  opacity: 0.6;
+  background: var(--surface-sunken);
+  border: 1px dashed var(--border-strong);
+  color: var(--text-muted);
+  -webkit-text-fill-color: var(--text-muted);
 }
 
 .select {
@@ -53,5 +57,13 @@
 }
 
 .error {
-  color: var(--danger);
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-1);
+  color: var(--text);
+}
+
+.error svg {
+  margin-top: 0.2em;
+  color: var(--warning);
 }

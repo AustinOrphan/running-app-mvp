@@ -541,10 +541,10 @@ describe('Activities page', () => {
     })
     const dialog = await screen.findByRole('dialog', { name: 'Edit activity' })
     await user.click(within(dialog).getByRole('button', { name: 'Delete' }))
-    expect(within(dialog).getByText('Delete this activity?')).toBeInTheDocument()
+    const ask = await screen.findByRole('dialog', { name: 'Delete this activity?' })
     expect(api.calls.filter((c) => c.method === 'DELETE')).toHaveLength(0)
 
-    await user.click(within(dialog).getByRole('button', { name: 'Delete activity' }))
+    await user.click(within(ask).getByRole('button', { name: 'Delete activity' }))
     expect(await screen.findByText('Activity deleted')).toBeInTheDocument()
     expect(api.calls.filter((c) => c.method === 'DELETE')).toHaveLength(1)
 
@@ -573,7 +573,8 @@ describe('Activities page', () => {
     })
     const dialog = await screen.findByRole('dialog', { name: 'Edit activity' })
     await user.click(within(dialog).getByRole('button', { name: 'Delete' }))
-    await user.click(within(dialog).getByRole('button', { name: 'Delete activity' }))
+    const ask = await screen.findByRole('dialog', { name: 'Delete this activity?' })
+    await user.click(within(ask).getByRole('button', { name: 'Delete activity' }))
     await user.click(await screen.findByRole('button', { name: 'Undo' }))
     expect(
       await screen.findByText('Activity not restored. The server did not respond.'),

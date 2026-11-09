@@ -134,7 +134,7 @@ describe('Button', () => {
     fireEvent.click(button)
     expect(onClick).not.toHaveBeenCalled()
 
-    for (const variant of ['primary', 'secondary', 'quiet', 'danger'] as const) {
+    for (const variant of ['primary', 'secondary', 'quiet'] as const) {
       rerender(<Button variant={variant}>Go {variant}</Button>)
       const b = screen.getByRole('button', { name: `Go ${variant}` })
       expect(b).toBeEnabled()
@@ -187,8 +187,10 @@ describe('Field', () => {
     const invalid = screen.getByLabelText('Duration')
     expect(invalid).toHaveAttribute('aria-invalid', 'true')
     expect(screen.queryByText('Minutes, like 45')).not.toBeInTheDocument()
-    const error = screen.getByText('Enter minutes like 45, or 0:45:00')
-    expect(invalid.getAttribute('aria-describedby')).toBe(error.id)
+    const error = screen.getByText('Enter minutes like 45, or 0:45:00').closest('p')
+    expect(invalid.getAttribute('aria-describedby')).toBe(error?.id)
+    // An error is words with a glyph, never colour alone (visual design 11).
+    expect(error?.querySelector('svg[aria-hidden="true"]')).not.toBeNull()
   })
 
   test('an empty error string keeps the hint and does not mark the control invalid', () => {
