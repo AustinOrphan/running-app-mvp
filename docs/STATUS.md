@@ -3,9 +3,9 @@
 Current state only; rewritten at every boundary. History lives in `git log`, the specs and
 plans under `docs/superpowers/`, the research corpus under `research/` and `docs/adr/`.
 
-Last update: 2026-11-07.
+Last update: 2026-11-08.
 
-## Waiting on the owner (2026-11-07)
+## Waiting on the owner (2026-11-08)
 
 Each item names the default that holds until the owner answers.
 
@@ -27,22 +27,48 @@ Each item names the default that holds until the owner answers.
 5. **Move the live copy to an always-on home server.** The service files and the cutover runbook
    are in the owner's private homelab repository, not yet committed there. Default: the live copy
    stays on the laptop under tmux, and its scheduled jobs stop whenever the laptop sleeps.
-6. **Chest strap or wrist on long trail runs?** The Trends drift and heart-rate panels (D2-1) and
-   the grade curve (I13) leave hilly runs out of every heart-rate figure because wrist heart rate
-   on hills is not trusted (rule B2). Default: wrist; hills stay out.
-7. **May the personal grade curve feed predictions?** I13 (#660) beats the Minetti default on the
-   gentle grades of the owner's own runs, but it is display only (My paces, #663). Default: no;
-   predictions keep `l5.gainEquivalentM` until the curve has been watched for a season.
-8. **A route trace (a map of the run)?** Positions are dropped at import, and a trace would need a
-   stored track, privacy trimming and a drawing with no tile service; it changes no training
-   decision that the elevation and pace charts do not already carry. Default: not built.
+6. **The design direction.** A design sweep (2026-11-08) proposed three directions with mock-ups
+   and recommends Contour (map paper, a spruce accent, terrain in sienna, a condensed type, the
+   course profile as the race page's hero) over Notebook and Timetable, with six open questions
+   (direction, accent, illustrations by default, a printable race card, a race-day view, art drawn
+   from the runner's data). Default: the present look; the illustrations in use (#668, draft) wait
+   for the answer and are redrawn to the chosen standards.
+7. **Terrain and map data for elevation correction and trail versus road** (M1c, M1d): either send
+   sampled points of each run to Open-Meteo's elevation service and OpenStreetMap behind a switch
+   that starts off, or download terrain and map data for the home area once and keep it (no
+   per-run request; a new library and about 100 MB). Recommended: the local copy. Default: neither
+   is built; elevation is the watch's.
+8. **Critical speed from more than 90 days of training** (A6, #673): the window is grade D.
+   Default: 90 days.
 9. **Edit from the activity list.** Each row is one link to the activity's page since #654, and
    editing happens there. Default: as is.
-10. **Illustrations** (#665): line drawings in empty and failed states behind Settings, Appearance,
-    Illustrations (off by default). The owner tries it on and off and keeps it, drops it, or makes
-    it the default.
+
+Answered on 2026-11-08: wrist heart rate stays the default with per-run quality checks (HQ1, #672;
+a chest strap is an option later); the personal grade curve feeds predictions a little (D2-5,
+#670); a map of each run is built (M1a #669, M1b #674); training load is drawn from data already
+stored (TL1). The illustrations (#665) were on but invisible on a full log: see item 6.
 
 ## Where things stand
+
+- **Tracks, predictions, export and load (2026-11-08, #669 to #676).** Each reviewed by a Sonnet
+  adversarial panel and fixed before merge:
+  - Run tracks (#669): a simplified route per run from FIT, GPX, TCX and the intervals.icu latlng
+    stream, with a backfill job and the first and last 200 m hidden by default. The map (#674): the
+    route over OpenStreetMap tiles behind a per-device switch, linked to the charts; the README
+    says what the tiles reveal.
+  - Predictions for a runner with no race (#673, rule A6): critical speed from the fastest stretches
+    of training runs, a floor, so times read "at most" and the range widens toward faster.
+    `PARAMS_VERSION` `2026-11-08.4`.
+  - The personal climb in predictions (#670, rule L5): an asymmetric blend capped at 3 %, the plan
+    kept on the default.
+  - Wrist heart-rate checks (#672, rule B2): cadence lock, spikes and dropouts per run, with a
+    backfill job; hilly runs that pass can count on Trends.
+  - Download all your data (#671): one streamed ZIP behind a one-time link, every table placed and
+    no secret read.
+  - Climbing and intensity per week on Trends (#676, rule A12): weekly gain, and run time by
+    heart-rate zone with time without usable heart rate shown apart; no ratio and no target.
+  - A weekday trap (#675): two e2e specs failed on Mondays and Tuesdays (UTC), and one exposed feel
+    chips that overflowed at 150 % text.
 
 - **The elite build list, the UI critique batches and the data track (2026-11-07, #648 to #666).**
   Merged in one day, each reviewed by a Sonnet adversarial panel and fixed before merge:
