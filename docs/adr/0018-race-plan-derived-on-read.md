@@ -157,3 +157,15 @@ It is read-only and derived like the rest of the plan.
   `PARAMS_VERSION` raised, no plan digest change.
 - **Not elsewhere.** The block is on the Race page only. It is not in the Today summary, the race card,
   the watch files, the feed or the brief (`racePlanIsolation.test.ts`).
+
+## Addendum: course silhouette on Today (task E, 2026-11-09)
+
+- **One more reader of the checkpoints.** `loadRaceCourse` (`server/services/racePlan.ts`, memo
+  `race.course`, by data version) turns the runner's course points into a coarse relative-elevation
+  profile (`courseSilhouettePoints`) for the silhouette under Today's countdown. It is not part of the
+  plan, so it serves any goal class, and it travels in the `/api/today` payload as `TodayRace.course`,
+  which the offline shell already keeps. A climb or descent the rows leave out is spread over the legs
+  without a figure by distance (`spreadOverUnentered`, the rule the arrival ranges use).
+- **Not elsewhere.** The profile is drawn on Today only, as a decorative drawing. It is not on the
+  watch, the feed or the brief (`racePlanIsolation.test.ts` names `courseSilhouette` and
+  `loadRaceCourse` in its delivery guard).

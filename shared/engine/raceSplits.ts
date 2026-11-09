@@ -11,6 +11,7 @@
 // Pure: no clock, no I/O. Every number comes from `P`.
 import type { SupportLevel } from '../types.ts'
 import type { ClimbBlend } from './types.ts'
+import { spreadOverUnentered } from './legSpread.ts'
 import { clockAt, type RaceClock } from './raceClock.ts'
 import { P } from './params/index.ts'
 
@@ -145,11 +146,11 @@ export function splitsFor(input: SplitsInput): RaceSplits | null {
 
   const courseGainKnown = input.courseGainM > 0
   const enteredSum = segments.reduce((sum, s) => sum + (s.entered ?? 0), 0)
-  const leftOver = courseGainKnown ? Math.max(0, input.courseGainM - enteredSum) : 0
-  const unenteredM = segments.reduce((sum, s) => sum + (s.entered === null ? s.segmentM : 0), 0)
-  const spread = leftOver * P.r1.unenteredClimbShare.value
-  const gains = segments.map((s) =>
-    s.entered !== null ? s.entered : unenteredM > 0 ? (spread * s.segmentM) / unenteredM : 0,
+  const gains = spreadOverUnentered(
+    segments.map((s) => s.entered),
+    segments.map((s) => s.segmentM),
+    input.courseGainM,
+    P.r1.unenteredClimbShare.value,
   )
 
   const gainEquivalentM = input.climb?.usedM ?? P.l5.gainEquivalentM.value

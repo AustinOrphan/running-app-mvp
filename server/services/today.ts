@@ -158,13 +158,16 @@ function nextSession(sessions: readonly PlanSessionView[], date: string): PlanSe
 async function raceBlock(
   context: AthleteContext,
   date: string,
-  course: Promise<TodayRace['course']>,
+  read: { deps: Deps; userId: string; today: string },
 ): Promise<TodayRace | null> {
   const goal = context.goal
   if (goal === null) return null
   const daysToRace = daysBetween(date, goal.targetDate)
   if (daysToRace < 0) return null
-  const prediction = await context.prediction(goal.id)
+  const [prediction, course] = await Promise.all([
+    context.prediction(goal.id),
+    loadRaceCourse(read.deps, { userId: read.userId, today: read.today }),
+  ])
   return {
     goalId: goal.id,
     name: goal.name,
@@ -185,7 +188,7 @@ async function raceBlock(
               : { trainingSince: prediction.trainingSince }),
           },
     range: goal.distanceM === null ? null : rangeLabel({ distanceM: goal.distanceM }),
-    course: await course,
+    course,
   }
 }
 
@@ -368,7 +371,7 @@ export async function todayView(
       )
 
   const [race, health, slots] = await Promise.all([
-    raceBlock(context, date, loadRaceCourse(deps, { userId, today })),
+    raceBlock(context, date, { deps, userId, today }),
     todayHealth({ deps, userId, date, context }),
     buildSlots({ deps, userId, date, today, preview, context, forecast }),
   ])

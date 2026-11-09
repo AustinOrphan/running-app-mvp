@@ -2,16 +2,21 @@
 // points (`RaceCheckpoint`) carry the climb and descent of each leg, not the track, so the profile
 // is coarse: a relative elevation at each point, drawn as a smooth curve. Pure functions only; the
 // words that go with the drawing are the countdown's own sentence.
+import { spreadOverUnentered } from '../engine/legSpread.ts'
 import type { CourseSilhouettePoint, RaceCheckpointRow } from '../types.ts'
 
 /** The smallest vertical span the drawing is scaled to, in metres: a gentle course stays gentle. */
 export const MIN_SPAN_M = 150
 
 /**
- * The course as relative elevations: the start at 0, each point at the net of the legs before it,
- * and the finish at the course's own net (ascent less descent) when the goal states both, else at
- * the last point. Null when no point carries a climb or a descent, or the line is flat: there is
- * nothing to draw, and the page then shows no silhouette.
+ * The course as relative elevations, net per leg: the start at 0, and at each point the climb less
+ * the descent of every leg up to it. A leg's climb and descent are the runner's where the row
+ * names them; otherwise they are the course ascent and descent left after the entered rows, spread
+ * over the legs without a figure by distance (`spreadOverUnentered`, the rule the arrival ranges
+ * use), and 0 when the goal states no total. The finish is the end of the last leg, so a course
+ * with gaps in its rows is not forced to a figure the rows do not reach. Null when no row carries a
+ * climb or a descent, or the line is flat: there is nothing to draw, and the page then shows no
+ * silhouette.
  */
 export function courseSilhouettePoints(
   checkpoints: readonly RaceCheckpointRow[],
@@ -23,15 +28,16 @@ export function courseSilhouettePoints(
     .filter((row) => row.distanceM > 0 && row.distanceM < total)
     .sort((a, b) => a.distanceM - b.distanceM)
   if (!rows.some((row) => row.gainM !== null || row.lossM !== null)) return null
+  const stops = [...rows.map((row) => row.distanceM), total]
+  const legM = stops.map((distanceM, i) => distanceM - (stops[i - 1] ?? 0))
+  const gains = spreadOverUnentered([...rows.map((row) => row.gainM), null], legM, course.gainM)
+  const losses = spreadOverUnentered([...rows.map((row) => row.lossM), null], legM, course.lossM)
   const points: CourseSilhouettePoint[] = [{ distanceM: 0, relM: 0 }]
   let relM = 0
-  for (const row of rows) {
-    relM += (row.gainM ?? 0) - (row.lossM ?? 0)
-    points.push({ distanceM: row.distanceM, relM })
-  }
-  const finishM =
-    course.gainM !== null && course.lossM !== null ? course.gainM - course.lossM : relM
-  points.push({ distanceM: total, relM: finishM })
+  stops.forEach((distanceM, i) => {
+    relM += (gains[i] ?? 0) - (losses[i] ?? 0)
+    points.push({ distanceM, relM })
+  })
   const levels = points.map((p) => p.relM)
   return Math.max(...levels) - Math.min(...levels) > 0 ? points : null
 }

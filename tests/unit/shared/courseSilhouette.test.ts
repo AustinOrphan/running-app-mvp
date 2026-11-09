@@ -24,8 +24,9 @@ function curveYs(line: string): number[] {
 }
 
 describe('courseSilhouettePoints', () => {
-  test('accumulates the net of each leg and ends at the course net', () => {
+  test('accumulates the net of each leg, the last leg taking what the course still has', () => {
     const points = courseSilhouettePoints([row(20_000, 500, 100), row(35_000, 100, 300)], course)
+    // Last leg (15 km): climb 1000 - 600 = 400, descent 800 - 400 = 400, net 0.
     expect(points).toEqual([
       { distanceM: 0, relM: 0 },
       { distanceM: 20_000, relM: 400 },
@@ -34,17 +35,55 @@ describe('courseSilhouettePoints', () => {
     ])
   })
 
-  test('ends at the last point when the goal states no ascent and descent', () => {
+  test('with gain-only rows the descent is spread by distance, not read as zero', () => {
+    const points = courseSilhouettePoints([row(10_000, 300, null), row(30_000, 100, null)], {
+      distanceM: 50_000,
+      gainM: 700,
+      lossM: 500,
+    })
+    // Legs 10, 20, 20 km. Climb 300, 100, then 300 left for the last leg. Descent spread 500
+    // over 50 km: 100, 200, 200.
+    expect(points?.map((p) => Math.round(p.relM))).toEqual([0, 200, 100, 200])
+  })
+
+  test('with partial rows only the unentered legs share what the rows leave', () => {
+    const points = courseSilhouettePoints([row(10_000, 400, 0), row(30_000, null, null)], {
+      distanceM: 50_000,
+      gainM: 800,
+      lossM: 400,
+    })
+    // Climb: 400 entered, 400 over the 40 km of the other two legs; descent: 0 entered on the
+    // first leg, 400 over the same 40 km.
+    expect(points?.map((p) => Math.round(p.relM))).toEqual([0, 400, 400, 400])
+  })
+
+  test('without goal totals the unentered legs are flat and the finish is the last row', () => {
     const points = courseSilhouettePoints([row(20_000, 500, 100)], {
       distanceM: 50_000,
       gainM: null,
       lossM: null,
     })
-    expect(points?.at(-1)).toEqual({ distanceM: 50_000, relM: 400 })
+    expect(points).toEqual([
+      { distanceM: 0, relM: 0 },
+      { distanceM: 20_000, relM: 400 },
+      { distanceM: 50_000, relM: 400 },
+    ])
   })
 
-  test('treats a missing leg figure as no change and sorts by distance', () => {
-    const points = courseSilhouettePoints([row(30_000, null, 100), row(10_000, 300, null)], course)
+  test('a net-zero loop with full rows ends where it began and still has a profile', () => {
+    const points = courseSilhouettePoints(
+      [row(10_000, 300, 0), row(25_000, 0, 300), row(40_000, 200, 0)],
+      { distanceM: 50_000, gainM: 500, lossM: 500 },
+    )
+    expect(points?.map((p) => p.relM)).toEqual([0, 300, 0, 200, 0])
+  })
+
+  test('sorts by distance', () => {
+    const points = courseSilhouettePoints([row(30_000, null, 100), row(10_000, 300, null)], {
+      distanceM: 50_000,
+      gainM: null,
+      lossM: null,
+    })
     expect(points?.map((p) => p.relM)).toEqual([0, 300, 200, 200])
   })
 
