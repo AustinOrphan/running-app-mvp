@@ -79,6 +79,17 @@ its build runs `prisma migrate deploy` as a smoke test.
   (`server/services/wristItems.ts`), for the Plan page, the settings, Today's `watch` slot and the
   health note about tomorrow's run alike; `WRIST_CHANNEL` there is the one place the channel name
   is written.
+- The Watched folder (`folder`, F1, decided 2026-11-09) is for the install owner only (`isInstallOwner`,
+  `server/installOwner.ts`: the oldest user by `createdAt`, then `id`): for any other account the
+  `/api/integrations/folder` routes answer 404, the integrations list omits `folder`, and
+  `scanFolderIntegration` and `runFolderJob` skip the row and record nothing. The server reads one
+  root, `/import`, through `Deps.folderRoot` (read at each call, default `FOLDER_ROOT`; tests point
+  it at a temporary directory) and no environment variable; the card is a switch with no path, a
+  row's stored `path` is ignored, and `resolveFolderRoot` gives one message
+  (`sync.msg.folder-unreadable`) for every failure, on the route and in `lastError`. Archives are
+  unpacked by fflate's streaming `Gunzip` and `Unzip` under `FOLDER_LIMITS` (unpacked bytes per
+  file, ZIP members, new files and bytes per scan and user); the browser upload unpacks in the
+  browser, so no server route decompresses.
 - A provider returns `ParsedActivity` and `WellnessInput` values; it never writes to the database.
   `server/services/activityStore.ts` is the only writer of imported activities, and
   `server/services/sync.ts` drives pull providers.

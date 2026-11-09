@@ -1,17 +1,16 @@
-import { stat } from 'node:fs/promises'
-import { isAbsolute, resolve } from 'node:path'
 import { Router } from 'express'
 import { z } from 'zod'
 import type { Deps } from '../app.ts'
 import { SecretError, hashToken, newToken } from '../crypto.ts'
 import type { Integration } from '../db.ts'
 import { conflict, notFound, parse, validationError } from '../errors.ts'
+import { installOwnerId, isInstallOwner } from '../installOwner.ts'
 import { createLogger } from '../logger.ts'
 import { signState, verifyState } from '../providers/oauthState.ts'
 import { PROVIDERS, getProvider } from '../providers/registry.ts'
 import { authorizeUrl, exchangeCode, type StravaConfig } from '../providers/strava.ts'
 import { toIntegrationStatus } from '../serialize.ts'
-import { scanFolderIntegration } from '../services/folder.ts'
+import { resolveFolderRoot, scanFolderIntegration } from '../services/folder.ts'
 import { prepareDisconnect, resetForNewAthlete } from '../services/publish.ts'
 import {
   SECRET_CHANGED,
@@ -57,7 +56,8 @@ const runsQuery = z.object({
 /** `?removeSent=true` also takes the sessions the app sent off the provider's calendar (ADR 0008). */
 const disconnectQuery = z.strictObject({ removeSent: z.enum(['true', 'false']).optional() })
 
-const folderBody = z.object({ path: z.string().trim().min(1, 'Enter the folder path.') }).strict()
+/** The Watched folder has nothing to set: the server reads its one import folder. */
+const folderBody = z.object({}).strict()
 
 function callbackPath(provider: string): string {
   return `/api/integrations/${provider}/callback`
@@ -111,14 +111,25 @@ export function integrationsRouter(deps: Deps): Router {
     return `${base}${callbackPath(provider)}`
   }
 
+  // The Watched folder reaches the host's disk, so only the install owner may use it (F1). Anyone
+  // else gets what an unknown provider gets, whatever the route and whatever a stale row says.
+  router.use('/folder', async (req, _res, next) => {
+    if (await isInstallOwner(prisma, req.userId)) {
+      next()
+      return
+    }
+    next(notFound('Unknown provider: folder'))
+  })
+
   router.get('/', async (req, res) => {
     const rows = await prisma.integration.findMany({ where: { userId: req.userId } })
     const byProvider = new Map<string, Integration>()
     for (const row of rows) byProvider.set(row.provider, await checked(row))
+    const owner = (await installOwnerId(prisma)) === req.userId
     res.json(
-      Object.values(PROVIDERS).map(({ info }) =>
-        toIntegrationStatus(byProvider.get(info.key) ?? null, info),
-      ),
+      Object.values(PROVIDERS)
+        .filter(({ info }) => owner || info.key !== 'folder')
+        .map(({ info }) => toIntegrationStatus(byProvider.get(info.key) ?? null, info)),
     )
   })
 
@@ -132,13 +143,13 @@ export function integrationsRouter(deps: Deps): Router {
 
     let connected: { config: Record<string, unknown>; secret: Record<string, unknown> }
     if (provider === 'folder') {
-      const { path } = parse(folderBody, req.body)
-      if (!isAbsolute(path)) throw validationError('Enter an absolute folder path.')
-      const folder = resolve(path)
-      const info = await stat(folder).catch(() => null)
-      if (!info) throw validationError('That folder does not exist on the server.')
-      if (!info.isDirectory()) throw validationError('That path is not a folder.')
-      connected = { config: { path: folder }, secret: {} }
+      parse(folderBody, req.body)
+      try {
+        await resolveFolderRoot(deps)
+      } catch (error) {
+        throw validationError(error instanceof Error ? error.message : safeMessage(error))
+      }
+      connected = { config: {}, secret: {} }
     } else if (registered.pull) {
       let current: ReturnType<typeof openIntegration> = { secret: {}, config: {} }
       if (existing) {

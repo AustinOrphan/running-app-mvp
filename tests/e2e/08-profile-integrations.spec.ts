@@ -68,13 +68,13 @@ test('the integrations page lists every provider without calling out to any of t
   await expect(garmin.getByText('Experimental')).toBeVisible()
   await expect(page.getByText('Experimental', { exact: true })).toHaveCount(1)
 
-  // Each pull or folder provider offers its connect form straight away.
+  // Each pull provider offers its connect form straight away; the folder is a switch.
   const intervals = page.getByRole('region', { name: 'intervals.icu' })
   await expect(intervals.getByLabel('API key')).toBeVisible()
   await expect(page.getByRole('region', { name: 'Strava' }).getByLabel('Client id')).toBeVisible()
   await expect(
-    page.getByRole('region', { name: 'Watched folder' }).getByLabel('Folder path'),
-  ).toBeVisible()
+    page.getByRole('region', { name: 'Watched folder' }).getByLabel('Scan the import folder'),
+  ).not.toBeChecked()
 
   // The page itself requests nothing outside the app's own origin.
   expect(offOrigin).toEqual([])

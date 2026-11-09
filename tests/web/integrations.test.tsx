@@ -572,33 +572,36 @@ describe('IntegrationsPage', () => {
     expect(within(apple).getByRole('button', { name: 'Create new push token' })).toBeInTheDocument()
   })
 
-  test('Watched folder connects with a path', async () => {
+  test('Watched folder is a switch with no path to type', async () => {
     const user = userEvent.setup()
     const { calls } = mockApi(
       routes(allStatuses(), {
-        'PUT /api/integrations/folder': () =>
-          status('folder', { status: 'connected', config: { path: '/data/inbox' } }),
+        'PUT /api/integrations/folder': () => status('folder', { status: 'connected', config: {} }),
       }),
     )
     renderWithProviders(<IntegrationsPage />)
 
     const folder = await screen.findByRole('region', { name: 'Watched folder' })
-    await user.type(within(folder).getByLabelText('Folder path'), '/data/inbox')
-    await user.click(within(folder).getByRole('button', { name: 'Connect' }))
+    expect(within(folder).queryByLabelText('Folder path')).not.toBeInTheDocument()
+    const toggle = within(folder).getByRole('checkbox', { name: 'Scan the import folder' })
+    expect(toggle).not.toBeChecked()
+    await user.click(toggle)
 
     await waitFor(() => {
-      expect(calls.find((c) => c.method === 'PUT')?.body).toEqual({ path: '/data/inbox' })
+      expect(calls.find((c) => c.method === 'PUT')?.body).toEqual({})
     })
   })
 
-  test('a connected folder shows its path', async () => {
+  test('a connected folder shows the switch on and no path', async () => {
     mockApi(
       routes(allStatuses({ folder: { status: 'connected', config: { path: '/data/inbox' } } })),
     )
     renderWithProviders(<IntegrationsPage />)
 
     const folder = await screen.findByRole('region', { name: 'Watched folder' })
-    expect(within(folder).getByText('/data/inbox')).toBeInTheDocument()
+    expect(within(folder).getByRole('checkbox', { name: 'Scan the import folder' })).toBeChecked()
+    // a path an older row stored is not shown: the server ignores it
+    expect(within(folder).queryByText('/data/inbox')).not.toBeInTheDocument()
     // the sentence names the interval the scheduler runs the scan at
     expect(
       within(folder).getByText(
@@ -606,6 +609,22 @@ describe('IntegrationsPage', () => {
       ),
     ).toBeInTheDocument()
     expectCleanCopy(folder)
+  })
+
+  test('turning the folder switch off disconnects it', async () => {
+    const user = userEvent.setup()
+    const { calls } = mockApi(
+      routes(allStatuses({ folder: { status: 'connected', config: {} } }), {
+        'DELETE /api/integrations/folder': () => ({ status: 204, body: undefined }),
+      }),
+    )
+    renderWithProviders(<IntegrationsPage />)
+
+    const folder = await screen.findByRole('region', { name: 'Watched folder' })
+    await user.click(within(folder).getByRole('checkbox', { name: 'Scan the import folder' }))
+    await waitFor(() => {
+      expect(calls.some((c) => c.method === 'DELETE')).toBe(true)
+    })
   })
 
   test('announces a finished Strava authorisation or its error from the address', async () => {

@@ -57,6 +57,11 @@ export interface Deps {
    * each call too, so that none reaches the network and none stubs the global.
    */
   fetch?: typeof fetch
+  /**
+   * The one directory the Watched folder reads (default `/import`), read at each call; tests point
+   * it at a temporary directory. No environment variable sets it.
+   */
+  folderRoot?: string
 }
 
 const REQUEST_ID = /^[\w.-]{1,64}$/

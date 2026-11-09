@@ -1,8 +1,9 @@
 import { createHash } from 'node:crypto'
-import { readdir, readFile, stat } from 'node:fs/promises'
+import { lstat, readdir, readFile, realpath, stat } from 'node:fs/promises'
 import { join } from 'node:path'
-import { gunzipSync, unzipSync } from 'fflate'
+import { Gunzip, Unzip, UnzipInflate } from 'fflate'
 import type { Deps } from '../app.ts'
+import { isInstallOwner } from '../installOwner.ts'
 import { loadProfile } from '../serialize.ts'
 import { parseActivityFile } from '../../shared/importers/files/index.ts'
 import type { ImportReportRow, SyncFailure, SyncTrigger } from '../../shared/types.ts'
@@ -14,11 +15,44 @@ const ACTIVITY_FILE = /\.(fit|gpx|tcx)$/i
 const MAX_DEPTH = 3
 /** Larger files (and archive members) are reported and skipped. */
 const MAX_FILE_BYTES = 200 * 1024 * 1024
+/** The one directory the server reads (F1, decided 2026-11-09); tests inject another through `Deps.folderRoot`. */
+export const FOLDER_ROOT = '/import'
+
+/**
+ * Data-preparation bounds of one scan, not engine Params. A file that passes a per-file bound is
+ * reported as invalid; a bound on the whole scan only defers the rest to the next tick.
+ */
+export interface FolderLimits {
+  /** Bytes one file may unpack to in total, nested archives included: stops a gzip or ZIP bomb. */
+  maxUnpackedBytes: number
+  /** Entries one ZIP may list: stops an archive of millions of empty members. */
+  maxArchiveMembers: number
+  /** New top-level files taken per scan and user, so one tick stays short for every user. */
+  maxScanFiles: number
+  /** Bytes of new top-level files taken per scan and user. */
+  maxScanBytes: number
+}
+
+export const FOLDER_LIMITS: FolderLimits = {
+  maxUnpackedBytes: 256 * 1024 * 1024,
+  maxArchiveMembers: 10_000,
+  maxScanFiles: 100,
+  maxScanBytes: 512 * 1024 * 1024,
+}
+
+/** Compressed bytes fed to a decompressor at once; bounds one step's output to about 1000 times this. */
+const FEED_BYTES = 16 * 1024
 /** A file changed within this window may still be written by a sync tool; the next scan takes it. */
 const SETTLE_MS = 5_000
 const MAX_REPORT_ROWS = 100
 
 type Format = 'fit' | 'gpx' | 'tcx'
+
+interface ScanOptions {
+  settleMs?: number
+  /** Overrides of `FOLDER_LIMITS`, for tests. */
+  limits?: Partial<FolderLimits>
+}
 
 interface Tally {
   stored: number
@@ -31,6 +65,32 @@ interface Tally {
   /** Failures that are not the file's fault (for example a database error); retried next scan. */
   errors: string[]
   batchId: string | null
+}
+
+/** The unpacked bytes one top-level file may still produce, shared by every archive inside it. */
+interface Budget {
+  left: number
+  limits: FolderLimits
+}
+
+/** An archive that breaks a bound; reported like an unreadable one. */
+class ArchiveLimitError extends Error {}
+
+/**
+ * The root the server reads, as a real directory path. Every failure (missing, not a directory,
+ * unreadable, the root itself a symbolic link) gives the same message, so that nothing tells which
+ * paths exist on the host. The root is `Deps.folderRoot` (default `/import`), read at each call.
+ */
+export async function resolveFolderRoot(deps: Deps): Promise<string> {
+  const root = deps.folderRoot ?? FOLDER_ROOT
+  try {
+    if ((await lstat(root)).isSymbolicLink()) throw new Error('symbolic link')
+    const real = await realpath(root)
+    if (!(await stat(real)).isDirectory()) throw new Error('not a directory')
+    return real
+  } catch {
+    throw new Error(syncMessage('sync.msg.folder-unreadable', {}))
+  }
 }
 
 function formatOf(name: string): Format | null {
@@ -60,26 +120,90 @@ async function* walk(dir: string, depth: number): AsyncGenerator<string> {
   }
 }
 
-/** The files inside a ZIP or gzip; a plain activity file is its own single entry. */
+/** Feeds `bytes` to a streaming decompressor in small slices, so that its output arrives in small steps. */
+function feed(sink: { push(chunk: Uint8Array, final?: boolean): void }, bytes: Uint8Array): void {
+  if (bytes.length === 0) sink.push(bytes, true)
+  for (let at = 0; at < bytes.length; at += FEED_BYTES) {
+    sink.push(bytes.subarray(at, at + FEED_BYTES), at + FEED_BYTES >= bytes.length)
+  }
+}
+
+function concat(chunks: Uint8Array[], size: number): Uint8Array {
+  const out = new Uint8Array(size)
+  let at = 0
+  for (const chunk of chunks) {
+    out.set(chunk, at)
+    at += chunk.length
+  }
+  return out
+}
+
+/** Takes `n` unpacked bytes from the budget; throws once the file has unpacked past its bound. */
+function spend(budget: Budget, n: number): void {
+  budget.left -= n
+  if (budget.left < 0) {
+    const mb = Math.round(budget.limits.maxUnpackedBytes / (1024 * 1024))
+    throw new ArchiveLimitError(`unpacks to more than ${String(mb)} MB`)
+  }
+}
+
+/**
+ * The files inside a ZIP or gzip; a plain activity file is its own single entry. Unpacking is
+ * streamed and stops as soon as the unpacked bytes pass the budget or a member passes
+ * `MAX_FILE_BYTES`, whatever the archive's headers declare.
+ */
 function expand(
   name: string,
   bytes: Uint8Array,
+  budget: Budget,
 ): Array<{ name: string; bytes: Uint8Array }> | null {
   if (/\.gz$/i.test(name)) {
-    return [{ name: name.replace(/\.gz$/i, ''), bytes: gunzipSync(bytes) }]
+    const chunks: Uint8Array[] = []
+    let size = 0
+    const gunzip = new Gunzip((chunk) => {
+      spend(budget, chunk.length)
+      size += chunk.length
+      if (size > MAX_FILE_BYTES) throw new ArchiveLimitError('a file inside is larger than 200 MB')
+      chunks.push(chunk)
+    })
+    feed(gunzip, bytes)
+    return [{ name: name.replace(/\.gz$/i, ''), bytes: concat(chunks, size) }]
   }
   if (/\.zip$/i.test(name)) {
-    const files = unzipSync(bytes, {
-      filter: (file) =>
-        !file.name.endsWith('/') &&
-        !baseName(file.name).startsWith('.') &&
-        SCANNED.test(file.name) &&
-        file.originalSize <= MAX_FILE_BYTES,
+    const members: Array<{ name: string; bytes: Uint8Array }> = []
+    let listed = 0
+    const unzip = new Unzip((file) => {
+      listed += 1
+      if (listed > budget.limits.maxArchiveMembers) {
+        throw new ArchiveLimitError(
+          `more than ${String(budget.limits.maxArchiveMembers)} files inside`,
+        )
+      }
+      if (
+        file.name.endsWith('/') ||
+        baseName(file.name).startsWith('.') ||
+        !SCANNED.test(file.name) ||
+        (file.originalSize ?? 0) > MAX_FILE_BYTES
+      ) {
+        return
+      }
+      const chunks: Uint8Array[] = []
+      let size = 0
+      file.ondata = (error, chunk, final) => {
+        if (error) throw error
+        spend(budget, chunk.length)
+        size += chunk.length
+        if (size > MAX_FILE_BYTES) {
+          throw new ArchiveLimitError('a file inside is larger than 200 MB')
+        }
+        chunks.push(chunk)
+        if (final) members.push({ name: baseName(file.name), bytes: concat(chunks, size) })
+      }
+      file.start()
     })
-    return Object.entries(files).map(([entryName, data]) => ({
-      name: baseName(entryName),
-      bytes: data,
-    }))
+    unzip.register(UnzipInflate)
+    feed(unzip, bytes)
+    return members
   }
   return null
 }
@@ -154,6 +278,7 @@ async function ingest(
   timezone: string,
   tally: Tally,
   depth: number,
+  budget: Budget,
 ): Promise<string | null> {
   const sha = sha256(bytes)
   const known = await deps.prisma.importedFile.findUnique({
@@ -170,7 +295,7 @@ async function ingest(
     }
     let members: ReturnType<typeof expand>
     try {
-      members = expand(name, bytes)
+      members = expand(name, bytes, budget)
     } catch (error) {
       tally.invalid += 1
       note(tally, name, error instanceof Error ? error.message : 'unreadable archive')
@@ -190,6 +315,7 @@ async function ingest(
         timezone,
         tally,
         depth + 1,
+        budget,
       )
       if (id !== null) {
         first ??= id
@@ -240,22 +366,18 @@ async function ingest(
 }
 
 /**
- * Imports the files in `path` that `ImportedFile` has not seen and returns what the scan found,
+ * Imports the files in `path` (the resolved root) that `ImportedFile` has not seen and returns what the scan found,
  * including the failures that are not a file's fault. Throws only when the folder cannot be read.
  * The folder is read-only to the app. FIT, GPX and TCX files are read directly, `.gz` and
  * `.zip` files are opened (archives inside archives too, to a depth of three), and a file is remembered by the SHA-256 of its
  * bytes, so a moved or renamed copy is not imported twice. Files changed in the last few seconds
  * are left for the next scan, in case a sync tool is still writing them. One batch (source
- * `folder`) is recorded per scan that touched at least one new activity file.
+ * `folder`) is recorded per scan that touched at least one new activity file. A scan takes at most
+ * `maxScanFiles` new files and `maxScanBytes` bytes of them per user; the rest wait for the next
+ * scan and nothing is lost.
  */
-async function scan(
-  deps: Deps,
-  userId: string,
-  path: string,
-  opts: { settleMs?: number },
-): Promise<Tally> {
-  const info = await stat(path).catch(() => null)
-  if (!info?.isDirectory()) throw new Error(syncMessage('sync.msg.folder-unreadable', { path }))
+async function scan(deps: Deps, userId: string, path: string, opts: ScanOptions): Promise<Tally> {
+  const limits = { ...FOLDER_LIMITS, ...opts.limits }
   const { timezone } = await loadProfile(deps.prisma, userId)
   const settleMs = opts.settleMs ?? SETTLE_MS
   const tally: Tally = {
@@ -269,7 +391,10 @@ async function scan(
     batchId: null,
   }
 
+  let takenFiles = 0
+  let takenBytes = 0
   for await (const file of walk(path, 0)) {
+    if (takenFiles >= limits.maxScanFiles || takenBytes >= limits.maxScanBytes) break
     try {
       const details = await stat(file)
       if (details.size > MAX_FILE_BYTES) {
@@ -278,7 +403,16 @@ async function scan(
       }
       if (Date.now() - details.mtimeMs < settleMs) continue
       const bytes = new Uint8Array(await readFile(file))
-      await ingest(deps, userId, path, file, bytes, timezone, tally, 0)
+      const seenBefore = tally.seen
+      await ingest(deps, userId, path, file, bytes, timezone, tally, 0, {
+        left: limits.maxUnpackedBytes,
+        limits,
+      })
+      // Only a file `ImportedFile` had not seen counts toward the bounds of the scan.
+      if (tally.seen > seenBefore) {
+        takenFiles += 1
+        takenBytes += bytes.length
+      }
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error)
       tally.errors.push(`${baseName(file)}: ${reason}`)
@@ -318,29 +452,29 @@ function failedError(tally: Tally): Error | null {
 }
 
 /**
- * Imports the files in `path` that `ImportedFile` has not seen; returns how many activities were
- * stored (see `scan`).
+ * Imports the files in the root (`Deps.folderRoot`, default `/import`) that `ImportedFile` has not
+ * seen; returns how many activities were stored (see `scan`).
  *
- * Throws when the folder cannot be read, or, after finishing the rest, when a file failed for a
+ * Throws when the root cannot be read, or, after finishing the rest, when a file failed for a
  * reason that is not its content (such as a database error).
  */
 export async function scanFolder(
   deps: Deps,
   userId: string,
-  path: string,
-  opts: { settleMs?: number } = {},
+  opts: ScanOptions = {},
 ): Promise<number> {
-  const tally = await scan(deps, userId, path, opts)
+  const tally = await scan(deps, userId, await resolveFolderRoot(deps), opts)
   const failure = failedError(tally)
   if (failure) throw failure
   return tally.stored
 }
 
 /**
- * Scans the folder of a user's `folder` integration, records the outcome on the row and writes one
- * `SyncRun`, except for a scheduled scan that found nothing while the last run ended ok (see
- * `recordSyncRunUnlessIdle`). Does nothing when the integration is missing; returns the number of
- * activities stored.
+ * Scans the import root for a user's `folder` integration, records the outcome on the row and writes
+ * one `SyncRun`, except for a scheduled scan that found nothing while the last run ended ok (see
+ * `recordSyncRunUnlessIdle`). Does nothing when the integration is missing or the user is not the
+ * install owner (F1); the path an older row stored is ignored. Returns the number of activities
+ * stored.
  */
 export async function scanFolderIntegration(
   deps: Deps,
@@ -351,23 +485,13 @@ export async function scanFolderIntegration(
   const row = await prisma.integration.findUnique({
     where: { userId_provider: { userId, provider: 'folder' } },
   })
-  if (!row) return 0
-  let path = ''
-  try {
-    const config: unknown = JSON.parse(row.config)
-    if (typeof config === 'object' && config !== null && 'path' in config) {
-      path = typeof config.path === 'string' ? config.path : ''
-    }
-  } catch {
-    // An unreadable config is reported below like a missing path.
-  }
+  if (!row || !(await isInstallOwner(prisma, userId))) return 0
 
   const startedAt = new Date()
   let tally: Tally | null = null
   let failure: Error | null = null
   try {
-    if (path === '') throw new Error(syncMessage('sync.msg.folder-none', {}))
-    tally = await scan(deps, userId, path, {})
+    tally = await scan(deps, userId, await resolveFolderRoot(deps), {})
     failure = failedError(tally)
   } catch (error) {
     failure = error instanceof Error ? error : new Error(String(error))

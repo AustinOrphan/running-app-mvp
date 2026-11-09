@@ -74,6 +74,11 @@ export const PAGE_TEMPLATES = {
   'integrations.token.copy-failed': tpl(
     'The token could not be copied. Select it and copy it by hand.',
   ),
+  // The Watched folder card: a switch for the server's one import folder (F1), no path to type.
+  'integrations.folder.switch': tpl('Scan the import folder', {}, { shape: 'label' }),
+  'integrations.folder.hint': tpl(
+    'FIT, GPX and TCX files in the server import folder, also inside ZIP and gzip files, are added to the log. The files stay where they are.',
+  ),
   'integrations.folder.interval': tpl('The folder is scanned every {minutes} minutes.', {
     minutes: 'count',
   }),

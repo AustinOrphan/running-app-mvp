@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import request from 'supertest'
@@ -168,31 +168,35 @@ describe('PUT /api/integrations/:provider', () => {
     )
   })
 
-  test('connects a watched folder that exists and rejects one that does not', async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'rl-folder-'))
+  test('connects the import folder when the root is a directory and refuses it otherwise', async () => {
+    const dir = realpathSync(mkdtempSync(join(tmpdir(), 'rl-folder-')))
     try {
-      const ok = await client(ctx, user).put('/api/integrations/folder').send({ path: dir })
+      ctx.folderRoot = dir
+      const ok = await client(ctx, user).put('/api/integrations/folder').send({})
       expect(ok.status).toBe(200)
-      expect(ok.body).toMatchObject({ status: 'connected', config: { path: dir } })
+      expect(ok.body).toMatchObject({ status: 'connected', config: {} })
 
-      const missing = await client(ctx, user)
-        .put('/api/integrations/folder')
-        .send({ path: join(dir, 'missing') })
+      // A path is not a setting any more.
+      const withPath = await client(ctx, user).put('/api/integrations/folder').send({ path: dir })
+      expect(withPath.status).toBe(400)
+
+      ctx.folderRoot = join(dir, 'missing')
+      const missing = await client(ctx, user).put('/api/integrations/folder').send({})
       expect(missing.status).toBe(400)
-      const relative = await client(ctx, user)
-        .put('/api/integrations/folder')
-        .send({ path: 'relative/dir' })
-      expect(relative.status).toBe(400)
     } finally {
+      delete ctx.folderRoot
       rmSync(dir, { recursive: true, force: true })
     }
   })
 
-  test('rejects a file where a folder is expected', async () => {
-    const res = await client(ctx, user)
-      .put('/api/integrations/folder')
-      .send({ path: join(process.cwd(), 'package.json') })
-    expect(res.status).toBe(400)
+  test('refuses a root that is a file', async () => {
+    ctx.folderRoot = join(process.cwd(), 'package.json')
+    try {
+      const res = await client(ctx, user).put('/api/integrations/folder').send({})
+      expect(res.status).toBe(400)
+    } finally {
+      delete ctx.folderRoot
+    }
   })
 })
 

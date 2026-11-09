@@ -10,6 +10,7 @@ import { PROVIDERS } from '../providers/registry.ts'
 import { backupDirectory, createBackup, pruneBackups } from '../services/backup.ts'
 import { generateBrief } from '../services/brief.ts'
 import { runNightlyMatching } from '../services/execution.ts'
+import { installOwnerId } from '../installOwner.ts'
 import { scanFolderIntegration } from '../services/folder.ts'
 import { replanActivePlan } from '../services/planEngine.ts'
 import { ensureWeeklyPrediction } from '../services/predictionLog.ts'
@@ -162,15 +163,18 @@ export async function runSyncJob(
 }
 
 /**
- * Scans the watched folder of every user who set one. Each scan writes its own `folder` run, so
- * the job adds no row of its own.
+ * Scans the import folder for the install owner when the owner turned it on (F1); the row of any
+ * other account is skipped and records nothing. Each scan writes its own `folder` run, so the job
+ * adds no row of its own.
  */
 export async function runFolderJob(deps: Deps, log?: Log): Promise<void> {
   const rows = await deps.prisma.integration.findMany({
     where: { provider: 'folder', status: { in: ['connected', 'error'] } },
     orderBy: { createdAt: 'asc' },
   })
+  const owner = await installOwnerId(deps.prisma)
   for (const row of rows) {
+    if (row.userId !== owner) continue
     try {
       await scanFolderIntegration(deps, row.userId, { trigger: 'schedule' })
     } catch (error) {
