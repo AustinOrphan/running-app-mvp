@@ -43,6 +43,20 @@
   }
 }
 
+/* A raised text size shrinks the container in rem (312 px is 13rem at 150%): "As expected" and
+   "Much easier" no longer fit a third of it, so the chips take two across, then one. */
+@container (max-width: 16rem) {
+  .feelChips {
+    --cols: 2;
+  }
+}
+
+@container (max-width: 11rem) {
+  .feelChips {
+    --cols: 1;
+  }
+}
+
 .chip {
   flex: 0 0 calc((100% - (var(--cols) - 1) * var(--gap)) / var(--cols));
   min-width: 0;
