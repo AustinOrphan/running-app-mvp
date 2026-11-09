@@ -136,7 +136,7 @@ paper, migration or environment variable, and `PARAMS_VERSION` is unchanged.
   2026-11-07), and 26 windows of eight weeks reach back about 100 weeks plus eight, so the read cannot
   come from the snapshot. It is one more exception to "no new code queries that window", beside the
   wellness loader and `loadActivityCores`, and `tests/api/trendsRuns.test.ts` pins its column list.
-- **Fact:** the owner's history had 74 of 144 runs with a stream in the last 12 months (counted
+- **Fact:** about half the runner's runs of the last 12 months had a stream (counted
   2026-11-07), so both panels will often be sparse; each says what would fill it.
 - **Rule:** rule B2 does not trust wrist heart rate on hills, so both panels take flat runs only
   (`hrModel.maxGainPerKm`).
@@ -182,9 +182,9 @@ Status: Accepted 2026-11-08 (#672)
 - **Fact:** a Fenix 5 had 13% MAPE on one trail run [navalta-2020-trail-running-hr]; a Crossref and
   Europe PMC search on 2026-11-08 found no study that validates a rescue of hilly wrist data or any of
   the ten numbers (evidence gap 33). The panels mark such runs.
-- **Fact:** on 76 stored runs of one runner, every FIT file lists the watch's own heart-rate sensor
+- **Fact:** on the runner's stored runs, every FIT file lists the watch's own heart-rate sensor
   (`device_type` `whr`, `source_type` `local`) and none an external one (read 2026-11-08), so every
-  source there is `wrist`; the same 7 hilly runs all pass, so the checks have not been scored against
+  source there is `wrist`; the hilly runs among them all pass, so the checks have not been scored against
   a strap.
 - **Fact:** every importer stores cadence in steps per minute (`fit.ts`, `gpx.ts`, `tcx.ts`, the
   provider modules, read 2026-11-08), so the lock check compares heart rate with the stored value only.
