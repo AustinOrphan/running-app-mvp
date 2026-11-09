@@ -690,7 +690,12 @@ describe('the axes, the table and the climb', () => {
         // the weeks read never answers
         const answer = globalThis.fetch
         vi.stubGlobal('fetch', (input: RequestInfo | URL, init?: RequestInit) =>
-          String(input).includes('/api/weeks')
+          (typeof input === 'string'
+            ? input
+            : input instanceof URL
+              ? input.href
+              : input.url
+          ).includes('/api/weeks')
             ? new Promise<Response>(() => {})
             : answer(input, init),
         )
