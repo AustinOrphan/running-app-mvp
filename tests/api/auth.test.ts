@@ -5,7 +5,7 @@ import { pino } from 'pino'
 import request from 'supertest'
 import { afterEach, describe, expect, test, vi } from 'vitest'
 import { setPasswordByEmail } from '../../server/auth/password.ts'
-import { createLoginLimiter } from '../../server/auth/rateLimit.ts'
+import { createSignInAccountLimiter } from '../../server/auth/rateLimit.ts'
 import { errorHandler } from '../../server/errors.ts'
 import { client, createTestCtx, seedUser, type TestCtx } from './helpers.ts'
 
@@ -227,36 +227,55 @@ test(
   SLOW,
 )
 
-describe('rate limit: 10 attempts per 15 minutes per IP', () => {
+describe('rate limits: failed sign-ins per account, looser per address', () => {
   const MINUTE = 60_000
+  const wrongLogin = (ctx: TestCtx, email = 'runner@example.com') =>
+    client(ctx).post('/api/auth/login').send({ email, password: 'wrong' })
+  const rightLogin = (ctx: TestCtx, email = 'runner@example.com') =>
+    client(ctx).post('/api/auth/login').send({ email, password: PASSWORD })
 
-  test('limiter unit test with a mocked clock', async () => {
+  test('account limiter unit test with a mocked clock: failures count, successes do not', async () => {
     vi.useFakeTimers({ toFake: ['Date'] })
     try {
+      const limiter = createSignInAccountLimiter()
       const app = express()
-      app.post('/login', createLoginLimiter(), (_req, res) => {
+      app.use(express.json())
+      app.post('/login', limiter.limit, (req, res) => {
+        const { email, password } = req.body as { email: string; password: string }
+        if (password !== 'right') {
+          res.sendStatus(401)
+          return
+        }
+        limiter.reset(email)
         res.sendStatus(204)
       })
       app.use(errorHandler(pino({ level: 'silent' })))
+      const attempt = (email: string, password: string) =>
+        request(app).post('/login').send({ email, password })
 
-      for (let attempt = 1; attempt <= 10; attempt++) {
-        expect((await request(app).post('/login')).status).toBe(204)
-      }
-      const blocked = await request(app).post('/login')
+      // Successes never count, however many.
+      for (let i = 0; i < 25; i++)
+        expect((await attempt('a@example.com', 'right')).status).toBe(204)
+
+      for (let i = 0; i < 10; i++) expect((await attempt('a@example.com', 'bad')).status).toBe(401)
+      const blocked = await attempt('a@example.com', 'bad')
       expect(blocked.status).toBe(429)
       expect(blocked.body).toMatchObject({
         error: { code: 'unauthorized', details: { retryAfterSec: 900 } },
       })
       expect(blocked.headers['retry-after']).toBe('900')
       expect(blocked.headers['ratelimit-policy']).toBe('10;w=900')
+      // The key is the lower-cased email: another case is the same account, another email is not.
+      expect((await attempt('A@Example.com', 'bad')).status).toBe(429)
+      expect((await attempt('b@example.com', 'bad')).status).toBe(401)
 
       vi.advanceTimersByTime(14 * MINUTE + 59_000)
-      const stillBlocked = await request(app).post('/login')
+      const stillBlocked = await attempt('a@example.com', 'bad')
       expect(stillBlocked.status).toBe(429)
       expect(stillBlocked.headers['retry-after']).toBe('1')
 
       vi.advanceTimersByTime(1_000)
-      expect((await request(app).post('/login')).status).toBe(204)
+      expect((await attempt('a@example.com', 'bad')).status).toBe(401)
     } finally {
       vi.useRealTimers()
     }
@@ -264,40 +283,120 @@ describe('rate limit: 10 attempts per 15 minutes per IP', () => {
 
   test('each limiter keeps its own counter', async () => {
     const make = () => {
+      const limiter = createSignInAccountLimiter({ max: 1 })
       const app = express()
-      app.post('/login', createLoginLimiter({ max: 1 }), (_req, res) => {
-        res.sendStatus(204)
+      app.use(express.json())
+      app.post('/login', limiter.limit, (_req, res) => {
+        res.sendStatus(401)
       })
       app.use(errorHandler(pino({ level: 'silent' })))
       return app
     }
+    const send = (app: express.Express) =>
+      request(app).post('/login').send({ email: 'a@example.com' })
     const first = make()
-    expect((await request(first).post('/login')).status).toBe(204)
-    expect((await request(first).post('/login')).status).toBe(429)
-    expect((await request(make()).post('/login')).status).toBe(204)
+    expect((await send(first)).status).toBe(401)
+    expect((await send(first)).status).toBe(429)
+    expect((await send(make())).status).toBe(401)
   })
 
-  test('POST /api/setup shares the sign-in budget', async () => {
-    const ctx = await ctxFor({ allowRegistration: true })
-    for (let i = 0; i < 10; i++) {
-      await client(ctx).post('/api/setup').send({})
-    }
-    const res = await client(ctx).post('/api/setup').send(setupBody())
-    expect(res.status).toBe(429)
-  })
-
-  test('integration: the 11th bad login is 429', async () => {
+  test('integration: the 11th bad login for an account is 429', async () => {
     const ctx = await ctxFor()
     await seedUser(ctx)
-    const attempt = () =>
-      client(ctx).post('/api/auth/login').send({ email: 'runner@example.com', password: 'wrong' })
     for (let i = 0; i < 10; i++) {
-      expect((await attempt()).status).toBe(401)
+      expect((await wrongLogin(ctx)).status).toBe(401)
     }
-    const res = await attempt()
+    const res = await wrongLogin(ctx)
     expect(res.status).toBe(429)
     expect(res.body).toMatchObject({ error: { code: 'unauthorized' } })
     expect(res.headers['retry-after']).toBeTruthy()
+    // Blocked means blocked: the right password does not get past it either.
+    expect((await rightLogin(ctx)).status).toBe(429)
+    // Another case of the same email is the same account.
+    expect((await wrongLogin(ctx, 'RUNNER@example.com')).status).toBe(429)
+  })
+
+  test('two users behind one address: one locked out does not lock out the other', async () => {
+    const ctx = await ctxFor()
+    await seedUser(ctx, { email: 'alice@example.com', password: PASSWORD })
+    await seedUser(ctx, { email: 'bob@example.com', password: PASSWORD })
+    for (let i = 0; i < 10; i++) {
+      expect((await wrongLogin(ctx, 'alice@example.com')).status).toBe(401)
+    }
+    expect((await wrongLogin(ctx, 'alice@example.com')).status).toBe(429)
+    expect((await rightLogin(ctx, 'bob@example.com')).status).toBe(200)
+    expect((await wrongLogin(ctx, 'bob@example.com')).status).toBe(401)
+  })
+
+  test('successful sign-ins do not count, and a success clears the account failures', async () => {
+    const ctx = await ctxFor()
+    await seedUser(ctx)
+    for (let i = 0; i < 12; i++) {
+      expect((await rightLogin(ctx)).status).toBe(200)
+    }
+    for (let round = 0; round < 2; round++) {
+      for (let i = 0; i < 9; i++) expect((await wrongLogin(ctx)).status).toBe(401)
+      expect((await rightLogin(ctx)).status).toBe(200)
+    }
+    // Two rounds of nine failures, each cleared by a success: the account is not locked (and 28
+    // failures in all stay under the address budget of 30).
+    for (let i = 0; i < 10; i++) expect((await wrongLogin(ctx)).status).toBe(401)
+    expect((await wrongLogin(ctx)).status).toBe(429)
+  })
+
+  test('one address spraying many accounts is slowed: 30 failures, then 429 for any account', async () => {
+    const ctx = await ctxFor()
+    await seedUser(ctx)
+    // A body without a password fails validation (400) before any password is checked.
+    for (let i = 0; i < 30; i++) {
+      const res = await client(ctx)
+        .post('/api/auth/login')
+        .send({ email: `user${String(i)}@example.com` })
+      expect(res.status).toBe(400)
+    }
+    const blocked = await wrongLogin(ctx, 'fresh@example.com')
+    expect(blocked.status).toBe(429)
+    expect(blocked.headers['ratelimit-policy']).toBe('30;w=900')
+    expect((await rightLogin(ctx)).status).toBe(429)
+  })
+
+  test('successes from one address never count against the address budget', async () => {
+    const ctx = await ctxFor()
+    await seedUser(ctx)
+    for (let i = 0; i < 40; i++) {
+      expect((await rightLogin(ctx)).status).toBe(200)
+    }
+  })
+
+  test('POST /api/setup shares the sign-in budgets: per account and per address', async () => {
+    const ctx = await ctxFor({ allowRegistration: true })
+    for (let i = 0; i < 10; i++) {
+      expect(
+        (
+          await client(ctx)
+            .post('/api/setup')
+            .send(setupBody({ password: 'short' }))
+        ).status,
+      ).toBe(400)
+    }
+    const res = await client(ctx).post('/api/setup').send(setupBody())
+    expect(res.status).toBe(429)
+    // Another email from the same address is not that account's budget.
+    expect(
+      (
+        await client(ctx)
+          .post('/api/setup')
+          .send(setupBody({ email: 'other@example.com' }))
+      ).status,
+    ).toBe(201)
+  })
+
+  test('POST /api/setup with no email counts against the address budget only', async () => {
+    const ctx = await ctxFor({ allowRegistration: true })
+    for (let i = 0; i < 30; i++) {
+      await client(ctx).post('/api/setup').send({})
+    }
+    expect((await client(ctx).post('/api/setup').send(setupBody())).status).toBe(429)
   })
 })
 

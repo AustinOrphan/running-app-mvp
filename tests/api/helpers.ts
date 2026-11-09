@@ -68,7 +68,7 @@ export interface TestUser {
 /** An app wired to its own SQLite file, copied from the migrated template. */
 export async function createTestCtx(
   overrides: Partial<Config> = {},
-  appOpts: { globalLimit?: number } = {},
+  appOpts: { userLimit?: number; addressLimit?: number } = {},
 ): Promise<TestCtx> {
   const dir = mkdtempSync(join(tmpdir(), 'rl-api-'))
   const dbPath = join(dir, 'test.db')

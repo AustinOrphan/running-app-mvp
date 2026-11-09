@@ -16,7 +16,7 @@ import {
 } from './helpers.ts'
 
 // A phone-width viewport: nothing may be clipped out of reach or push the page sideways.
-// One shared signed-in page keeps the specs within the login limiter's 10 attempts per window.
+// One shared signed-in page keeps the specs cheap (no repeated sign-ins).
 test.describe.configure({ mode: 'serial' })
 
 let page: Page
