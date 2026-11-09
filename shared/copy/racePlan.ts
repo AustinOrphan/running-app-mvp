@@ -575,6 +575,64 @@ export const RACE_PLAN_TEMPLATES = {
   'race.plan.course.col-distance': tpl('Distance ({unit})', { unit: 'text' }, { shape: 'label' }),
   'race.plan.course.col-elevation': tpl('Elevation ({unit})', { unit: 'text' }, { shape: 'label' }),
   'race.plan.course.col-name': tpl('Name', {}, { shape: 'label' }),
+  // ---- The profile that leads the page ------------------------------------------------------
+  'race.plan.profile.heading': tpl('Course', {}, { shape: 'label' }),
+  'race.plan.profile.label': tpl(
+    'Course profile over {distance}, net height from {low} to {high} against the start',
+    { distance: 'distance', low: 'climb', high: 'climb' },
+    { shape: 'label' },
+  ),
+  'race.plan.profile.caption': tpl(
+    'Net height by leg in {unit}, a smooth line between the points entered.',
+    { unit: 'text' },
+  ),
+  'race.plan.profile.caption-dark': tpl(
+    'Band: the dark hours; the lighter part is dark at one end of the range only.',
+  ),
+  'race.plan.profile.caption-fuel': tpl('Ticks: each hour of the middle of the expected time.'),
+  'race.plan.profile.caption-cutoff': tpl('Diamonds: the cutoffs entered, with the time of day.'),
+  'race.plan.profile.hint': tpl('Touch or move along the course to read a point.'),
+  'race.plan.profile.readout-name': tpl('Readout', {}, { shape: 'label' }),
+  'race.plan.profile.start': tpl('Start', {}, { shape: 'label' }),
+  'race.plan.profile.finish': tpl('Finish', {}, { shape: 'label' }),
+  'race.plan.profile.at': tpl(
+    '{name}, {distance} in',
+    { name: 'text', distance: 'distance' },
+    { shape: 'label' },
+  ),
+  'race.plan.profile.above': tpl('{climb} above the start', { climb: 'climb' }, { shape: 'label' }),
+  'race.plan.profile.below': tpl('{climb} below the start', { climb: 'climb' }, { shape: 'label' }),
+  'race.plan.profile.level': tpl('level with the start', {}, { shape: 'label' }),
+  'race.plan.profile.next': tpl(
+    'Next: {name}, {distance} on',
+    { name: 'text', distance: 'distance' },
+    { shape: 'label' },
+  ),
+  'race.plan.profile.next-finish': tpl(
+    'Next: the finish, {distance} on',
+    { distance: 'distance' },
+    { shape: 'label' },
+  ),
+  'race.plan.profile.cutoff-clock': tpl('Cutoff {clock}', { clock: 'text' }, { shape: 'label' }),
+  'race.plan.profile.cutoff-elapsed': tpl(
+    'Cutoff {elapsed} in',
+    { elapsed: 'duration' },
+    { shape: 'label' },
+  ),
+  'race.plan.profile.table-stops': tpl(
+    'Course points, with the height at each',
+    {},
+    { shape: 'label' },
+  ),
+  'race.plan.profile.table-dark': tpl('Stretches in the dark', {}, { shape: 'label' }),
+  'race.plan.profile.table-fuel': tpl('Hourly fuel marks', {}, { shape: 'label' }),
+  'race.plan.profile.col-from': tpl('From ({unit})', { unit: 'text' }, { shape: 'label' }),
+  'race.plan.profile.col-to': tpl('To ({unit})', { unit: 'text' }, { shape: 'label' }),
+  'race.plan.profile.col-dark': tpl('Dark at', {}, { shape: 'label' }),
+  'race.plan.profile.dark-firm': tpl('both ends of the range', {}, { shape: 'label' }),
+  'race.plan.profile.dark-possible': tpl('one end of the range', {}, { shape: 'label' }),
+  'race.plan.profile.col-hour': tpl('Hour', {}, { shape: 'label' }),
+  'race.plan.profile.col-cutoff': tpl('Cutoff', {}, { shape: 'label' }),
 } satisfies Record<string, Template>
 
 export type RacePlanTemplateId = keyof typeof RACE_PLAN_TEMPLATES
@@ -1786,6 +1844,147 @@ export function describeRaceCourseProfile(
     distanceUnit,
     elevationUnit,
   }
+}
+
+/** The heading of the profile section on the Race page. */
+export function describeRaceProfileHeading(units: Units): string {
+  return say(T['race.plan.profile.heading'], {}, units)
+}
+
+/** The words of the profile on the Race page: its name, notes, tables and the readout row. */
+export interface RaceProfileText {
+  heading: string
+  label: string
+  /** The caption lines: the base line, then one for each mark that is drawn. */
+  caption: string[]
+  hint: string
+  readoutName: string
+  tableStops: string
+  tableDark: string
+  tableFuel: string
+  colName: string
+  colDistance: string
+  colHeight: string
+  colFrom: string
+  colTo: string
+  colDark: string
+  colHour: string
+  colCutoff: string
+  darkFirm: string
+  darkPossible: string
+  start: string
+  finish: string
+  distanceUnit: string
+  heightUnit: string
+}
+
+export function describeRaceProfile(
+  facts: {
+    lowM: number
+    highM: number
+    totalM: number
+    hasDark: boolean
+    hasFuel: boolean
+    hasCutoff: boolean
+  },
+  units: Units,
+): RaceProfileText {
+  const distanceUnit = units === 'mi' ? 'mi' : 'km'
+  const heightUnit = units === 'mi' ? 'ft' : 'm'
+  return {
+    heading: say(T['race.plan.profile.heading'], {}, units),
+    label: say(
+      T['race.plan.profile.label'],
+      {
+        distance: { kind: 'distance', m: facts.totalM },
+        low: { kind: 'climb', m: facts.lowM },
+        high: { kind: 'climb', m: facts.highM },
+      },
+      units,
+    ),
+    caption: [
+      say(T['race.plan.profile.caption'], { unit: heightUnit }, units),
+      ...(facts.hasDark ? [say(T['race.plan.profile.caption-dark'], {}, units)] : []),
+      ...(facts.hasFuel ? [say(T['race.plan.profile.caption-fuel'], {}, units)] : []),
+      ...(facts.hasCutoff ? [say(T['race.plan.profile.caption-cutoff'], {}, units)] : []),
+    ],
+    hint: say(T['race.plan.profile.hint'], {}, units),
+    readoutName: say(T['race.plan.profile.readout-name'], {}, units),
+    tableStops: say(T['race.plan.profile.table-stops'], {}, units),
+    tableDark: say(T['race.plan.profile.table-dark'], {}, units),
+    tableFuel: say(T['race.plan.profile.table-fuel'], {}, units),
+    colName: say(T['race.plan.course.col-name'], {}, units),
+    colDistance: say(T['race.plan.course.col-distance'], { unit: distanceUnit }, units),
+    colHeight: say(T['race.plan.course.col-elevation'], { unit: heightUnit }, units),
+    colFrom: say(T['race.plan.profile.col-from'], { unit: distanceUnit }, units),
+    colTo: say(T['race.plan.profile.col-to'], { unit: distanceUnit }, units),
+    colDark: say(T['race.plan.profile.col-dark'], {}, units),
+    colHour: say(T['race.plan.profile.col-hour'], {}, units),
+    colCutoff: say(T['race.plan.profile.col-cutoff'], {}, units),
+    darkFirm: say(T['race.plan.profile.dark-firm'], {}, units),
+    darkPossible: say(T['race.plan.profile.dark-possible'], {}, units),
+    start: say(T['race.plan.profile.start'], {}, units),
+    finish: say(T['race.plan.profile.finish'], {}, units),
+    distanceUnit,
+    heightUnit,
+  }
+}
+
+/** A course point's cutoff as a short line: the time of day, else the time into the race; null without one. */
+export function describeRaceProfileCutoff(
+  stop: { cutoffClock: RaceClock | null; cutoffSec: number | null },
+  units: Units,
+): string | null {
+  if (stop.cutoffClock !== null) {
+    return say(T['race.plan.profile.cutoff-clock'], { clock: clockText(stop.cutoffClock) }, units)
+  }
+  if (stop.cutoffSec !== null) {
+    return say(T['race.plan.profile.cutoff-elapsed'], { elapsed: duration(stop.cutoffSec) }, units)
+  }
+  return null
+}
+
+/**
+ * The readout row for a point of the profile: where it is, its net height against the start, the
+ * runner's cutoff there, and the next stop. Facts only; no pace and no time.
+ */
+export function describeRaceProfileReadout(
+  at: {
+    name: string
+    distanceM: number
+    relM: number
+    cutoff: { cutoffClock: RaceClock | null; cutoffSec: number | null } | null
+    next: { name: string | null; toGoM: number } | null
+  },
+  units: Units,
+): string {
+  const climb = (m: number) => ({ kind: 'climb', m }) as const
+  const rounded = Math.round(at.relM)
+  const height =
+    rounded === 0
+      ? say(T['race.plan.profile.level'], {}, units)
+      : rounded > 0
+        ? say(T['race.plan.profile.above'], { climb: climb(rounded) }, units)
+        : say(T['race.plan.profile.below'], { climb: climb(-rounded) }, units)
+  const parts = [
+    say(
+      T['race.plan.profile.at'],
+      { name: at.name, distance: { kind: 'distance', m: at.distanceM } },
+      units,
+    ),
+    height,
+  ]
+  const cutoff = at.cutoff === null ? null : describeRaceProfileCutoff(at.cutoff, units)
+  if (cutoff !== null) parts.push(cutoff)
+  if (at.next !== null) {
+    const distance = { kind: 'distance', m: at.next.toGoM } as const
+    parts.push(
+      at.next.name === null
+        ? say(T['race.plan.profile.next-finish'], { distance }, units)
+        : say(T['race.plan.profile.next'], { name: at.next.name, distance }, units),
+    )
+  }
+  return parts.join(' · ')
 }
 
 // ---------------------------------------------------------------------------------------------
