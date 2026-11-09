@@ -2,7 +2,7 @@
 // plan's data gives and none it does not, and a readout of the nearest known point.
 import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, test } from 'vitest'
+import { beforeAll, describe, expect, test } from 'vitest'
 import { replayLadder } from '../../shared/engine/fuel.ts'
 import { racePlanFor } from '../../shared/engine/racePlan.ts'
 import type { RacePlan } from '../../shared/engine/racePlan.ts'
@@ -89,6 +89,13 @@ async function open(plan: RacePlan, course: typeof COURSE | null | undefined) {
 }
 
 describe('the course profile that leads the Race page', () => {
+  // The chart is a lazy chunk (recharts); the first import() transforms it on demand, which on a
+  // loaded machine outlasts a findBy's default 1 s. Loading it once here keeps that cost out of the
+  // first test's waits.
+  beforeAll(async () => {
+    await import('../../web/components/charts/RaceProfileChart.tsx')
+  }, 60_000)
+
   test('is the first section, a named picture with its figures in hidden tables', async () => {
     await open(planWith(), COURSE)
     expect(await screen.findByRole('img', { name: /^Course profile over 160.9 km/ })).toBeVisible()
