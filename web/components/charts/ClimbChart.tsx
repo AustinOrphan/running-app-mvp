@@ -14,7 +14,7 @@ import { climbInUnit, type ClimbWeek } from '../../../shared/domain/trendsLoad.t
 import type { Units } from '../../../shared/types.ts'
 import { formatClimb } from '../../../shared/units.ts'
 import { formatShortDate } from '../format.ts'
-import styles from './LoadCharts.module.css'
+import styles from './ClimbChart.module.css'
 import { monthStep, monthTicks, tickLabel } from './monthTicks.ts'
 import { axisProps, chartColors, ChartTooltip, gridProps } from './theme.ts'
 
