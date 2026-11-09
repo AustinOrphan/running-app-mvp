@@ -20,6 +20,9 @@ async function removeFriend() {
 
 test.afterEach(removeFriend)
 
+// a runner in Germany: the browser says kilometres and Europe/Berlin
+test.use({ locale: 'de-DE', timezoneId: 'Europe/Berlin' })
+
 test('an account made by create-user chooses its own password, then lands on Today', async ({
   page,
   baseURL,
@@ -53,12 +56,23 @@ test('an account made by create-user chooses its own password, then lands on Tod
   await page.getByRole('button', { name: 'Change password' }).click()
   await expect(page.getByRole('heading', { name: 'Today' })).toBeVisible()
 
-  // the browser's locale and zone were taken once: Settings reads them, and the flag is gone
+  // the browser's locale and zone (de-DE, Europe/Berlin) were taken once, not the miles and UTC the
+  // account started with
   await page.goto('/settings')
   await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible()
-  await expect(page.getByRole('radio', { name: 'Miles' })).toBeChecked()
+  await expect(page.getByRole('radio', { name: 'Kilometres' })).toBeChecked()
   await expect(page.getByRole('heading', { name: 'Password', level: 2 })).toBeVisible()
+  const profile = await page.request.get('/api/profile')
+  expect(((await profile.json()) as { timezone: string }).timezone).toBe('Europe/Berlin')
+
+  // after a reload the flags are cleared and the password screen does not return
   await page.reload()
   await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Choose your password' })).toHaveCount(0)
+  const me = (await (await page.request.get('/api/auth/me')).json()) as Record<string, unknown>
+  expect(me).toMatchObject({
+    mustChangePassword: false,
+    unitsFromBrowser: false,
+    zoneFromBrowser: false,
+  })
 })
