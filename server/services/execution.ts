@@ -409,6 +409,24 @@ export async function runExecutionQuietly(
   }
 }
 
+/**
+ * Assesses sessions again against the activity they are linked to now, after a confirmed duplicate
+ * handed them to its original: the stored findings and status were drawn from the copy, and the
+ * nightly sweep reaches back only `SWEEP_DAYS`. The link source stays. Never throws.
+ */
+export async function assessSessionsQuietly(
+  deps: Deps,
+  args: { userId: string; sessionIds: string[] },
+): Promise<void> {
+  for (const sessionId of args.sessionIds) {
+    try {
+      await assessSessionById(deps, { userId: args.userId, sessionId })
+    } catch (error) {
+      createLogger(deps.config).warn({ err: error }, 'assessing a moved session failed')
+    }
+  }
+}
+
 /** Nightly sweep over the last 7 days of activities and sessions, for every user with a plan. */
 export async function runNightlyMatching(
   deps: Deps,

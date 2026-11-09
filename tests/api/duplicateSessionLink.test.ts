@@ -2,7 +2,12 @@ import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'vitest'
 import { addDays, mondayOf, todayIso } from '../../shared/dates.ts'
 import type { Activity, PlanWithSessions } from '../../shared/types.ts'
-import { markDuplicates, releaseDuplicates } from '../../server/services/duplicates.ts'
+import {
+  markDuplicates,
+  moveConfirmedLogs,
+  releaseDuplicates,
+} from '../../server/services/duplicates.ts'
+import { assessSessionById, assessSessionsQuietly } from '../../server/services/execution.ts'
 import { client, createTestCtx, seedUser, type TestCtx, type TestUser } from './helpers.ts'
 
 // A confirmed duplicate hands its plan session to the original, as it hands its logs (D1).
@@ -70,18 +75,21 @@ beforeEach(async () => {
 })
 
 let order = 0
-async function session(kind: string, over: { activityId?: string; linkSource?: string } = {}) {
+async function session(
+  kind: string,
+  over: { activityId?: string; linkSource?: string; date?: string; min?: number } = {},
+) {
   order += 1
   return ctx.prisma.planSession.create({
     data: {
       planId,
       externalId: randomUUID(),
-      weekStart: mondayOf(today),
-      date: today,
+      weekStart: mondayOf(over.date ?? today),
+      date: over.date ?? today,
       order,
       kind,
       title: kind === 'strength' ? 'Strength' : `${kind} run`,
-      durationMin: 40,
+      durationMin: over.min ?? 40,
       structure: '[]',
       target: TARGET,
       purpose: 'Synthetic.',
@@ -96,15 +104,26 @@ let seq = 0
 async function activity(
   type: 'run' | 'strength',
   source: string,
-  over: { startUtc?: string | null; avgHr?: number | null; status?: string; of?: string } = {},
+  over: {
+    startUtc?: string | null
+    avgHr?: number | null
+    status?: string
+    of?: string
+    id?: string
+    date?: string
+    durationSec?: number
+    rpe?: number
+  } = {},
 ) {
   seq += 1
   return ctx.prisma.activity.create({
     data: {
+      ...(over.id === undefined ? {} : { id: over.id }),
       userId: user.id,
-      date: today,
+      date: over.date ?? today,
       type,
-      durationSec: 2400,
+      durationSec: over.durationSec ?? 2400,
+      ...(over.rpe === undefined ? {} : { rpe: over.rpe }),
       distanceM: type === 'run' ? 5000 : null,
       source,
       providerKey: source === 'manual' ? null : `${source}:${String(seq)}`,
@@ -236,17 +255,105 @@ describe('confirming a duplicate moves the plan session with the logs', () => {
     expect((await reload(linked.id)).activityId).toBe(copy.id)
   })
 
-  test('only one copy gives up a session; a second linked copy stays where it is', async () => {
+  test('of two confirmed copies that each fulfil a session, the lower id gives up its session', async () => {
     const original = await activity('run', 'file', { startUtc: START })
-    const a = await activity('run', 'manual', { status: 'possible', of: original.id })
-    const b = await activity('run', 'manual', { status: 'possible', of: original.id })
-    const [first, second] = [a, b].sort((x, y) => x.id.localeCompare(y.id)) as [typeof a, typeof b]
-    const onFirst = await session('easy', { activityId: first.id, linkSource: 'owner' })
+    // The higher id is inserted first, so only the ordering of the copies decides.
+    const second = await activity('run', 'manual', {
+      id: 'copy-b',
+      status: 'confirmed',
+      of: original.id,
+    })
+    const first = await activity('run', 'manual', {
+      id: 'copy-a',
+      status: 'confirmed',
+      of: original.id,
+    })
     const onSecond = await session('recovery', { activityId: second.id, linkSource: 'owner' })
-    await confirm(first.id)
-    await confirm(second.id)
+    const onFirst = await session('easy', { activityId: first.id, linkSource: 'owner' })
+    const moved: string[] = []
+    await moveConfirmedLogs(ctx.prisma, user.id, original.id, moved)
+    expect(moved).toEqual([onFirst.id])
     expect((await reload(onFirst.id)).activityId).toBe(original.id)
     expect((await reload(onSecond.id)).activityId).toBe(second.id)
+  })
+})
+
+function expectOriginalFindings(
+  before: string | null,
+  row: { status: string; execution: string | null },
+) {
+  // The copy's 40 min of a planned 52 was partial; the original's 52 min is the whole session.
+  expect(before).toContain('"completion":"partial"')
+  expect(before).toContain('"min":40')
+  expect(row.execution).toContain('"completion":"completed"')
+  expect(row.execution).toContain('"min":52')
+  expect(row.execution).not.toContain('"min":40')
+  expect(row.status).toBe('completed')
+}
+
+describe('a moved session is assessed against the original', () => {
+  const old = addDays(today, -20)
+  const OLD_START = `${old}T07:00:00Z`
+
+  /** A 40 min copy rated 7, linked and assessed, and a 52 min import it duplicates. */
+  async function oldPair() {
+    const original = await activity('run', 'intervals', {
+      date: old,
+      startUtc: OLD_START,
+      durationSec: 52 * 60,
+      avgHr: 140,
+    })
+    const copy = await activity('run', 'manual', {
+      date: old,
+      durationSec: 40 * 60,
+      rpe: 7,
+      status: 'possible',
+      of: original.id,
+    })
+    const linked = await session('easy', {
+      activityId: copy.id,
+      linkSource: 'owner',
+      date: old,
+      min: 52,
+    })
+    await assessSessionById(ctx, { userId: user.id, sessionId: linked.id })
+    const before = (await reload(linked.id)).execution
+    expect(before).not.toBeNull()
+    return { original, copy, linked, before }
+  }
+
+  test('through the route the stored findings describe the original', async () => {
+    const { original, copy, linked, before } = await oldPair()
+    expect((await confirm(copy.id)).status).toBe(200)
+    const row = await reload(linked.id)
+    expect(row.activityId).toBe(original.id)
+    expect(row.linkSource).toBe('owner')
+    expectOriginalFindings(before, row)
+  })
+
+  test('through markDuplicates with its assess callback', async () => {
+    const { original, copy, linked, before } = await oldPair()
+    await ctx.prisma.activity.update({
+      where: { id: copy.id },
+      data: { duplicateStatus: 'possible' },
+    })
+    // Same pair, confirmed by the pass: both sources automated and matched on start.
+    await ctx.prisma.activity.update({
+      where: { id: copy.id },
+      data: {
+        source: 'strava',
+        providerKey: 'strava:old',
+        startUtc: `${old}T07:01:00Z`,
+        duplicateStatus: 'none',
+        duplicateOfId: null,
+      },
+    })
+    await markDuplicates(ctx.prisma, user.id, [original.id], (sessionIds) =>
+      assessSessionsQuietly(ctx, { userId: user.id, sessionIds }),
+    )
+    const row = await reload(linked.id)
+    expect(row.activityId).toBe(original.id)
+    expectOriginalFindings(before, row)
   })
 })
 

@@ -13,6 +13,7 @@ import { PROVIDERS } from '../providers/registry.ts'
 import { loadProfile, toImportBatch } from '../serialize.ts'
 import { storeParsed, storeWellness } from '../services/activityStore.ts'
 import { markDuplicates } from '../services/duplicates.ts'
+import { assessSessionsQuietly } from '../services/execution.ts'
 
 /** Records (data rows plus rejected rows) one upload may carry. */
 const MAX_RECORDS = 50_000
@@ -259,6 +260,7 @@ export function importsRouter(deps: Deps): Router {
       }
     }
 
+    const moved: string[] = []
     const batch = await prisma.$transaction(
       async (tx) => {
         const created = await tx.importBatch.create({
@@ -303,12 +305,18 @@ export function importsRouter(deps: Deps): Router {
             tx,
             userId,
             inserted.map((row) => row.id),
+            (ids) => {
+              moved.push(...ids)
+              return Promise.resolve()
+            },
           )
         }
         return created
       },
       { timeout: 60_000 },
     )
+    // Sessions handed from a confirmed copy to its original are assessed once the import is saved.
+    await assessSessionsQuietly(deps, { userId, sessionIds: moved })
 
     return toImportBatch(batch)
   }

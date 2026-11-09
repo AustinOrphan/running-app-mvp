@@ -11,7 +11,7 @@ import {
   rematchDuplicates,
   releaseDuplicatesOf,
 } from '../services/duplicates.ts'
-import { runExecutionQuietly } from '../services/execution.ts'
+import { assessSessionsQuietly, runExecutionQuietly } from '../services/execution.ts'
 import { loadGlyphs } from '../services/glyphs.ts'
 import { standoutView } from '../services/insight.ts'
 import { strengthTypeLockedMessage } from '../../shared/copy/strengthTemplates.ts'
@@ -379,7 +379,10 @@ export function activitiesRouter(deps: Deps): Router {
       data: { duplicateStatus: status },
     })
     if (status === 'confirmed') {
-      await moveConfirmedLogs(prisma, req.userId, existing.duplicateOfId)
+      const moved: string[] = []
+      await moveConfirmedLogs(prisma, req.userId, existing.duplicateOfId, moved)
+      // A session handed to the original is assessed against it, as an import does.
+      await assessSessionsQuietly(deps, { userId: req.userId, sessionIds: moved })
     }
     res.json(toActivity(updated))
   })
