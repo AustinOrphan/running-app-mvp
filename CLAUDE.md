@@ -172,6 +172,9 @@ its build runs `prisma migrate deploy` as a smoke test.
   `longRunReadings`; `fitHrModel`, My paces, the zones, A7 and C9 stay flat-only. A new check or threshold
   is a `b2.q` Param, a `HR_QUALITY_VERSION` bump when its meaning changes, and a Params version.
 - Targets are a sketch, not minimums: no red, no "behind" or "missed" copy, no streaks or badges.
+- UI changes follow the design rules in `docs/superpowers/specs/2026-10-21-visual-design.md` (sections 8 to
+  19; the colour pairs are tested in `tests/unit/shared/tokensContrast.test.ts`). Each visual change lands as
+  its own PR so it can be reverted alone.
 - npm only. Strict TypeScript. Prettier formats, ESLint 9 flat config lints.
 - Env vars are exactly `DATABASE_URL`, `SESSION_SECRET`, `PORT`, `NODE_ENV`, `ALLOW_REGISTRATION`
   and `LOG_LEVEL` (plus `TZ` as an OS setting in Docker).
