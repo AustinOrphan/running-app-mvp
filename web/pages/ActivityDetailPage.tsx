@@ -13,6 +13,7 @@ import {
 import { formatAirTemperature } from '../../shared/copy/quantity.ts'
 import { movingTimeDiffers } from '../../shared/domain/movingTime.ts'
 import { mondayOf } from '../../shared/dates.ts'
+import { runChartContext } from '../../shared/domain/runChartContext.ts'
 import type {
   Activity,
   ActivityDetail,
@@ -33,6 +34,7 @@ import {
 import { ApiError, keys } from '../api/client.ts'
 import { usePlan } from '../api/plan.ts'
 import { useSettings } from '../api/settings.ts'
+import { useZones } from '../api/zones.ts'
 import { Button } from '../components/Button.tsx'
 import { ConfirmSheet } from '../components/ConfirmSheet.tsx'
 import { TrashGlyph } from '../components/Glyphs.tsx'
@@ -42,11 +44,17 @@ import { FeedbackFields, type FeedbackValues } from '../components/FeelPicker.ts
 import { ErrorState } from '../components/ErrorState.tsx'
 import { useLoadView } from '../components/loadView.ts'
 import { Figure } from '../components/Figure.tsx'
+import { hasPlanBars, PlanBars } from '../components/PlanBars.tsx'
 import { createDistanceCursor, type DistanceCursor } from '../components/map/distanceCursor.ts'
 import { RunMap, RunMapLoading } from '../components/map/RunMap.tsx'
 import { FuelSection } from '../components/fuel/FuelSection.tsx'
 import { ActivitySets } from '../components/strength/ActivitySets.tsx'
-import { assessmentLines, ratingCounts, unratedEffortNote } from '../components/engineText.ts'
+import {
+  assessmentLines,
+  ratingCounts,
+  unratedEffortNote,
+  withoutMinutesShare,
+} from '../components/engineText.ts'
 import { formatLongDate } from '../components/format.ts'
 import { PageHeader } from '../components/PageHeader.tsx'
 import { Skeleton } from '../components/Skeleton.tsx'
@@ -260,7 +268,12 @@ function RouteMap({
 
 const CHANNELS: StreamChannel[] = ['pace', 'hr', 'alt']
 
-/** The charts of the recording's stream; nothing at all for an activity that has no stream to draw. */
+/**
+ * The charts of the recording's stream, stacked on one distance axis with one cursor; nothing at
+ * all for an activity that has no stream to draw. The planned pace comes from the session this run
+ * filled (the plan other pages share) and the easy ceiling from the zones; each is drawn only when
+ * it is there, and a plan or zones that did not load leave the charts as they were.
+ */
 function Charts({
   detail,
   units,
@@ -271,6 +284,8 @@ function Charts({
   cursor: DistanceCursor
 }) {
   const { activity, stream } = detail
+  const plan = usePlan()
+  const zones = useZones()
   const channels = CHANNELS.filter(
     (channel) => channel !== 'pace' || activity.type === 'run' || activity.type === 'race',
   )
@@ -278,18 +293,25 @@ function Charts({
     stream !== null &&
     channels.some((channel) => buildSeries(stream, channel, units).some((p) => p.y !== null))
   if (stream === null || !hasData) return null
+  const isRun = activity.type === 'run' || activity.type === 'race'
+  const session = plan.data?.sessions.find((candidate) => candidate.activityId === activity.id)
+  // What the plan and the zones add is drawn once the plan is read, for a run only: until then it
+  // is not known whether the run filled a session the ceiling would not suit.
+  const context =
+    isRun && plan.isSuccess
+      ? runChartContext(session, zones.data ?? null)
+      : { plannedPaceSecPerKm: null, easyCeilingBpm: null }
   return (
     <Section title="Charts">
       <div className={styles.charts}>
-        {channels.map((channel) => (
-          <StreamChart
-            key={channel}
-            stream={stream}
-            channel={channel}
-            units={units}
-            cursor={cursor}
-          />
-        ))}
+        <StreamChart
+          stream={stream}
+          channels={channels}
+          units={units}
+          cursor={cursor}
+          plannedPaceSecPerKm={context.plannedPaceSecPerKm}
+          easyCeilingBpm={context.easyCeilingBpm}
+        />
       </div>
     </Section>
   )
@@ -353,7 +375,10 @@ function AgainstThePlan({ activity, units }: { activity: Activity; units: Units 
     )
   }
   const { execution } = session
-  const lines = execution === null ? [] : assessmentLines(execution, session.target.rpe)
+  const assessed = execution === null ? [] : assessmentLines(execution, session.target.rpe)
+  // The bars say how the time compares with the plan; the sentence that says it in a percentage
+  // would read as a target met, so it stands aside for them.
+  const lines = hasPlanBars(session, activity) ? withoutMinutesShare(assessed) : assessed
   return (
     <Section title={title}>
       <p className={styles.line}>{plannedAgainstRan(session, activity, units)}</p>
@@ -362,6 +387,7 @@ function AgainstThePlan({ activity, units }: { activity: Activity; units: Units 
           {line}
         </p>
       ))}
+      <PlanBars session={session} activity={activity} units={units} />
     </Section>
   )
 }

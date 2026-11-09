@@ -163,6 +163,7 @@ function renderDetail(
     'GET /api/activities/a1/standout': () => ({ items: [], more: 0 }),
     ...noTrackRoute,
     'GET /api/plan': () => opts.plan ?? null,
+    'GET /api/zones': () => ({ hr: null }),
     'GET /api/strength': () => makeView(),
     'GET /api/strength/logs': () => [],
     ...opts.routes,
@@ -640,6 +641,7 @@ describe('ActivityDetailPage', () => {
       'GET /api/activities/a1/standout': () => ({ items: [], more: 0 }),
       ...noTrackRoute,
       'GET /api/plan': () => null,
+      'GET /api/zones': () => ({ hr: null }),
       'PATCH /api/activities/a1/feedback': () => {
         stored = { rpe: 8, feel: 1, pain: 0 }
         return {}
@@ -816,6 +818,7 @@ describe('ActivityDetailPage', () => {
         'GET /api/activities/a1/standout': () => ({ items: [], more: 0 }),
         ...noTrackRoute,
         'GET /api/plan': () => planWith(makeExecution(-1)),
+        'GET /api/zones': () => ({ hr: null }),
         'PATCH /api/activities/a1/feedback': (req) => {
           const body = req.body as { rpe: number | null; feel: number | null }
           stored = { rpe: body.rpe, feel: body.feel }
@@ -952,7 +955,9 @@ describe('ActivityDetailPage', () => {
 describe('ActivityDetailPage: against the plan', () => {
   const sentence = (id: keyof typeof EXECUTION_TEMPLATES, slots: Record<string, unknown> = {}) =>
     render(EXECUTION_TEMPLATES[id], slots as never, 'km')
+  // The sentence the page leaves out beside the bars, and the bars that stand for it.
   const PLANNED = '30 min against 55 min planned (55%).'
+  const TIME_BARS = /^Time: planned/
   const ON_TARGET = sentence('execution.intensity-on')
   const GUESSED = sentence('execution.effort-harder')
   // the fixture session's expected RPE is 6 to 7 (middle 6.5)
@@ -1004,7 +1009,7 @@ describe('ActivityDetailPage: against the plan', () => {
   test('a run that filled a session says what was planned and what was run, then the assessment', async () => {
     renderDetail({ plan: linkedPlan(withLines([PLANNED, ON_TARGET])) })
     const section = await block()
-    expect(await within(section).findByText(PLANNED)).toBeInTheDocument()
+    expect(await within(section).findByRole('img', { name: TIME_BARS })).toBeInTheDocument()
     expect(
       within(section).getByText('Planned: Long run, 2 h 55 min. Ran: 30 min, 3.1 mi.'),
     ).toBeInTheDocument()
@@ -1014,11 +1019,9 @@ describe('ActivityDetailPage: against the plan', () => {
       .getAllByText(/./)
       .filter((node) => node.tagName === 'P')
       .map((node) => node.textContent)
-    expect(lines).toEqual([
-      'Planned: Long run, 2 h 55 min. Ran: 30 min, 3.1 mi.',
-      PLANNED,
-      ON_TARGET,
-    ])
+    // the share sentence stands aside for the bars, which show the same two figures
+    expect(lines).toEqual(['Planned: Long run, 2 h 55 min. Ran: 30 min, 3.1 mi.', ON_TARGET])
+    expect(within(section).queryByText(PLANNED)).not.toBeInTheDocument()
     expectCleanCopy(section)
   })
 
@@ -1028,6 +1031,112 @@ describe('ActivityDetailPage: against the plan', () => {
     expect(
       await within(section).findByText('Planned: Long run, 2 h 55 min. Ran: 30 min, 5 km.'),
     ).toBeInTheDocument()
+  })
+
+  test('two bars of time: the plan outlined, the run solid, what went past it hatched', async () => {
+    renderDetail({
+      plan: linkedPlan(withLines([PLANNED]), { durationMin: 20 }),
+    })
+    const section = await block()
+    expect(
+      await within(section).findByRole('img', { name: 'Time: planned 20 min, ran 30 min.' }),
+    ).toBeInTheDocument()
+    // a planned distance is an estimate from the minutes: it is not set against the distance run
+    expect(within(section).queryByRole('img', { name: /^Distance/ })).not.toBeInTheDocument()
+    expect(section.querySelectorAll('[data-overshoot="true"]')).toHaveLength(1)
+    expect(
+      within(section).getByText(/The hatched part is run past the planned figure\./),
+    ).toBeInTheDocument()
+    const table = within(section).getByRole('table', { name: 'Planned and ran' })
+    expect(within(table).getAllByRole('row')).toHaveLength(2)
+    // no tick, check mark, percentage or "met" beside the bars, and the share sentence is gone
+    expect(section.textContent).not.toMatch(/%|✓|✔|\bmet\b/i)
+    expect(within(section).queryByText(PLANNED)).not.toBeInTheDocument()
+    expectCleanCopy(section)
+  })
+
+  test('a run that stayed within the plan has no hatching', async () => {
+    renderDetail({ plan: linkedPlan(withLines([PLANNED])) })
+    const section = await block()
+    await within(section).findByRole('img', { name: 'Time: planned 2 h 55 min, ran 30 min.' })
+    expect(section.querySelectorAll('[data-overshoot="true"]')).toHaveLength(0)
+    expect(within(section).queryByText(/hatched/)).not.toBeInTheDocument()
+  })
+
+  test('no linked session, no bars', async () => {
+    renderDetail({ plan: makeV2Plan({ sessions: [] }) })
+    await screen.findByRole('region', { name: 'Against the plan' })
+    expect(screen.queryByRole('img', { name: /^Time: planned/ })).not.toBeInTheDocument()
+  })
+
+  describe('what the charts draw from the plan and the zones', () => {
+    const zones = { hr: { z1: [100, 142], z2: [143, 158], z3: [159, 175] } }
+    const steady = {
+      kind: 'steady' as const,
+      reps: 1,
+      durationSec: 2400,
+      distanceM: null,
+      zone: 'z1' as const,
+    }
+    const BAND = /The dashed band is the planned pace\./
+    const CEILING = /Heart rate above the easy ceiling of 142 bpm is hatched\./
+    const easy: Partial<PlanSessionView> = {
+      kind: 'easy',
+      structure: [steady],
+      target: { zone: 'z1', rpe: [2, 3], hr: [100, 140], paceSecPerKm: [420, 380], heatNote: null },
+    }
+    const racePace: Partial<PlanSessionView> = {
+      kind: 'race-pace',
+      structure: [],
+      target: {
+        zone: 'race-pace',
+        rpe: [6, 7],
+        hr: null,
+        paceSecPerKm: [345, 335],
+        heatNote: null,
+      },
+    }
+
+    test('an easy session: the ceiling from the zones, and no pace band', async () => {
+      renderDetail({
+        plan: linkedPlan(withLines([PLANNED]), easy),
+        routes: { 'GET /api/zones': () => zones },
+      })
+      expect(await screen.findByText(CEILING)).toBeInTheDocument()
+      expect(screen.queryByText(BAND)).not.toBeInTheDocument()
+    })
+
+    test('a steady session steered by pace: the band, and no ceiling', async () => {
+      renderDetail({
+        plan: linkedPlan(withLines([PLANNED]), racePace),
+        routes: { 'GET /api/zones': () => zones },
+      })
+      expect(await screen.findByText(BAND)).toBeInTheDocument()
+      expect(screen.queryByText(CEILING)).not.toBeInTheDocument()
+    })
+
+    test('a hard session of work steps has neither: its pace is for the work alone', async () => {
+      renderDetail({
+        plan: linkedPlan(withLines([PLANNED])),
+        routes: { 'GET /api/zones': () => zones },
+      })
+      await block()
+      await screen.findByRole('group', { name: /Pace, heart rate and elevation/ })
+      expect(screen.queryByText(BAND)).not.toBeInTheDocument()
+      expect(screen.queryByText(CEILING)).not.toBeInTheDocument()
+    })
+
+    test('a run that filled no session gets the ceiling', async () => {
+      renderDetail({ routes: { 'GET /api/zones': () => zones } })
+      expect(await screen.findByText(CEILING)).toBeInTheDocument()
+      expect(screen.queryByText(BAND)).not.toBeInTheDocument()
+    })
+
+    test('no zones, no ceiling', async () => {
+      renderDetail({ plan: linkedPlan(withLines([PLANNED]), easy) })
+      await screen.findByRole('group', { name: /Pace, heart rate and elevation/ })
+      expect(screen.queryByText(/easy ceiling/)).not.toBeInTheDocument()
+    })
   })
 
   test('a rated run shows the effort line with the rating in it', async () => {
@@ -1054,7 +1163,7 @@ describe('ActivityDetailPage: against the plan', () => {
       plan: linkedPlan(withLines([PLANNED, ON_TARGET, quoted(6)], { rpeDelta: -0.5 })),
     })
     const section = await block()
-    expect(await within(section).findByText(PLANNED)).toBeInTheDocument()
+    expect(await within(section).findByRole('img', { name: TIME_BARS })).toBeInTheDocument()
     expect(within(section).getByText(ON_TARGET)).toBeInTheDocument()
     expect(section.textContent).not.toMatch(/Effort/)
   })
@@ -1065,7 +1174,7 @@ describe('ActivityDetailPage: against the plan', () => {
       plan: linkedPlan(withLines([PLANNED, GUESSED], { feel: 0 })),
     })
     const section = await block()
-    expect(await within(section).findByText(PLANNED)).toBeInTheDocument()
+    expect(await within(section).findByRole('img', { name: TIME_BARS })).toBeInTheDocument()
     expect(within(section).queryByText(GUESSED)).not.toBeInTheDocument()
   })
 
@@ -1099,7 +1208,7 @@ describe('ActivityDetailPage: against the plan', () => {
   test('an unrated run never shows the effort verdict that heart rate and pace inferred', async () => {
     renderDetail({ plan: linkedPlan(withLines([PLANNED, ON_TARGET, GUESSED])) })
     const section = await block()
-    expect(await within(section).findByText(PLANNED)).toBeInTheDocument()
+    expect(await within(section).findByRole('img', { name: TIME_BARS })).toBeInTheDocument()
     expect(within(section).getByText(ON_TARGET)).toBeInTheDocument()
     expect(within(section).queryByText(GUESSED)).not.toBeInTheDocument()
     expect(section.textContent).not.toMatch(/Effort/)
@@ -1120,7 +1229,7 @@ describe('ActivityDetailPage: against the plan', () => {
       ),
     })
     const section = await block()
-    expect(await within(section).findByText(PLANNED)).toBeInTheDocument()
+    expect(await within(section).findByRole('img', { name: TIME_BARS })).toBeInTheDocument()
     expect(within(section).queryByText('Effort matched expectation.')).not.toBeInTheDocument()
     // the other sentences of the assessment stay
     expect(within(section).getByText(/^Longer or steeper than the longest run/)).toBeInTheDocument()
@@ -1134,7 +1243,7 @@ describe('ActivityDetailPage: against the plan', () => {
       ),
     })
     const section = await block()
-    expect(await within(section).findByText(PLANNED)).toBeInTheDocument()
+    expect(await within(section).findByRole('img', { name: TIME_BARS })).toBeInTheDocument()
     expect(within(section).queryByText(GUESSED)).not.toBeInTheDocument()
   })
 
@@ -1252,7 +1361,7 @@ describe('ActivityDetailPage: against the plan', () => {
 
   test('a run linked to a session of the current plan is never left out, whatever the weeks say', async () => {
     renderDetail({ plan: linkedPlan(withLines([PLANNED])) })
-    expect(await within(await block()).findByText(PLANNED)).toBeInTheDocument()
+    expect(await within(await block()).findByRole('img', { name: TIME_BARS })).toBeInTheDocument()
   })
 
   test('waits for the plan that was marked old by a write, and never says "not linked" from the one before it', async () => {
@@ -1273,7 +1382,7 @@ describe('ActivityDetailPage: against the plan', () => {
     expect(within(section).queryByText(NOT_LINKED)).not.toBeInTheDocument()
     expect(within(section).queryByText(NO_SESSION)).not.toBeInTheDocument()
     // the plan as the server has it now: the run is linked to the session
-    expect(await within(section).findByText(PLANNED)).toBeInTheDocument()
+    expect(await within(section).findByRole('img', { name: TIME_BARS })).toBeInTheDocument()
     expect(within(section).queryByText(NOT_LINKED)).not.toBeInTheDocument()
     expect(api.calls.some((call) => call.url === '/api/plan')).toBe(true)
   })
@@ -1285,7 +1394,7 @@ describe('ActivityDetailPage: against the plan', () => {
       routes: { 'PATCH /api/activities/a1/feedback': () => ({}) },
     })
     const section = await block()
-    expect(await within(section).findByText(PLANNED)).toBeInTheDocument()
+    expect(await within(section).findByRole('img', { name: TIME_BARS })).toBeInTheDocument()
     delayResponses(80)
     await user.click(screen.getByRole('button', { name: 'RPE 7' }))
     await user.click(
@@ -1297,7 +1406,7 @@ describe('ActivityDetailPage: against the plan', () => {
       expect(api.calls.filter((call) => call.url === '/api/plan').length).toBeGreaterThan(1)
     })
     // the plan is read again, and the block keeps what it says
-    expect(screen.getByText(PLANNED)).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: TIME_BARS })).toBeInTheDocument()
   })
 
   test('keeps the block for the read after a rating is saved, though the plan was marked old when the page opened', async () => {
@@ -1317,7 +1426,7 @@ describe('ActivityDetailPage: against the plan', () => {
     })
     const reads = () => api.calls.filter((call) => call.url === '/api/plan').length
     // the first read, the one the page waited for: the plan as the server has it now
-    expect(await within(await block()).findByText(PLANNED)).toBeInTheDocument()
+    expect(await within(await block()).findByRole('img', { name: TIME_BARS })).toBeInTheDocument()
     expect(reads()).toBe(1)
     delayResponses(200)
     await user.click(screen.getByRole('button', { name: 'RPE 7' }))
@@ -1330,7 +1439,7 @@ describe('ActivityDetailPage: against the plan', () => {
       expect(reads()).toBe(2)
     })
     // the second read is in flight, and its plan is no older than the page: the block keeps its words
-    expect(screen.getByText(PLANNED)).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: TIME_BARS })).toBeInTheDocument()
     expect(screen.queryByText(NOT_LINKED)).not.toBeInTheDocument()
   })
 
@@ -1408,7 +1517,7 @@ describe('ActivityDetailPage: against the plan', () => {
     expect(await within(await block()).findByRole('group', { name: 'Loading' })).toBeVisible()
     expect(screen.queryByText(NOT_LOADED)).not.toBeInTheDocument()
     // and the block, once the read has answered
-    expect(await within(await block()).findByText(PLANNED)).toBeInTheDocument()
+    expect(await within(await block()).findByRole('img', { name: TIME_BARS })).toBeInTheDocument()
     expect(screen.queryByText(NOT_LOADED)).not.toBeInTheDocument()
   })
 
@@ -1418,11 +1527,11 @@ describe('ActivityDetailPage: against the plan', () => {
     const queryClient = makeTestQueryClient()
     queryClient.setQueryData([keys.plan], linkedPlan(withLines([PLANNED])))
     renderDetail({ routes: PLAN_FAILS, queryClient })
-    expect(await within(await block()).findByText(PLANNED)).toBeInTheDocument()
+    expect(await within(await block()).findByRole('img', { name: TIME_BARS })).toBeInTheDocument()
     await waitFor(() => {
       expect(queryClient.getQueryState([keys.plan])?.status).toBe('error')
     })
-    expect(screen.getByText(PLANNED)).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: TIME_BARS })).toBeInTheDocument()
     expect(screen.queryByText(NOT_LOADED)).not.toBeInTheDocument()
   })
 
@@ -1436,7 +1545,7 @@ describe('ActivityDetailPage: against the plan', () => {
     expect(
       screen.queryByText('This activity is not linked to a session of the current plan.'),
     ).not.toBeInTheDocument()
-    expect(await screen.findByText(PLANNED)).toBeInTheDocument()
+    expect(await screen.findByRole('img', { name: TIME_BARS })).toBeInTheDocument()
     expect(api.calls.some((c) => c.url === '/api/plan')).toBe(true)
   })
 
@@ -1462,7 +1571,7 @@ describe('ActivityDetailPage: against the plan', () => {
     })
     await screen.findByRole('region', { name: 'What stood out' })
     await screen.findByRole('region', { name: 'Fuel' })
-    await screen.findByText(PLANNED)
+    await screen.findByRole('img', { name: TIME_BARS })
     const headings = screen
       .getAllByRole('heading', { level: 2 })
       .map((heading) => heading.textContent)

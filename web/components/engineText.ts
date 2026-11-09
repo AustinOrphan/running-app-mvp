@@ -260,3 +260,16 @@ export function unratedEffortNote(
  */
 export const RATING_WHY_NOTE =
   'An effort verdict needs a rating of effort or feel: without one it rests on heart rate and pace alone, stays at low confidence, and never changes the plan on its own.'
+
+/**
+ * `lines` without the sentence that sets the minutes run against the minutes planned as a share
+ * ("26 min against 23 min planned (112%)."), found by the shape of its template. The run page
+ * drops it beside the bars, which show the same two figures; the engine's own lines are unchanged.
+ */
+export function withoutMinutesShare(lines: string[]): string[] {
+  const parts = EXECUTION_TEMPLATES['execution.minutes-of-plan'].text.split(/\{[A-Za-z]+\}/)
+  const shape = new RegExp(
+    `^${parts.map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('.+')}$`,
+  )
+  return lines.filter((line) => !shape.test(line))
+}

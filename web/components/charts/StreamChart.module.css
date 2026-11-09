@@ -3,12 +3,122 @@
   margin: 0;
 }
 
+/* The panel takes focus: the arrow keys move the one cursor of all the plots. */
+.panel {
+  border-radius: var(--radius-sm);
+}
+
+/* The fixed readout row above the plots. Its height holds the hint, the larger of its two states
+   (two lines at 360 px), so the page does not move when a point is read; the values stay on one
+   line. */
+.readout {
+  display: flex;
+  align-items: center;
+  height: 40px;
+  overflow: hidden;
+  color: var(--text);
+  font-size: var(--text-sm);
+  line-height: 1.2;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+/* A reading pinned by a long press: an accent edge, so it is not mistaken for a moving one. */
+.readout[data-pinned='true'] {
+  box-shadow: inset 2px 0 0 var(--accent);
+  padding-left: var(--space-2);
+}
+
+.cells {
+  display: flex;
+  align-items: baseline;
+  column-gap: var(--space-3);
+  white-space: nowrap;
+}
+
+.cells[hidden],
+.hint[hidden] {
+  display: none;
+}
+
+.item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-1);
+}
+
+.value {
+  font-family: var(--font-serif);
+  font-weight: 600;
+}
+
+.unit {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.hint {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: 1.4;
+}
+
+/* Scrubbing sideways reads a point; a vertical swipe still scrolls the page. A press-and-hold must
+   not open the system's menu or select text. */
+.plots {
+  position: relative;
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.plot {
+  position: relative;
+}
+
 /* The chart draws once at its initialDimension (640 px) before it measures this box; clipping keeps
-   that first frame from widening the page of a phone. */
+   that first frame from widening the page of a phone. The last plot is taller by its x axis. */
 .chart {
   width: 100%;
-  height: 11rem;
+  height: var(--chart-h-sm);
   overflow: hidden;
+}
+
+.chart[data-last='true'] {
+  height: calc(var(--chart-h-sm) + 24px);
+}
+
+/* The crosshair is one line over every plot, moved by writing its `left`; it is not part of any
+   chart, so moving it redraws nothing. */
+.crossWrap {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  pointer-events: none;
+}
+
+.cross {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--border-strong);
+}
+
+.cross[hidden] {
+  display: none;
+}
+
+/* The series name and its unit at the top of each plot, and the planned or ceiling note at its
+   right: both in the margin above the plot, never over the data. */
+.plotName,
+.plotNote {
+  position: absolute;
+  top: 0;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: 1;
+  pointer-events: none;
 }
 
 .caption {
@@ -16,4 +126,17 @@
   color: var(--text-muted);
   font-size: var(--text-sm);
   line-height: var(--lh-sm);
+}
+
+.notes {
+  margin: 0;
+}
+
+.how summary {
+  cursor: pointer;
+  font-size: var(--text-xs);
+}
+
+.how p {
+  margin: var(--space-1) 0 0;
 }

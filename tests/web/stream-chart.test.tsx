@@ -3,8 +3,12 @@ import { describe, expect, test } from 'vitest'
 import type { ActivityStreamData } from '../../shared/types.ts'
 import { StreamChart, yAxisWidth } from '../../web/components/charts/StreamChart.tsx'
 import {
+  alignSeries,
   buildSeries,
-  distanceLabelToMetres,
+  nearestRowIndex,
+  overCeiling,
+  xTicks,
+  plannedPaceBand,
   drawablePoints,
   streamXAxis,
   type StreamData,
@@ -124,26 +128,9 @@ describe('drawablePoints', () => {
   })
 })
 
-describe('distanceLabelToMetres', () => {
-  test('turns the chart distance into metres in the unit the chart is drawn in', () => {
-    expect(distanceLabelToMetres(0.25, 'mi')).toBeCloseTo(402.336, 3)
-    expect(distanceLabelToMetres(1, 'mi')).toBeCloseTo(1609.344, 3)
-    expect(distanceLabelToMetres(0.25, 'km')).toBe(250)
-    expect(distanceLabelToMetres(0, 'km')).toBe(0)
-    // recharts may hand the label over as text
-    expect(distanceLabelToMetres('0.5', 'km')).toBe(500)
-  })
-
-  test('is null for anything that is not a finite number', () => {
-    for (const label of [undefined, null, '', 'far', Number.NaN, Infinity]) {
-      expect(distanceLabelToMetres(label, 'km')).toBeNull()
-    }
-  })
-})
-
 describe('StreamChart', () => {
   test('describes the series for screen readers and lists a data table', () => {
-    render(<StreamChart stream={makeStream()} channel="hr" units="km" />)
+    render(<StreamChart stream={makeStream()} channels={['hr']} units="km" />)
     const chart = screen.getByRole('img', { name: /Heart rate, average 146 bpm, highest 151 bpm/ })
     expect(chart).toBeInTheDocument()
     const table = screen.getByRole('table', { name: /Heart rate/ })
@@ -151,7 +138,7 @@ describe('StreamChart', () => {
   })
 
   test('pace chart label gives average and fastest pace in the display unit', () => {
-    render(<StreamChart stream={makeStream()} channel="pace" units="km" />)
+    render(<StreamChart stream={makeStream()} channels={['pace']} units="km" />)
     expect(
       screen.getByRole('img', { name: /Pace, average 5:33 \/km, fastest 5:33 \/km/ }),
     ).toBeInTheDocument()
@@ -159,8 +146,108 @@ describe('StreamChart', () => {
 
   test('renders nothing when the channel has no values', () => {
     const { container } = render(
-      <StreamChart stream={makeStream({ hr: null })} channel="hr" units="km" />,
+      <StreamChart stream={makeStream({ hr: null })} channels={['hr']} units="km" />,
     )
     expect(container).toBeEmptyDOMElement()
+  })
+})
+
+describe('alignSeries', () => {
+  test('puts the three channels on one row per bucket', () => {
+    const rows = alignSeries(makeStream(), 'km')
+    expect(rows).toHaveLength(12)
+    expect(rows[11]).toMatchObject({ hr: 151, alt: 111 })
+    expect(rows[11]?.x).toBeCloseTo(0.36, 5)
+    expect(rows[0]?.pace).toBeNull()
+    expect(rows[8]?.pace).toBeCloseTo(333.33, 1)
+  })
+
+  test('a channel the stream lacks is null in every row', () => {
+    const rows = alignSeries(makeStream({ hr: null }), 'km')
+    expect(rows.every((row) => row.hr === null)).toBe(true)
+    expect(rows.every((row) => row.alt !== null)).toBe(true)
+  })
+
+  test('no channel at all gives no rows', () => {
+    expect(alignSeries(makeStream({ d: null, hr: null, alt: null }), 'km')).toEqual([])
+  })
+})
+
+describe('nearestRowIndex', () => {
+  const rows = [0, 1, 2, 4].map((x) => ({ x, pace: null, hr: null, alt: null }))
+  test('finds the row nearest the x, ties going to the earlier one', () => {
+    expect(nearestRowIndex(rows, -3)).toBe(0)
+    expect(nearestRowIndex(rows, 1.4)).toBe(1)
+    expect(nearestRowIndex(rows, 3)).toBe(2)
+    expect(nearestRowIndex(rows, 3.1)).toBe(3)
+    expect(nearestRowIndex(rows, 99)).toBe(3)
+  })
+  test('is -1 for no rows or a value that is no number', () => {
+    expect(nearestRowIndex([], 1)).toBe(-1)
+    expect(nearestRowIndex(rows, Number.NaN)).toBe(-1)
+  })
+})
+
+describe('plannedPaceBand', () => {
+  test('converts the stored slow-first seconds per km into the chart unit, fast end first', () => {
+    expect(plannedPaceBand([330, 310], 'km')).toEqual({ fast: 310, slow: 330 })
+    const mi = plannedPaceBand([330, 310], 'mi')
+    expect(mi?.fast).toBeCloseTo(498.9, 1)
+    expect(mi?.slow).toBeCloseTo(531.1, 1)
+  })
+  test('is null without a pace target or with a bad one', () => {
+    expect(plannedPaceBand(null, 'km')).toBeNull()
+    expect(plannedPaceBand(undefined, 'km')).toBeNull()
+    expect(plannedPaceBand([0, 300], 'km')).toBeNull()
+  })
+})
+
+describe('xTicks', () => {
+  test('round steps, at most five labels, the end of the run last', () => {
+    expect(xTicks(2.88, 'distance')).toEqual([0, 1, 2, 2.88])
+    expect(xTicks(3.4, 'distance')).toEqual([0, 1, 2, 3.4])
+    expect(xTicks(13.1, 'distance')).toEqual([0, 5, 10, 13.1])
+    expect(xTicks(0.36, 'distance')).toEqual([0, 0.1, 0.2, 0.3, 0.36])
+    expect(xTicks(26, 'time')).toEqual([0, 10, 20, 26])
+    for (const max of [0.2, 1, 7.7, 26.2, 62, 100.4]) {
+      const ticks = xTicks(max, 'distance')
+      expect(ticks.length).toBeLessThanOrEqual(5)
+      expect(ticks.at(-1)).toBe(max)
+      expect(ticks[0]).toBe(0)
+    }
+  })
+
+  test('no run length gives the origin alone', () => {
+    expect(xTicks(0, 'distance')).toEqual([0])
+    expect(xTicks(Number.NaN, 'time')).toEqual([0])
+  })
+})
+
+describe('overCeiling', () => {
+  const pt = (x: number, y: number | null) => ({ x, y })
+
+  test('the hatch starts and ends on the crossing, not on the first sample above', () => {
+    const out = overCeiling([pt(0, 140), pt(1, 150), pt(2, 140)], 145)
+    expect(out.map((p) => [p.x, p.y])).toEqual([
+      [0, 140],
+      [0.5, 145],
+      [1, 150],
+      [1.5, 145],
+      [2, 140],
+    ])
+    expect(out.map((p) => p.over)).toEqual([null, [145, 145], [145, 150], [145, 145], null])
+  })
+
+  test('one sample above the ceiling still draws a stretch', () => {
+    const out = overCeiling([pt(0, 100), pt(1, 160), pt(2, 100)], 145)
+    expect(out.filter((p) => p.over !== null && p.over[1] > p.over[0])).toHaveLength(1)
+    expect(out).toHaveLength(5)
+  })
+
+  test('a gap is not bridged, and no ceiling marks nothing', () => {
+    const out = overCeiling([pt(0, 140), pt(1, null), pt(2, 150)], 145)
+    expect(out).toHaveLength(3)
+    expect(out.map((p) => p.over)).toEqual([null, null, [145, 150]])
+    expect(overCeiling([pt(0, 140), pt(1, 150)], null).every((p) => p.over === null)).toBe(true)
   })
 })
