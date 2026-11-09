@@ -25,10 +25,20 @@
   }
 }
 
+/* Busy (a save under way) keeps its look, a little faded. */
 .button:disabled,
 .button[aria-disabled='true'] {
   cursor: default;
   opacity: 0.6;
+}
+
+/* Disabled is a flat sunken fill, muted words and a dashed edge, never a fade: a faded label falls
+   under 3:1 (visual design 11). The muted-on-sunken pair is 4.5:1 in both themes. */
+.button:disabled:not([aria-busy='true']) {
+  background: var(--surface-sunken);
+  border: 1px dashed var(--border-strong);
+  color: var(--text-muted);
+  opacity: 1;
 }
 
 .primary {
@@ -55,13 +65,4 @@
 
 .quiet:active:not(:disabled):not([aria-disabled='true']) {
   background: var(--accent-soft);
-}
-
-.danger {
-  border-color: var(--danger);
-  color: var(--danger);
-}
-
-.danger:active:not(:disabled):not([aria-disabled='true']) {
-  background: var(--surface-sunken);
 }

@@ -14,6 +14,8 @@ import {
 import { ApiError, fieldErrors, keys } from '../api/client.ts'
 import { useSettings } from '../api/settings.ts'
 import { Button } from '../components/Button.tsx'
+import { ConfirmSheet } from '../components/ConfirmSheet.tsx'
+import { TrashGlyph } from '../components/Glyphs.tsx'
 import { Field, Input, Textarea } from '../components/Field.tsx'
 import { FeelPicker, ScaleChips } from '../components/FeelPicker.tsx'
 import { Segmented } from '../components/Segmented.tsx'
@@ -540,39 +542,27 @@ function ActivityFormSheet({ onClose, activity }: ActivityFormProps) {
 
         {activity ? (
           <div className={styles.danger}>
-            {confirmingDelete ? (
-              <>
-                <p>Delete this activity?</p>
-                <div className={styles.dangerActions}>
-                  <Button
-                    variant="danger"
-                    loading={remove.isPending}
-                    onClick={() => {
-                      void deleteActivity(activity)
-                    }}
-                  >
-                    Delete activity
-                  </Button>
-                  <Button
-                    variant="quiet"
-                    onClick={() => {
-                      setConfirmingDelete(false)
-                    }}
-                  >
-                    Keep
-                  </Button>
-                </div>
-              </>
-            ) : (
-              <Button
-                variant="danger"
-                onClick={() => {
-                  setConfirmingDelete(true)
-                }}
-              >
-                Delete
-              </Button>
-            )}
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setConfirmingDelete(true)
+              }}
+            >
+              <TrashGlyph />
+              Delete
+            </Button>
+            <ConfirmSheet
+              open={confirmingDelete}
+              title="Delete this activity?"
+              confirmLabel="Delete activity"
+              pending={remove.isPending}
+              onConfirm={() => {
+                void deleteActivity(activity)
+              }}
+              onClose={() => {
+                setConfirmingDelete(false)
+              }}
+            />
           </div>
         ) : null}
       </form>

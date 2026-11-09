@@ -2,7 +2,7 @@ import { forwardRef, type ButtonHTMLAttributes } from 'react'
 import styles from './Button.module.css'
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'quiet' | 'danger'
+  variant?: 'primary' | 'secondary' | 'quiet'
   /** Disables the button while its action runs. */
   loading?: boolean
   /**

@@ -541,10 +541,10 @@ describe('Activities page', () => {
     })
     const dialog = await screen.findByRole('dialog', { name: 'Edit activity' })
     await user.click(within(dialog).getByRole('button', { name: 'Delete' }))
-    expect(within(dialog).getByText('Delete this activity?')).toBeInTheDocument()
+    const ask = await screen.findByRole('dialog', { name: 'Delete this activity?' })
     expect(api.calls.filter((c) => c.method === 'DELETE')).toHaveLength(0)
 
-    await user.click(within(dialog).getByRole('button', { name: 'Delete activity' }))
+    await user.click(within(ask).getByRole('button', { name: 'Delete activity' }))
     expect(await screen.findByText('Activity deleted')).toBeInTheDocument()
     expect(api.calls.filter((c) => c.method === 'DELETE')).toHaveLength(1)
 
@@ -561,6 +561,25 @@ describe('Activities page', () => {
     })
   })
 
+  test('Escape in the Delete sheet closes only that sheet and returns focus to Delete', async () => {
+    const user = userEvent.setup()
+    const row = makeActivity({ id: 'a1', durationSec: 2700, distanceM: 8047 })
+    const api = renderEditSheet(row, {
+      'DELETE /api/activities/a1': () => ({ status: 204, body: undefined }),
+    })
+    const edit = await screen.findByRole('dialog', { name: 'Edit activity' })
+    const trigger = within(edit).getByRole('button', { name: 'Delete' })
+    await user.click(trigger)
+    const ask = await screen.findByRole('dialog', { name: 'Delete this activity?' })
+    const confirm = within(ask).getByRole('button', { name: 'Delete activity' })
+    expect(confirm.querySelector('svg[aria-hidden="true"]')).not.toBeNull()
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('dialog', { name: 'Delete this activity?' })).toBeNull()
+    expect(screen.getByRole('dialog', { name: 'Edit activity' })).toBeInTheDocument()
+    expect(trigger).toHaveFocus()
+    expect(api.calls.filter((c) => c.method === 'DELETE')).toHaveLength(0)
+  })
+
   test('a failed Undo says the activity was not restored', async () => {
     const user = userEvent.setup()
     const row = makeActivity({ id: 'a1', durationSec: 2700, distanceM: 8047 })
@@ -573,7 +592,8 @@ describe('Activities page', () => {
     })
     const dialog = await screen.findByRole('dialog', { name: 'Edit activity' })
     await user.click(within(dialog).getByRole('button', { name: 'Delete' }))
-    await user.click(within(dialog).getByRole('button', { name: 'Delete activity' }))
+    const ask = await screen.findByRole('dialog', { name: 'Delete this activity?' })
+    await user.click(within(ask).getByRole('button', { name: 'Delete activity' }))
     await user.click(await screen.findByRole('button', { name: 'Undo' }))
     expect(
       await screen.findByText('Activity not restored. The server did not respond.'),
