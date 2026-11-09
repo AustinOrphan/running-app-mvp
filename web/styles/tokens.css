@@ -71,6 +71,9 @@
   --chart-planned: #8a8996;
   --chart-actual: var(--accent);
   --chart-grid: var(--border);
+  --chart-h-sm: 96px;
+  --chart-h-md: 176px;
+  --chart-h-lg: 224px;
 
   --shadow-sheet: 0 -8px 32px rgb(23 22 29 / 0.16);
   --shadow-toast: 0 4px 16px rgb(23 22 29 / 0.18);

@@ -33,6 +33,7 @@ import {
 import { ApiError, keys } from '../api/client.ts'
 import { usePlan } from '../api/plan.ts'
 import { useSettings } from '../api/settings.ts'
+import { useZones } from '../api/zones.ts'
 import { Button } from '../components/Button.tsx'
 import { StreamChart } from '../components/charts/lazyCharts.tsx'
 import { buildSeries, type StreamChannel } from '../components/charts/streamSeries.ts'
@@ -40,6 +41,7 @@ import { FeedbackFields, type FeedbackValues } from '../components/FeelPicker.ts
 import { ErrorState } from '../components/ErrorState.tsx'
 import { useLoadView } from '../components/loadView.ts'
 import { Figure } from '../components/Figure.tsx'
+import { PlanBars } from '../components/PlanBars.tsx'
 import { createDistanceCursor, type DistanceCursor } from '../components/map/distanceCursor.ts'
 import { RunMap, RunMapLoading } from '../components/map/RunMap.tsx'
 import { FuelSection } from '../components/fuel/FuelSection.tsx'
@@ -258,7 +260,12 @@ function RouteMap({
 
 const CHANNELS: StreamChannel[] = ['pace', 'hr', 'alt']
 
-/** The charts of the recording's stream; nothing at all for an activity that has no stream to draw. */
+/**
+ * The charts of the recording's stream, stacked on one distance axis with one cursor; nothing at
+ * all for an activity that has no stream to draw. The planned pace comes from the session this run
+ * filled (the plan other pages share) and the easy ceiling from the zones; each is drawn only when
+ * it is there, and a plan or zones that did not load leave the charts as they were.
+ */
 function Charts({
   detail,
   units,
@@ -269,6 +276,8 @@ function Charts({
   cursor: DistanceCursor
 }) {
   const { activity, stream } = detail
+  const plan = usePlan()
+  const zones = useZones()
   const channels = CHANNELS.filter(
     (channel) => channel !== 'pace' || activity.type === 'run' || activity.type === 'race',
   )
@@ -276,18 +285,19 @@ function Charts({
     stream !== null &&
     channels.some((channel) => buildSeries(stream, channel, units).some((p) => p.y !== null))
   if (stream === null || !hasData) return null
+  const isRun = activity.type === 'run' || activity.type === 'race'
+  const session = plan.data?.sessions.find((candidate) => candidate.activityId === activity.id)
   return (
     <Section title="Charts">
       <div className={styles.charts}>
-        {channels.map((channel) => (
-          <StreamChart
-            key={channel}
-            stream={stream}
-            channel={channel}
-            units={units}
-            cursor={cursor}
-          />
-        ))}
+        <StreamChart
+          stream={stream}
+          channels={channels}
+          units={units}
+          cursor={cursor}
+          plannedPaceSecPerKm={session?.target.paceSecPerKm ?? null}
+          easyCeilingBpm={isRun ? (zones.data?.hr?.z1[1] ?? null) : null}
+        />
       </div>
     </Section>
   )
@@ -360,6 +370,7 @@ function AgainstThePlan({ activity, units }: { activity: Activity; units: Units 
           {line}
         </p>
       ))}
+      <PlanBars session={session} activity={activity} units={units} />
     </Section>
   )
 }

@@ -127,3 +127,60 @@ export function drawablePoints(points: SeriesPoint[], sampleSec: number): Series
   })
   return out
 }
+
+/** One moment of the run with every channel's value, for the readout and the shared cursor. */
+export interface AlignedRow {
+  x: number
+  pace: number | null
+  hr: number | null
+  alt: number | null
+}
+
+/**
+ * The three channels on one x axis, a row per bucket that has an x position. Every channel drops
+ * the same buckets (those without an x), so the rows line up by index; a channel the stream lacks
+ * is null in every row.
+ */
+export function alignSeries(stream: StreamData, units: Units): AlignedRow[] {
+  const pace = buildSeries(stream, 'pace', units)
+  const hr = buildSeries(stream, 'hr', units)
+  const alt = buildSeries(stream, 'alt', units)
+  const lead = [pace, hr, alt].find((series) => series.length > 0)
+  if (lead === undefined) return []
+  return lead.map((point, i) => ({
+    x: point.x,
+    pace: pace[i]?.y ?? null,
+    hr: hr[i]?.y ?? null,
+    alt: alt[i]?.y ?? null,
+  }))
+}
+
+/** The index of the row nearest to `x` (rows run in increasing x), or -1 for no rows. */
+export function nearestRowIndex(rows: readonly AlignedRow[], x: number): number {
+  if (rows.length === 0 || !Number.isFinite(x)) return -1
+  let lo = 0
+  let hi = rows.length - 1
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1
+    if ((rows[mid]?.x ?? 0) < x) lo = mid + 1
+    else hi = mid
+  }
+  const after = rows[lo]?.x ?? 0
+  const before = rows[lo - 1]?.x
+  return before !== undefined && x - before <= after - x ? lo - 1 : lo
+}
+
+/**
+ * The planned pace band in the chart's own unit (seconds per mile or per km), fast end first. The
+ * session stores the slow end first, in seconds per km. Null when the session has no pace target.
+ */
+export function plannedPaceBand(
+  paceSecPerKm: readonly [number, number] | null | undefined,
+  units: Units,
+): { fast: number; slow: number } | null {
+  if (!paceSecPerKm) return null
+  const [a, b] = paceSecPerKm
+  if (!(a > 0) || !(b > 0) || !Number.isFinite(a + b)) return null
+  const scale = metresPerUnit(units) / 1000
+  return { fast: Math.min(a, b) * scale, slow: Math.max(a, b) * scale }
+}

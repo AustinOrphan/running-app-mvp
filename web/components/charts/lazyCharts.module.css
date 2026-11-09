@@ -19,6 +19,11 @@
   height: 11rem;
 }
 
+/* The stacked stream panel: the readout row (40 px), three plots (96 px) and an x axis (24 px). */
+.streamPanel {
+  height: 22rem;
+}
+
 .track {
   height: 12rem;
 }

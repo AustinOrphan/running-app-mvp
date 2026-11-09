@@ -1,0 +1,80 @@
+.bars {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-width: var(--prose-max);
+  margin: var(--space-3) 0 0;
+}
+
+.pair {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.measure {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 4.5rem 1fr auto;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.name {
+  color: var(--text-muted);
+}
+
+.value {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  text-align: right;
+}
+
+.track {
+  position: relative;
+  display: block;
+  height: 12px;
+}
+
+/* Planned: an outline, never filled. */
+.outline {
+  display: block;
+  box-sizing: border-box;
+  height: 100%;
+  border: 1.5px solid var(--chart-planned);
+  border-radius: 2px;
+}
+
+/* Ran: solid. */
+.solid {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: var(--chart-actual);
+  border-radius: 2px;
+}
+
+/* Past the plan: hatched, with the solid colour for an edge so it holds in greyscale. */
+.over {
+  position: absolute;
+  top: 0;
+  box-sizing: border-box;
+  height: 100%;
+  border: 1.5px solid var(--chart-actual);
+  border-left: 0;
+  border-radius: 0 2px 2px 0;
+  background: repeating-linear-gradient(45deg, var(--chart-actual) 0 1.5px, transparent 1.5px 5px);
+}
+
+.caption {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}

@@ -163,6 +163,7 @@ function renderDetail(
     'GET /api/activities/a1/standout': () => ({ items: [], more: 0 }),
     ...noTrackRoute,
     'GET /api/plan': () => opts.plan ?? null,
+    'GET /api/zones': () => ({ hr: null }),
     'GET /api/strength': () => makeView(),
     'GET /api/strength/logs': () => [],
     ...opts.routes,
@@ -640,6 +641,7 @@ describe('ActivityDetailPage', () => {
       'GET /api/activities/a1/standout': () => ({ items: [], more: 0 }),
       ...noTrackRoute,
       'GET /api/plan': () => null,
+      'GET /api/zones': () => ({ hr: null }),
       'PATCH /api/activities/a1/feedback': () => {
         stored = { rpe: 8, feel: 1, pain: 0 }
         return {}
@@ -816,6 +818,7 @@ describe('ActivityDetailPage', () => {
         'GET /api/activities/a1/standout': () => ({ items: [], more: 0 }),
         ...noTrackRoute,
         'GET /api/plan': () => planWith(makeExecution(-1)),
+        'GET /api/zones': () => ({ hr: null }),
         'PATCH /api/activities/a1/feedback': (req) => {
           const body = req.body as { rpe: number | null; feel: number | null }
           stored = { rpe: body.rpe, feel: body.feel }
@@ -973,6 +976,71 @@ describe('ActivityDetailPage: against the plan', () => {
     expect(
       await within(section).findByText('Planned: Long run, 2 h 55 min. Ran: 30 min, 5 km.'),
     ).toBeInTheDocument()
+  })
+
+  test('two bars per measure: the plan outlined, the run solid, what went past it hatched', async () => {
+    renderDetail({
+      plan: linkedPlan(withLines([PLANNED]), { durationMin: 20 }),
+    })
+    const section = await block()
+    expect(
+      await within(section).findByRole('img', {
+        name: 'Time: planned 20 min, ran 30 min.',
+      }),
+    ).toBeInTheDocument()
+    expect(
+      within(section).getByRole('img', { name: 'Distance: planned 5.6 mi, ran 3.1 mi.' }),
+    ).toBeInTheDocument()
+    expect(section.querySelectorAll('[data-overshoot="true"]')).toHaveLength(1)
+    expect(
+      within(section).getByText(/The hatched part is run past the planned figure\./),
+    ).toBeInTheDocument()
+    const table = within(section).getByRole('table', { name: 'Planned and ran' })
+    expect(within(table).getAllByRole('row')).toHaveLength(3)
+    // no tick, check mark, percentage or "met" in what the bars draw
+    const bars = section.querySelector('figure')
+    expect(bars?.textContent).not.toMatch(/%|✓|✔|\bmet\b/i)
+    expectCleanCopy(section)
+  })
+
+  test('a run with no distance has the time bars alone, and one that stayed within the plan no hatching', async () => {
+    const base = makeDetail()
+    renderDetail({
+      detail: { ...base, activity: { ...base.activity, durationSec: 1800, distanceM: null } },
+      plan: linkedPlan(withLines([PLANNED])),
+    })
+    const section = await block()
+    await within(section).findByRole('img', { name: 'Time: planned 2 h 55 min, ran 30 min.' })
+    expect(within(section).queryByRole('img', { name: /^Distance/ })).not.toBeInTheDocument()
+    expect(section.querySelectorAll('[data-overshoot="true"]')).toHaveLength(0)
+    expect(within(section).queryByText(/hatched/)).not.toBeInTheDocument()
+  })
+
+  test('no linked session, no bars', async () => {
+    renderDetail({ plan: makeV2Plan({ sessions: [] }) })
+    await screen.findByRole('region', { name: 'Against the plan' })
+    expect(screen.queryByRole('img', { name: /^Time: planned/ })).not.toBeInTheDocument()
+  })
+
+  test('the charts draw the planned pace and the easy ceiling when the plan and the zones have them', async () => {
+    const zones = { hr: { z1: [100, 142], z2: [143, 158], z3: [159, 175] } }
+    renderDetail({
+      plan: linkedPlan(withLines([PLANNED])),
+      routes: { 'GET /api/zones': () => zones },
+    })
+    expect(
+      await screen.findByText(/The dashed band is the pace the session planned\./),
+    ).toBeInTheDocument()
+    expect(
+      await screen.findByText(/Heart rate above the easy ceiling of 142 bpm is hatched\./),
+    ).toBeInTheDocument()
+  })
+
+  test('the charts draw neither without a plan session or without zones', async () => {
+    renderDetail({ routes: { 'GET /api/zones': () => ({ hr: null }) } })
+    await screen.findByRole('group', { name: /Pace, heart rate and elevation/ })
+    expect(screen.queryByText(/dashed band/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/easy ceiling/)).not.toBeInTheDocument()
   })
 
   test('a rated run shows the effort line with the rating in it', async () => {
