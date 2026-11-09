@@ -80,6 +80,70 @@ describe('Today: the week strip', () => {
     expectCleanCopy(container)
   })
 
+  test('draws the bars aria-hidden and keeps the figures in a hidden table', async () => {
+    renderToday(withWeek({ runMin: 60, targetRunMin: 300 }))
+    const strip = await screen.findByRole('region', { name: 'This week' })
+    const table = within(strip).getByRole('table', {
+      name: 'Run time by day this week, planned and logged',
+    })
+    expect(table.parentElement).toHaveClass('visually-hidden')
+    expect(within(table).getAllByRole('row')).toHaveLength(8)
+    const monday = within(table).getByRole('row', { name: /^Monday/ })
+    expect(
+      within(monday)
+        .getAllByRole('cell')
+        .map((c) => c.textContent),
+    ).toEqual(['45 min', '40 min'])
+    // A rest day is a row of zeros and an empty column: the letters stay, no bar is drawn.
+    const thursday = within(table).getByRole('row', { name: /^Thursday/ })
+    expect(
+      within(thursday)
+        .getAllByRole('cell')
+        .map((c) => c.textContent),
+    ).toEqual(['0 min', '0 min'])
+    const bars = strip.querySelectorAll('[class*="bars"]')
+    expect(bars).toHaveLength(7)
+    for (const bar of bars) expect(bar).toHaveAttribute('aria-hidden', 'true')
+    expect(bars[3]!.children).toHaveLength(0)
+    expect(bars[0]!.children).toHaveLength(2)
+    expect(within(strip).getByText('Thu')).toBeInTheDocument()
+  })
+
+  test('counts a logged race in the logged column and draws it as the solid bar', async () => {
+    renderToday(
+      makeToday({
+        coach: makeCoach({
+          weekStrip: makeStrip(
+            { runMin: 0, targetRunMin: 300 },
+            {
+              '2026-03-22': {
+                mark: 'done',
+                runMin: 0,
+                raceMin: 290,
+                sessions: [makeSession({ id: 's-race', date: '2026-03-22', kind: 'race' })],
+              },
+            },
+          ),
+        }),
+      }),
+    )
+    const strip = await screen.findByRole('region', { name: 'This week' })
+    const sunday = within(within(strip).getByRole('table')).getByRole('row', { name: /^Sunday/ })
+    expect(within(sunday).getAllByRole('cell')[1]).toHaveTextContent('4 h 50 min')
+    expect(
+      within(strip).getByRole('button', { name: 'Sunday 22 Mar, Done, 4 h 50 min logged' }),
+    ).toBeInTheDocument()
+  })
+
+  test('marks today in the table and on the column, and only today', async () => {
+    renderToday(withWeek({ runMin: 60, targetRunMin: 300 }))
+    const strip = await screen.findByRole('region', { name: 'This week' })
+    const table = within(strip).getByRole('table')
+    expect(within(table).getByRole('rowheader', { name: 'Wednesday, today' })).toBeInTheDocument()
+    expect(within(table).getAllByRole('rowheader', { name: /today/ })).toHaveLength(1)
+    expect(strip.querySelectorAll('[aria-current="date"]')).toHaveLength(1)
+  })
+
   test('shows the hours against the target as a Meter, and the advisory split', async () => {
     renderToday(
       withWeek({

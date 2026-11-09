@@ -73,6 +73,9 @@ const pairs: Pair[] = [
   ...ALL_SURFACES.map((bg) => ({ fg: '--accent', bg, min: 4.5, why: 'accent text' })),
   { fg: '--accent', bg: '--accent-soft', min: 4.5, why: 'accent label on the selected fill' },
   { fg: '--text', bg: '--accent-soft', min: 4.5, why: 'text on the selected fill' },
+  // Today's column of the week bars: the planned outline and the open marks are drawn in the muted
+  // text colour there, because the control edge is under 3:1 on the selected fill.
+  { fg: '--text-muted', bg: '--accent-soft', min: 4.5, why: "planned outline in today's column" },
   { fg: '--accent-text', bg: '--accent', min: 4.5, why: 'label on an accent fill' },
   // Status colours are text colours here.
   ...SURFACES.flatMap((bg) =>

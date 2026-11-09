@@ -1,10 +1,36 @@
+import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { raceEstimateSlots } from '../../../shared/copy/today.ts'
+import { silhouettePaths } from '../../../shared/domain/courseSilhouette.ts'
 import { renderFact } from '../../../shared/copy/templates.ts'
 import type { TodayRace, Units } from '../../../shared/types.ts'
 import { formatLongDate, plural } from '../format.ts'
 import { ExplainButton } from '../ExplainButton.tsx'
 import styles from './RaceCountdown.module.css'
+
+const SILHOUETTE_BOX = { width: 320, height: 48, pad: 4 }
+
+/**
+ * The goal course as a quiet silhouette: the runner's course points drawn as a smooth curve, no
+ * axes and no labels. Decorative and hidden from assistive technology: the sentence above it
+ * carries the meaning. Nothing is drawn when the goal has no course data.
+ */
+function CourseSilhouette({ course }: { course: NonNullable<TodayRace['course']> }) {
+  const { line, area } = useMemo(() => silhouettePaths(course, SILHOUETTE_BOX), [course])
+  if (line === '') return null
+  return (
+    <svg
+      aria-hidden="true"
+      focusable="false"
+      className={styles.silhouette}
+      viewBox={`0 0 ${String(SILHOUETTE_BOX.width)} ${String(SILHOUETTE_BOX.height)}`}
+      preserveAspectRatio="none"
+    >
+      <path d={area} className={styles.silhouetteArea} />
+      <path d={line} className={styles.silhouetteLine} />
+    </svg>
+  )
+}
 
 /**
  * Days to the goal race, its name and date, and the finish estimate with its range. When the
@@ -29,6 +55,9 @@ export function RaceCountdown({ race, units }: { race: TodayRace; units: Units }
         <p className={styles.caption}>
           {`${race.name}, ${formatLongDate(race.targetDate)}${race.dateProvisional ? ', date provisional' : ''}`}
         </p>
+        {race.course === undefined || race.course === null ? null : (
+          <CourseSilhouette course={race.course} />
+        )}
         <span className={styles.chevron}>Open the race plan</span>
       </Link>
       {prediction === null ? null : (

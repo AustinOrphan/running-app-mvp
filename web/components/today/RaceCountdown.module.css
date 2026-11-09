@@ -27,6 +27,29 @@
   line-height: var(--lh-sm);
 }
 
+/* The course silhouette: a soft fill under a 1.5 px line, quiet beside the sentence. */
+.silhouette {
+  display: block;
+  width: 100%;
+  max-width: var(--prose-max);
+  height: 3rem;
+  margin: var(--space-2) 0;
+  overflow: visible;
+}
+
+.silhouetteArea {
+  fill: var(--accent-soft);
+  stroke: none;
+}
+
+.silhouetteLine {
+  fill: none;
+  stroke: var(--text-muted);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
 .line {
   margin: 0;
   font-family: var(--font-serif);
