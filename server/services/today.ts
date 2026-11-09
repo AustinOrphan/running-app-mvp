@@ -49,6 +49,7 @@ import { athleteKey, loadAthleteContext, type AthleteContext } from './athleteSt
 import { briefStamp } from './brief.ts'
 import { todayDisruptions } from './disruptions.ts'
 import { inputFromContext, loadForecast, sessionSpec } from './engineInput.ts'
+import { loadRaceCourse } from './racePlan.ts'
 import { jobNotesStamp, sourceNotesStamp, todayHealth } from './todayHealth.ts'
 import { buildSlots } from './todaySlots.ts'
 import { forecastStamp } from './weatherCache.ts'
@@ -154,7 +155,11 @@ function nextSession(sessions: readonly PlanSessionView[], date: string): PlanSe
  * range and how wide that range has to be (`rangeLabel`). Null without a goal or once the race
  * has passed.
  */
-async function raceBlock(context: AthleteContext, date: string): Promise<TodayRace | null> {
+async function raceBlock(
+  context: AthleteContext,
+  date: string,
+  course: Promise<TodayRace['course']>,
+): Promise<TodayRace | null> {
   const goal = context.goal
   if (goal === null) return null
   const daysToRace = daysBetween(date, goal.targetDate)
@@ -180,6 +185,7 @@ async function raceBlock(context: AthleteContext, date: string): Promise<TodayRa
               : { trainingSince: prediction.trainingSince }),
           },
     range: goal.distanceM === null ? null : rangeLabel({ distanceM: goal.distanceM }),
+    course: await course,
   }
 }
 
@@ -362,7 +368,7 @@ export async function todayView(
       )
 
   const [race, health, slots] = await Promise.all([
-    raceBlock(context, date),
+    raceBlock(context, date, loadRaceCourse(deps, { userId, today })),
     todayHealth({ deps, userId, date, context }),
     buildSlots({ deps, userId, date, today, preview, context, forecast }),
   ])

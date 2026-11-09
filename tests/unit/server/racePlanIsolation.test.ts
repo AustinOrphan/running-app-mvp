@@ -69,9 +69,10 @@ describe('who reads the race plan', () => {
     expect(importers('shared/copy/racePlan.ts')).toEqual(COPY_ALLOWED)
   })
 
-  test('only the Today slot table, the route and the app read the race service', () => {
+  test('only the Today slot table, Today, the route and the app read the race service', () => {
     expect(importers('server/services/racePlan.ts')).toEqual([
       'server/routes/race.ts',
+      'server/services/today.ts',
       'server/services/todaySlots.ts',
     ])
   })

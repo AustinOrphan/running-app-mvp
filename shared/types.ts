@@ -1428,6 +1428,11 @@ export interface WeekStrip {
   /** The distance of the week's planned runs (`weekDistanceEstimateM`); null when none can be said. */
   distanceEstimateM: number | null
 }
+/** One point of the goal course's coarse profile: metres from the start and metres above the start. */
+export interface CourseSilhouettePoint {
+  distanceM: number
+  relM: number
+}
 export interface TodayRace {
   goalId: string
   name: string
@@ -1443,6 +1448,12 @@ export interface TodayRace {
   > | null
   /** How wide the range has to be; null when the goal has no distance. */
   range: RangeLabel | null
+  /**
+   * The course's relative elevation at the runner's course points and the finish
+   * (`courseSilhouettePoints`); null when the course has no climb or descent to draw. Absent in an
+   * answer the phone kept from before the field existed.
+   */
+  course?: CourseSilhouettePoint[] | null
 }
 /** A note from a registered producer (sync paused, weekly update not run, ...). */
 export interface HealthNote extends Pick<InputFact, 'template' | 'slots'> {

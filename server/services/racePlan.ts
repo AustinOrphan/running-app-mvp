@@ -4,9 +4,10 @@
 // `ClimateCache` (a state table), so the plan reads no forecast and its change key is the data
 // version and the day (`athleteKey`).
 import { daysBetween } from '../../shared/dates.ts'
+import { courseSilhouettePoints } from '../../shared/domain/courseSilhouette.ts'
 import { racePlanFor, summaryOf } from '../../shared/engine/racePlan.ts'
 import type { RacePlanSummary } from '../../shared/engine/racePlan.ts'
-import type { RacePlanView } from '../../shared/types.ts'
+import type { CourseSilhouettePoint, RacePlanView } from '../../shared/types.ts'
 import { goalModelFor, loadAthleteContext, memoByVersion } from './athleteState.ts'
 import type { SnapshotDeps } from './athleteState.ts'
 import { loadFuelState } from './fuel.ts'
@@ -75,4 +76,23 @@ export async function todayRaceSlot(
 ): Promise<RacePlanSummary | null> {
   const view = await loadRacePlan(deps, { userId: args.userId, today: args.today })
   return view.plan === null ? null : summaryOf(view.plan, args.date)
+}
+
+/**
+ * The coarse profile of the current goal's course for Today's countdown (`courseSilhouettePoints`):
+ * null without a goal, a distance, or a climb or descent in the runner's course points. Not part of
+ * the plan, so it serves any goal class. Computed once per data version (`RaceCheckpoint` and `Goal`
+ * are state models, so a save drops it); the table is read here and nowhere else beside the plan.
+ */
+export function loadRaceCourse(
+  deps: RaceDeps,
+  args: { userId: string; today: string },
+): Promise<CourseSilhouettePoint[] | null> {
+  const { userId, today } = args
+  return memoByVersion(deps, { userId, name: 'race.course' }, async () => {
+    const goal = (await loadAthleteContext(deps, { userId, today })).goal
+    if (goal === null) return null
+    const checkpoints = await listRaceCheckpoints(deps.prisma, { userId, goalId: goal.id })
+    return courseSilhouettePoints(checkpoints, goal)
+  })
 }
