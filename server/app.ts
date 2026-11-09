@@ -5,7 +5,7 @@ import cookieParser from 'cookie-parser'
 import express, { type Express } from 'express'
 import helmet from 'helmet'
 import { pinoHttp } from 'pino-http'
-import { createGlobalLimiter } from './auth/rateLimit.ts'
+import { createAddressLimiter, createUserLimiter } from './auth/rateLimit.ts'
 import { authRouter } from './auth/routes.ts'
 import { requireAuth, sameOriginGuard } from './auth/middleware.ts'
 import type { Config } from './config.ts'
@@ -62,10 +62,14 @@ export interface Deps {
 const REQUEST_ID = /^[\w.-]{1,64}$/
 
 /**
- * `globalLimit` overrides the per-IP API request budget per 15 minutes (1000 in production, 20000
- * in any other `NODE_ENV`, see `apiLimitFor`); tests use it.
+ * `userLimit` overrides the per-user API request budget per 15 minutes (1000 in production, 20000
+ * in any other `NODE_ENV`, see `apiLimitFor`) and `addressLimit` the per-address one (ten times
+ * that); tests use them.
  */
-export function createApp(deps: Deps, opts: { globalLimit?: number } = {}): Express {
+export function createApp(
+  deps: Deps,
+  opts: { userLimit?: number; addressLimit?: number } = {},
+): Express {
   const logger = createLogger(deps.config)
   const app = express()
 
@@ -104,10 +108,13 @@ export function createApp(deps: Deps, opts: { globalLimit?: number } = {}): Expr
   // built files are not compressed here; `mountStatic` serves copies made at build time.
   app.use('/api', compression({ threshold: 1024 }))
 
-  // Before the API routers, so every API call shares one budget. It stops at `/api`: the hashed
-  // assets, the manifest, the icons and the index fallback that `mountStatic` serves are cheap and
-  // cacheable, not an abuse surface, and counting them would spend the budget on page loads.
-  app.use('/api', createGlobalLimiter({ max: opts.globalLimit, nodeEnv: deps.config.nodeEnv }))
+  // Before the API routers, so every API call counts against its address: the loose budget that
+  // bounds what has no session (health, ingest, the calendar feed, unknown routes). Behind a proxy
+  // every user has the proxy's address and `trust proxy` stays unset, so the tight per-user budget
+  // is `createUserLimiter` below `requireAuth`. It stops at `/api`: the hashed assets, the
+  // manifest, the icons and the index fallback that `mountStatic` serves are cheap and cacheable,
+  // not an abuse surface, and counting them would spend the budget on page loads.
+  app.use('/api', createAddressLimiter({ max: opts.addressLimit, nodeEnv: deps.config.nodeEnv }))
 
   // Request pipeline (phase 3a design 4.8): no JSON body is read before the caller is known. The
   // only parsers ahead of authentication are the 16 KB one on sign-in and setup, and the 16 MB one
@@ -129,6 +136,7 @@ export function createApp(deps: Deps, opts: { globalLimit?: number } = {}): Expr
   app.use('/api', healthRouter(deps))
   app.use('/api', authRouter(deps))
   app.use('/api', requireAuth(deps))
+  app.use('/api', createUserLimiter({ max: opts.userLimit, nodeEnv: deps.config.nodeEnv }))
 
   // File imports and client-parsed exports carry up to 16 MB of JSON. CSV imports carry the whole
   // file as text. The parsers run in order and each skips a body that an earlier one already read,

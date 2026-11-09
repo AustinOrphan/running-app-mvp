@@ -29,8 +29,17 @@ A fresh database sends every visitor to the setup page. Enter an email, an optio
 and a password of at least 12 characters (72 bytes at most). That creates the one account for the
 install; the setup page closes afterwards. A second account needs `ALLOW_REGISTRATION=true`.
 
-Sign-in sets an httpOnly cookie that lasts 30 days. Sign-in is limited to 10 attempts per address
-per 15 minutes (successful ones count too); the limit is held in memory and resets on restart.
+Sign-in sets an httpOnly cookie that lasts 30 days. Only failed attempts count: an account is
+limited to 10 failed sign-ins per 15 minutes (the email is compared in lower case) and an address to
+100, and a successful sign-in clears that account's failures. Setup shares both budgets. Behind a
+proxy the address budget is one budget for all runners, a backstop against one client trying many
+accounts, so it is set far above what mistyping runners reach. The API is
+limited to 1,000 requests per 15 minutes per signed-in user, and to 10,000 per address (the
+address budget also covers requests with no session, such as the calendar feed and phone pushes).
+The calendar feed counts refusals only: 10 per token and 100 per address. The limits are held in
+memory and reset on restart. The app does not trust `X-Forwarded-For`, so behind a reverse proxy
+every request has the proxy's address; users there are told apart by account, user and token, and
+only the address budgets are shared.
 
 ## Commands
 
