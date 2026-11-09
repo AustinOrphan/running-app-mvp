@@ -1467,7 +1467,7 @@ export interface TodayRace {
   /** Null when the athlete's state supports no source, or the goal has no distance. */
   prediction: Pick<
     Prediction,
-    'method' | 'predictedSec' | 'lowSec' | 'highSec' | 'trainingSince'
+    'method' | 'predictedSec' | 'lowSec' | 'highSec' | 'trainingSince' | 'trainingWidened'
   > | null
   /** How wide the range has to be; null when the goal has no distance. */
   range: RangeLabel | null

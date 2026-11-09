@@ -484,6 +484,35 @@ describe('MyPacesPage: a critical speed from training [A6]', () => {
   })
 })
 
+describe('MyPacesPage: a critical speed that needed efforts older than three months [A6]', () => {
+  const widened = () =>
+    serve(
+      stateWith({
+        csMps: 3.2,
+        dPrimeM: 180,
+        csEfforts: 4,
+        csTrainingSince: '2026-06-01',
+        csWindowWidened: true,
+      }),
+    )
+
+  test('drops "at most", says the efforts are older and offers the test', async () => {
+    mockApi(widened().routes)
+    renderWithProviders(<MyPacesPage />, { route: '/paces' })
+    const events = await screen.findByRole('region', { name: 'What you can run now' })
+    expect(
+      within(events).getAllByText(
+        /^Rows from training rest on your best efforts since 1 Jun, some older than three months\./,
+      ),
+    ).toHaveLength(1)
+    const half = within(events).getByRole('article', { name: 'Half marathon' })
+    expect(within(half).queryByText('Time, at most')).not.toBeInTheDocument()
+    expect(within(half).getByText('Time, from training')).toBeInTheDocument()
+    const test = await screen.findByRole('region', { name: 'A short test' })
+    expect(within(test).getByText(/some older than three months/)).toBeInTheDocument()
+  })
+})
+
 describe('MyPacesPage: climbs and descents [I13]', () => {
   /** The nine runs of the line, and `count` more with terrain bins of a runner half as steep as Minetti. */
   const withBins = (count: number) => [

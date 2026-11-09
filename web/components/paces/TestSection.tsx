@@ -33,7 +33,13 @@ export function TestSection({ test, units, thin }: TestSectionProps) {
       </h2>
       <p className={styles.text}>
         {test.done
-          ? pacesText(test.fromTraining ? 'paces.test.training' : 'paces.test.done')
+          ? pacesText(
+              test.fromTraining
+                ? test.windowWidened
+                  ? 'paces.test.training-widened'
+                  : 'paces.test.training'
+                : 'paces.test.done',
+            )
           : pacesText('paces.test.intro')}
       </p>
       <p className={styles.note}>

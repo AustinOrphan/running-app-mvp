@@ -182,6 +182,28 @@ export const aState = {
       unit: 'days',
       note: 'Default: the 90-day window is an engine choice; the CS method itself is grade C.',
     }),
+    csWideWindowDays: param(
+      'a6.csWideWindowDays',
+      180,
+      'D',
+      'A6',
+      ['smyth-2020-cs-training-data'],
+      {
+        unit: 'days',
+        note: 'Default: the wider window is used only when the first window gives no fit, and the length is an engine choice. Older efforts are not a floor of current fitness, so a fit that needs it says so and opens on both sides.',
+      },
+    ),
+    csWidenedSlowSideWideningPct: param(
+      'a6.csWidenedSlowSideWideningPct',
+      50,
+      'D',
+      'A6',
+      ['smyth-2020-cs-training-data'],
+      {
+        unit: '%',
+        note: 'Default: fitness may have dropped since an effort older than the 90-day window, and no study sizes it, so the slower end of the interval is widened by half again, as the faster end is for a training fit (a6.csTrainingWideningPct).',
+      },
+    ),
     csEffortTargetsM: param<number[]>(
       'a6.csEffortTargetsM',
       [400, 800, 1000, 1500, 3000, 5000],

@@ -186,6 +186,7 @@ async function raceBlock(
             ...(prediction.trainingSince === undefined
               ? {}
               : { trainingSince: prediction.trainingSince }),
+            ...(prediction.trainingWidened === true ? { trainingWidened: true } : {}),
           },
     range: goal.distanceM === null ? null : rangeLabel({ distanceM: goal.distanceM }),
     course,

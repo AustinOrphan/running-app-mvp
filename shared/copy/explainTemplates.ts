@@ -165,6 +165,10 @@ export const EXPLAIN_TEMPLATES = {
     'Your critical speed is {speed}, a pace of {pace}, from {n} efforts in your training runs of the last {days} days. It is a floor, not a measurement.',
     { speed: 'speed', pace: 'pace', n: 'count', days: 'count' },
   ),
+  'explain.a6-cs-widened': tpl(
+    'Your critical speed is {speed}, a pace of {pace}, from {n} training efforts since {date}, some older than three months. Fitness may have changed.',
+    { speed: 'speed', pace: 'pace', n: 'count', date: 'date' },
+  ),
   'explain.cs-gap': tpl(
     'Critical speed needs {need} efforts between {from} and {to} in the last {days} days; {found} found. Zones use heart rate and effort until then.',
     { need: 'count', from: 'distance', to: 'distance', days: 'count', found: 'count' },
@@ -252,6 +256,10 @@ export const EXPLAIN_TEMPLATES = {
   }),
   'explain.c2-cs-training': tpl(
     'Your critical speed comes from the best stretches of your training runs, as of {date}. It is a floor, so your zones may sit low.',
+    { date: 'date' },
+  ),
+  'explain.c2-cs-widened': tpl(
+    'Your critical speed comes from training runs since {date}, some older than three months. Fitness may have changed, so zones may sit low or high.',
     { date: 'date' },
   ),
   'explain.c2-gap': tpl(
@@ -467,6 +475,10 @@ export const EXPLAIN_TEMPLATES = {
   }),
   'explain.l6-range-floor': tpl(
     'At most about {predicted}, with a range of {low} to {high}. Training is rarely all-out, so the faster end is wider.',
+    { predicted: 'duration', low: 'duration', high: 'duration' },
+  ),
+  'explain.l6-range-widened': tpl(
+    'About {predicted}, with a range of {low} to {high}. Some efforts it rests on are older than three months, so the range is wider on both sides.',
     { predicted: 'duration', low: 'duration', high: 'duration' },
   ),
   'explain.l6-floor': tpl(
