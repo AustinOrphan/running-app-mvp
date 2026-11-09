@@ -228,7 +228,10 @@ its build runs `prisma migrate deploy` as a smoke test.
   (`racePlanFor`; the carbohydrate rate is `raceFuelFor` in `fuel.ts`) and stored nowhere. Its words are
   `shared/copy/racePlan.ts` (`describeRacePlan`, `describeRaceSummary`), and the server reads it only through
   `loadRacePlan` (`server/services/racePlan.ts`, memo `race.plan`), so the Race page, the Today slot `race`
-  and the race-day block of the session sheet render one object. The plan reads no forecast (the race heat
+  and the race-day block of the session sheet render one object. The one other reader of the checkpoints
+  is `loadRaceCourse` (same file, memo `race.course`), for the course silhouette under Today's countdown
+  only (`TodayRace.course`, `shared/domain/courseSilhouette.ts`); it stays off the watch, the feed and the
+  brief. The plan reads no forecast (the race heat
   is the `ClimateCache` normal), states no pace, split or rate above a tolerated rung, and is not on the
   watch, the feed or the brief (`racePlanIsolation.test.ts`). `FUEL_KINDS.race` stays false. The plan also carries the rehearsal count (`rehearsalFor`,
   `shared/engine/rehearsal.ts`, the night runs by the sun at the home place from `shared/domain/sun.ts`

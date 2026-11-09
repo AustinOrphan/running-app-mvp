@@ -20,7 +20,7 @@
   min-width: 0;
 }
 
-/* One column of day name, mark and minutes. Today is underlined, not only tinted. */
+/* One column of bars, day name, mark and minutes. Today is underlined, not only tinted. */
 .cell {
   display: flex;
   flex-direction: column;
@@ -28,7 +28,7 @@
   gap: var(--space-1);
   width: 100%;
   min-height: 3.5rem;
-  padding: var(--space-1) 0 var(--space-2);
+  padding: var(--space-2) 0 var(--space-2);
   border: 0;
   border-bottom: 2px solid transparent;
   background: transparent;
@@ -37,6 +37,7 @@
 }
 
 .cell[aria-current='date'] {
+  background: var(--accent-soft);
   border-bottom-color: var(--accent);
   font-weight: 600;
 }
@@ -49,6 +50,44 @@
 
 .tap:active {
   background: var(--accent-soft);
+}
+
+/* The column's bars share a baseline: the outline is the plan, the solid bar the run logged, both
+   scaled to the week's longest day (`weekBars`). Bars take 60% of the column, 2 px top radius. */
+.bars {
+  position: relative;
+  display: block;
+  width: 60%;
+  height: 3.5rem;
+}
+
+.planned,
+.run {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  box-sizing: border-box;
+  border-radius: var(--radius-xs) var(--radius-xs) 0 0;
+}
+
+.planned {
+  border: 1.5px solid var(--border-strong);
+  border-bottom: 0;
+}
+
+.run {
+  background: var(--accent);
+}
+
+/* On today's tinted column the control edge is under 3:1 (tokensContrast.test.ts), so the outline
+   and the open marks take the muted text colour there. */
+.cell[aria-current='date'] .planned {
+  border-color: var(--text-muted);
+}
+
+.cell[aria-current='date'] .mark[data-mark='planned'],
+.cell[aria-current='date'] .mark[data-mark='unlogged'] {
+  border-color: var(--text-muted);
 }
 
 .tap:focus-visible {
@@ -106,7 +145,8 @@
   width: 0.25rem;
   height: 0.25rem;
   margin: 5px;
-  background: var(--border-strong);
+  /* A day with no run planned is an empty column: the letter and no mark. */
+  background: transparent;
 }
 
 .caption {

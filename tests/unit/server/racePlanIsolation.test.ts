@@ -69,9 +69,10 @@ describe('who reads the race plan', () => {
     expect(importers('shared/copy/racePlan.ts')).toEqual(COPY_ALLOWED)
   })
 
-  test('only the Today slot table, the route and the app read the race service', () => {
+  test('only the Today slot table, Today, the route and the app read the race service', () => {
     expect(importers('server/services/racePlan.ts')).toEqual([
       'server/routes/race.ts',
+      'server/services/today.ts',
       'server/services/todaySlots.ts',
     ])
   })
@@ -111,7 +112,7 @@ describe('who reads the race plan', () => {
     )
     expect(delivery.length).toBeGreaterThan(8)
     const offences = delivery.filter((file) =>
-      /racePlan|raceSplits|raceCheckpoint|RaceCheckpoint|race\.plan\./.test(
+      /racePlan|raceSplits|raceCheckpoint|RaceCheckpoint|race\.plan\.|courseSilhouette|loadRaceCourse|race\.course/.test(
         readFileSync(join(ROOT, file), 'utf8'),
       ),
     )

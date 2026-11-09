@@ -867,6 +867,30 @@ describe('GET /api/today?date=', () => {
 // ---------------------------------------------------------------------------------------------
 
 describe('GET /api/today: the race', () => {
+  test('carries the course profile from the runner points, and none without them', async () => {
+    const { u, plan } = await planWith('race-course@example.com', [], {
+      raceInDays: 100,
+      distanceM: 50_000,
+    })
+    expect((await view(u)).coach.race?.course).toBeNull()
+    await ctx.prisma.raceCheckpoint.createMany({
+      data: [
+        { userId: u.id, goalId: plan.goalId, name: 'A', distanceM: 20_000, gainM: 500, lossM: 100 },
+        {
+          userId: u.id,
+          goalId: plan.goalId,
+          name: 'B',
+          distanceM: 35_000,
+          gainM: null,
+          lossM: 300,
+        },
+      ],
+    })
+    const course = (await view(u)).coach.race?.course
+    expect(course?.map((p) => p.distanceM)).toEqual([0, 20_000, 35_000, 50_000])
+    expect(course?.slice(0, 3).map((p) => p.relM)).toEqual([0, 400, 100])
+  })
+
   test('follows the plan goal, not the active goal, and the range is wide for 100 miles', async () => {
     const { u, plan } = await planWith('race-plan@example.com', [], {
       raceInDays: 200,
@@ -1451,7 +1475,7 @@ describe('GET /api/today: cost', () => {
     )
     expect(warm.count('activity.findMany')).toBe(0)
     expect(warm.count('plan.findFirst')).toBe(0)
-    // Pinned so that a query added to the request path is a decision, not an accident. Cold is 32
+    // Pinned so that a query added to the request path is a decision, not an accident. Cold is 33
     // reads: the session lookup, the forecast stamp (the profile and the cache row), the job-notes
     // stamp, the source notes' stamp (J10, the connections), the publications' stamp (three: the
     // rows by state, the channel, the recent sends), the brief's stamp (the current week's row), the
@@ -1459,13 +1483,14 @@ describe('GET /api/today: cost', () => {
     // race climate, the three reads of the job notes, the source notes' read of the connections,
     // the watch slot's read of the channel, the note about tomorrow's run (the publications), the
     // brief slot's read of the row and the fuel replay's three (the switches, the logs, the weeks
-    // of every plan; its session lookup is skipped without a log). Warm is 17, the seventeen of the
-    // list above, and the data version is read five times (the tag, the snapshot, the fuel replay's
-    // memo once for each of the two fuel slots, and the race plan's memo, which answers null for
+    // of every plan; its session lookup is skipped without a log) and the countdown's course points
+    // (one read of the checkpoints, memoised as `race.course`). Warm is 17, the seventeen of the
+    // list above, and the data version is read six times (the tag, the snapshot, the fuel replay's
+    // memo once for each of the two fuel slots, the race course's memo, and the race plan's memo, which answers null for
     // a goal that is not an ultra without a query of its own).
-    expect(coldTotal).toBe(32)
+    expect(coldTotal).toBe(33)
     expect(warm.models).toHaveLength(17)
-    expect(warm.raw).toBe(5)
+    expect(warm.raw).toBe(6)
   })
 
   test('no request path calls the network, empty or stale caches included', async () => {
