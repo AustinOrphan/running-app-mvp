@@ -1,6 +1,6 @@
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { Profiler, useState, type ReactNode } from 'react'
+import { Profiler } from 'react'
 import { Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { encodePolyline } from '../../shared/importers/files/track.ts'
@@ -13,28 +13,6 @@ import { ActivityDetailPage } from '../../web/pages/ActivityDetailPage.tsx'
 import { makeActivity } from '../factories.ts'
 import { makeView } from './strength-fixtures.ts'
 import { mockApi, noTrackRoute, renderWithProviders, type MockRoutes } from './helpers.tsx'
-
-// The chart's own pointer handling needs layout that jsdom does not have; the tooltip is replaced
-// by a stand-in that calls the chart's `content` as recharts does, so the chart's wiring to the map
-// is what the tests exercise (the e2e suite drives the real chart).
-let hoverLabel = 0.5
-vi.mock('recharts', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('recharts')>()
-  function Tooltip(props: { content?: (p: object) => ReactNode }) {
-    const [active, setActive] = useState(false)
-    return (
-      <g
-        data-testid="chart-pointer"
-        onClick={() => {
-          setActive((on) => !on)
-        }}
-      >
-        {props.content?.({ active, label: hoverLabel, payload: [] })}
-      </g>
-    )
-  }
-  return { ...actual, Tooltip }
-})
 
 const BOX = { width: 360, height: 240 }
 
@@ -139,6 +117,7 @@ function renderPage(
     'GET /api/activities/a1/detail': () => detail,
     'GET /api/activities/a1/standout': () => ({ items: [], more: 0 }),
     'GET /api/plan': () => null,
+    'GET /api/zones': () => ({ hr: null }),
     ...(track === null ? noTrackRoute : { 'GET /api/activities/a1/track': () => track }),
     ...routes,
   })
@@ -155,7 +134,6 @@ function renderPage(
 beforeEach(() => {
   stubLayout()
   localStorage.removeItem(MAP_TILES_KEY)
-  hoverLabel = 0.5
   vi.stubGlobal('devicePixelRatio', 1)
   class FixedObserver {
     constructor(private readonly callback: ResizeObserverCallback) {}
@@ -443,55 +421,54 @@ describe('the route map on the activity page', () => {
   })
 })
 
-describe('the chart pointer and the map', () => {
+describe('the chart cursor and the map', () => {
   function dotOf(section: HTMLElement): HTMLElement {
     const dot = section.querySelector<HTMLElement>('[data-marker="cursor"]')
     if (dot === null) throw new Error('no dot')
     return dot
   }
+  // jsdom has no layout for a pointer to land on, so the arrow keys, which move the same cursor,
+  // drive the panel; the e2e suite drives it with a real mouse.
+  const panel = () => screen.findByRole('group', { name: /Pace, heart rate and elevation/ })
+  const press = (element: HTMLElement, key: string, times = 1) => {
+    for (let n = 0; n < times; n++) fireEvent.keyDown(element, { key })
+  }
+  /** A stream whose buckets are `step` metres apart, from 0. */
+  const every = (step: number) => ({ d: Array.from({ length: 12 }, (_, i) => i * step) })
 
-  test('the dot appears where the chart points and goes when the pointer leaves', async () => {
+  test('the dot appears where the cursor is and goes when it is cleared', async () => {
     renderPage(makeTrack())
     const section = await routeSection()
-    await screen.findAllByTestId('chart-pointer')
+    const group = await panel()
     const dot = dotOf(section)
     expect(dot.hidden).toBe(true)
 
-    const [pace] = screen.getAllByTestId('chart-pointer')
-    hoverLabel = 0.5 // 0.5 km = 500 m
-    fireEvent.click(pace!)
+    press(group, 'Home')
     expect(dot.hidden).toBe(false)
     const first = dot.style.transform
     expect(first).toMatch(/^translate\(-?[\d.]+px, -?[\d.]+px\)$/)
 
-    // the same chart, another distance: the dot moves
-    fireEvent.click(pace!) // leave
+    press(group, 'Escape')
     expect(dot.hidden).toBe(true)
-    hoverLabel = 0.8
-    fireEvent.click(pace!)
+    press(group, 'End')
     expect(dot.hidden).toBe(false)
     expect(dot.style.transform).not.toBe(first)
   })
 
-  test('any of the charts moves the same dot', async () => {
+  test('one cursor for the three plots: a single panel moves the dot', async () => {
     renderPage(makeTrack())
-    const section = await routeSection()
-    const pointers = await screen.findAllByTestId('chart-pointer')
-    expect(pointers).toHaveLength(3)
-    for (const pointer of pointers) {
-      fireEvent.click(pointer)
-      expect(dotOf(section).hidden).toBe(false)
-      fireEvent.click(pointer)
-      expect(dotOf(section).hidden).toBe(true)
-    }
+    await routeSection()
+    expect(
+      await screen.findAllByRole('group', { name: /Pace, heart rate and elevation/ }),
+    ).toHaveLength(1)
   })
 
   test('puts the dot on the route: at a vertex distance it sits on that vertex', async () => {
-    renderPage(makeTrack())
+    renderPage(makeTrack(), {}, { stream: every(50) })
     const section = await routeSection()
-    const [pointer] = await screen.findAllByTestId('chart-pointer')
-    hoverLabel = 0.25 // 250 m, the third point of the track
-    fireEvent.click(pointer!)
+    const group = await panel()
+    press(group, 'Home')
+    press(group, 'ArrowRight', 5) // 250 m, the third point of the track
     const third = section.querySelector('polyline')?.getAttribute('points')?.split(' ')[2]
     const [x, y] = (third ?? '').split(',').map(Number)
     const m = /translate\((-?[\d.]+)px, (-?[\d.]+)px\)/.exec(dotOf(section).style.transform)
@@ -502,13 +479,11 @@ describe('the chart pointer and the map', () => {
   test('a chart against time (a stream with no distance) does not move the dot', async () => {
     renderPage(makeTrack(), {}, { stream: { d: null } })
     const section = await routeSection()
-    const pointers = await screen.findAllByTestId('chart-pointer')
-    expect(pointers.length).toBeGreaterThan(0)
-    for (const pointer of pointers) {
-      fireEvent.click(pointer)
-      expect(dotOf(section).hidden).toBe(true)
-      fireEvent.click(pointer)
-    }
+    const group = await panel()
+    press(group, 'Home')
+    press(group, 'ArrowRight', 3)
+    expect(within(group).getByRole('status')).toHaveTextContent('Time')
+    expect(dotOf(section).hidden).toBe(true)
   })
 
   test('shows no dot for a distance in the hidden ends', async () => {
@@ -517,19 +492,19 @@ describe('the chart pointer and the map', () => {
         endsHiddenM: 200,
         distM: [200, 250, 300, 470, 620, 700, 720],
       }),
+      {},
+      { stream: every(100) },
     )
     const section = await routeSection()
-    const [pointer] = await screen.findAllByTestId('chart-pointer')
-    // the pointer stand-in toggles on each click: on at a distance, off again
-    for (const label of [0.1, 0.9]) {
-      hoverLabel = label // 100 m is inside the first 200 m, 900 m is past the end
-      fireEvent.click(pointer!)
-      expect(dotOf(section).hidden).toBe(true)
-      fireEvent.click(pointer!)
-    }
-    hoverLabel = 0.4
-    fireEvent.click(pointer!)
-    expect(dotOf(section).hidden).toBe(false)
+    const group = await panel()
+    press(group, 'Home') // 0 m is inside the first 200 m
+    press(group, 'ArrowRight')
+    expect(dotOf(section).hidden).toBe(true) // 100 m
+    press(group, 'End')
+    expect(dotOf(section).hidden).toBe(true) // 1100 m is past the end
+    press(group, 'Home')
+    press(group, 'ArrowRight', 4)
+    expect(dotOf(section).hidden).toBe(false) // 400 m
   })
 
   test('moving the dot commits nothing: no render of the map or its parents', () => {

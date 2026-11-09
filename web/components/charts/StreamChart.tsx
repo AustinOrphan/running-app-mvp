@@ -245,8 +245,8 @@ function Plot({
       <div
         role="img"
         aria-label={label}
-        className={styles.chart}
         data-last={last ? 'true' : undefined}
+        className={styles.chart}
       >
         <ResponsiveContainer
           width="100%"
