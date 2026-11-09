@@ -154,10 +154,24 @@ describe('return steps and run caps', () => {
     expect(one).toMatchObject({ runMaxMin: 40, maxRuns: 3, longRunMaxMin: 40 })
     expect(two).toMatchObject({ runMaxMin: 60, maxRuns: null, longRunMaxMin: 60 })
     expect(three).toMatchObject({ runMaxMin: 60, maxRuns: null, longRunMaxMin: 90 })
-    // the marathon dose is the tested one, but the cap also binds the ultra classes: graded D
+    // the marathon dose is the tested one, but the cap also binds the 50K and 100K classes: graded D
     expect(P.h12.step1RunMaxMin.grade).toBe('D')
     expect(P.h12.step1MaxRuns.grade).toBe('D')
     expect(P.h12.step2RunMaxMin.grade).toBe('D')
+  })
+
+  it('caps each run of the first step at 20 min from 100 miles, 40 min for shorter races', () => {
+    for (const cls of ['marathon', 'ultra50', 'ultra100k'] as const) {
+      const [one] = plain(cls).stages
+      expect(one).toMatchObject({ runMaxMin: 40, longRunMaxMin: 40 })
+    }
+    for (const cls of ['ultra100mi', 'beyond'] as const) {
+      const [one, two, three] = plain(cls).stages
+      expect(one).toMatchObject({ runMaxMin: 20, maxRuns: 3, longRunMaxMin: 20 })
+      // the later steps do not change
+      expect(two).toMatchObject({ runMaxMin: 60, longRunMaxMin: 60 })
+      expect(three).toMatchObject({ runMaxMin: 60, longRunMaxMin: 90 })
+    }
   })
 
   it('limits a day by its step and closes the hold', () => {
@@ -336,7 +350,11 @@ describe('the Monday weeks of a window', () => {
     // week 1: days 1 to 7, all hold; week 2: days 8 and 9 hold, days 10 to 14 step 1 (.25)
     expect(weeks.map((x) => x.index)).toEqual([4, 5, 6, 7, 8])
     expect(weeks[0]).toMatchObject({ targetRunMin: 0, runDays: 0, focus: 'After the race: rest' })
-    expect(weeks[1]!.targetRunMin).toBe(Math.floor((0.25 * 400 * 5) / 7))
+    // the step gives 71 min, held to three runs of the 100-mile cap of 20 min
+    expect(weeks[1]!.targetRunMin).toBe(
+      Math.min(Math.floor((0.25 * 400 * 5) / 7), 3 * P.h12.step1RunMaxMin100mi.value),
+    )
+    expect(weeks[1]!.targetRunMin).toBe(60)
     expect(weeks[1]!.runDays).toBe(3)
     // week 3: days 15 to 16 step 1, days 17 to 21 step 2 (.5)
     expect(weeks[2]!.targetRunMin).toBe(Math.floor((0.25 * 400 * 2 + 0.5 * 400 * 5) / 7))

@@ -27,8 +27,8 @@
     "metadataMatches": true,
     "abstractSource": "publisher",
     "findingsSupported": true,
-    "notes": "Re-fetched runningmagazine.ca/?p=99607 on 2026-10-22: byline Paul Baswick, title 'Is your long run too long?', date 2023-06-28, 30% under 64 km and 25%/150 min over 64 km quoted verbatim, no race-distance application. Removed the unsupported conversion of 3-6 h to 25-55 km. Daniels's rule as reported by Running Magazine: the article was read, the book was not checked. Provenance relabelled on 2026-10-31 without a new read of the article; checkedAt is the date of the last read. Practice source (programme, coaching or clinical page): a published convention, not evidence; grade D.",
-    "checkedAt": "2026-10-22"
+    "notes": "Re-fetched runningmagazine.ca/?p=99607 on 2026-10-22: byline Paul Baswick, title 'Is your long run too long?', date 2023-06-28, 30% under 64 km and 25%/150 min over 64 km quoted verbatim, no race-distance application. Removed the unsupported conversion of 3-6 h to 25-55 km. Daniels's rule as reported by Running Magazine: the article was read, the book was not checked. Provenance relabelled on 2026-10-31 without a new read of the article; checkedAt is the date of the last read. Practice source (programme, coaching or clinical page): a published convention, not evidence; grade D. Re-read in full on 2026-11-09 (runningmagazine.ca/?p=99607, fetched with curl): the 30%, 25% and 150 min figures match; the article gives no 5 km or 10 km figure and names only 'an event like the marathon'.",
+    "checkedAt": "2026-11-09"
   },
   "interests": "A magazine that sells subscriptions and advertising; Daniels, the rule's source, sells books and coaching.",
   "vetting": {

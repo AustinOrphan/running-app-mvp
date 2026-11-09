@@ -41,7 +41,7 @@ function isDocumentedRule(rule: string): boolean {
 
 describe('parameter registry', () => {
   it('has a dated version', () => {
-    expect(PARAMS_VERSION).toBe('2026-11-08.4')
+    expect(PARAMS_VERSION).toBe('2026-11-09.1')
   })
 
   it('holds the undo window of the revision model as a grade D default of 7 days', () => {
@@ -429,6 +429,7 @@ describe('parameter registry', () => {
     ).toEqual([2, 4, 7, 10, 14])
     expect(P.h12.reducedDays.value).toBe(7)
     expect([P.h12.step1RunMaxMin.value, P.h12.step1MaxRuns.value]).toEqual([40, 3])
+    expect(P.h12.step1RunMaxMin100mi.value).toBe(20)
     expect([P.h12.step2RunMaxMin.value, P.h12.laterStepLongRunMaxMin.value]).toEqual([60, 90])
     expect([P.h12.modifierMultiplier.value, P.h12.hillyDescentMPerKm.value]).toEqual([1.5, 30])
     expect([
@@ -445,9 +446,13 @@ describe('parameter registry', () => {
     expect(hold.marathon.grade).toBe('B')
     expect(P.h12.step1RunMaxMin.grade).toBe('D')
     expect(P.h12.step1MaxRuns.grade).toBe('D')
+    expect(P.h12.step1RunMaxMin100mi).toMatchObject({
+      grade: 'D',
+      evidence: ['cts-2025-koop-ultra-recovery'],
+    })
     expect(P.h12.modifierMultiplier.grade).toBe('D')
     expect(P.h12.goalRaceDistanceTolerancePct.value).toBe(10)
-    expect(paramsForRule('H12')).toHaveLength(20)
+    expect(paramsForRule('H12')).toHaveLength(21)
   })
 
   it('carries the back-test thresholds of rule L7 as defaults, with existing evidence', () => {

@@ -131,7 +131,7 @@ export const dGoal = {
       ['doherty-2020-marathon-training-meta'],
       {
         unit: 'km',
-        note: 'Default: peak long run range, only for athletes already at about 50 km per week.',
+        note: 'Default: peak long run range, only for athletes already at about 50 km per week. Doherty 2020 is direction only (marathon cohorts with more runs of 32 km or more finished faster); the range is not from it.',
       },
     ),
     marathonPeakLongRunMaxCount: param(
@@ -143,7 +143,7 @@ export const dGoal = {
       {
         unit: 'runs',
         range: [1, 3],
-        note: 'Default: peak-length long runs happen 1-3 times; 3 is the upper bound.',
+        note: 'Default: peak-length long runs happen 1-3 times; 3 is the upper bound. Doherty 2020 is direction only (more runs of 32 km or more went with faster cohorts); the count is not from it.',
       },
     ),
     marathonPeakLongRunMinWeeklyKm: param(
@@ -154,7 +154,7 @@ export const dGoal = {
       ['doherty-2020-marathon-training-meta'],
       {
         unit: 'km/week',
-        note: 'Default: peak long runs of 28-32 km only for athletes already at about this weekly volume.',
+        note: 'Default: peak long runs of 28-32 km only for athletes already at about this weekly volume. Doherty 2020 is direction only; the 50 km gate is not from it.',
       },
     ),
     typicalSessionKm: param(

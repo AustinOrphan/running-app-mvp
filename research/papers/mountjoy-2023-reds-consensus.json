@@ -29,7 +29,7 @@
     "metadataMatches": true,
     "abstractSource": "europepmc",
     "findingsSupported": true,
-    "notes": "Crossref (title, BJSM, 2023-09, first author Mountjoy) matches. Europe PMC abstract (PMID 37752011) supports all findings. Removed the researcher's 'traffic-light' wording as unsupported by the abstract. Correction notice 10.1136/bjsports-2023-106994corr1 added to the record on 2026-10-31: Crossref's update-to relation types it as a correction and Europe PMC lists it as an erratum (PMID 38325885), but the publisher's page answered with a bot check and Europe PMC holds no abstract or text for it, so its text was not read, what it changed is unknown and the findings above rest on the abstract alone.",
-    "checkedAt": "2026-10-22"
+    "notes": "Crossref (title, BJSM, 2023-09, first author Mountjoy) matches. Europe PMC abstract (PMID 37752011) supports all findings. Removed the researcher's 'traffic-light' wording as unsupported by the abstract. Correction notice 10.1136/bjsports-2023-106994corr1 added to the record on 2026-10-31: Crossref's update-to relation types it as a correction and Europe PMC lists it as an erratum (PMID 38325885), but the publisher's page answered with a bot check and Europe PMC holds no abstract or text for it, so its text was not read, what it changed is unknown and the findings above rest on the abstract alone. No legal full text found on 2026-11-09 for the statement or for its correction (Europe PMC: not open access, not in PMC; the publisher pages and PDFs of both returned HTTP 403), so its claims rest on the abstract.",
+    "checkedAt": "2026-11-09"
   }
 }

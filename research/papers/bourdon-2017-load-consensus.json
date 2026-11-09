@@ -32,7 +32,7 @@
     "metadataMatches": true,
     "abstractSource": "europepmc",
     "findingsSupported": true,
-    "notes": "Crossref confirms title, IJSPP, Apr 2017, first author Bourdon, 11 authors. Removed 'developed largely from team-sport contexts' from limitations because the abstract does not say so.",
-    "checkedAt": "2026-10-22"
+    "notes": "Crossref confirms title, IJSPP, Apr 2017, first author Bourdon, 11 authors. Removed 'developed largely from team-sport contexts' from limitations because the abstract does not say so. No legal full text found on 2026-11-09 (Europe PMC PMID 28463642: no PMCID, not open access; the publisher PDF returned a bot check, HTTP 405 and 403), so its claims rest on the abstract.",
+    "checkedAt": "2026-11-09"
   }
 }
