@@ -6,6 +6,7 @@ import type {
   CauseCode,
   EquipmentConfig,
   EquipmentKind,
+  Injury,
   PlanSessionStatus,
   DisruptionMode,
   DisruptionReason,
@@ -155,6 +156,11 @@ export interface Boundary {
    * A6): a floor, so the boundary may sit low. Absent otherwise.
    */
   fromTraining?: boolean
+  /**
+   * True when that critical speed needed efforts older than the 90-day window (rule A6): not a
+   * floor, since fitness may have changed since. Absent otherwise.
+   */
+  windowWidened?: boolean
 }
 export interface ZoneSet {
   hrMax: Boundary | null
@@ -273,6 +279,13 @@ export interface AthleteState {
      * Absent reads as null.
      */
     csTrainingSince?: string | null
+    /**
+     * True when the 90-day window gave no fit and efforts up to `a6.csWideWindowDays` back did
+     * (rule A6); `csTrainingSince` is then the date of the oldest effort used. Older efforts are not
+     * a floor of current fitness, so the interval opens on both sides and no "at most" is said.
+     * Absent reads as false.
+     */
+    csWindowWidened?: boolean
     exponent: number | null
     races: Array<{ date: string; distanceM: number; timeSec: number }>
     vo2maxTrend: number | null
@@ -299,6 +312,12 @@ export interface AthleteState {
      * `injuryTight`, never alone.
      */
     injuryReport?: boolean
+    /**
+     * The kind of the injury the injury-return ladder is for: the most recent profile injury inside
+     * the `a9.recentInjuryWindowMonths` window (a tendon injury when several share the month).
+     * Absent without such an injury, so a state without one is unchanged [rule g-3].
+     */
+    injuryKind?: Injury['kind']
     priorBsi: boolean
     bsiFactors: number
     redsFlags: number
@@ -384,6 +403,8 @@ export interface Prediction {
   rules: string[]
   /** The first day of the window when a critical-speed fit from training stands behind it (A6). */
   trainingSince?: string
+  /** True when `trainingSince` rests on efforts older than the 90-day window (A6): no "at most". */
+  trainingWidened?: boolean
   /** Set when the runner's own climbing moved the time (rule L5). */
   climb?: ClimbBlend
 }

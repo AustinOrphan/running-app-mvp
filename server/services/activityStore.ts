@@ -135,6 +135,8 @@ export async function storeParsed(
     deviceName: parsed.deviceName,
     hrHistogram: summary.hrHistogram ? JSON.stringify(summary.hrHistogram) : null,
     ...(lookedForTrack ? { trackV: TRACK_VERSION } : {}),
+    // A replaced route makes the old trail and road shares wrong; the `surface` job computes them again.
+    ...(track ? { surfaceBins: null } : {}),
     terrainBins: hasTerrainBins(parsed.type)
       ? JSON.stringify(computeTerrainBins(summary.stream, sampleSec))
       : null,

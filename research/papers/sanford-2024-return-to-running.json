@@ -47,11 +47,11 @@
     },
     "r4": {
       "result": "hold",
-      "note": "Structure (levels, rest between runs, repeat on symptoms, 72 hours for tendon) agrees with the BJSM table (bjsm-2019) and george-2024-tibial-bsi-return-to-run (graduated, symptom-led). Durations differ between the sources; the conservative reading is the lesser. second pass: the sheet gives different rest between runs (every other day after surgery, 2 to 3 days for tendon) and injuryReturn.restDaysBetween takes 1 day beside the tendon levels, so the conservative reading is not used there; the BJSM table adapts Warden and the sheet lists it, so the agreement is weaker than two independent sources."
+      "note": "Structure (levels, rest between runs, repeat on symptoms, 72 hours for tendon) agrees with the BJSM table (bjsm-2019) and george-2024-tibial-bsi-return-to-run (graduated, symptom-led). Durations differ between the sources; the conservative reading is the lesser. second pass: the sheet gives different rest between runs (every other day after surgery, 2 to 3 days for tendon); injuryReturn.restDaysBetweenTendon takes 2 days for a tendon injury (RU3, 2026-11-09) and injuryReturn.restDaysBetween 1 day for any other kind, so the conservative reading is not used there; the BJSM table adapts Warden and the sheet lists it, so the agreement is weaker than two independent sources."
     },
     "r5": {
       "result": "hold",
-      "note": "Population stated (patients returning after lower-extremity injury or surgery); the injuryReturn and j9.niggleEasyDays notes label use for a generic injury flag or niggle as an extrapolation. second pass: injuryReturn.repeatsPerLevel and restDaysBetween apply the tendon and post-surgical rules to any recent-injury flag, and their notes do not call that an extrapolation (only levelsMin does)."
+      "note": "Population stated (patients returning after lower-extremity injury or surgery); the injuryReturn and j9.niggleEasyDays notes label use for a generic injury flag or niggle as an extrapolation. second pass: injuryReturn.repeatsPerLevel and restDaysBetween apply the tendon and post-surgical rules to any recent-injury flag, and their notes do not call that an extrapolation (only levelsMin does); restDaysBetweenTendon applies the 2 to 3 days to a tendon injury and its note labels use for a generic flag as one."
     },
     "r6": {
       "result": "pass",

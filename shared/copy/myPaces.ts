@@ -159,6 +159,10 @@ export const PACES_TEMPLATES = {
     'Rows marked at most rest on your best efforts in training since {date}, not on races. A race or a short test would likely show faster.',
     { date: 'date' },
   ),
+  'paces.events.training-widened': tpl(
+    'Rows from training rest on your best efforts since {date}, some older than three months. Fitness may have changed. A short test narrows them.',
+    { date: 'date' },
+  ),
   'paces.events.none': tpl('Not enough to say yet for this distance.'),
   'paces.event.basis-both': tpl('From your {distance} on {date} and your critical speed.', {
     distance: 'distance',
@@ -172,6 +176,7 @@ export const PACES_TEMPLATES = {
     efforts: 'count',
   }),
   'paces.event.time-at-most': tpl('Time, at most', {}, { shape: 'label' }),
+  'paces.event.time-widened': tpl('Time, from training', {}, { shape: 'label' }),
   'paces.event.single': tpl('One source only, so the range is wider.'),
   'paces.event.climb': tpl(
     'Climb is counted as flat distance, and the range is widened for trail.',
@@ -326,6 +331,9 @@ export const PACES_TEMPLATES = {
   'paces.test.done': tpl('Critical speed is in place. Further hard efforts keep it current.'),
   'paces.test.training': tpl(
     'Critical speed is estimated from your training runs, which are rarely all-out, so the ranges are wide. The steps narrow it.',
+  ),
+  'paces.test.training-widened': tpl(
+    'Critical speed comes from training runs, some older than three months. Fitness may have changed, so the ranges are wide. A short test narrows it.',
   ),
   'paces.test.care': tpl('Keep a rest day between efforts, and stop if anything hurts.'),
   'paces.test.how-stretch': tpl(

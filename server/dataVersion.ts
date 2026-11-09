@@ -66,6 +66,13 @@ export const NON_STATE_MODELS = [
   // write would drop the snapshot it was computed from. `activityStore.ts` and `trackBackfill.ts`
   // are its only writers.
   'ActivityTrack',
+  // The runner's one OpenStreetMap download (M1d): the area and its ways. Written by the download
+  // route and removed by the delete route; the `surface` job and `GET /api/map-area` read them
+  // straight from the table. No snapshot, memo or deliverable reads them (the shares they produce are
+  // `Activity.surfaceBins`, a column of a state model), and `server/services/mapArea.ts` is their
+  // only writer.
+  'MapArea',
+  'MapWay',
   'ImportBatch',
   'ImportedFile',
   'Integration',

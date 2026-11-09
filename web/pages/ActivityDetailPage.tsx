@@ -24,6 +24,9 @@ import type {
 } from '../../shared/types.ts'
 import { hasTrack } from '../../shared/importers/files/track.ts'
 import { ROUTE_HEADING, ROUTE_SECTION_NAME } from '../../shared/copy/runMap.ts'
+import { surfaceLine } from '../../shared/copy/surface.ts'
+import { render } from '../../shared/copy/template.ts'
+import { TEMPLATES } from '../../shared/copy/templates.ts'
 import { formatDistance, formatDuration, formatPace } from '../../shared/units.ts'
 import {
   useActivityDetail,
@@ -46,6 +49,7 @@ import { useLoadView } from '../components/loadView.ts'
 import { Figure } from '../components/Figure.tsx'
 import { hasPlanBars, PlanBars } from '../components/PlanBars.tsx'
 import { createDistanceCursor, type DistanceCursor } from '../components/map/distanceCursor.ts'
+import { SurfaceCredit } from '../components/map/SurfaceCredit.tsx'
 import { RunMap, RunMapLoading } from '../components/map/RunMap.tsx'
 import { FuelSection } from '../components/fuel/FuelSection.tsx'
 import { ActivitySets } from '../components/strength/ActivitySets.tsx'
@@ -142,6 +146,10 @@ function Summary({ activity, units }: { activity: Activity; units: Units }) {
     activity.distanceM !== null && activity.type !== 'strength'
       ? distanceParts(activity.distanceM, units)
       : null
+  const surface =
+    activity.surfaceBins !== null && (activity.type === 'run' || activity.type === 'race')
+      ? surfaceLine(activity.surfaceBins)
+      : null
   const described = [
     subtype === null ? null : subtype.charAt(0).toUpperCase() + subtype.slice(1),
     activity.deviceName,
@@ -214,6 +222,23 @@ function Summary({ activity, units }: { activity: Activity; units: Units }) {
       </dl>
       {readings.length > 0 ? <dl className={styles.readings}>{readings}</dl> : null}
       <p className={styles.muted}>{described.join(' · ')}</p>
+      {surface === null ? null : (
+        <>
+          <p className={styles.surface}>{surface.line}</p>
+          {surface.unmatchedPct === null ? null : (
+            <p className={styles.note}>
+              {render(
+                TEMPLATES['surface.not-matched'],
+                { share: `${String(surface.unmatchedPct)} %` },
+                units,
+              )}
+            </p>
+          )}
+          <p className={styles.muted}>
+            <SurfaceCredit />
+          </p>
+        </>
+      )}
       {activity.duplicateStatus === 'confirmed' ? (
         <p className={styles.note}>Marked as a duplicate. It is not counted in totals.</p>
       ) : null}

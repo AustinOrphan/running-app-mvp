@@ -239,7 +239,7 @@ tool, or any app that can write files to iCloud Drive, Dropbox, Syncthing or a n
 
 ### Weather and privacy
 
-The server otherwise makes no third-party requests. Weather comes from Open-Meteo (no account or key),
+The server otherwise makes no third-party requests, apart from the one map download described under "Trail and road" below. Weather comes from Open-Meteo (no account or key),
 and no setting turns the lookups off. A background job runs every ten minutes and sends:
 
 - For each activity with a start location, that location rounded to a cell of 0.1 degree (about 11
@@ -266,6 +266,22 @@ else is sent. Settings, under Maps, has a "Map tiles" checkbox, on by default, t
 tiles off on that device; the route is then drawn alone, with no request to OpenStreetMap. The
 setting is kept in the browser, so each device has its own. The server's Content-Security-Policy
 allows that one image host and no other.
+
+#### Trail and road
+
+Settings, under Maps, has a "Trail and road" block that says how much of each run was on trail,
+paved path and road. It needs OpenStreetMap's road and path data for your area, which the server
+downloads once, when you press "Download map data", and again only when you press "Download again".
+The server asks the Overpass API (`overpass-api.de`) for the ways in a box. The box is up to
+40 × 40 km (never less than 10 km a side) around where you run, worked out from your stored routes (the
+box around the 95 % of your runs nearest the place most of them happened, cut to that size) and rounded outward to 0.01 degree (about 1 km).
+That box, your server's IP address and a User-Agent that names the app (`running-log/1`, no email or
+account) are all that is sent: no run, no route and no date. Nothing is requested per run and
+nothing in the background. The answer is stored as a class and a simplified outline per way, and
+each run's route is matched to it on the server. "Remove" deletes the stored ways, the area and
+every run's shares; the data export keeps the area and each run's shares but not the ways, which are
+OpenStreetMap's data and can be downloaded again. Map data © OpenStreetMap contributors, available
+under the [Open Database Licence](https://www.openstreetmap.org/copyright).
 
 ## Sessions on the watch
 

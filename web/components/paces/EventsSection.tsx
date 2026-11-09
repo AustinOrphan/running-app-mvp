@@ -46,7 +46,9 @@ export function EventsSection({
   const headingId = useId()
   const customId = useId()
   const rows = custom === null ? events : [...events, custom]
-  const trainingSince = rows.find((row) => row.basis.cs?.since != null)?.basis.cs?.since ?? null
+  const trainingRow = rows.find((row) => row.basis.cs?.since != null)
+  const trainingSince = trainingRow?.basis.cs?.since ?? null
+  const trainingWidened = trainingRow?.basis.cs?.widened === true
   const rules = [...new Set(['C9', 'L1', 'L6', ...rows.flatMap((row) => row.rules)])]
   return (
     <section id="events" className={styles.section} aria-labelledby={headingId}>
@@ -57,7 +59,9 @@ export function EventsSection({
       {trainingSince === null ? null : (
         <p className={styles.note}>
           {render(
-            PACES_TEMPLATES['paces.events.training'],
+            PACES_TEMPLATES[
+              trainingWidened ? 'paces.events.training-widened' : 'paces.events.training'
+            ],
             { date: { kind: 'date', iso: trainingSince, style: 'short' } },
             units,
           )}{' '}

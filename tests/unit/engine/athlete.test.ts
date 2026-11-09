@@ -388,6 +388,29 @@ describe('estimateState: experience, risk and flags', () => {
     expect(state(injury(2025, 5, 'muscle')).risk.recentInjury).toBe(false)
   })
 
+  test('injuryKind: the most recent injury in the window, a tendon when several share the month [g-3]', () => {
+    const injury = (year: number, month: number, kind: 'bone-stress' | 'tendon' | 'muscle') => ({
+      area: 'x',
+      side: null,
+      year,
+      month,
+      kind,
+      notes: null,
+    })
+    const kindOf = (...injuries: ReturnType<typeof injury>[]) =>
+      estimateState(input([], { profile: { injuries } })).risk.injuryKind
+    expect(kindOf()).toBeUndefined()
+    // outside the window: no kind
+    expect(kindOf(injury(2023, 3, 'tendon'))).toBeUndefined()
+    expect(kindOf(injury(2025, 8, 'tendon'))).toBe('tendon')
+    // the later one decides, whichever order they are listed in
+    expect(kindOf(injury(2025, 7, 'tendon'), injury(2025, 12, 'muscle'))).toBe('muscle')
+    expect(kindOf(injury(2025, 12, 'muscle'), injury(2025, 7, 'tendon'))).toBe('muscle')
+    expect(kindOf(injury(2025, 12, 'muscle'), injury(2025, 12, 'tendon'))).toBe('tendon')
+    // an old injury outside the window does not decide
+    expect(kindOf(injury(2023, 3, 'tendon'), injury(2025, 12, 'bone-stress'))).toBe('bone-stress')
+  })
+
   test('BSI factors count prior BSI, 12 h of weekly running and low BMI in women', () => {
     const heavy = Array.from({ length: 28 }, (_, i) => run(i, { durationSec: 7200 })) // 14 h/week
     const profile: Partial<AthleteProfile> = {
@@ -643,9 +666,45 @@ describe('estimateState: fitness', () => {
       expect(partial.fitness.csTrainingSince).not.toBeNull()
     })
 
-    test('a run outside the window gives no stretches', () => {
-      const s = estimateState(input([long(100)]))
+    test('a run outside the wide window gives no stretches', () => {
+      const s = estimateState(input([long(P.a6.csWideWindowDays.value + 20)]))
       expect(s.fitness).toMatchObject({ csMps: null, csEfforts: 0 })
+    })
+  })
+
+  describe('the adaptive window [A6]', () => {
+    const eff = (n: number, t: number) =>
+      run(n, { durationSec: t, gapDistanceM: 4 * t + 100, distanceM: 4 * t + 100 })
+    const four = (ages: [number, number, number, number]) => [
+      eff(ages[0], 180),
+      eff(ages[1], 360),
+      eff(ages[2], 720),
+      eff(ages[3], 1200),
+    ]
+
+    test('90 days with enough efforts do not widen, and older efforts are left out', () => {
+      const s = estimateState(input([...four([10, 20, 30, 40]), eff(120, 240)]))
+      expect(s.fitness.csEfforts).toBe(4)
+      expect(s.fitness.csWindowWidened).toBeUndefined()
+      expect(s.fitness.csTrainingSince).toBeNull()
+    })
+
+    test('90 days without a fit widen to 180, set the flag and the date of the oldest effort', () => {
+      const s = estimateState(input(four([10, 20, 100, 150])))
+      expect(s.fitness.csMps).toBeCloseTo(4, 6)
+      expect(s.fitness.csEfforts).toBe(4)
+      expect(s.fitness.csWindowWidened).toBe(true)
+      expect(s.fitness.csTrainingSince).toBe(addDays(TODAY, -150))
+    })
+
+    test('efforts older than the wide window are never used', () => {
+      const last = P.a6.csWideWindowDays.value
+      const within = estimateState(input(four([10, 100, last - 1, last - 1])))
+      expect(within.fitness.csMps).toBeCloseTo(4, 6)
+      expect(within.fitness.csWindowWidened).toBe(true)
+      const beyond = estimateState(input(four([10, 100, last, last + 20])))
+      expect(beyond.fitness.csMps).toBeNull()
+      expect(beyond.fitness.csWindowWidened).toBeUndefined()
     })
   })
 

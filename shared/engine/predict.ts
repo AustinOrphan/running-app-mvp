@@ -263,7 +263,12 @@ function basePrediction(
   const cs = csEstimate(state, target, gainEquivalentM)
   let estimates = [race, cs].filter((e): e is Estimate => e !== null)
   let floorNote: string | null = null
-  if (race && cs && state.fitness.csTrainingSince != null) {
+  if (
+    race &&
+    cs &&
+    state.fitness.csTrainingSince != null &&
+    state.fitness.csWindowWidened !== true
+  ) {
     if (cs.sec < race.sec) {
       estimates = [cs]
       floorNote = 'Training shows a faster time than the race does, so the race is not averaged in.'
@@ -423,12 +428,21 @@ export function predictFromState(state: AthleteState, target: PredictTarget): Pr
   const trainingSince = base.estimates.some((e) => CS_METHODS.has(e.method))
     ? (state.fitness.csTrainingSince ?? null)
     : null
+  const widened = trainingSince !== null && state.fitness.csWindowWidened === true
   let fastSideFactor = 1
+  let slowSideFactor = 1
   if (trainingSince !== null) {
     fastSideFactor = 1 + P.a6.csTrainingWideningPct.value / 100
-    conditions.push(
-      `Critical speed comes from the best efforts in training since ${trainingSince}, not from races or a test, so it is a floor and the time is at most this; the faster end of the interval is widened by ${P.a6.csTrainingWideningPct.value}%.`,
-    )
+    if (widened) {
+      slowSideFactor = 1 + P.a6.csWidenedSlowSideWideningPct.value / 100
+      conditions.push(
+        `Critical speed comes from the best efforts in training since ${trainingSince}, some older than ${P.a6.csWindowDays.value} days; fitness may have changed since, so the time is not an upper bound and the interval is widened by ${P.a6.csTrainingWideningPct.value}% on the faster side and ${P.a6.csWidenedSlowSideWideningPct.value}% on the slower side.`,
+      )
+    } else {
+      conditions.push(
+        `Critical speed comes from the best efforts in training since ${trainingSince}, not from races or a test, so it is a floor and the time is at most this; the faster end of the interval is widened by ${P.a6.csTrainingWideningPct.value}%.`,
+      )
+    }
     rules.add('A6')
   }
   if (target.surface === 'trail' || target.surface === 'mixed') {
@@ -446,10 +460,11 @@ export function predictFromState(state: AthleteState, target: PredictTarget): Pr
     method: base.estimates.map((e) => e.method).join('+'),
     predictedSec: Math.round(sec),
     lowSec: Math.round(sec * Math.max(0, 1 - (halfWidth * fastSideFactor) / 100)),
-    highSec: Math.round(sec * (1 + halfWidth / 100)),
+    highSec: Math.round(sec * (1 + (halfWidth * slowSideFactor) / 100)),
     conditions,
     rules: [...rules].sort(),
     ...(trainingSince === null ? {} : { trainingSince }),
+    ...(widened ? { trainingWidened: true } : {}),
     ...(climb === null ? {} : { climb: { ...climb.blend, shiftSec: Math.round(climbShiftSec) } }),
   }
 }

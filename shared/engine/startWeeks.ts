@@ -22,6 +22,16 @@ export type StartPath =
 
 export type StartKind = StartPath['kind']
 
+/**
+ * Rest days between two runs of the injury-return ladder [rule g-3]: the tendon value when the
+ * injury the ladder is for is a tendon injury (`risk.injuryKind`, the most recent profile injury in
+ * the recent window), else the general value, which an unknown kind also takes.
+ */
+export const injuryRestDays = (state: { risk: { injuryKind?: string } }): number =>
+  state.risk.injuryKind === 'tendon'
+    ? P.injuryReturn.restDaysBetweenTendon.value
+    : P.injuryReturn.restDaysBetween.value
+
 /** The flag of a ladder week at `rung`. */
 export const ladderFlag = (rung: number): string => `ladder-${String(rung)}`
 /** The flag of an injury-return week at level index `level`. */

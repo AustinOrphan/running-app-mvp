@@ -60,6 +60,13 @@
   font-variant-numeric: lining-nums tabular-nums;
 }
 
+.surface {
+  margin: var(--space-3) 0 0;
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+  max-width: var(--prose-max);
+}
+
 .note,
 .muted {
   margin: var(--space-3) 0 0;

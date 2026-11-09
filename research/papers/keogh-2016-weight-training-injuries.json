@@ -20,7 +20,7 @@
   ],
   "limitations": "Competitive athletes of sports that use heavy loads in competition, mostly retrospective studies; no recreational lifters and no runners; rates per 1000 hours differ widely between sports. Abstract read; full text not read.",
   "implications": [
-    "Second source, with the Aasa 2016 review, for the statement that injury rates in the lifting sports are low next to team sports. The same limit applies: competitive lifters, not a recreational runner starting barbell work, so there is still no safety data for that group (the gap behind the barbell rule).",
+    "Second source, with the Aasa 2016 review, only for the statement that injury rates across the weight-training sports are low next to common team sports. The figures for weightlifting and powerlifting and the comparison with other non-contact sports are Aasa 2016's, not this abstract's. Both cover competitive lifters, not a recreational runner starting barbell work, so there is still no safety data for that group (the gap behind the barbell rule).",
     "Lower back, knee and shoulder are the common sites in lifters; the engine's lower-body catalogue has no upper-body or overhead lift."
   ],
   "verification": {
@@ -28,7 +28,7 @@
     "metadataMatches": true,
     "abstractSource": "europepmc",
     "findingsSupported": true,
-    "notes": "Crossref 2026-10-25: title, Sports Med 47:479-501, issued online 2016-06-21 (Europe PMC year 2017), two authors and DOI match. Europe PMC abstract (PMID 27328853) read; every figure above is in it. Evidence level C because only five of the 20 studies had a low risk of bias.",
-    "checkedAt": "2026-10-25"
+    "notes": "Crossref 2026-10-25: title, Sports Med 47:479-501, issued online 2016-06-21 (Europe PMC year 2017), two authors and DOI match. Europe PMC abstract (PMID 27328853) read; every figure above is in it. Evidence level C because only five of the 20 studies had a low risk of bias. No legal full text found on 2026-11-09 (Europe PMC: not open access, no PMCID; the Springer page is paywalled), so its claims rest on the abstract. The abstract gives no weightlifting or powerlifting rate and does not mention runners.",
+    "checkedAt": "2026-11-09"
   }
 }

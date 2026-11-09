@@ -331,7 +331,7 @@
   },
   {
     "id": "strength-barbell-no-runner-safety-data",
-    "statement": "No paper gives injury or technique data for recreational runners starting barbell lifts; injury rates in competitive weightlifting and powerlifting (2.4-3.3 and 1.0-4.4 injuries per 1000 hours of training) are in the range of other non-contact sports. Offer the barbell after a ramp-in on other lifts, ask for no maximal attempt, leave repetitions in reserve in the first session, and make no claim that barbell lifting is safe for runners.",
+    "statement": "No paper gives injury or technique data for recreational runners starting barbell lifts; injury rates in competitive weightlifting and powerlifting (2.4-3.3 and 1.0-4.4 injuries per 1000 hours of training) are in the range of other non-contact sports (Aasa 2016); across the weight-training sports rates are low next to common team sports (Keogh 2016). Offer the barbell after a ramp-in on other lifts, ask for no maximal attempt, leave repetitions in reserve in the first session, and make no claim that barbell lifting is safe for runners.",
     "parameter": null,
     "value": "no safety claim",
     "unit": null,

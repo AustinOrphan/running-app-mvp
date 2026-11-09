@@ -2,7 +2,7 @@
 // state; nothing reads the clock, the network or the database.
 import { addDays, daysBetween, mondayOf } from '../dates.ts'
 import { aggregateWeeks } from '../domain/weeks.ts'
-import type { Activity, AthleteProfile, WeekRow } from '../types.ts'
+import type { Activity, AthleteProfile, Injury, WeekRow } from '../types.ts'
 import { injuryReports } from './disruption.ts'
 import { personalClimbOf } from './gradeCurve.ts'
 import { isHeatExposure } from './heat.ts'
@@ -263,6 +263,35 @@ export interface CsEffort {
  * no fit.
  */
 export function csEffortsOf(runs: Activity[], today: string): CsEffort[] {
+  return csFitOf(runs, today).efforts
+}
+
+/** The efforts of a critical-speed fit and whether it needed the wider window [rules A6]. */
+export interface CsFit {
+  efforts: CsEffort[]
+  /** True when the `a6.csWindowDays` window gave no fit and the `a6.csWideWindowDays` one did. */
+  widened: boolean
+  /** The date of the oldest effort used when widened; null otherwise. */
+  oldestEffortDate: string | null
+}
+
+/**
+ * The window is `a6.csWindowDays`; only when it gives no fit are efforts taken from up to
+ * `a6.csWideWindowDays` back, and the fit is then marked widened (older efforts are not a floor of
+ * current fitness, rule A6). Nothing older than the wide window is ever read.
+ */
+export function csFitOf(runs: Activity[], today: string): CsFit {
+  const narrow = csEffortsWithin(runs, today, P.a6.csWindowDays.value)
+  if (criticalSpeed(narrow) !== null)
+    return { efforts: narrow, widened: false, oldestEffortDate: null }
+  const wide = csEffortsWithin(runs, today, P.a6.csWideWindowDays.value)
+  // With no fit after both windows, the efforts found in the wider one are the ones to count.
+  if (criticalSpeed(wide) === null) return { efforts: wide, widened: false, oldestEffortDate: null }
+  const oldest = wide.map((e) => e.activity.date).sort()[0] ?? null
+  return { efforts: wide, widened: true, oldestEffortDate: oldest }
+}
+
+function csEffortsWithin(runs: Activity[], today: string, windowDays: number): CsEffort[] {
   const edges = [
     P.a6.csMinDistanceM.value,
     ...P.a6.csBandInnerEdgesM.value,
@@ -283,7 +312,7 @@ export function csEffortsOf(runs: Activity[], today: string): CsEffort[] {
   }
   for (const a of runs) {
     const age = daysBetween(a.date, today)
-    if (age < 0 || age >= P.a6.csWindowDays.value) continue
+    if (age < 0 || age >= windowDays) continue
     const distanceM = flatDistance(a)
     const timeSec = a.movingSec ?? a.durationSec
     if (distanceM !== null && timeSec > 0 && distanceM >= lowest && distanceM <= highest) {
@@ -302,7 +331,7 @@ export function csEffortsOf(runs: Activity[], today: string): CsEffort[] {
 }
 
 function fitnessOf(runs: Activity[], input: EngineInput, today: string): AthleteState['fitness'] {
-  const efforts = csEffortsOf(runs, today)
+  const { efforts, widened, oldestEffortDate } = csFitOf(runs, today)
   const cs = criticalSpeed(efforts)
 
   const races = runs
@@ -315,9 +344,12 @@ function fitnessOf(runs: Activity[], input: EngineInput, today: string): Athlete
     dPrimeM: cs?.dPrimeM ?? null,
     csEfforts: efforts.length,
     csTrainingSince:
-      cs !== null && efforts.some((e) => e.source === 'stretch')
-        ? addDays(today, 1 - P.a6.csWindowDays.value)
-        : null,
+      cs !== null && widened
+        ? oldestEffortDate
+        : cs !== null && efforts.some((e) => e.source === 'stretch')
+          ? addDays(today, 1 - P.a6.csWindowDays.value)
+          : null,
+    ...(cs !== null && widened ? { csWindowWidened: true } : {}),
     exponent: personalExponent(races),
     races,
     vo2maxTrend: vo2maxTrend(input, today),
@@ -450,9 +482,16 @@ function riskOf(
 ): AthleteState['risk'] {
   const { profile, today } = input
   const monthsNow = yearOf(today) * 12 + Number(today.slice(5, 7))
-  const recentInjury = profile.injuries.some(
-    (i) => monthsNow - (i.year * 12 + (i.month ?? 12)) <= P.a9.recentInjuryWindowMonths.value,
+  const monthOf = (i: Injury): number => i.year * 12 + (i.month ?? 12)
+  const recentInjuries = profile.injuries.filter(
+    (i) => monthsNow - monthOf(i) <= P.a9.recentInjuryWindowMonths.value,
   )
+  const recentInjury = recentInjuries.length > 0
+  // The injury the return ladder is for: the most recent one in the window [rule g-3]. Injuries of
+  // one month take the tendon, whose rest between runs is the longer.
+  const latest = recentInjuries.reduce((m, i) => Math.max(m, monthOf(i)), -Infinity)
+  const latestKinds = recentInjuries.filter((i) => monthOf(i) === latest).map((i) => i.kind)
+  const injuryKind = latestKinds.includes('tendon') ? 'tendon' : latestKinds[0]
   const priorBsi = profile.injuries.some((i) => i.kind === 'bone-stress')
   const bmi = bmiOf(profile)
 
@@ -486,6 +525,7 @@ function riskOf(
   const reported = injuryReports(input.disruptions ?? []).some((r) => r.until >= today)
   return {
     recentInjury,
+    ...(injuryKind !== undefined ? { injuryKind } : {}),
     ...(reported ? { injuryReport: true } : {}),
     priorBsi,
     bsiFactors,

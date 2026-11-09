@@ -51,7 +51,7 @@ export function ZoneSummary({ set, units }: { set: ZoneSet; units: Units }) {
                     {`Range ${row.show(boundary.band[0], units)} to ${row.show(boundary.band[1], units)}`}
                   </span>
                   <span className={styles.note}>
-                    {`${BOUNDARY_SOURCE_LABELS[boundary.source]}${boundary.fromTraining === true ? ' (from training)' : ''}, as of ${boundary.asOf}`}
+                    {`${BOUNDARY_SOURCE_LABELS[boundary.source]}${boundary.fromTraining === true ? (boundary.windowWidened === true ? ' (from training, some older than three months)' : ' (from training)') : ''}, as of ${boundary.asOf}`}
                   </span>
                 </>
               )}

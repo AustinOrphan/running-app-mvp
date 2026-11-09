@@ -343,7 +343,7 @@ export const eMacro = {
       ],
       {
         unit: 'min of running and walking per session',
-        note: 'Default: nine rungs, three non-consecutive days a week. The shape adapts the NHS and the original Couch-to-5K plans, with 1 min run and 2 min walk kept at rung 1 (slightly gentler than the NHS week 1) and 22 min at rung 6; 3 x 30 min of continuous running at rung 9. No study compares run-walk starts with continuous starts. Time on feet in a week: about 63, 63, 54, 64.5, 62, 69, 75, 84 and 90 min.',
+        note: 'Default: nine rungs, three non-consecutive days a week. The shape adapts the NHS and the original Couch-to-5K plans, with 1 min run and 2 min walk kept at rung 1 (gentler than the NHS week 1 and the original week 1, both 1 min run and 90 s walk; the original is the shape source for rungs 2 to 9 only) and 22 min at rung 6; 3 x 30 min of continuous running at rung 9. No study compares run-walk starts with continuous starts. Time on feet in a week: about 63, 63, 54, 64.5, 62, 69, 75, 84 and 90 min.',
       },
     ),
     walkFrameMin: param(
@@ -354,7 +354,7 @@ export const eMacro = {
       ['nhs-2026-couch-to-5k', 'clark-2026-couch-to-5k-original'],
       {
         unit: 'min',
-        note: 'Default: a walk of this length before and after every ladder session, as in the published beginner plans; the walks are not counted in the session or the week.',
+        note: "Default: a walk of this length before and after every ladder session; the walk before is as in the original plan (warm-up) and the NHS plan, the walk after is the engine's own; the walks are not counted in the session or the week.",
       },
     ),
     advanceMinCompletion: param(
@@ -448,7 +448,18 @@ export const eMacro = {
       ['sanford-2024-return-to-running', 'bjsm-2019-bone-stress-return-to-run'],
       {
         unit: 'days',
-        note: 'Default: at least this many rest days between two runs of the ladder.',
+        note: 'Default: at least this many rest days between two runs of the ladder, for a bone-stress, muscle, joint or other injury, and when the kind of the injury is unknown.',
+      },
+    ),
+    restDaysBetweenTendon: param(
+      'injuryReturn.restDaysBetweenTendon',
+      2,
+      'D',
+      'g-3',
+      ['sanford-2024-return-to-running'],
+      {
+        unit: 'days',
+        note: 'Default: at least this many rest days between two runs of the ladder when the injury is a tendon injury. The tendon programme of the source puts 2 to 3 days between runs (72 hours for tendon collagen net synthesis); the lower end is taken, and applying it to a generic injury flag is an extrapolation.',
       },
     ),
     advanceMaxPain: param(
@@ -594,7 +605,7 @@ export const eMacro = {
         'millet-2011-ultramarathon-neuromuscular',
       ],
       {
-        note: 'Default: the 7-day return steps after a race of 100K or longer are these fractions of the pre-taper reference week; coach plans stage the return over about four weeks and no study sets the fractions.',
+        note: 'Default: the 7-day return steps after a race of 100K or longer are these fractions of the pre-taper reference week; Koop supports only the shape (runs under 20 min in week 1, recovery-pace runs under 1 hour in weeks 2 and 3), not these fractions or the four weeks; no study sets the fractions.',
       },
     ),
     polarizedZ2Share: param('macroDesign.polarizedZ2Share', 5, 'D', 'design-macro', [], {

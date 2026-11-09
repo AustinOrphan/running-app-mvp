@@ -404,6 +404,38 @@ describe('Today: the race countdown', () => {
     expectCleanCopy(container)
   })
 
+  test('drops "at most" for a time that rests on training efforts older than three months (A6)', async () => {
+    const { container } = renderToday(
+      makeToday({
+        coach: makeCoach({
+          race: makeRace({
+            prediction: {
+              method: 'critical-speed',
+              predictedSec: 7140,
+              lowSec: 6000,
+              highSec: 8100,
+              trainingSince: '2026-06-01',
+              trainingWidened: true,
+            },
+          }),
+        }),
+      }),
+    )
+    const race = await screen.findByRole('region', { name: 'Race' })
+    expect(
+      within(race).getByText(
+        'Finish estimate 1 h 40 min to 2 h 15 min, most likely about 1 h 59 min.',
+      ),
+    ).toBeInTheDocument()
+    expect(
+      within(race).getByText(
+        /^From your best efforts in training since 1 Jun, some older than three months\. Fitness may have changed since/,
+      ),
+    ).toBeInTheDocument()
+    expect(within(race).queryByText(/At most/)).not.toBeInTheDocument()
+    expectCleanCopy(container)
+  })
+
   test("says an ultra range is wide on purpose, with the distance in the runner's units", async () => {
     const user = userEvent.setup()
     const race = makeRace({
