@@ -31,15 +31,23 @@ export function useUpdateSettings() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (patch: SettingsPatch) => api<UserSettings>('PUT', '/settings', patch),
-    onSuccess: (_saved, patch) =>
-      Promise.all(
-        [
+    onSuccess: (_saved, patch) => {
+      // Showing or hiding the ends of a route changes every drawn glyph (built from the trimmed
+      // track), so the old ones are dropped, not left painted until the new ones arrive.
+      const glyphs =
+        patch.hideMapEnds === undefined
+          ? Promise.resolve()
+          : queryClient.resetQueries({ queryKey: [keys.activityDetail, 'glyphs'] })
+      return Promise.all([
+        glyphs,
+        ...[
           keys.settings,
           keys.me,
           ...(patch.weightUnit === undefined ? [] : [keys.strength, keys.today]),
           ...(patch.showBodyWeight === undefined ? [] : [keys.trends]),
           ...(patch.hideMapEnds === undefined ? [] : [keys.activityDetail]),
         ].map((key) => queryClient.invalidateQueries({ queryKey: [key] })),
-      ),
+      ])
+    },
   })
 }

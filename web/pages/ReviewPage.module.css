@@ -223,8 +223,14 @@
   color: var(--text-muted);
 }
 
-.sessionGlyph {
+.sessionGlyphSlot {
+  display: flex;
+  flex: none;
+  align-items: center;
   align-self: center;
+  /* The width of a drawing (`RouteGlyph`), kept on rows that have none. */
+  width: 40px;
+  min-height: 40px;
 }
 
 .sessionLine {

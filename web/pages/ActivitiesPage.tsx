@@ -147,8 +147,8 @@ function ActivityRow({
       >
         <span className={styles.type}>{TYPE_LABELS[activity.type]}</span>
         {glyph === undefined ? null : <RouteGlyph glyph={glyph} className={styles.glyph} />}
-        <span className={styles.figure}>{distance ?? ''}</span>
-        <span className={styles.figure}>{duration}</span>
+        <span className={`${styles.figure} ${styles.distance}`}>{distance ?? ''}</span>
+        <span className={`${styles.figure} ${styles.duration}`}>{duration}</span>
         <span className={styles.pace}>{pace ?? ''}</span>
         {note !== null && note !== '' ? <span className={styles.source}>{note}</span> : null}
       </Link>

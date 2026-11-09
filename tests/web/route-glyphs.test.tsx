@@ -1,9 +1,11 @@
 import { cleanup, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, describe, expect, test } from 'vitest'
+import { afterEach, describe, expect, test, vi } from 'vitest'
 import { addDays } from '../../shared/dates.ts'
 import type { ActivityListItem } from '../../shared/types.ts'
 import { ToastProvider } from '../../web/components/Toast.tsx'
+import { useActivityGlyphs } from '../../web/api/activities.ts'
+import { useUpdateSettings } from '../../web/api/settings.ts'
 import { ActivitiesPage } from '../../web/pages/ActivitiesPage.tsx'
 import { makeActivity } from '../factories.ts'
 import { activityRoute, mockApi, renderWithProviders } from './helpers.tsx'
@@ -77,6 +79,69 @@ describe('route glyphs in the Log', () => {
     await screen.findByText('60 activities')
     await waitFor(() => {
       expect(glyphCalls(api)).toHaveLength(2)
+    })
+    // The second read carries exactly the runs of the new page, none of the first page's.
+    const second = decodeURIComponent(glyphCalls(api)[1]!.url.split('ids=')[1]!).split(',')
+    expect(second).toEqual(runs.slice(48).map((run) => run.id))
+    expect(second.filter((id) => ids.includes(id))).toEqual([])
+  })
+})
+
+function GlyphProbe() {
+  const glyphs = useActivityGlyphs([{ id: 'g1', type: 'run', subtype: null }])
+  const save = useUpdateSettings()
+  return (
+    <div>
+      <p data-testid="glyph">{glyphs.get('g1')?.d ?? 'none'}</p>
+      <button
+        onClick={() => {
+          save.mutate({ hideMapEnds: true })
+        }}
+      >
+        Hide ends
+      </button>
+    </div>
+  )
+}
+
+describe('route glyphs and the hide-ends setting', () => {
+  test('saving it drops every drawn glyph at once, so none built with the old setting stays painted', async () => {
+    const user = userEvent.setup()
+    let hidden = false
+    mockApi({
+      'GET /api/activities/glyphs': () => ({
+        glyphs: { g1: { d: hidden ? 'M1 1L2 2' : 'M0 0L9 9' } },
+      }),
+      'PUT /api/settings': () => {
+        hidden = true
+        return { email: 'runner@example.com', displayName: null, units: 'mi', hideMapEnds: true }
+      },
+      'GET /api/settings': () => ({ email: 'runner@example.com', displayName: null, units: 'mi' }),
+      'GET /api/auth/me': () => ({ email: 'runner@example.com' }),
+    })
+    // Glyph reads after the first wait for the gate, so the moment between the save and the new
+    // answer can be looked at.
+    const inner = globalThis.fetch
+    let open!: () => void
+    const gate = new Promise<void>((resolve) => {
+      open = resolve
+    })
+    let glyphReads = 0
+    vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).includes('/api/activities/glyphs') && ++glyphReads > 1) await gate
+      return inner(input, init)
+    })
+    renderWithProviders(<GlyphProbe />)
+    await waitFor(() => {
+      expect(screen.getByTestId('glyph')).toHaveTextContent('M0 0L9 9')
+    })
+    await user.click(screen.getByRole('button', { name: 'Hide ends' }))
+    await waitFor(() => {
+      expect(screen.getByTestId('glyph')).toHaveTextContent('none')
+    })
+    open()
+    await waitFor(() => {
+      expect(screen.getByTestId('glyph')).toHaveTextContent('M1 1L2 2')
     })
   })
 })

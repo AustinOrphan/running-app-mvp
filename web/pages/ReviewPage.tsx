@@ -745,6 +745,9 @@ function SessionSummaries({
 }) {
   const headingId = useId()
   const glyphs = useActivityGlyphs(linkedRuns)
+  const anyGlyph = sessions.some(
+    (session) => session.activityId !== null && glyphs.has(session.activityId),
+  )
   return (
     <section aria-labelledby={headingId} className={styles.section}>
       <h2 id={headingId}>Planned sessions</h2>
@@ -756,11 +759,13 @@ function SessionSummaries({
               <span className={styles.sessionTitle}>{session.title}</span>
               <span className={styles.muted}>{`${String(session.durationMin)} min`}</span>
               <span className={styles.sessionStatus}>{sessionStatusLabel(session.status)}</span>
-              {session.activityId !== null && glyphs.has(session.activityId) ? (
-                <RouteGlyph
-                  glyph={glyphs.get(session.activityId)!}
-                  className={styles.sessionGlyph}
-                />
+              {/* With any drawing on the list, every row keeps the slot, so the status stays in line. */}
+              {anyGlyph ? (
+                <span className={styles.sessionGlyphSlot}>
+                  {session.activityId !== null && glyphs.has(session.activityId) ? (
+                    <RouteGlyph glyph={glyphs.get(session.activityId)!} />
+                  ) : null}
+                </span>
               ) : null}
             </div>
             {/* The engine's lines already cover completion, intensity, effort and conditions. */}

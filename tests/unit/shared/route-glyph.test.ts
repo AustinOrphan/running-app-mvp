@@ -177,8 +177,9 @@ describe('routeGlyph', () => {
       const ys = pts.map((p) => p[1])
       return (Math.max(...ys) - Math.min(...ys)) / (Math.max(...xs) - Math.min(...xs))
     }
-    expect(aspect(whole)).toBeCloseTo(1000 / 1400, 1)
-    expect(aspect(trimmed)).toBeCloseTo(800 / 1200, 1)
+    expect(aspect(whole)).toBeCloseTo(1000 / 1400, 2)
+    expect(aspect(trimmed)).toBeCloseTo(800 / 1200, 2)
+    expect(aspect(whole) - aspect(trimmed)).toBeGreaterThan(0.03)
     // The start corner (0, 0) of the whole route is the bottom-left; the trimmed glyph starts inside.
     expect(whole[0]![0]).toBeCloseTo(0, 0)
     expect(trimmed[0]![0]).toBeCloseTo(0, 0)
