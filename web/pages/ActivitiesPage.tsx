@@ -7,6 +7,7 @@ import {
   activityMoreLabel,
   activityPaceLabel,
   activitySetsText,
+  possibleDuplicateNote,
 } from '../../shared/copy/activityList.ts'
 import { addDays, isIsoDate, todayIso } from '../../shared/dates.ts'
 import { movingTimeDiffers } from '../../shared/domain/movingTime.ts'
@@ -89,8 +90,11 @@ function ActivityRow({
   units,
   glyph,
   restorable = false,
+  original,
 }: {
   activity: ActivityListItem
+  /** The row a possible duplicate was flagged against, when it is on the screen. */
+  original?: ActivityListItem
   units: Units
   /** The run's route drawing, when it has a track; nothing is shown otherwise. */
   glyph?: RouteGlyphData
@@ -177,7 +181,7 @@ function ActivityRow({
         <div className={styles.duplicate}>
           <span className={styles.badge}>Possible duplicate</span>
           <p className={styles.duplicateNote}>
-            Another run on this day is within 80 m. The imported one is counted.
+            {possibleDuplicateNote(activity, original ?? null)}
           </p>
           <div className={styles.duplicateActions}>
             <Button
@@ -365,12 +369,22 @@ export function ActivitiesPage() {
       />
     )
   } else {
+    const originalOf = (row: ActivityListItem) =>
+      row.duplicateOfId === null
+        ? undefined
+        : (loaded ?? []).find((r) => r.id === row.duplicateOfId)
     body = groupByDate(rows).map((group) => (
       <section key={group.date} className={styles.group}>
         <h2 className={styles.date}>{dateHeading(group.date)}</h2>
         <ul className={styles.list}>
           {group.rows.map((row) => (
-            <ActivityRow key={row.id} activity={row} units={units} glyph={glyphs.get(row.id)} />
+            <ActivityRow
+              key={row.id}
+              activity={row}
+              units={units}
+              glyph={glyphs.get(row.id)}
+              original={originalOf(row)}
+            />
           ))}
         </ul>
       </section>

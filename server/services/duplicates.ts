@@ -6,12 +6,14 @@ import {
   matchActivities,
   pickDuplicate,
 } from '../../shared/domain/duplicates.ts'
+import { compatible } from '../../shared/engine/execution.ts'
+import type { SessionKind } from '../../shared/engine/types.ts'
 import type { DuplicateStatus } from '../../shared/types.ts'
 
 /** The activity types the pass compares, each only with its own kind (`findPossibleDuplicate`). */
 const COUNTED_TYPES = ['run', 'race', 'strength']
 
-type LogHandOverDb = Pick<PrismaClient, 'activity' | 'fuelLog' | 'strengthLog'>
+type LogHandOverDb = Pick<PrismaClient, 'activity' | 'fuelLog' | 'strengthLog' | 'planSession'>
 
 /**
  * Hands the logs of a confirmed duplicate of `originalId` to the original, for each kind of log the
@@ -24,6 +26,9 @@ type LogHandOverDb = Pick<PrismaClient, 'activity' | 'fuelLog' | 'strengthLog'>
  * A strength log moves only onto a strength activity (anything else is refused and nothing is
  * written), and takes the effort, the pain and the note of the copy along where the original has
  * none, because the sheet that saved the log entered them on the copy. Returns whether a log moved.
+ *
+ * The plan session a copy fulfils moves to the original too (`carrySessionLink`), so the session
+ * opens the activity that counts.
  */
 export async function moveConfirmedLogs(
   prisma: LogHandOverDb,
@@ -36,6 +41,7 @@ export async function moveConfirmedLogs(
     orderBy: { id: 'asc' },
   })
   await carryHeatMark(prisma, originalId, copies)
+  await carrySessionLink(prisma, userId, originalId, copies)
   const fuel = await handOverLog(
     copies,
     originalId,
@@ -78,6 +84,46 @@ async function carryHeatMark(
     where: { id: originalId, heatExposure: null },
     data: { heatExposure: mark },
   })
+}
+
+/**
+ * The plan session a confirmed copy fulfils is handed to the original: a copy no longer counts
+ * (`counts` in `shared/engine/execution.ts`), so a session left on it would open the copy, without
+ * the time and the heart rate of the source that wins, and the original would fulfil nothing. The
+ * row keeps its `linkSource` and its status; only `activityId` changes, as in a manual link no
+ * revision is written (a link is not a change to the plan, ADR 0007), and the findings stored with
+ * the session stay as they were. When the original already fulfils a session (the link is unique
+ * per activity), or its type no longer fits the session, both stay as they are. The first copy (by
+ * id) that fulfils a session gives it up. Releasing a copy later does not move the link back, as
+ * it does not move a log back.
+ */
+async function carrySessionLink(
+  prisma: Pick<PrismaClient, 'activity' | 'planSession'>,
+  userId: string,
+  originalId: string,
+  copies: ReadonlyArray<{ id: string }>,
+): Promise<void> {
+  if (copies.length === 0) return
+  const held = await prisma.planSession.findFirst({
+    where: { activityId: originalId, plan: { userId } },
+    select: { id: true },
+  })
+  if (held) return
+  const original = await prisma.activity.findFirst({
+    where: { id: originalId, userId },
+    select: { type: true, subtype: true },
+  })
+  if (!original) return
+  for (const copy of copies) {
+    const session = await prisma.planSession.findFirst({
+      where: { activityId: copy.id, plan: { userId } },
+      select: { id: true, kind: true },
+    })
+    if (!session) continue
+    if (!compatible(session.kind as SessionKind, original)) return
+    await prisma.planSession.update({ where: { id: session.id }, data: { activityId: originalId } })
+    return
+  }
 }
 
 /**
@@ -142,7 +188,7 @@ function shiftDate(date: string, days: number): string {
  * `confirmed` when it now qualifies. Returns how many rows were newly flagged.
  */
 export async function markDuplicates(
-  prisma: Pick<PrismaClient, 'activity' | 'fuelLog' | 'strengthLog'>,
+  prisma: Pick<PrismaClient, 'activity' | 'fuelLog' | 'strengthLog' | 'planSession'>,
   userId: string,
   activityIds: string[],
 ): Promise<number> {
