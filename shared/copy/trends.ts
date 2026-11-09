@@ -255,6 +255,79 @@ export const TRENDS_TEMPLATES = {
   ),
   'trends.hr.gap-runs': tpl('Too few runs', {}, { shape: 'label' }),
   'trends.hr.gap-pace': tpl('Pace not run in this window', {}, { shape: 'label' }),
+
+  'trends.load.heading': tpl('Climbing and intensity', {}, { shape: 'label' }),
+  'trends.load.subject': tpl('The climbing and intensity data', {}, { shape: 'label' }),
+
+  // Climbing per week (rule A12, shown under T1). The gain recorded on each run, summed by week and
+  // described: no aim, no ratio of recent to earlier weeks. A run with no gain is counted and named.
+  'trends.climb.heading': tpl('Climbing per week', {}, { shape: 'label' }),
+  'trends.climb.caption': tpl(
+    'Bars are the elevation gain recorded on your runs each week, in {unit}. The line is the mean of that week and the three before it.',
+    { unit: 'text' },
+    { fallback: 'Bars are the elevation gain recorded on your runs each week.' },
+  ),
+  'trends.climb.line': tpl(
+    'The line counts a week with no runs as no climbing and leaves out a week whose runs have no elevation. It stops at the last complete week.',
+  ),
+  'trends.climb.coverage': tpl(
+    '{have} of {runs} runs have elevation. A run with none is left out, not read as flat.',
+    { have: 'count', runs: 'count' },
+  ),
+  'trends.climb.rough': tpl(
+    "Elevation from a watch's barometer or GPS is rough, so read the shape of the weeks, not the exact figure.",
+  ),
+  'trends.climb.empty': tpl('No elevation recorded in this range yet.'),
+  'trends.climb.empty-body': tpl(
+    'Elevation comes with a watch file or a synced account. A spreadsheet import has none.',
+  ),
+  'trends.climb.aria': tpl(
+    'Climbing per week, {span}. Latest complete week with elevation: {climb}.',
+    { span: 'text', climb: 'climb' },
+    { fallback: 'Climbing per week.' },
+  ),
+  'trends.climb.aria-none': tpl(
+    'Climbing per week, {span}. No complete week has elevation yet.',
+    { span: 'text' },
+    { fallback: 'Climbing per week.' },
+  ),
+
+  // Intensity per week (rule A12). Run time by heart-rate zone as the zones stand today; time with no
+  // usable heart rate is its own neutral part and is never spread over the zones. No line, no
+  // comparison with the plan: a split here is a picture of what was run, not a target.
+  'trends.intensity.heading': tpl('Intensity per week', {}, { shape: 'label' }),
+  'trends.intensity.caption': tpl(
+    "Bars are run hours per week, split by heart rate into the three zones as they stand today. Past weeks are read against today's zones.",
+  ),
+  'trends.intensity.limits': tpl(
+    'Zone 1 is up to {lt1}, Zone 2 is up to {lt2} and Zone 3 is above, by the heart rate of the zone table on Profile.',
+    { lt1: 'bpm', lt2: 'bpm' },
+  ),
+  'trends.intensity.neutral': tpl(
+    'The neutral part is time with no usable heart rate: no stream, a stream that did not pass the checks, or a stretch the stream does not cover.',
+  ),
+  'trends.intensity.coverage': tpl('{have} of {runs} runs have usable heart rate.', {
+    have: 'count',
+    runs: 'count',
+  }),
+  'trends.intensity.legend-1': tpl('Zone 1', {}, { shape: 'label' }),
+  'trends.intensity.legend-2': tpl('Zone 2', {}, { shape: 'label' }),
+  'trends.intensity.legend-3': tpl('Zone 3', {}, { shape: 'label' }),
+  'trends.intensity.legend-none': tpl('No usable heart rate', {}, { shape: 'label' }),
+  'trends.intensity.no-zones': tpl('No heart-rate zones are set yet.'),
+  'trends.intensity.no-zones-body': tpl(
+    'The zones need a maximum heart rate. Add one on Profile and the weeks are split here.',
+  ),
+  'trends.intensity.aria': tpl(
+    'Run hours per week by zone, {span}. Latest complete week: Zone 1 {z1}, Zone 2 {z2}, Zone 3 {z3}, no usable heart rate {none}.',
+    { span: 'text', z1: 'minutes', z2: 'minutes', z3: 'minutes', none: 'minutes' },
+    { fallback: 'Run hours per week by heart-rate zone.' },
+  ),
+  'trends.intensity.aria-none': tpl(
+    'Run hours per week by heart-rate zone, {span}. No complete week has runs yet.',
+    { span: 'text' },
+    { fallback: 'Run hours per week by heart-rate zone.' },
+  ),
 } as const
 
 /** The ids of the templates that take no slot. */
@@ -554,4 +627,72 @@ export function hrEmptyPaceBody(referenceMps: number, units: Units): string {
     { pace: paceOf(referenceMps) },
     units,
   )
+}
+
+/** The unit of the climbing bars, in words: metres for km, feet for miles. */
+export function climbUnitWord(units: Units): string {
+  return units === 'mi' ? 'feet' : 'metres'
+}
+
+/** The line under the climbing panel's heading: what the bars are, in the runner's unit. */
+export function climbCaption(units: Units): string {
+  return render(TRENDS_TEMPLATES['trends.climb.caption'], { unit: climbUnitWord(units) }, units)
+}
+
+/** "31 of 36 runs have elevation." The count of runs in view and how many carry a gain. */
+export function climbCoverageLine(have: number, runs: number): string {
+  return render(
+    TRENDS_TEMPLATES['trends.climb.coverage'],
+    { have: count(have), runs: count(runs) },
+    'km',
+  )
+}
+
+/** The accessible name of the climbing chart: the span and the latest complete week with a gain, if any. */
+export function climbAria(span: string, latestM: number | null, units: Units): string {
+  return latestM === null
+    ? render(TRENDS_TEMPLATES['trends.climb.aria-none'], { span }, units)
+    : render(
+        TRENDS_TEMPLATES['trends.climb.aria'],
+        { span, climb: { kind: 'climb', m: latestM } },
+        units,
+      )
+}
+
+/** "20 of 36 runs have usable heart rate." */
+export function intensityCoverageLine(have: number, runs: number): string {
+  return render(
+    TRENDS_TEMPLATES['trends.intensity.coverage'],
+    { have: count(have), runs: count(runs) },
+    'km',
+  )
+}
+
+/** The two heart rates the zones are cut at, as the zone table on Profile gives them. */
+export function intensityLimitsLine(lt1Hr: number, lt2Hr: number): string {
+  return render(
+    TRENDS_TEMPLATES['trends.intensity.limits'],
+    { lt1: { kind: 'bpm', bpm: lt1Hr }, lt2: { kind: 'bpm', bpm: lt2Hr } },
+    'km',
+  )
+}
+
+/** The accessible name of the intensity chart: the latest complete week's minutes in each part, if any. */
+export function intensityAria(
+  span: string,
+  latest: { z1: number; z2: number; z3: number; none: number } | null,
+): string {
+  return latest === null
+    ? render(TRENDS_TEMPLATES['trends.intensity.aria-none'], { span }, 'km')
+    : render(
+        TRENDS_TEMPLATES['trends.intensity.aria'],
+        {
+          span,
+          z1: minutes(latest.z1),
+          z2: minutes(latest.z2),
+          z3: minutes(latest.z3),
+          none: minutes(latest.none),
+        },
+        'km',
+      )
 }
