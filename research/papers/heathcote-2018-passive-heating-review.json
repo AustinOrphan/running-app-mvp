@@ -1,0 +1,36 @@
+{
+  "id": "heathcote-2018-passive-heating-review",
+  "title": "Passive Heating: Reviewing Practical Heat Acclimation Strategies for Endurance Athletes",
+  "authors": "Heathcote SL, Hassmen P, Zhou S, Stevens CJ",
+  "year": 2018,
+  "journal": "Frontiers in Physiology",
+  "doi": "10.3389/fphys.2018.01851",
+  "pmid": "30618849",
+  "url": "https://doi.org/10.3389/fphys.2018.01851",
+  "design": "systematic-review",
+  "population": "16 articles on passive heat acclimation (sauna, hot-water immersion, environmental chamber) in mostly young, healthy, trained or recreationally active people",
+  "sampleSize": 16,
+  "evidenceLevel": "C",
+  "topics": ["heat-weather"],
+  "findings": [
+    "Passive heat acclimation (sauna, hot-water immersion, environmental chambers) can induce heat adaptations, seen in better exercise performance and thermoregulatory, cardiovascular and perceptual responses.",
+    "To get the most thermoregulatory adaptation, exercise should come before the passive heat, with a minimal delay between the two.",
+    "Heating bouts should last at least 30 min per session, on consecutive days when possible, with a minimum of 6-7 exposures to induce adaptation.",
+    "The size of the performance change and the perceptual response to passive heating are not well known.",
+    "Passive exposures alone may be less effective than exercise in the heat for sport-specific adaptations (full text, citing Daanen 2018)."
+  ],
+  "limitations": "Narrative-style synthesis of 16 small, heterogeneous studies with no pooled estimate in the abstract; the studies were mostly of young men, so older runners, women, and people with health conditions or on medicines are largely absent; the safety statements in the full text come from the authors and from a commentary they cite, not from a safety study. Abstract read on Europe PMC; the open-access full text (PMC6306444) was searched for the safety passages and read there.",
+  "implications": [
+    "Supports counting a hot bath or sauna straight after a run as a heat day when it lasts about 30 min or more, as an option: the review's dose is 30 min or more, on consecutive days, 6-7 or more exposures, straight after exercise.",
+    "Safety lines the review gives: have fluids before, during and after the session; stop a session with signs of heat illness, light-headedness, nausea or extreme discomfort; hot water above core temperature adds heat and can cause hyperthermia, so hot water immersion after exercise could cause heat illness and needs supervision or monitoring of the water temperature and of the signs of hyperthermia; check for factors that predispose to heat illness before starting; heavier runners may be at higher risk.",
+    "The review does not name heart or blood-pressure conditions, pregnancy or medicines; those lines in the app are general caution to ask a clinician, not a finding of this paper."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Added 2026-11-09 for task HT1 (rule I8). Crossref: Front Physiol 9:1851, online 2018-12-20, four authors, no updated-by notice. Abstract read on Europe PMC (PMID 30618849) and the open-access full text (PMC6306444) searched for safety passages. Graded C, not A: it is a systematic search, but the abstract reports no quality appraisal or pooled estimate and the base is small trials.",
+    "checkedAt": "2026-11-09"
+  }
+}

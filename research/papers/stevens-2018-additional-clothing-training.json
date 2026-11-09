@@ -1,0 +1,34 @@
+{
+  "id": "stevens-2018-additional-clothing-training",
+  "title": "Effect of two-weeks endurance training wearing additional clothing in a temperate outdoor environment on performance and physiology in the heat",
+  "authors": "Stevens CJ, Heathcote SL, Plews DJ, Laursen PB, Taylor L",
+  "year": 2018,
+  "journal": "Temperature",
+  "doi": "10.1080/23328940.2018.1474672",
+  "pmid": "30377642",
+  "url": "https://doi.org/10.1080/23328940.2018.1474672",
+  "design": "controlled-trial",
+  "population": "15 trained male triathletes in performance-matched groups (8 control, 7 in additional clothing)",
+  "sampleSize": 15,
+  "evidenceLevel": "C",
+  "topics": ["heat-weather"],
+  "findings": [
+    "Two weeks of unsupervised cycling and running in full-length pants, a winter jacket and gloves (nylon, polyurethane, polyester) in a temperate outdoor environment was compared with training in shorts and a short-sleeve top.",
+    "Thermal sensation during the sessions was most likely hotter in the additional-clothing group (5.5 against 4.4 AU).",
+    "Tests in 32.5 C and 55% RH before and after the programme (20 min at 180 W then a 40 min self-paced time trial) showed no physiological or perceptual sign of heat acclimation, and the change in time-trial performance was trivial (-0.7%, +/- 5.4%).",
+    "The authors conclude that two weeks of training in additional clothing in a temperate environment was not an effective heat acclimation strategy for these triathletes."
+  ],
+  "limitations": "Fifteen men; the sessions were unsupervised and the clothing was recorded in a diary; the clothing, the temperate weather and the length and intensity of the sessions were not controlled, so a different garment, a warmer day or a harder session could give a different result; the sessions were training for triathlon, not easy running; women were not studied. A negative result in one small study does not show that no clothing protocol can work. Abstract read on Europe PMC; the full text was not read.",
+  "implications": [
+    "The only trial found on exercising overdressed as heat acclimation was negative: it counts against treating extra layers in mild weather as a heat day. A rule that counts such a day does so by choice, at the lowest grade, and says so.",
+    "No safety finding in the abstract; heavy clothing in warm weather adds heat stress, and the cautions come from Heathcote 2018 and the consensus."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Added 2026-11-09 for task HT1 (rule I8). Crossref: Temperature 5:267-275, online 2018-07-03, five authors, no updated-by notice. Abstract read on Europe PMC (PMID 30377642). The same author's commentary (10.1080/23328940.2018.1437309, Temperature 5:101-102) was looked up and has no abstract, so it was not read and is not recorded. Other searches (Crossref, 2026-11-09) found no other trial of training in extra clothing or an impermeable suit as heat acclimation for runners; the protective-clothing studies found (Baumgartner 1995, Aoyagi 1998, Chang 1999) are about workers in chemical protective clothing and were not read.",
+    "checkedAt": "2026-11-09"
+  }
+}

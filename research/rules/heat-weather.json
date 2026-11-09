@@ -129,6 +129,32 @@
     ]
   },
   {
+    "id": "heat-acclimation-passive-day",
+    "statement": "Count a heat day when a hot bath (about 40 C, about 40 min) or a sauna (about 90 C, about 30 min) follows an easy run of at least 30 min that the runner marks, as an option and not a target; the studies followed an exercise bout straight away, on consecutive days, 6 or more times, in young healthy men. The 30 min run and the easy-effort cut-off are defaults. Show safety lines with it: drink, start shorter, not alone at first, stop if dizzy, sick or confused, ask a clinician with heart or blood-pressure conditions, pregnancy or medicines that change heat tolerance.",
+    "parameter": "passive_heat_day",
+    "value": "post-run hot water about 40 min at about 40 C, or sauna about 30 min; 6-7+ consecutive days",
+    "unit": "min per session",
+    "appliesTo": "Healthy adults as an option; the trials were of young men",
+    "grade": "C",
+    "confidence": "low",
+    "evidence": [
+      "zurawlew-2016-hot-water-immersion",
+      "scoon-2007-post-exercise-sauna",
+      "heathcote-2018-passive-heating-review"
+    ]
+  },
+  {
+    "id": "heat-acclimation-overdressed-day",
+    "statement": "A run in extra layers or a warm room that the runner marks counts as a heat day only by an owner decision: the one trial of two weeks of training in extra clothing in mild outdoor weather found no sign of heat acclimation. Count it at grade D, say so, and do not read the layers or the room temperature.",
+    "parameter": "overdressed_heat_day",
+    "value": "counts when marked; at least 30 min",
+    "unit": "min",
+    "appliesTo": "Runners who choose to mark a run; evidence is one small trial in male triathletes",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": ["stevens-2018-additional-clothing-training", "racinais-2015-heat-consensus"]
+  },
+  {
     "id": "heat-acclimation-decay",
     "statement": "Credit of HR and core-temperature acclimation falls about 2.5% of the acclimated state per day after the last session (HR 2.3, core 2.6). Cut credit to zero at about 40 days (extrapolation, flagged). Schedule the block to finish close to the race and use a short top-up (re-acclimation is 8-12 times faster than decay) inside the taper.",
     "parameter": "acclimation_decay_rate",
