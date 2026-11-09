@@ -8,6 +8,8 @@ const HEAT_CONSENSUS = [
   'daanen-2018-acclimation-decay',
   'periard-2015-heat-acclimation-adaptations',
 ]
+// Tyler 2016 sets neither the trigger nor a floor of 5 days (its short protocols were under 7 days).
+const HEAT_WITHOUT_TYLER = HEAT_CONSENSUS.filter((id) => id !== 'tyler-2016-heat-adaptation-meta')
 // I13 evidence, only where a paper bears on the value: Minetti on the prior the ratios shrink to,
 // the leave-one-out calibration of a Minetti-based trail model on the gate.
 const MINETTI_ONLY = ['minetti-2002-gradient-cost']
@@ -248,16 +250,16 @@ export const iEnv = {
     ),
   },
   i8: {
-    triggerWbgtC: param('i8.triggerWbgtC', 18, 'D', 'I8', HEAT_CONSENSUS, {
+    triggerWbgtC: param('i8.triggerWbgtC', 18, 'D', 'I8', HEAT_WITHOUT_TYLER, {
       unit: 'C WBGT',
-      note: 'Default: race WBGT at or above this triggers an acclimation block.',
+      note: 'Default: race WBGT at or above this triggers an acclimation block. A convention, tunable and not derived from the papers listed (Tyler 2016 is left out: its protocols were all at 25 C or more ambient and say nothing about when to acclimate).',
     }),
     blockDays: param<number>('i8.blockDays', 10, 'A', 'I8', HEAT_CONSENSUS, {
       unit: 'days',
       range: [7, 14],
       note: '7-14 days of daily heat exposure ending close to the race, longer if time allows; 10 is the midpoint.',
     }),
-    blockMinDays: param('i8.blockMinDays', 5, 'A', 'I8', HEAT_CONSENSUS, { unit: 'days' }),
+    blockMinDays: param('i8.blockMinDays', 5, 'A', 'I8', HEAT_WITHOUT_TYLER, { unit: 'days' }),
     decayPctPerDay: param('i8.decayPctPerDay', 2.5, 'A', 'I8', HEAT_CONSENSUS, {
       unit: '% of the adaptation per day',
     }),

@@ -132,6 +132,11 @@
 // plan before, and are now those of the plan before. The 141 other digests are those of the
 // regeneration before; no plan built whole (no stored plan) meets the change.
 //
+// Regenerated 2026-11-09 (task RS1, rule H12): the first step after a race of 100 miles or more caps
+// each run at 20 min (`h12.step1RunMaxMin100mi`, Koop) instead of 40. 62 of the 142 digests move
+// (22 runners and 40 plans of the weekly re-plan chains), those of the plans that meet a post-race
+// window of the `ultra100mi` or `beyond` class; the other 80 are those of the regeneration before.
+//
 // The close of the load-progression plan (task L7) may remove this file with its test: from there
 // the owner validation is the oracle.
 import { createHash } from 'node:crypto'

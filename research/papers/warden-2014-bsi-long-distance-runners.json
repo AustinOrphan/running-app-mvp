@@ -28,7 +28,7 @@
     "metadataMatches": true,
     "abstractSource": "europepmc",
     "findingsSupported": true,
-    "notes": "Crossref 2026-10-25: title, JOSPT 44(10):749-765, 2014-10, three authors and DOI match. Europe PMC abstract (PMID 25103133) read; the level of evidence (therapy, level 5) is in it. Full text not read, so no claim beyond the abstract is made.",
-    "checkedAt": "2026-10-25"
+    "notes": "Crossref 2026-10-25: title, JOSPT 44(10):749-765, 2014-10, three authors and DOI match. Europe PMC abstract (PMID 25103133) read; the level of evidence (therapy, level 5) is in it. Full text not read, so no claim beyond the abstract is made. No legal full text found on 2026-11-09 (Europe PMC: not open access, not in PMC, no PDF; the publisher page returned HTTP 403), so its claims rest on the abstract.",
+    "checkedAt": "2026-11-09"
   }
 }
