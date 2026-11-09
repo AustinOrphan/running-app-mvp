@@ -18,6 +18,8 @@ import { SESSION_COOKIE, signSession } from '../../server/auth/session.ts'
 import { createPrisma, initSqlite } from '../../server/db.ts'
 import { clearUserData } from '../schemaModels.ts'
 import { lb, makeWorkout, plank, rdl, squat } from '../web/strength-fixtures.ts'
+import { TRACK_VERSION } from '../../shared/importers/files/track.ts'
+import { trackOf, type Metres } from '../fixtures/routeShapes.ts'
 import { E2E_DATABASE_URL } from './env.ts'
 
 /** Synthetic account shared by every spec. */
@@ -625,4 +627,44 @@ export async function seedUnloggedStrengthWeeks(weeks = 3): Promise<void> {
   } finally {
     await prisma.$disconnect()
   }
+}
+
+/**
+ * Adds a run with a stored track of the given shape (metres east and north of an ocean origin):
+ * the run through the API, its `ActivityTrack` straight through Prisma, and `trackV` set so the
+ * backfill job leaves it alone. Returns the activity id.
+ */
+export async function seedRunWithTrack(
+  api: Api,
+  run: { date: string; minutes: number; distanceM: number },
+  shape: Metres,
+): Promise<string> {
+  const created = (await api.post('/activities', {
+    date: run.date,
+    type: 'run',
+    durationSec: run.minutes * 60,
+    distanceM: run.distanceM,
+  })) as { id: string }
+  const track = trackOf(shape)
+  const prisma = createPrisma(E2E_DATABASE_URL)
+  try {
+    await prisma.activityTrack.create({
+      data: {
+        activityId: created.id,
+        v: TRACK_VERSION,
+        polyline: track.polyline,
+        distM: JSON.stringify(track.distM),
+        pointCount: track.pointCount,
+        minLat: track.bbox.minLat,
+        minLng: track.bbox.minLng,
+        maxLat: track.bbox.maxLat,
+        maxLng: track.bbox.maxLng,
+        toleranceM: track.toleranceM,
+      },
+    })
+    await prisma.activity.update({ where: { id: created.id }, data: { trackV: TRACK_VERSION } })
+  } finally {
+    await prisma.$disconnect()
+  }
+  return created.id
 }

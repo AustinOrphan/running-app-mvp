@@ -1,20 +1,24 @@
 import {
   useInfiniteQuery,
   useMutation,
+  useQueries,
   useQuery,
   useQueryClient,
   type QueryClient,
 } from '@tanstack/react-query'
 import type { StandoutView } from '../../shared/copy/standoutRender.ts'
 import { ACTIVITY_PAGE_MAX } from '../../shared/limits.ts'
+import { hasTrack } from '../../shared/importers/files/track.ts'
 import type {
   Activity,
+  ActivityGlyphs,
   ActivityDetail,
   ActivityListItem,
   ActivityListPage,
   ActivityTrackView,
   ActivityType,
   Feel,
+  RouteGlyph,
 } from '../../shared/types.ts'
 import { ApiError, api, keys, qs } from './client.ts'
 
@@ -172,6 +176,42 @@ export function useActivityPages(params: ActivityParams = {}, options: { enabled
       api<ActivityListPage>('GET', pageUrl(params, ACTIVITY_VIEW_PAGE, pageParam)),
     getNextPageParam: (last) => last.nextOffset ?? undefined,
     select: joinPages,
+  })
+}
+
+/**
+ * The route glyphs of the runs among `rows`, read `ACTIVITY_VIEW_PAGE` ids at a time (one request
+ * per page of the list; a page added by "Show more" asks only for its own). A run with no track,
+ * a treadmill run and a row not yet answered have no entry. The keys sit under `keys.activityDetail`,
+ * so a change of the hide-ends setting reads them again.
+ */
+export function useActivityGlyphs(
+  rows: ReadonlyArray<{ id: string; type: string; subtype: string | null }>,
+): ReadonlyMap<string, RouteGlyph> {
+  // Chunks are cut from the rows, not from the ids that may have a track, so a page added at the
+  // end leaves the chunks before it (and their cached answers) as they were.
+  const chunks: string[][] = []
+  for (let i = 0; i < rows.length; i += ACTIVITY_VIEW_PAGE) {
+    const ids = rows
+      .slice(i, i + ACTIVITY_VIEW_PAGE)
+      .filter((row) => hasTrack(row.type, row.subtype))
+      .map((row) => row.id)
+    if (ids.length > 0) chunks.push(ids)
+  }
+  return useQueries({
+    queries: chunks.map((chunk) => ({
+      queryKey: [keys.activityDetail, 'glyphs', chunk],
+      queryFn: () =>
+        api<ActivityGlyphs>('GET', `/activities/glyphs${qs({ ids: chunk.join(',') })}`),
+      staleTime: 5 * 60_000,
+    })),
+    combine: (results) => {
+      const map = new Map<string, RouteGlyph>()
+      for (const result of results) {
+        for (const [id, glyph] of Object.entries(result.data?.glyphs ?? {})) map.set(id, glyph)
+      }
+      return map
+    },
   })
 }
 

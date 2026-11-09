@@ -15,6 +15,8 @@ export const MAX_NOTES = 2000
 export const ACTIVITY_PAGE_DEFAULT = 100
 /** The most rows one page of `GET /api/activities` may hold. */
 export const ACTIVITY_PAGE_MAX = 500
+/** Most ids one `GET /api/activities/glyphs` read takes: a page of the list and then some. */
+export const ACTIVITY_GLYPH_IDS_MAX = 100
 /** The furthest `offset` a list request may name; far beyond any history, and inside SQLite's range. */
 export const ACTIVITY_OFFSET_MAX = 1_000_000
 

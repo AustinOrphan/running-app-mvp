@@ -9,11 +9,17 @@ import {
 } from '../../shared/copy/activityList.ts'
 import { addDays, isIsoDate, todayIso } from '../../shared/dates.ts'
 import { movingTimeDiffers } from '../../shared/domain/movingTime.ts'
-import type { ActivityListItem, ActivityType, Units } from '../../shared/types.ts'
+import type {
+  ActivityListItem,
+  ActivityType,
+  RouteGlyph as RouteGlyphData,
+  Units,
+} from '../../shared/types.ts'
 import { formatDistance, formatDuration, formatPace } from '../../shared/units.ts'
 import {
   ACTIVITY_VIEW_PAGE,
   useActivities,
+  useActivityGlyphs,
   useActivityPages,
   useResolveDuplicate,
 } from '../api/activities.ts'
@@ -26,6 +32,7 @@ import { useLoadView } from '../components/loadView.ts'
 import { Field, Input } from '../components/Field.tsx'
 import { formatShortDate, formatWeekday } from '../components/format.ts'
 import { PageHeader } from '../components/PageHeader.tsx'
+import { RouteGlyph } from '../components/RouteGlyph.tsx'
 import { Segmented } from '../components/Segmented.tsx'
 import { Skeleton } from '../components/Skeleton.tsx'
 import { ActivityForm, sourceLabel, TYPE_LABELS } from './ActivityForm.tsx'
@@ -79,10 +86,13 @@ function groupByDate(rows: ActivityListItem[]): Array<{ date: string; rows: Acti
 function ActivityRow({
   activity,
   units,
+  glyph,
   restorable = false,
 }: {
   activity: ActivityListItem
   units: Units
+  /** The run's route drawing, when it has a track; nothing is shown otherwise. */
+  glyph?: RouteGlyphData
   /** Offers to undo a confirmed duplicate, so the row counts again. */
   restorable?: boolean
 }) {
@@ -123,7 +133,7 @@ function ActivityRow({
           the figures in reading order and the pace with its label. */}
       <Link
         to={`/activities/${encodeURIComponent(activity.id)}`}
-        className={styles.row}
+        className={glyph === undefined ? styles.row : `${styles.row} ${styles.rowGlyph}`}
         aria-label={[
           TYPE_LABELS[activity.type],
           dateHeading(activity.date),
@@ -136,6 +146,7 @@ function ActivityRow({
           .join(', ')}
       >
         <span className={styles.type}>{TYPE_LABELS[activity.type]}</span>
+        {glyph === undefined ? null : <RouteGlyph glyph={glyph} className={styles.glyph} />}
         <span className={styles.figure}>{distance ?? ''}</span>
         <span className={styles.figure}>{duration}</span>
         <span className={styles.pace}>{pace ?? ''}</span>
@@ -226,6 +237,8 @@ export function ActivitiesPage() {
   const whole = useActivities(filters, { enabled: duplicatesOnly })
   const activities = duplicatesOnly ? whole : paged
   const loaded = duplicatesOnly ? whole.data : paged.data?.items
+  // Route drawings for the pages of the list; the duplicates view reads every row and shows none.
+  const glyphs = useActivityGlyphs(duplicatesOnly ? [] : (paged.data?.items ?? []))
   const total = duplicatesOnly ? whole.data?.length : paged.data?.total
   // A page that failed leaves the rows already read in place; only a failed first read is an error.
   const moreFailed = !duplicatesOnly && paged.isFetchNextPageError
@@ -356,7 +369,7 @@ export function ActivitiesPage() {
         <h2 className={styles.date}>{dateHeading(group.date)}</h2>
         <ul className={styles.list}>
           {group.rows.map((row) => (
-            <ActivityRow key={row.id} activity={row} units={units} />
+            <ActivityRow key={row.id} activity={row} units={units} glyph={glyphs.get(row.id)} />
           ))}
         </ul>
       </section>
@@ -483,7 +496,13 @@ export function ActivitiesPage() {
               <h3 className={styles.date}>{dateHeading(group.date)}</h3>
               <ul className={styles.list}>
                 {group.rows.map((row) => (
-                  <ActivityRow key={row.id} activity={row} units={units} restorable />
+                  <ActivityRow
+                    key={row.id}
+                    activity={row}
+                    units={units}
+                    glyph={glyphs.get(row.id)}
+                    restorable
+                  />
                 ))}
               </ul>
             </div>

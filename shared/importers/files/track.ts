@@ -57,7 +57,10 @@ export function validPosition(lat: unknown, lng: unknown): boolean {
 }
 
 /** Indexes kept by Douglas-Peucker over a local equirectangular projection (metres). */
-function simplifyIndexes(points: ReadonlyArray<RoutePoint>, toleranceM: number): number[] {
+export function simplifyIndexes(
+  points: ReadonlyArray<{ lat: number; lng: number }>,
+  toleranceM: number,
+): number[] {
   const n = points.length
   const lat0 = (points[0]!.lat * Math.PI) / 180
   const mPerDeg = 111_320

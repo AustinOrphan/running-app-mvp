@@ -223,6 +223,10 @@
   color: var(--text-muted);
 }
 
+.sessionGlyph {
+  align-self: center;
+}
+
 .sessionLine {
   margin: 0;
   font-size: var(--text-sm);

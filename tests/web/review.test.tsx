@@ -1062,6 +1062,33 @@ describe('ReviewPage', () => {
       expect(explainOf(drawer)).toEqual({ subject: 'session', id: expect.any(String) as string })
     })
 
+    test('a session linked to a run with a track shows the run’s route drawing, read in one request', async () => {
+      const api = renderReview(
+        {
+          plan: v2Plan([
+            makeSession({ id: 's1', status: 'completed', activityId: 'a1' }),
+            makeSession({ id: 's2', date: '2026-10-14', title: 'Second run', activityId: 'a2' }),
+          ]),
+          weeks: { [W]: fullWeek },
+          activities: [
+            makeActivity({ id: 'a1', date: W }),
+            makeActivity({ id: 'a2', date: '2026-10-14' }),
+          ],
+        },
+        { 'GET /api/activities/glyphs': () => ({ glyphs: { a1: { d: 'M0 0L100 100' } } }) },
+      )
+      await ready()
+      const section = screen.getByRole('region', { name: 'Planned sessions' })
+      await waitFor(() => {
+        expect(section.querySelectorAll('svg')).toHaveLength(1)
+      })
+      expect(section.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
+      const items = within(section).getAllByRole('listitem')
+      expect(items[0]!.querySelector('svg')).not.toBeNull()
+      expect(items[1]!.querySelector('svg')).toBeNull()
+      expect(api.calls.filter((c) => c.url.startsWith('/api/activities/glyphs'))).toHaveLength(1)
+    })
+
     test('a version-1 plan still uses the live suggestion and has no sessions section', async () => {
       renderReview({ weeks: { [W]: fullWeek } })
       await ready()

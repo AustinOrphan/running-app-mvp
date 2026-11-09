@@ -1,0 +1,16 @@
+/* 40 px square, the box the glyph is fitted in (`routeGlyph`, 100 units plus a 2 unit margin for the stroke). */
+.glyph {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  overflow: visible;
+}
+
+.glyph path {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.5px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}

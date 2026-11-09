@@ -77,6 +77,8 @@
 
 .item {
   border-top: 1px solid var(--border);
+  /* The row asks how wide its list is, in rem, so a larger text size narrows it like a smaller screen. */
+  container-type: inline-size;
 }
 
 /*
@@ -123,6 +125,67 @@
   color: var(--text-muted);
   font-size: var(--text-sm);
   line-height: var(--lh-sm);
+}
+
+/*
+ * A run with a drawn route (RG1): the 40 px drawing sits at the right end of the kind column, on
+ * the first line, and the row is centred on it. The source line keeps the full width below.
+ */
+.rowGlyph {
+  align-items: center;
+}
+
+.rowGlyph .type {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.glyph {
+  grid-column: 1;
+  grid-row: 1;
+  justify-self: end;
+}
+
+/*
+ * Narrow list (a 360 px phone at 100% text is about 20 rem; 150% text is about 14 rem): three
+ * figure columns no longer fit beside the kind and the drawing, so the row becomes two lines. The
+ * kind on the first, the figures side by side on the second, the source on the third, and the
+ * drawing at the right of the row. The threshold is in rem so it follows the text size, not the
+ * screen; it is the width at which the columns above need no more than the list has.
+ */
+@container (max-width: 21rem) {
+  .row,
+  .rowGlyph {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: var(--space-4);
+  }
+
+  .rowGlyph {
+    position: relative;
+    padding-right: calc(40px + var(--space-3));
+  }
+
+  .type {
+    flex: 1 0 100%;
+  }
+
+  .figure,
+  .pace {
+    text-align: left;
+  }
+
+  .source {
+    flex: 1 0 100%;
+  }
+
+  .glyph {
+    position: absolute;
+    top: 50%;
+    right: 0;
+    translate: 0 -50%;
+  }
 }
 
 .datesBar {
