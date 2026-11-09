@@ -49,6 +49,20 @@ const CLASS_WEEKLY_PEAK = [
 ]
 
 export const eMacro = {
+  e7: {
+    raiseWeeksLooked: param('e7.raiseWeeksLooked', 4, 'D', 'E7', CLASS_WEEKLY_PEAK, {
+      unit: 'weeks',
+      note: "Default: the offer to raise the plan to match reads the last 4 complete weeks (the weeks the start level reads, E6). No study says how many weeks above plan show a higher level; the offer is the runner's to accept or decline and is never automatic.",
+    }),
+    raiseWeeksAbove: param('e7.raiseWeeksAbove', 3, 'D', 'E7', CLASS_WEEKLY_PEAK, {
+      unit: 'weeks',
+      note: 'Default: at least 3 of those weeks run above plan, so that one big week alone does not prompt the offer (E6: a step held for two weeks sets the start level). No source sets the count.',
+    }),
+    raiseAbovePlanPct: param('e7.raiseAbovePlanPct', 10, 'D', 'E7', CLASS_WEEKLY_PEAK, {
+      unit: '%',
+      note: 'Default: a week counts as above plan when the minutes run are more than this share over the minutes it was planned at; the share matches the soft weekly step (G-2). No source sets it.',
+    }),
+  },
   e2: {
     specificWeeksMin: param(
       'e2.specificWeeksMin',

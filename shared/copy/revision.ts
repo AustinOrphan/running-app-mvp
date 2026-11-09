@@ -552,6 +552,14 @@ export const REVISION_TEMPLATES = {
   'revision.method.redrawn-one': tpl('1 week redrawn on {date}.', { date: 'date' }),
   'revision.method.held-week': tpl('This week stays as it was drawn.'),
 
+  // The summary of a raise to match recent weeks [rule E7]: the first week the raise lifts, from the
+  // runner's yes. The weeks after it follow the usual steps and limits, and the pages list them.
+  'revision.raise.changed': tpl(
+    'Raised to match recent weeks: {to} a week from {date}, {rise} more than the {from} planned.',
+    { to: 'minutes', date: 'date', rise: 'minutes', from: 'minutes' },
+    { fallback: 'Plan raised to match recent weeks.' },
+  ),
+
   // A change of the shape in effect that the runner did not ask for: a persistent hold of the load
   // setting starts or ends, or the weeks of a novice come to an end. The re-plan that reads it says
   // so in its own summary. A shape that returns to the plan's own does so at once; one that comes
@@ -729,6 +737,28 @@ export function methodChangeSummary(line: MethodChangeLine): string {
   }
   if (line.held) parts.push(render(t['revision.method.held-week'], {}, STORED_UNITS))
   return parts.join(' ')
+}
+
+/** The first week a raise to match recent weeks lifts: its figure before and after [rule E7]. */
+export interface RaiseLine {
+  weekStart: string
+  fromMin: number
+  toMin: number
+}
+
+/** "Raised to match recent weeks: 363 min a week from Mon 14 Dec, 33 min more than the 330 min planned." */
+export function raiseSummary(line: RaiseLine): string {
+  const minutes = (min: number) => ({ kind: 'minutes', min }) as const
+  return render(
+    REVISION_TEMPLATES['revision.raise.changed'],
+    {
+      to: minutes(line.toMin),
+      date: day(line.weekStart),
+      rise: minutes(line.toMin - line.fromMin),
+      from: minutes(line.fromMin),
+    },
+    STORED_UNITS,
+  )
 }
 
 /** A change of the shape in effect between two re-plans that the runner did not ask for. */

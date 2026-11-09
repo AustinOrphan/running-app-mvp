@@ -1864,6 +1864,69 @@ function verifyHrQuality(db: DatabaseSync, before: Snapshot): void {
   ])
 }
 
+function seedReviewRelease(db: DatabaseSync): void {
+  insert(db, 'User', {
+    id: 'u1',
+    email: 'runner@example.com',
+    passwordHash: 'not-a-real-hash',
+    updatedAt: STAMP,
+  })
+  insert(db, 'WeeklyReview', {
+    id: 'r1',
+    userId: 'u1',
+    weekStart: '2026-11-02',
+    dataStatus: 'complete',
+    fatigue: 4,
+    symptoms: 'none',
+    finalDecision: 'progress',
+    finalNextMin: 240,
+    notes: 'Synthetic note.',
+    reviewedAt: STAMP,
+    updatedAt: STAMP,
+  })
+  insert(db, 'WeeklyReview', {
+    id: 'r2',
+    userId: 'u1',
+    weekStart: '2026-11-09',
+    updatedAt: STAMP,
+  })
+}
+
+function verifyReviewRaiseAnswer(db: DatabaseSync, before: Snapshot): void {
+  expectNothingLost(before, db)
+  expectConsistent(db)
+
+  // Every review of the previous release has not answered the offer to raise the plan.
+  expect(
+    rowsOf(
+      db,
+      'SELECT id, "raiseAnswer", "dataStatus", fatigue, "finalNextMin", notes FROM "WeeklyReview" ORDER BY id',
+    ),
+  ).toEqual([
+    {
+      id: 'r1',
+      raiseAnswer: null,
+      dataStatus: 'complete',
+      fatigue: 4,
+      finalNextMin: 240,
+      notes: 'Synthetic note.',
+    },
+    {
+      id: 'r2',
+      raiseAnswer: null,
+      dataStatus: 'unconfirmed',
+      fatigue: null,
+      finalNextMin: null,
+      notes: null,
+    },
+  ])
+  // The column takes the two answers.
+  db.prepare(`UPDATE "WeeklyReview" SET "raiseAnswer" = ? WHERE id = 'r2'`).run('declined')
+  expect(rowsOf(db, `SELECT "raiseAnswer" FROM "WeeklyReview" WHERE id = 'r2'`)).toEqual([
+    { raiseAnswer: 'declined' },
+  ])
+}
+
 function verifyActivityTrack(db: DatabaseSync, before: Snapshot): void {
   expectNothingLost(before, db)
   expectConsistent(db)
@@ -2040,6 +2103,11 @@ const CASES: FixtureCase[] = [
     migration: 'hr_quality',
     seed: seedTerrainRelease,
     verify: verifyHrQuality,
+  },
+  {
+    migration: 'review_raise_answer',
+    seed: seedReviewRelease,
+    verify: verifyReviewRaiseAnswer,
   },
   {
     migration: 'activity_track',

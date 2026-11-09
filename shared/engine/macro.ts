@@ -375,7 +375,9 @@ function lastUntouchedLoading(
  * keeps the minutes the plan gave it (a re-plan adds none to a settled week, `remainingOfWeek`),
  * and the weeks after it step from the higher of these minutes and the mean of the weeks run
  * (`responseBaseline`, read where each loading week is drawn). A week the weekly decision holds
- * (`heldCap`) carries the sequence on from the cap.
+ * (`heldCap`) carries the sequence on from the cap. Only the runner's yes to the offer to raise the
+ * plan to match (`raiseTo`, rule E7) lifts the start to the level a new plan would read from the
+ * recent weeks, inside the same step cap and hold.
  */
 function replanAnchor(
   input: EngineInput,
@@ -383,6 +385,7 @@ function replanAnchor(
   firstMonday: string,
   stepCap: number,
   heldCap: number | undefined,
+  raiseTo = 0,
 ): { minutes: number; paused: boolean } | null {
   const weeks = input.existing?.weeks
   if (weeks === undefined || state.layoffDays >= P.j7.tier1Days.value) return null
@@ -410,7 +413,9 @@ function replanAnchor(
   // from the stored week alone it would carry on from the cap at a second re-plan of the same
   // Monday and from the plan before the cap at the first [rules J5, G-6].
   const held = current.isRecovery || heldCap === undefined ? Infinity : heldCap
-  return { minutes: Math.min(worked, stepCap, held), paused: current.isRecovery }
+  // The runner's yes to the offer to raise the plan to match lifts the start to the level a new plan
+  // would read, never past the step cap or a hold [rule E7].
+  return { minutes: Math.min(Math.max(worked, raiseTo), stepCap, held), paused: current.isRecovery }
 }
 
 /** Quality sessions wanted in a pre-taper week before the run-day cap [rules F2, H1]. */
@@ -1074,7 +1079,14 @@ function planWeeks(
   // would sit below its first week [rules E6].
   const continued = hold
     ? null
-    : replanAnchor(input, state, firstMonday, stepCap(firstMonday), heldCap)
+    : replanAnchor(
+        input,
+        state,
+        firstMonday,
+        stepCap(firstMonday),
+        heldCap,
+        input.raiseToLevel === true ? startLevelMin(state) : 0,
+      )
   // Under a hold nothing advances: a ladder keeps its rung, a level its level, and the floor
   // repeats. A new start path is chosen under a hold only for a runner with no weekly running,
   // who would otherwise start from the start floor week; a runner with a typical week keeps it.

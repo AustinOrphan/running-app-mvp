@@ -26,6 +26,7 @@ import { PACES_TEMPLATES } from './myPaces.ts'
 import { PAGE_TEMPLATES, PROVIDER_TEMPLATES } from './pageCopy.ts'
 import { PLAN_STRIP_TEMPLATES } from './planStrip.ts'
 import { RACE_PLAN_TEMPLATES } from './racePlan.ts'
+import { RAISE_TEMPLATES } from './raise.ts'
 import { REVIEW_PREFILL_TEMPLATES } from './reviewPrefill.ts'
 import { ADJUST_TEMPLATES, REVISION_TEMPLATES, WINDOW_TEMPLATES } from './revision.ts'
 import { REVISION_VIEW_TEMPLATES } from './revisionView.ts'
@@ -85,6 +86,7 @@ export const TEMPLATES = {
   ...SURFACE_TEMPLATES,
   ...ERROR_TEMPLATES,
   ...REVIEW_PREFILL_TEMPLATES,
+  ...RAISE_TEMPLATES,
   ...PLAN_STRIP_TEMPLATES,
   ...STRENGTH_PAGE_TEMPLATES,
   ...STRENGTH_REVIEW_TEMPLATES,

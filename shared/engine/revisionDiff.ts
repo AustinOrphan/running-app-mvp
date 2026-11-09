@@ -87,7 +87,7 @@ export interface AttributionContext {
   /** Monday of the week the decision caps. */
   cappedWeek: string
   disruptionId: string | null
-  /** The runner made the change: an edit of one session, an undo, or a change of plan shape. */
+  /** The runner made the change: an edit of one session, an undo, a change of plan shape or a raise to match recent weeks. */
   byRunner: boolean
   holds: PlanDiff['holds']
   ownerWeeks: ReadonlySet<string>
@@ -108,6 +108,7 @@ export function attributionContext(diff: PlanDiff, facts: RevisionFacts): Attrib
     byRunner:
       facts.reason === 'undo' ||
       facts.reason === 'method-change' ||
+      facts.reason === 'raise-to-match' ||
       (facts.reason === 'owner' &&
         (facts.changeFields ?? []).some((field) => field.startsWith('session.'))),
     holds: diff.holds,

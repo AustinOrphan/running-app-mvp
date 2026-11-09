@@ -111,6 +111,7 @@ describe('reason labels and the New marker', () => {
     undo: 'Undo',
     'goal-switch': 'New plan for another goal',
     'method-change': 'Plan shape changed',
+    'raise-to-match': 'Raised to match',
   }
 
   it.each(Object.entries(LABELS))('labels %s as "%s"', (reason, label) => {
