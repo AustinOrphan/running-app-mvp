@@ -352,6 +352,19 @@ describe('weekBars', () => {
     expect(weekBars(view)[0]!.plannedShare).toBeCloseTo(1 / 3)
   })
 
+  test('draws a logged race as the solid bar, and keeps it out of the week run minutes', () => {
+    const view = strip(
+      [session(SUN, 'race', 'planned', { durationMin: 300 })],
+      [run(MON, 60), run(SUN, 290, { type: 'race' }), run(SUN, 30, { type: 'strength' })],
+      { today: SUN },
+    )
+    expect(view.runMin).toBe(60)
+    expect(view.days[6]).toMatchObject({ runMin: 0, raceMin: 290 })
+    const bar = weekBars(view)[6]!
+    expect(bar).toMatchObject({ plannedMin: 300, runMin: 290 })
+    expect(bar.runShare).toBeCloseTo(290 / 300)
+  })
+
   test('leaves out strength, and gives a week with no minutes no height', () => {
     const view = strip([session(TUE, 'strength', 'planned', { durationMin: 45 })])
     for (const bar of weekBars(view)) expect(bar).toMatchObject({ plannedMin: 0, plannedShare: 0 })

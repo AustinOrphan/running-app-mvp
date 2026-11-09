@@ -109,6 +109,32 @@ describe('Today: the week strip', () => {
     expect(within(strip).getByText('Thu')).toBeInTheDocument()
   })
 
+  test('counts a logged race in the logged column and draws it as the solid bar', async () => {
+    renderToday(
+      makeToday({
+        coach: makeCoach({
+          weekStrip: makeStrip(
+            { runMin: 0, targetRunMin: 300 },
+            {
+              '2026-03-22': {
+                mark: 'done',
+                runMin: 0,
+                raceMin: 290,
+                sessions: [makeSession({ id: 's-race', date: '2026-03-22', kind: 'race' })],
+              },
+            },
+          ),
+        }),
+      }),
+    )
+    const strip = await screen.findByRole('region', { name: 'This week' })
+    const sunday = within(within(strip).getByRole('table')).getByRole('row', { name: /^Sunday/ })
+    expect(within(sunday).getAllByRole('cell')[1]).toHaveTextContent('4 h 50 min')
+    expect(
+      within(strip).getByRole('button', { name: 'Sunday 22 Mar, Done, 4 h 50 min logged' }),
+    ).toBeInTheDocument()
+  })
+
   test('marks today in the table and on the column, and only today', async () => {
     renderToday(withWeek({ runMin: 60, targetRunMin: 300 }))
     const strip = await screen.findByRole('region', { name: 'This week' })

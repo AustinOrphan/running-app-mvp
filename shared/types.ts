@@ -1406,6 +1406,12 @@ export interface WeekStripDay {
   isToday: boolean
   /** Run minutes logged on the day. */
   runMin: number
+  /**
+   * Minutes of a logged race on the day. It is not in `runMin` (the week's totals count runs only),
+   * and the day's mark and bars count it, because a race is run. Absent in an answer the phone kept
+   * from before the field existed.
+   */
+  raceMin?: number
   /** Every session of the day, in order; a tap on the day opens them. */
   sessions: PlanSessionView[]
 }

@@ -10,7 +10,12 @@ import type {
   WeekStripDay,
 } from '../../../shared/types.ts'
 import { minutesToHours1 } from '../../../shared/units.ts'
-import { plannedRestOfWeekMin, weekBars, type WeekBar } from '../../../shared/domain/weekStrip.ts'
+import {
+  loggedMin,
+  plannedRestOfWeekMin,
+  weekBars,
+  type WeekBar,
+} from '../../../shared/domain/weekStrip.ts'
 import { formatWeekday } from '../format.ts'
 import { Meter } from '../Meter.tsx'
 import { SessionSheet } from '../SessionSheet.tsx'
@@ -31,10 +36,10 @@ function dayName(day: WeekStripDay, units: Units): string {
     date: { kind: 'date', iso: day.date, style: 'short' },
     mark,
   } as const
-  return day.runMin > 0
+  return loggedMin(day) > 0
     ? render(
         TEMPLATES['today.week.day-logged'],
-        { ...when, logged: { kind: 'minutes', min: day.runMin } },
+        { ...when, logged: { kind: 'minutes', min: loggedMin(day) } },
         units,
       )
     : render(TEMPLATES['today.week.day'], when, units)
@@ -61,7 +66,7 @@ function DayFace({ day, bar, units }: { day: WeekStripDay; bar: WeekBar; units: 
       </span>
       <span aria-hidden="true" className={styles.mark} data-mark={day.mark} />
       <span aria-hidden="true" className={styles.minutes}>
-        {day.runMin > 0 ? String(day.runMin) : ' '}
+        {loggedMin(day) > 0 ? String(loggedMin(day)) : ' '}
       </span>
       <span className="visually-hidden">{dayName(day, units)}</span>
     </>
