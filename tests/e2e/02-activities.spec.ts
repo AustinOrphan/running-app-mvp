@@ -57,11 +57,19 @@ test('logging a run from the Activities page shows it in the list and on the das
   // The confirming button is a secondary one, not red.
   await deleteButton.click()
   const confirm = ask.getByRole('button', { name: 'Delete activity' })
-  const red = await confirm.evaluate((node) => {
-    const [r = 0, g = 0, b = 0] = getComputedStyle(node).color.match(/\d+/g)?.map(Number) ?? []
-    return r > 150 && g < 80 && b < 80
+  await expect(confirm.locator('svg[aria-hidden="true"]')).toHaveCount(1)
+  const { danger, colour, border } = await confirm.evaluate((node) => {
+    // resolve the --danger token the way the old variant did, then compare what the button draws
+    const probe = document.createElement('span')
+    probe.style.color = 'var(--danger)'
+    document.body.append(probe)
+    const resolved = getComputedStyle(probe).color
+    probe.remove()
+    const style = getComputedStyle(node)
+    return { danger: resolved, colour: style.color, border: style.borderTopColor }
   })
-  expect(red).toBe(false)
+  expect(colour).not.toBe(danger)
+  expect(border).not.toBe(danger)
   await confirm.click()
   await expect(toast(page, 'Activity deleted')).toBeVisible()
   await expect(page.getByText('No activities yet.')).toBeVisible()

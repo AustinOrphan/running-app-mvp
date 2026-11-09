@@ -561,6 +561,25 @@ describe('Activities page', () => {
     })
   })
 
+  test('Escape in the Delete sheet closes only that sheet and returns focus to Delete', async () => {
+    const user = userEvent.setup()
+    const row = makeActivity({ id: 'a1', durationSec: 2700, distanceM: 8047 })
+    const api = renderEditSheet(row, {
+      'DELETE /api/activities/a1': () => ({ status: 204, body: undefined }),
+    })
+    const edit = await screen.findByRole('dialog', { name: 'Edit activity' })
+    const trigger = within(edit).getByRole('button', { name: 'Delete' })
+    await user.click(trigger)
+    const ask = await screen.findByRole('dialog', { name: 'Delete this activity?' })
+    const confirm = within(ask).getByRole('button', { name: 'Delete activity' })
+    expect(confirm.querySelector('svg[aria-hidden="true"]')).not.toBeNull()
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('dialog', { name: 'Delete this activity?' })).toBeNull()
+    expect(screen.getByRole('dialog', { name: 'Edit activity' })).toBeInTheDocument()
+    expect(trigger).toHaveFocus()
+    expect(api.calls.filter((c) => c.method === 'DELETE')).toHaveLength(0)
+  })
+
   test('a failed Undo says the activity was not restored', async () => {
     const user = userEvent.setup()
     const row = makeActivity({ id: 'a1', durationSec: 2700, distanceM: 8047 })

@@ -52,7 +52,7 @@ export function ConfirmSheet({
         <Button variant="primary" busy={pending} onClick={onClose}>
           {keepLabel}
         </Button>
-        <Button variant="secondary" loading={pending} onClick={onConfirm}>
+        <Button variant="secondary" busy={pending} onClick={onConfirm}>
           <TrashGlyph />
           {confirmLabel}
         </Button>

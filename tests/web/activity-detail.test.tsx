@@ -920,6 +920,9 @@ describe('ActivityDetailPage', () => {
       'Activity not deleted. The server did not respond. Try again.',
     )
     expect(within(ask).getByRole('button', { name: 'Delete activity' })).toBeEnabled()
+    // focus stays on a control inside the dialog, not on the page
+    expect(ask).toContainElement(document.activeElement as HTMLElement)
+    expect(document.activeElement).not.toBe(document.body)
   })
 
   test('an unknown activity says so and links back', async () => {

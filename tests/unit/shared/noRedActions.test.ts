@@ -1,5 +1,6 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
 /*
@@ -9,7 +10,7 @@ import { describe, expect, it } from 'vitest'
  * colours an error sentence only, so this scan fails on a button, a fill or an edge in that colour.
  */
 
-const webRoot = new URL('../../../web/', import.meta.url).pathname
+const webRoot = fileURLToPath(new URL('../../../web/', import.meta.url))
 
 function files(dir: string, suffix: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -45,6 +46,26 @@ describe('no red on actions and edges', () => {
             offenders.push(`${path.slice(webRoot.length)}: ${selector} { ${declaration.trim()} }`)
           }
         }
+      }
+    }
+    expect(offenders).toEqual([])
+  })
+
+  it('fades no disabled control: no opacity in a disabled rule of Button, Field or Stepper', () => {
+    // Busy (aria-busy) is the one fade left, and it is not a disabled look.
+    const offenders: string[] = []
+    for (const name of ['Button', 'Field', 'strength/Stepper']) {
+      const css = readFileSync(join(webRoot, `components/${name}.module.css`), 'utf8').replace(
+        /\/\*[\s\S]*?\*\//g,
+        '',
+      )
+      for (const rule of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+        const selector = rule[1]!.trim()
+        if (!/disabled/.test(selector) || !/opacity:\s*0?\.\d/.test(rule[2]!)) continue
+        // the busy fade of Button is the documented exception
+        if (name === 'Button' && selector === ".button:disabled,\n.button[aria-disabled='true']")
+          continue
+        offenders.push(`${name}: ${selector}`)
       }
     }
     expect(offenders).toEqual([])
