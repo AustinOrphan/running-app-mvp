@@ -274,7 +274,14 @@ test('the race card prints on one or two pages, black on white, with no navigati
   // the split sheet leads the card, one row for the start, each stop and the finish
   const sheet = page.getByRole('table', { name: /^Each stop with its distance/ })
   await expect(sheet.getByRole('row')).toHaveCount(27)
-  await expect(sheet.getByRole('rowheader', { name: 'Station 3' })).toBeVisible()
+  await expect(sheet.getByRole('rowheader', { name: /^Station 3/ })).toBeVisible()
+  // at 360 px the sheet has no scroll box: two or three columns, the cutoff under the arrival
+  await expect(sheet.getByRole('columnheader')).toHaveCount(3)
+  await expect(sheet.getByRole('columnheader', { name: 'Cutoff' })).toBeHidden()
+  await expect(sheet.getByRole('row', { name: /^Station 3 / })).toContainText('Cutoff 10:00, 4 h into the race')
+  expect(
+    await sheet.evaluate((el) => el.scrollWidth <= (el.parentElement?.clientWidth ?? 0) + 1),
+  ).toBe(true)
 
   // the rail of a wide screen is app chrome too: the wordmark and the theme button stay off paper
   await page.setViewportSize({ width: 1280, height: 800 })
@@ -304,16 +311,24 @@ test('the race card prints on one or two pages, black on white, with no navigati
     await expect(page.getByRole('button', { name: 'Print the card' })).toBeHidden()
     await expect(page.getByRole('radio', { name: 'Race card' })).toBeHidden()
 
-    // nothing is wider than the page: the sheet, the blocks and the card stay inside the print width
-    const overflow = await page.evaluate(() => {
-      const root = document.documentElement
-      const card = document.querySelector('section[aria-labelledby="race-card-heading"]')
-      const limit = card === null ? root.clientWidth : card.getBoundingClientRect().right
-      return [...document.querySelectorAll('table, article, caption, th, td')].filter(
-        (el) => el.getBoundingClientRect().right > limit + 1,
-      ).length
-    })
-    expect(overflow, `elements past the card's edge in print, ${scheme}`).toBe(0)
+    // nothing is wider than the paper: at the width of each sheet (A4 794 px, Letter 816 px) the
+    // sheet, the blocks and the card stay inside the page, and the page does not scroll sideways
+    for (const [paper, width] of [
+      ['A4', 794],
+      ['Letter', 816],
+    ] as const) {
+      await page.setViewportSize({ width, height: 1123 })
+      const wide = await page.evaluate(() => {
+        const root = document.documentElement
+        const limit = root.clientWidth
+        const past = [
+          ...document.querySelectorAll('section[aria-labelledby="race-card-heading"] *'),
+        ].filter((el) => el.getBoundingClientRect().right > limit + 1)
+        return { past: past.length, scrolls: root.scrollWidth > root.clientWidth }
+      })
+      expect(wide, `${paper} width in print, ${scheme}`).toEqual({ past: 0, scrolls: false })
+    }
+    await page.setViewportSize({ width: 1280, height: 800 })
 
     for (const format of ['A4', 'Letter'] as const) {
       const pdf = await page.pdf({ format, printBackground: true })

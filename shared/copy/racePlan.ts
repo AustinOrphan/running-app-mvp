@@ -492,9 +492,24 @@ export const RACE_PLAN_TEMPLATES = {
   ),
   'race.plan.card.note-entered': tpl('as entered', {}, { shape: 'label' }),
   'race.plan.card.note-shared': tpl('shared out from the course total', {}, { shape: 'label' }),
-  'race.plan.card.note-descent': tpl('shown, not counted', {}, { shape: 'label' }),
+  'race.plan.card.note-descent': tpl('not used for the times', {}, { shape: 'label' }),
   'race.plan.card.note-carb': tpl('of carbohydrate for this leg', {}, { shape: 'label' }),
   'race.plan.card.sheet-caption': tpl(
+    'Each stop with its distance and expected arrival',
+    {},
+    { shape: 'label' },
+  ),
+  'race.plan.card.sheet-caption-cutoff': tpl(
+    'Each stop with its distance, expected arrival and cutoff',
+    {},
+    { shape: 'label' },
+  ),
+  'race.plan.card.sheet-caption-fuel': tpl(
+    'Each stop with its distance, expected arrival and the fuel for the leg after it',
+    {},
+    { shape: 'label' },
+  ),
+  'race.plan.card.sheet-caption-both': tpl(
     'Each stop with its distance, expected arrival, cutoff and the fuel for the leg after it',
     {},
     { shape: 'label' },
@@ -502,8 +517,14 @@ export const RACE_PLAN_TEMPLATES = {
   'race.plan.card.sheet-stop': tpl('Stop', {}, { shape: 'label' }),
   'race.plan.card.sheet-distance': tpl('Distance', {}, { shape: 'label' }),
   'race.plan.card.sheet-arrival': tpl('Expected arrival', {}, { shape: 'label' }),
+  'race.plan.card.sheet-arrival-elapsed': tpl(
+    'Expected arrival, into the race',
+    {},
+    { shape: 'label' },
+  ),
+  'race.plan.card.sheet-start': tpl('Start', {}, { shape: 'label' }),
   'race.plan.card.sheet-cutoff': tpl('Cutoff', {}, { shape: 'label' }),
-  'race.plan.card.sheet-fuel': tpl('Fuel for the leg after', {}, { shape: 'label' }),
+  'race.plan.card.sheet-fuel': tpl('Fuel, next leg', {}, { shape: 'label' }),
   'race.plan.card.sheet-distance-at': tpl(
     '{distance}',
     { distance: 'distance' },
@@ -515,7 +536,8 @@ export const RACE_PLAN_TEMPLATES = {
     { shape: 'label' },
   ),
   'race.plan.card.sheet-at-start': tpl('At the start', {}, { shape: 'label' }),
-  'race.plan.card.sheet-none': tpl('None', {}, { shape: 'label' }),
+  'race.plan.card.sheet-no-cutoff': tpl('No cutoff', {}, { shape: 'label' }),
+  'race.plan.card.sheet-no-fuel': tpl('No fuel', {}, { shape: 'label' }),
   'race.plan.card.next': tpl('Next: {name}, {distance} on.', {
     name: 'text',
     distance: 'distance',
@@ -1418,6 +1440,8 @@ export interface RaceCardBlockText {
   distance: string | null
   /** The label over the figure: the expected arrival, or the start time on the start block. */
   windowLabel: string | null
+  /** The window is elapsed time, so its label stays on paper. */
+  windowElapsed: boolean
   /** The arrival window as the figure of the block ("13:25 to 14:00"); the start time on the start block. */
   window: string | null
   /** The cutoff, in the clock and in elapsed time with a start time: facts, never compared. */
@@ -1456,8 +1480,11 @@ export interface RaceCardSheet {
   arrival: string
   cutoff: string
   fuel: string
-  /** The word for an empty cell. */
-  none: string
+  /** What an empty cell says: a known absence, never a bare "None". */
+  noCutoff: string
+  noFuel: string
+  /** The window figures are elapsed time (no start time). */
+  elapsed: boolean
   /** A column nobody filled in is left out. */
   showCutoff: boolean
   showFuel: boolean
@@ -1617,6 +1644,7 @@ export function describeRaceCard(plan: RacePlan, units: Units): RaceCardText {
       name: startName,
       distance: null,
       windowLabel: start === null ? null : say(T['race.plan.card.start-label'], {}, units),
+      windowElapsed: false,
       window: start,
       cutoff: [],
       headlamp:
@@ -1633,6 +1661,7 @@ export function describeRaceCard(plan: RacePlan, units: Units): RaceCardText {
         name: point.name,
         distance: point.distance,
         windowLabel: cardWindow(row, units).label,
+        windowElapsed: row.clock === null,
         window: cardWindow(row, units).window,
         cutoff: point.cutoff,
         headlamp:
@@ -1665,21 +1694,37 @@ export function describeRaceCard(plan: RacePlan, units: Units): RaceCardText {
               { distance: { kind: 'distance', m: row.distanceM } },
               units,
             ),
-      arrival: block.window,
+      arrival: block.window ?? say(T['race.plan.card.sheet-start'], {}, units),
       cutoff,
       fuel: block.facts.find((fact) => fact.key === 'fuel')?.value ?? null,
     }
   })
+  const showCutoff = sheetRows.some((row) => row.cutoff.length > 0)
+  const showFuel = sheetRows.some((row) => row.fuel !== null)
+  const elapsed = splits.rows[0]?.clock === null
+  const captionKey = showCutoff
+    ? showFuel
+      ? 'race.plan.card.sheet-caption-both'
+      : 'race.plan.card.sheet-caption-cutoff'
+    : showFuel
+      ? 'race.plan.card.sheet-caption-fuel'
+      : 'race.plan.card.sheet-caption'
   const sheet: RaceCardSheet = {
-    caption: say(T['race.plan.card.sheet-caption'], {}, units),
+    caption: say(T[captionKey], {}, units),
     stop: say(T['race.plan.card.sheet-stop'], {}, units),
     distance: say(T['race.plan.card.sheet-distance'], {}, units),
-    arrival: say(T['race.plan.card.sheet-arrival'], {}, units),
+    arrival: say(
+      elapsed ? T['race.plan.card.sheet-arrival-elapsed'] : T['race.plan.card.sheet-arrival'],
+      {},
+      units,
+    ),
     cutoff: say(T['race.plan.card.sheet-cutoff'], {}, units),
     fuel: say(T['race.plan.card.sheet-fuel'], {}, units),
-    none: say(T['race.plan.card.sheet-none'], {}, units),
-    showCutoff: sheetRows.some((row) => row.cutoff.length > 0),
-    showFuel: sheetRows.some((row) => row.fuel !== null),
+    noCutoff: say(T['race.plan.card.sheet-no-cutoff'], {}, units),
+    noFuel: say(T['race.plan.card.sheet-no-fuel'], {}, units),
+    elapsed,
+    showCutoff,
+    showFuel,
     rows: sheetRows,
   }
 

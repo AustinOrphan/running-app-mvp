@@ -70,30 +70,44 @@ function CrewNote({
  */
 function SplitSheet({ sheet }: { sheet: RaceCardSheet }) {
   return (
-    <div className={styles.sheetBox} tabIndex={0} role="region" aria-label={sheet.caption}>
+    <div className={styles.sheetBox}>
       <table className={styles.sheet}>
         <caption className={styles.sheetCaption}>{sheet.caption}</caption>
         <thead>
           <tr>
             <th scope="col">{sheet.stop}</th>
-            <th scope="col" className={styles.num}>
+            <th scope="col" className={`${styles.num} ${styles.wide}`}>
               {sheet.distance}
             </th>
             <th scope="col">{sheet.arrival}</th>
-            {sheet.showCutoff ? <th scope="col">{sheet.cutoff}</th> : null}
+            {sheet.showCutoff ? (
+              <th scope="col" className={styles.wide}>
+                {sheet.cutoff}
+              </th>
+            ) : null}
             {sheet.showFuel ? <th scope="col">{sheet.fuel}</th> : null}
           </tr>
         </thead>
         <tbody>
           {sheet.rows.map((row) => (
             <tr key={row.key}>
-              <th scope="row">{row.name}</th>
-              <td className={styles.num}>{row.distance}</td>
-              <td>{row.arrival ?? sheet.none}</td>
+              <th scope="row">
+                {row.name}
+                <span className={`${styles.sub} ${styles.narrow}`}>{row.distance}</span>
+              </th>
+              <td className={`${styles.num} ${styles.wide}`}>{row.distance}</td>
+              <td>
+                {row.arrival}
+                {row.cutoff.length === 0 ? null : (
+                  <span className={`${styles.sub} ${styles.narrow}`}>
+                    {sheet.cutoff} {row.cutoff.join(', ')}
+                  </span>
+                )}
+              </td>
               {sheet.showCutoff ? (
-                <td>
+                <td className={styles.wide}>
                   {row.cutoff.length === 0
-                    ? sheet.none
+                    ? sheet.noCutoff
                     : row.cutoff.map((line) => (
                         <span key={line} className={styles.cell}>
                           {line}
@@ -101,7 +115,7 @@ function SplitSheet({ sheet }: { sheet: RaceCardSheet }) {
                       ))}
                 </td>
               ) : null}
-              {sheet.showFuel ? <td>{row.fuel ?? sheet.none}</td> : null}
+              {sheet.showFuel ? <td>{row.fuel ?? sheet.noFuel}</td> : null}
             </tr>
           ))}
         </tbody>
@@ -171,7 +185,11 @@ export function RaceCard({ plan, units }: RaceCardProps) {
                   </div>
                   {block.window === null ? null : (
                     <div className={styles.figure}>
-                      <p className={styles.figureLabel}>{block.windowLabel}</p>
+                      <p
+                        className={`${styles.figureLabel} ${block.windowElapsed ? styles.keepLabel : ''}`}
+                      >
+                        {block.windowLabel}
+                      </p>
                       <p className={styles.lead}>{block.window}</p>
                     </div>
                   )}

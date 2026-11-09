@@ -840,7 +840,7 @@ describe('the words of the race card', () => {
     expect(card.blocks[3]!.next).toBe('Next: the finish, 10.9 km on.')
     const fact = (block: typeof start, key: string) => block!.facts.find((f) => f.key === key)
     expect(fact(start, 'climb')).toMatchObject({ value: '2000 m', note: 'as entered' })
-    expect(fact(start, 'descent')).toMatchObject({ value: '300 m', note: 'shown, not counted' })
+    expect(fact(start, 'descent')).toMatchObject({ value: '300 m', note: 'not used for the times' })
     expect(fact(a, 'climb')!.value).toMatch(/^About [\d ]+ m$/)
     expect(fact(a, 'climb')!.note).toBe('shared out from the course total')
     expect(fact(a, 'descent')).toBeUndefined()
@@ -925,6 +925,21 @@ describe('the words of the race card', () => {
     expect(sheet.rows[0]!.fuel).toBe(card.blocks[0]!.facts.find((f) => f.key === 'fuel')!.value)
     expect(sheet.showCutoff).toBe(true)
     expect(sheet.showFuel).toBe(true)
+  })
+
+  it('builds the caption from the columns shown, and never says None for an unknown value', () => {
+    const full = describeRaceCard(aided, 'km').sheet!
+    expect(full.caption).toMatch(/cutoff and the fuel for the leg after it$/)
+    const self = describeRaceCard(CARDS[1]![1], 'km').sheet!
+    expect(self.showFuel).toBe(false)
+    expect(self.caption).toBe('Each stop with its distance, expected arrival and cutoff')
+    const noStart = describeRaceCard(CARDS[2]![1], 'km').sheet!
+    expect(noStart.elapsed).toBe(true)
+    expect(noStart.arrival).toBe('Expected arrival, into the race')
+    expect(noStart.rows[0]!.arrival).toBe('Start')
+    expect(full.arrival).toBe('Expected arrival')
+    expect(full.rows[0]!.arrival).toBe('06:00')
+    for (const text of [full.noCutoff, full.noFuel]) expect(text).not.toMatch(/^none$/i)
   })
 
   it('leaves the cutoff column out when no stop has a cutoff, and the sheet out without rows', () => {

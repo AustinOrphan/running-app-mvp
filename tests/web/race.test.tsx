@@ -880,17 +880,11 @@ describe('RacePage: the race card', () => {
     const heads = within(table)
       .getAllByRole('columnheader')
       .map((h) => h.textContent)
-    expect(heads).toEqual([
-      'Stop',
-      'Distance',
-      'Expected arrival',
-      'Cutoff',
-      'Fuel for the leg after',
-    ])
+    expect(heads).toEqual(['Stop', 'Distance', 'Expected arrival', 'Cutoff', 'Fuel, next leg'])
     const rows = within(table).getAllByRole('row')
     expect(rows).toHaveLength(5)
     const a = within(table).getByRole('row', { name: /^Station A/ })
-    expect(within(a).getByRole('rowheader', { name: 'Station A' })).toBeVisible()
+    expect(within(a).getByRole('rowheader', { name: /^Station A/ })).toBeVisible()
     expect(within(a).getByRole('cell', { name: '50 km' })).toBeVisible()
     expect(within(a).getByRole('cell', { name: /^\d\d:\d\d to \d\d:\d\d/ })).toBeVisible()
     expect(within(a).getByText('15:00')).toBeVisible()
@@ -990,7 +984,7 @@ describe('RacePage: the race card', () => {
     open(planWith({}, 'self', CARD_POINTS))
     expect(await screen.findByText(/You carry everything on this course/)).toBeVisible()
     expect(screen.queryByText(/^About \d+( to \d+)? g$/)).toBeNull()
-    expect(screen.queryByRole('columnheader', { name: 'Fuel for the leg after' })).toBeNull()
+    expect(screen.queryByRole('columnheader', { name: 'Fuel, next leg' })).toBeNull()
   })
 
   test("reads from the phone's copy with no signal", async () => {
