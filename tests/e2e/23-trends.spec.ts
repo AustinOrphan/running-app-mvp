@@ -212,7 +212,8 @@ test('Trends says there are no runs when the range holds none', async ({ page, b
   await resetData()
   await api.get('/settings')
   await page.goto('/trends')
-  await expect(page.getByText('No runs in this range yet.')).toBeVisible()
+  // The running weeks and each load panel say it in their own place.
+  await expect(page.getByText('No runs in this range yet.')).toHaveCount(3)
   await expect(page.getByText('No rMSSD readings yet.')).toBeVisible()
   await expect(page.getByText('No sleep readings yet.')).toBeVisible()
   // The two run panels name what would fill them.
@@ -233,6 +234,24 @@ const WIDTHS = [
   { width: 1280, height: 800 },
 ] as const
 
+/** A stored heart-rate summary of a run that passes the checks of rule B2, or one that does not. */
+function heartRateQuality(movingSec: number, passes: boolean) {
+  return {
+    v: 2,
+    th: '',
+    source: 'wrist',
+    movingSec,
+    cleanSec: passes ? movingSec : Math.round(movingSec * 0.3),
+    lockSec: passes ? 0 : Math.round(movingSec * 0.7),
+    spikeSec: 0,
+    dropSec: 0,
+    flatSec: 0,
+    mismatchSec: 0,
+    halves: null,
+    gapDecouplingPct: null,
+  }
+}
+
 /**
  * Six two-hour runs on cool days, one a week, with drift readings of 2 to 7 percent; one hilly long
  * run, which the drift panel leaves out; and fifty steady runs, one every four days, on the
@@ -244,17 +263,36 @@ async function seedRunPanels(): Promise<void> {
   try {
     await initSqlite(prisma)
     const user = await prisma.user.findUniqueOrThrow({ where: { email: RUNNER.email } })
+    // A maximum heart rate of 184 puts the zone limits at 144 and 162 bpm, so the steady runs
+    // (138 to 150 bpm) fall in Zone 1 and Zone 2 and the long runs below also reach Zone 3.
+    await prisma.athleteProfile.upsert({
+      where: { userId: user.id },
+      create: { userId: user.id, hrMax: 184, hrMaxSource: 'measured' },
+      update: { hrMax: 184, hrMaxSource: 'measured' },
+    })
     for (let i = 0; i < 6; i += 1) {
+      const longSec = (115 + (i % 3) * 5) * 60
       await prisma.activity.create({
         data: {
           userId: user.id,
           date: addDays(today, -10 - 7 * i),
           type: 'run',
-          durationSec: (115 + (i % 3) * 5) * 60,
+          durationSec: longSec,
           distanceM: 20_000,
-          elevationGainM: 40,
+          // 150 to 250 m over 20 km: flat enough for the drift panel, and a different week each time.
+          elevationGainM: 150 + i * 20,
           tempC: 12 + (i % 4),
           decouplingPct: 2 + i,
+          // Two fifths each in Zone 1 and Zone 2 and the rest in Zone 3; the third and sixth run
+          // fail the heart-rate checks, so they stand in the neutral part.
+          hrHistogram: JSON.stringify({
+            start: 100,
+            width: 5,
+            sec: Array.from({ length: 20 }, (_, bin) =>
+              bin === 8 || bin === 9 ? longSec * 0.4 : bin === 13 ? longSec * 0.2 : 0,
+            ),
+          }),
+          hrQuality: JSON.stringify(heartRateQuality(longSec, i % 3 !== 2)),
         },
       })
     }
@@ -296,8 +334,11 @@ async function seedRunPanels(): Promise<void> {
           durationSec,
           distanceM: metres,
           gapDistanceM: metres,
-          elevationGainM: 20,
+          // 20 to 65 m over 6 km: flat for the heart-rate fit. Every fifth run has no gain stored,
+          // and every third has no passing heart-rate summary.
+          elevationGainM: i % 5 === 4 ? null : 20 + (i % 4) * 15,
           avgHr,
+          hrQuality: JSON.stringify(heartRateQuality(durationSec, i % 3 !== 0)),
           hrHistogram: JSON.stringify({
             start: 100,
             width: 5,
@@ -479,7 +520,14 @@ test.describe('the run panels', () => {
         }
         const found: string[] = []
         const sections = document.querySelectorAll(
-          'section[aria-labelledby="trends-drift-heading"], section[aria-labelledby="trends-hr-heading"]',
+          [
+            'trends-climb-heading',
+            'trends-intensity-heading',
+            'trends-drift-heading',
+            'trends-hr-heading',
+          ]
+            .map((id) => `section[aria-labelledby="${id}"]`)
+            .join(', '),
         )
         for (const section of sections) {
           for (const element of section.querySelectorAll('*')) {
@@ -498,10 +546,180 @@ test.describe('the run panels', () => {
         return found
       })
       expect(reds).toEqual([])
-      const words = `${(await drift.textContent()) ?? ''} ${(await speed.textContent()) ?? ''}`
-      expect(words).not.toMatch(/\b(behind|missed|failed|streak|better|worse|poor|fitter)\b|!/i)
+      const climb = page.getByRole('region', { name: 'Climbing per week' })
+      const intensity = page.getByRole('region', { name: 'Intensity per week' })
+      await expect(climb.getByRole('img')).toBeVisible()
+      await expect(intensity.getByRole('img')).toBeVisible()
+      const words = [drift, speed, climb, intensity]
+      const text = (await Promise.all(words.map((region) => region.textContent()))).join(' ')
+      expect(text).not.toMatch(/\b(behind|missed|failed|streak|better|worse|poor|fitter)\b|!/i)
+      // No ratio, no risk band and no comparison with the plan on the two load panels.
+      const load = (await climb.textContent()) + ' ' + (await intensity.textContent())
+      expect(load).not.toMatch(/\b(ratio|risk|overload|target|planned)\b/i)
     }
   })
+
+  test('climbing and intensity read by role, each with a key, a coverage line and a hidden table', async ({
+    page,
+    baseURL,
+  }) => {
+    await signedInApi(page, baseURL ?? '')
+    await page.setViewportSize({ width: 390, height: 844 })
+    const loads: string[] = []
+    page.on('request', (request) => {
+      if (new URL(request.url()).pathname === '/api/trends/load') loads.push(request.url())
+    })
+    await page.goto('/trends')
+    const { thisMonday, today } = relativeDates()
+    // The plot starts at the week of the oldest run (the 50th steady run, 198 days back).
+    const firstWeek = mondayOf(addDays(today, -(2 + 49 * 4)))
+    const weeks = daysBetween(firstWeek, thisMonday) / 7 + 1
+
+    const climb = page.getByRole('region', { name: 'Climbing per week' })
+    await expect(
+      climb.getByRole('img', { name: /^Climbing per week, since the week of / }),
+    ).toBeVisible()
+    // 58 runs; the 10 steady runs with no gain stored are counted, not read as flat.
+    await expect(
+      climb.getByText(/^48 of 58 runs have elevation; the others are left out\./),
+    ).toBeVisible()
+    await expect(climb.getByText(/A watch's elevation is rough/)).toBeVisible()
+    // The method is closed until asked for, and holds where the records start.
+    await expect(climb.getByText(/^Records start the week of /)).toBeHidden()
+    await climb.getByText('How this is counted').click()
+    await expect(climb.getByText(/^Records start the week of /)).toBeVisible()
+    const climbTable = climb.getByRole('table', { name: /^Climbing per week, since the week of / })
+    await expect(climbTable.getByRole('row')).toHaveCount(1 + weeks)
+    await expect(climbTable.getByRole('columnheader')).toHaveText([
+      'Week of',
+      'Runs',
+      'Runs with elevation',
+      'Climb',
+      'Mean of 4 weeks',
+    ])
+
+    const intensity = page.getByRole('region', { name: 'Intensity per week' })
+    await expect(
+      intensity.getByRole('img', { name: /^Intensity per week by zone, since the week of / }),
+    ).toBeVisible()
+    await expect(
+      intensity.getByText(
+        "Run time each week by heart-rate zone, against today's zones (Zone 1 up to 144 bpm, Zone 2 up to 162 bpm, Zone 3 above).",
+      ),
+    ).toBeVisible()
+    await expect(
+      intensity.getByText(
+        /^37 of 58 runs have usable heart rate; the hatched part is time without it\./,
+      ),
+    ).toBeVisible()
+    await expect(intensity.getByRole('list', { name: 'Key' }).getByRole('listitem')).toHaveText([
+      'Zone 1',
+      'Zone 2',
+      'Zone 3',
+      'No usable heart rate',
+    ])
+    const table = intensity.getByRole('table', { name: /^Intensity per week by zone/ })
+    await expect(table.getByRole('row')).toHaveCount(1 + weeks)
+    await expect(table.getByRole('columnheader')).toHaveText([
+      'Week of',
+      'Runs',
+      'Runs with usable heart rate',
+      'Zone 1 (min)',
+      'Zone 2 (min)',
+      'Zone 3 (min)',
+      'No usable heart rate (min)',
+    ])
+    // Zone 3 holds time only from the long runs, and the neutral part holds the runs that did
+    // not pass the checks: both columns have a figure somewhere.
+    for (const column of [6, 7]) {
+      const cells = await table
+        .locator(`tbody tr td:nth-child(${String(column)})`)
+        .allTextContents()
+      expect(
+        cells.some((cell) => Number(cell) > 0),
+        `column ${String(column)}`,
+      ).toBe(true)
+    }
+    // The third long run (24 days back, 125 minutes) failed the checks: its whole length is in
+    // the neutral column of its week, with no Zone 1, 2 or 3 time beyond what the week's other
+    // runs bring, so the column holds at least those 125 minutes.
+    const failedWeek = mondayOf(addDays(today, -24))
+    const failedRow = table.getByRole('row').nth(1 + daysBetween(firstWeek, failedWeek) / 7)
+    expect(Number(await failedRow.getByRole('cell').nth(5).textContent())).toBeGreaterThanOrEqual(
+      125,
+    )
+    expect(await overflow(page)).toBeLessThanOrEqual(0)
+
+    // The range switch moves both, with no new request for the rows.
+    expect(loads).toHaveLength(1)
+    await page
+      .getByRole('radiogroup', { name: 'Range' })
+      .getByRole('radio', { name: '6 months' })
+      .click()
+    await expect(
+      climb.getByRole('table', { name: /^Climbing per week, last 6 months/ }).getByRole('row'),
+    ).toHaveCount(1 + 26)
+    await expect(
+      intensity
+        .getByRole('table', { name: /^Intensity per week by zone, last 6 months/ })
+        .getByRole('row'),
+    ).toHaveCount(1 + 26)
+    expect(loads).toHaveLength(1)
+    expect(await overflow(page)).toBeLessThanOrEqual(0)
+  })
+
+  test('say so once when the load rows do not come, and leave the rest of the page', async ({
+    page,
+    baseURL,
+  }) => {
+    await signedInApi(page, baseURL ?? '')
+    await page.route('**/api/trends/load', (route) =>
+      route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ error: { code: 'internal', message: 'Something went wrong.' } }),
+      }),
+    )
+    await page.setViewportSize({ width: 360, height: 740 })
+    await page.goto('/trends')
+    await expect(
+      page.getByRole('alert').filter({ hasText: 'The climbing and intensity data did not load.' }),
+    ).toHaveCount(1)
+    await expect(
+      page.getByRole('heading', { level: 2, name: 'Climbing and intensity' }),
+    ).toBeVisible()
+    await expect(page.getByRole('img', { name: /^Run hours per week, / })).toBeVisible()
+    await expect(page.getByRole('img', { name: /^Heart-rate drift of / })).toBeVisible()
+    expect(await overflow(page)).toBeLessThanOrEqual(0)
+  })
+
+  // Screenshots for a look by hand: written only when TL1_SHOTS_DIR names a folder.
+  const shotsDir = process.env.TL1_SHOTS_DIR
+  for (const viewport of [
+    { width: 390, height: 844 },
+    { width: 1280, height: 800 },
+  ] as const) {
+    for (const scheme of ['light', 'dark'] as const) {
+      test(`shot of the load panels at ${String(viewport.width)} px in ${scheme}`, async ({
+        page,
+        baseURL,
+      }) => {
+        test.skip(shotsDir === undefined || shotsDir === '', 'TL1_SHOTS_DIR is not set')
+        await signedInApi(page, baseURL ?? '')
+        await page.setViewportSize(viewport)
+        await page.emulateMedia({ colorScheme: scheme, reducedMotion: 'reduce' })
+        await page.goto('/trends')
+        const climb = page.getByRole('region', { name: 'Climbing per week' })
+        const intensity = page.getByRole('region', { name: 'Intensity per week' })
+        await expect(climb.getByRole('img')).toBeVisible()
+        await expect(intensity.getByRole('img')).toBeVisible()
+        const name = `trends-load-${String(viewport.width)}-${scheme}`
+        await page.screenshot({ path: `${shotsDir ?? ''}/${name}-page.png`, fullPage: true })
+        await climb.screenshot({ path: `${shotsDir ?? ''}/${name}-climb.png` })
+        await intensity.screenshot({ path: `${shotsDir ?? ''}/${name}-intensity.png` })
+      })
+    }
+  }
 
   test('say so once when the answer does not come, and leave the rest of the page', async ({
     page,
@@ -524,7 +742,7 @@ test.describe('the run panels', () => {
       page.getByRole('heading', { level: 2, name: 'Long runs and heart rate' }),
     ).toBeVisible()
     await expect(page.getByRole('button', { name: 'Try again' })).toBeVisible()
-    await expect(page.getByRole('img', { name: /^Run hours per week/ })).toBeVisible()
+    await expect(page.getByRole('img', { name: /^Run hours per week, / })).toBeVisible()
     expect(await overflow(page)).toBeLessThanOrEqual(0)
   })
 })

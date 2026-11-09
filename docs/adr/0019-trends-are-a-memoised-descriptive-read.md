@@ -136,7 +136,7 @@ paper, migration or environment variable, and `PARAMS_VERSION` is unchanged.
   2026-11-07), and 26 windows of eight weeks reach back about 100 weeks plus eight, so the read cannot
   come from the snapshot. It is one more exception to "no new code queries that window", beside the
   wellness loader and `loadActivityCores`, and `tests/api/trendsRuns.test.ts` pins its column list.
-- **Fact:** the owner's history had 74 of 144 runs with a stream in the last 12 months (counted
+- **Fact:** about half the runner's runs of the last 12 months had a stream (counted
   2026-11-07), so both panels will often be sparse; each says what would fill it.
 - **Rule:** rule B2 does not trust wrist heart rate on hills, so both panels take flat runs only
   (`hrModel.maxGainPerKm`).
@@ -182,9 +182,9 @@ Status: Accepted 2026-11-08 (#672)
 - **Fact:** a Fenix 5 had 13% MAPE on one trail run [navalta-2020-trail-running-hr]; a Crossref and
   Europe PMC search on 2026-11-08 found no study that validates a rescue of hilly wrist data or any of
   the ten numbers (evidence gap 33). The panels mark such runs.
-- **Fact:** on 76 stored runs of one runner, every FIT file lists the watch's own heart-rate sensor
+- **Fact:** on the runner's stored runs, every FIT file lists the watch's own heart-rate sensor
   (`device_type` `whr`, `source_type` `local`) and none an external one (read 2026-11-08), so every
-  source there is `wrist`; the same 7 hilly runs all pass, so the checks have not been scored against
+  source there is `wrist`; the hilly runs among them all pass, so the checks have not been scored against
   a strap.
 - **Fact:** every importer stores cadence in steps per minute (`fit.ts`, `gpx.ts`, `tcx.ts`, the
   provider modules, read 2026-11-08), so the lock check compares heart rate with the stored value only.
@@ -201,3 +201,86 @@ Status: Accepted 2026-11-08 (#672)
 - Fit hilly runs in the engine's own HR model: rejected. **Rule:** the owner kept the A7 test and the
   C9 pace for a later decision.
 - Store the pass with the counts: rejected. **Opinion:** a threshold change would need a backfill.
+
+## Addendum 2026-11-08: climbing and intensity per week (task TL1)
+
+Status: Proposed 2026-11-08
+
+Two weekly panels join the page beside the running weeks: climbing per week and intensity per week.
+They add rule A12 and an amendment of T1 (`research/engine-rules.md`); no `Param`, paper, migration
+or environment variable, and `PARAMS_VERSION` is unchanged. The panels read `hrQualityPasses` and
+`timeInBand` from `shared/engine/` and change nothing there but the export of `timeInBand`; no
+engine decision reads the panels.
+
+### Decision
+
+- `GET /api/trends/load` (`server/routes/trendsLoad.ts`) answers one row per run of the last 104
+  weeks and the three before them: the date, the length, the elevation gain (null when none is
+  stored) and the seconds below, between and above the two heart-rate limits of the zone table
+  (`bandSec`, null when the run has no usable heart rate). It is memoised as `trends.load` by data
+  version and day from one column-limited read, `loadLoadSeries` (`server/serialize.ts`): runs only,
+  flagged duplicates left out, five columns (date, length, gain, histogram, quality summary). The
+  zones come from the snapshot (`loadAthleteContext`), the one place they are built, so the limits
+  are those `ZoneSummary` shows. The shape is `TrendsLoadView` in `shared/domain/trendsLoad.ts`.
+- The weekly sums are pure functions in that file (`climbWeeks`, `intensityWeeks`) run on the client,
+  so the range switch asks the server for nothing more. Climbing is bars of the week's gain in the
+  runner's unit and the mean of the week and the three before it through complete weeks, the current
+  week outlined and without a point on the line, as the running panel draws its minutes. Intensity is
+  stacked bars of run time in Zone 1, Zone 2 and Zone 3, plus a fourth neutral part.
+- A run with no gain is counted ("N of M runs have elevation") and left out of its week's sum, never
+  read as 0. A week with no runs has no bar. A run with no histogram, or a quality summary that is
+  missing or does not pass `hrQualityPasses` (rule B2, batch HQ1), puts its whole length in the
+  neutral part "No usable heart rate"; a usable run puts there only the time its histogram does
+  not cover. Neutral time is never spread over the zones. A summary not yet computed counts as not
+  passing, as in the other panels, so a run awaiting the `hr-quality` job sits in the neutral part.
+- Every week is read against the zones as they stand on the day the page is read. The caption says
+  so, and the panel states the two limits in bpm.
+- The route is not on the offline allowlist; ADR 0012 is unchanged. Activity writes read it again
+  (`keys.trends` is in `ACTIVITY_DATA_KEYS`; the query key sits under it).
+- Neither panel draws an acute:chronic ratio, a band marked high, a comparison with the plan's
+  intended split or any colour but neutral ink and one hue in three strengths. The copy is
+  templates in `shared/copy/trends.ts` under the G5 lint, with no slot that could carry a
+  comparison.
+
+### Reasons
+
+- **Fact:** the plan reads weekly run minutes (rules G-1, G-2, G-8) and Trends already draws them with
+  a four-week mean, so a minutes curve would repeat the running panel (`web/pages/TrendsPage.tsx`,
+  read 2026-11-08).
+- **Fact:** ratings were rare on the runner's own data (checked 2026-11-08); most runs carry an
+  elevation gain and about half carry a heart-rate histogram. A panel on session RPE (rule B1) would be empty, so it was not built; unrated runs are
+  not estimated from heart rate (rules B2, B4).
+- **Rule:** G-5 and T1 forbid a ratio of recent to earlier load, and G5 forbids verdict copy; the
+  panels follow them, checked by the copy lint and a scan test.
+- **Fact:** the acute:chronic ratio is mathematically coupled and has no causal support
+  [impellizzeri-2020-acwr-pitfalls, wang-2020-acwr-lessons], showed no useful association with injury
+  in 435 Dutch runners [nakaoka-2021-acwr-runners], and gives different findings under different
+  methods [cloosterman-2024-acwr-methods].
+- **Rule:** rule B2 does not trust wrist heart rate outside runs that pass the per-run checks, so a
+  run that does not pass is shown as unusable and not as a band.
+- **Opinion:** counting a week with no runs as no climbing in the line, while leaving out a week whose
+  runs lack a gain, matches the minutes line (a rest week is 0) without reading an unknown as 0; the
+  cost is that the line's first weeks after the history starts are pulled down by weeks before the
+  first run, as the minutes line's are.
+- **Opinion:** cutting each histogram bin in proportion to its overlap with a limit (`timeInBand`, the
+  engine's own reader) beats assigning a bin whole to one side, because a one-bpm bin at a limit
+  would otherwise swing a band; the cost is an assumption that seconds spread evenly inside a bin.
+- **Opinion:** reading every week against today's zones keeps one set of limits on the page and
+  matches the stated caption; the cost is that an old week can move when the zones change.
+- **Preference:** one hue in three strengths and a hatched neutral part, over three hues, keeps the
+  bands from reading as a traffic light.
+- **Fact:** the two-week minimum for a line point is a page default with no evidence behind it, as the
+  four-night minimum of the recovery means is.
+
+### Alternatives
+
+- A session-RPE curve (effort-minutes): rejected for the reasons above (**Fact**: ratings are rare).
+- A rating tint on the existing minutes bars: rejected. **Opinion:** it mixes rated and unrated
+  minutes in one bar.
+- Spreading a run with no usable heart rate over the bands in proportion to the others: rejected.
+  **Rule:** B2 and B4 forbid imputing a missing scale.
+- Comparing the intensity split with the plan's intended split: rejected. **Opinion:** it would read
+  as a target (G5).
+- Widening `loadActivityCores` or the snapshot to carry the gain and the histogram: rejected.
+  **Fact:** the snapshot holds 365 days and the page reaches 104 weeks; another column-limited loader
+  is the exception ADR 0019 already makes for the run panels.

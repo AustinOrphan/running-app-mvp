@@ -29,3 +29,15 @@
 .pending {
   height: 12rem;
 }
+
+/* The method of a load panel, closed until asked for; the summary is a quiet line of the same size as the notes. */
+.how {
+  margin: var(--space-2) 0;
+}
+
+.how summary {
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}

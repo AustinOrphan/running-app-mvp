@@ -17,6 +17,8 @@ const CHARTS = [
   'PredictionTrackChart',
   'EstimatedMaxChart',
   'TrendsRunChart',
+  'ClimbChart',
+  'IntensityChart',
   'RecoveryChart',
   'WeightChart',
 ]

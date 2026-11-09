@@ -110,6 +110,7 @@ function mockTrends(
 ) {
   return mockApi({
     'GET /api/trends': () => opts.trends ?? recoveryView(),
+    'GET /api/trends/load': () => ({ asOf: '2026-03-18', zones: null, runs: [] }),
     'GET /api/trends/runs': () => opts.runs ?? noRuns(),
     'GET /api/weeks': () => opts.weeks ?? history(),
     'GET /api/settings': () => settings(opts.units ?? 'km'),
@@ -510,6 +511,7 @@ describe('TrendsPage, recovery readings', () => {
         status: 500,
         body: { error: { code: 'internal', message: 'Something went wrong on the server.' } },
       }),
+      'GET /api/trends/load': () => ({ asOf: '2026-03-18', zones: null, runs: [] }),
       'GET /api/trends/runs': () => noRuns(),
       'GET /api/weeks': () => history(),
       'GET /api/settings': () => settings('km'),
@@ -528,6 +530,7 @@ describe('TrendsPage, recovery readings', () => {
         status: 503,
         body: { error: { code: 'offline', message: 'x' } },
       }),
+      'GET /api/trends/load': () => ({ asOf: '2026-03-18', zones: null, runs: [] }),
       'GET /api/trends/runs': () => noRuns(),
       'GET /api/weeks': () => history(),
       'GET /api/settings': () => settings('km'),

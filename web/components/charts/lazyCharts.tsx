@@ -94,6 +94,14 @@ export const TrendsRunChart = lazyChart(
   () => import('./TrendsRunChart.tsx').then((module) => module.TrendsRunChart),
   'trendsRun',
 )
+export const ClimbChart = lazyChart(
+  () => import('./ClimbChart.tsx').then((module) => module.ClimbChart),
+  'trendsRun',
+)
+export const IntensityChart = lazyChart(
+  () => import('./IntensityChart.tsx').then((module) => module.IntensityChart),
+  'trendsRun',
+)
 export const RecoveryChart = lazyChart(
   () => import('./RecoveryChart.tsx').then((module) => module.RecoveryChart),
   'recovery',

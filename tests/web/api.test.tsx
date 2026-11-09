@@ -35,6 +35,7 @@ import {
 import { useReviews, useSaveReview } from '../../web/api/reviews.ts'
 import { useSettings, useUpdateSettings } from '../../web/api/settings.ts'
 import { useProfile, useUpdateProfile } from '../../web/api/profile.ts'
+import { useTrendsLoad } from '../../web/api/trends.ts'
 import { useAthleteState } from '../../web/api/state.ts'
 import { useStats } from '../../web/api/stats.ts'
 import { useToday } from '../../web/api/today.ts'
@@ -688,9 +689,9 @@ describe('the plan readers', () => {
       )
       await act(() => result.current.mutateAsync('z1'))
       // The decision is written to the revision log, which the brief lists under "Since this brief",
-      // and it moves the zones My paces reads.
+      // and it moves the zones My paces reads and the limits Trends cut its bands at.
       expect(rootsOf(invalidate)).toEqual(
-        [...READERS, keys.zones, keys.zoneProposals, keys.paces].sort(),
+        [...READERS, keys.zones, keys.zoneProposals, keys.paces, keys.trends].sort(),
       )
     },
   )
@@ -885,6 +886,7 @@ describe('invalidation of engine data', () => {
         plan: usePlan(),
         revisions: usePlanRevisions(),
         today: useToday(),
+        load: useTrendsLoad(),
         saveProfile: useUpdateProfile(),
         week: useUpdatePlanWeek(),
         accept: useAcceptZoneProposal(),
@@ -905,6 +907,7 @@ describe('invalidation of engine data', () => {
       'POST /api/zones/proposals/z1/decline': () => ({ status: 204, body: undefined }),
       'GET /api/plan/revisions': () => [],
       'GET /api/today': () => ({}),
+      'GET /api/trends/load': () => ({ asOf: '2026-03-18', zones: null, runs: [] }),
     })
 
   async function refetchedBy(
@@ -919,6 +922,7 @@ describe('invalidation of engine data', () => {
       expect(result.current.plan.isSuccess).toBe(true)
       expect(result.current.revisions.isSuccess).toBe(true)
       expect(result.current.today.isSuccess).toBe(true)
+      expect(result.current.load.isSuccess).toBe(true)
     })
     const before = calls.length
     await act(() => mutate(result.current))
@@ -926,6 +930,7 @@ describe('invalidation of engine data', () => {
       expect(result.current.today.isFetching).toBe(false)
       expect(result.current.revisions.isFetching).toBe(false)
       expect(result.current.zones.isFetching).toBe(false)
+      expect(result.current.load.isFetching).toBe(false)
     })
     return [
       ...new Set(
@@ -937,10 +942,11 @@ describe('invalidation of engine data', () => {
     ].sort()
   }
 
-  test('a profile save refetches zones, the plan, today and the zone proposals', async () => {
+  test('a profile save refetches zones, the plan, today, the zone proposals and the Trends load view', async () => {
     expect(await refetchedBy((r) => r.saveProfile.mutateAsync({}))).toEqual([
       '/api/plan',
       '/api/today',
+      '/api/trends/load',
       '/api/zones',
       '/api/zones/proposals',
     ])
@@ -959,6 +965,7 @@ describe('invalidation of engine data', () => {
       '/api/plan',
       '/api/plan/revisions',
       '/api/today',
+      '/api/trends/load',
       '/api/zones',
       '/api/zones/proposals',
     ]

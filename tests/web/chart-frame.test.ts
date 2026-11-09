@@ -18,10 +18,12 @@ const drawn = readdirSync(CHARTS)
 describe('the box of a chart that measures itself', () => {
   test('is found for every chart the app draws', () => {
     expect(drawn).toEqual([
+      'ClimbChart',
       'CourseProfileChart',
       'DurabilityChart',
       'EfficiencyChart',
       'EstimatedMaxChart',
+      'IntensityChart',
       'MonthlyHoursChart',
       'PredictionTrackChart',
       'RecoveryChart',

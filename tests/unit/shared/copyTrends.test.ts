@@ -5,6 +5,12 @@ import { TEMPLATES } from '../../../shared/copy/templates.ts'
 import {
   bandBuilding,
   bandCaption,
+  climbAria,
+  climbCaption,
+  climbCoverageLine,
+  intensityAria,
+  intensityCoverageLine,
+  intensityCaption,
   driftAria,
   driftComparableLine,
   driftFilledLine,
@@ -229,5 +235,81 @@ describe('the words of the Trends page', () => {
     // "Nothing here is a target" is the one place the word appears, and it denies one.
     expect(all.match(/target/gi)).toHaveLength(1)
     expect(TRENDS_TEMPLATES['trends.context'].text).toContain('Nothing here is a target.')
+  })
+})
+
+describe('the words of the climbing and intensity panels', () => {
+  it('words the climbing captions in the runner unit and the coverage as counts', () => {
+    expect(climbCaption('km')).toBe(
+      "Elevation gain on your runs each week, in metres; the line is the mean of four weeks. A watch's elevation is rough: read the shape.",
+    )
+    expect(climbCaption('mi')).toContain('in feet;')
+    expect(climbCoverageLine(31, 36)).toBe(
+      '31 of 36 runs have elevation; the others are left out. The outlined bar is this week so far.',
+    )
+    expect(climbAria('last 12 months', 1000, 'km')).toBe(
+      'Climbing per week, last 12 months. Latest complete week with elevation: 1000 m.',
+    )
+    expect(climbAria('last 12 months', 1000, 'mi')).toContain('3281 ft')
+    expect(climbAria('last 12 months', null, 'km')).toBe(
+      'Climbing per week, last 12 months. No complete week has elevation yet.',
+    )
+  })
+
+  it('words the intensity panel from the zone limits, and names the part with no usable heart rate', () => {
+    expect(intensityCaption(140, 160)).toBe(
+      "Run time each week by heart-rate zone, against today's zones (Zone 1 up to 140 bpm, Zone 2 up to 160 bpm, Zone 3 above).",
+    )
+    expect(intensityCoverageLine(20, 36)).toBe(
+      '20 of 36 runs have usable heart rate; the hatched part is time without it. The outlined bar is this week so far.',
+    )
+    expect(intensityAria('last 12 months', { z1: 120, z2: 45, z3: 5, none: 30 })).toBe(
+      'Intensity per week by zone, last 12 months. Latest complete week: Zone 1 2 h, Zone 2 45 min, Zone 3 5 min, no usable heart rate 30 min.',
+    )
+    expect(intensityAria('last 12 months', null)).toContain('No complete week has runs yet.')
+    expect(trendsText('trends.intensity.neutral')).toContain('no usable heart rate')
+  })
+
+  it('keeps the two panels clean under G5 and short, with no ratio, risk or verdict word', () => {
+    const lines = [
+      climbCaption('km'),
+      climbCaption('mi'),
+      climbCoverageLine(0, 0),
+      climbCoverageLine(31, 36),
+      climbAria('since the week of 24 Aug', 842.5, 'mi'),
+      climbAria('last 6 months', null, 'km'),
+      intensityCaption(139.5, 161),
+      intensityCoverageLine(0, 12),
+      intensityAria('last 24 months', { z1: 0, z2: 0, z3: 0, none: 0 }),
+      intensityAria('last 24 months', null),
+      ...(Object.keys(TRENDS_TEMPLATES) as Array<keyof typeof TRENDS_TEMPLATES>)
+        .filter((id) => /^trends\.(climb|intensity|load)\./.test(id))
+        .filter((id) => Object.keys(TRENDS_TEMPLATES[id].slots).length === 0)
+        .map((id) => trendsText(id as PlainTrendsId)),
+    ]
+    for (const line of lines) {
+      assertCleanCopy(line, line)
+      expect(line.length, line).toBeLessThanOrEqual(COPY_MAX_CHARS)
+      expect(line, line).not.toMatch(/\b(ratio|risk|spike|overload|too much|safe|danger)/i)
+    }
+    // No slot can carry a comparison with an earlier week, the plan or a target.
+    const slots = (Object.keys(TRENDS_TEMPLATES) as Array<keyof typeof TRENDS_TEMPLATES>)
+      .filter((id) => /^trends\.(climb|intensity)\./.test(id))
+      .flatMap((id) => Object.keys(TRENDS_TEMPLATES[id].slots))
+    for (const slot of slots) {
+      expect([
+        'unit',
+        'have',
+        'runs',
+        'span',
+        'climb',
+        'lt1',
+        'lt2',
+        'z1',
+        'z2',
+        'z3',
+        'none',
+      ]).toContain(slot)
+    }
   })
 })

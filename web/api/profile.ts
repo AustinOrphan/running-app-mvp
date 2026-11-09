@@ -12,7 +12,8 @@ export function useProfile() {
 /**
  * Saves the fields given and keeps the others as stored (the route merges, so a field that is left
  * out is not written back): the Profile page sends all of them, a prompt that changes one sends that
- * one. The saved profile goes straight into the cache. Zones, the plan, today's advice and the zone
+ * one. The saved profile goes straight into the cache. Trends read again too: the intensity bands
+ * are cut at the zone limits, which come from the profile. Zones, the plan, today's advice and the zone
  * proposals are all computed from the profile, so they refetch.
  */
 export function useUpdateProfile() {
@@ -23,8 +24,8 @@ export function useUpdateProfile() {
     onSuccess: (saved) => {
       queryClient.setQueryData([keys.profile], saved)
       return Promise.all(
-        [keys.zones, keys.plan, keys.today, keys.zoneProposals, keys.paces].map((key) =>
-          queryClient.invalidateQueries({ queryKey: [key] }),
+        [keys.zones, keys.plan, keys.today, keys.zoneProposals, keys.paces, keys.trends].map(
+          (key) => queryClient.invalidateQueries({ queryKey: [key] }),
         ),
       )
     },
