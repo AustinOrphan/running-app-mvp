@@ -25,18 +25,6 @@ export function metresPerUnit(units: Units): number {
   return units === 'mi' ? M_PER_MILE : 1000
 }
 
-/**
- * The tooltip's x value of a chart against distance (kilometres or miles, as the chart is drawn) as
- * metres from the start, or null when it is no finite number. The run map places its dot with it.
- */
-export function distanceLabelToMetres(label: unknown, units: Units): number | null {
-  const value =
-    typeof label === 'number' || (typeof label === 'string' && label.trim() !== '')
-      ? Number(label)
-      : Number.NaN
-  return Number.isFinite(value) ? value * metresPerUnit(units) : null
-}
-
 /** Empty buckets serialize as null even though the type says number. */
 function num(value: number | null | undefined): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null
@@ -183,4 +171,58 @@ export function plannedPaceBand(
   if (!(a > 0) || !(b > 0) || !Number.isFinite(a + b)) return null
   const scale = metresPerUnit(units) / 1000
   return { fast: Math.min(a, b) * scale, slow: Math.max(a, b) * scale }
+}
+
+const DISTANCE_STEPS = [0.1, 0.25, 0.5, 1, 2, 5, 10, 20, 50, 100]
+const TIME_STEPS = [1, 2, 5, 10, 15, 30, 60, 120, 240]
+/** At most this many labels on the x axis at 360 px (visual design 12). */
+export const MAX_X_LABELS = 5
+
+/**
+ * The x ticks of a plot from 0 to `xMax`: round steps (0.5, 1, 2, 5 units, or 5, 10, 15 minutes), at
+ * most `MAX_X_LABELS` of them, and the end of the run last. A round tick that would sit on top of
+ * the end label is dropped.
+ */
+export function xTicks(xMax: number, axis: 'distance' | 'time'): number[] {
+  if (!(xMax > 0) || !Number.isFinite(xMax)) return [0]
+  const steps = axis === 'distance' ? DISTANCE_STEPS : TIME_STEPS
+  const step =
+    steps.find((candidate) => Math.floor(xMax / candidate) + 1 <= MAX_X_LABELS - 1) ??
+    steps.at(-1) ??
+    1
+  const round: number[] = []
+  for (let x = 0; x < xMax - step * 0.4; x += step) round.push(Number(x.toFixed(6)))
+  return [...round, xMax]
+}
+
+/** A drawn point with, for heart rate, the stretch above the ceiling as `[ceiling, y]`. */
+export interface OverPoint extends SeriesPoint {
+  over: [number, number] | null
+}
+
+/**
+ * The drawn points of a channel marked with the part above `ceiling`. Where the line crosses the
+ * ceiling between two samples a point is inserted on the crossing, so the hatch starts and ends
+ * there and a single sample above it still draws a sliver. A gap marker is never bridged.
+ */
+export function overCeiling(drawn: SeriesPoint[], ceiling: number | null): OverPoint[] {
+  const out: OverPoint[] = []
+  drawn.forEach((point, i) => {
+    const before = drawn[i - 1]
+    if (
+      ceiling !== null &&
+      before !== undefined &&
+      before.y !== null &&
+      point.y !== null &&
+      (before.y - ceiling) * (point.y - ceiling) < 0
+    ) {
+      const at = (ceiling - before.y) / (point.y - before.y)
+      out.push({ x: before.x + at * (point.x - before.x), y: ceiling, over: [ceiling, ceiling] })
+    }
+    out.push({
+      ...point,
+      over: ceiling !== null && point.y !== null && point.y >= ceiling ? [ceiling, point.y] : null,
+    })
+  })
+  return out
 }

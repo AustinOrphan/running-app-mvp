@@ -26,7 +26,9 @@ type Place =
   | 'season'
   | 'monthly'
   | 'stream'
-  | 'streamPanel'
+  | 'streamPanel1'
+  | 'streamPanel2'
+  | 'streamPanel3'
   | 'track'
   | 'estimate'
   | 'trendsRun'
@@ -75,9 +77,12 @@ export const MonthlyHoursChart = lazyChart(
   () => import('./MonthlyHoursChart.tsx').then((module) => module.MonthlyHoursChart),
   'monthly',
 )
+/** The place held for the stream panel, by the number of plots it stacks. */
+const PANEL_PLACES: Place[] = ['streamPanel1', 'streamPanel2', 'streamPanel3']
 export const StreamChart = lazyChart(
   () => import('./StreamChart.tsx').then((module) => module.StreamChart),
-  'streamPanel',
+  (props) =>
+    PANEL_PLACES[Math.min(3, Math.max(1, props.channels?.length ?? 3)) - 1] ?? 'streamPanel3',
 )
 export const CourseProfileChart = lazyChart(
   () => import('./CourseProfileChart.tsx').then((module) => module.CourseProfileChart),

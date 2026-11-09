@@ -1,9 +1,9 @@
 import {
+  memo,
   useEffect,
   useId,
   useMemo,
   useRef,
-  useState,
   type KeyboardEvent,
   type PointerEvent,
 } from 'react'
@@ -22,6 +22,9 @@ import {
   easyCeilingLabel,
   easyCeilingNote,
   FASTER_IS_HIGHER,
+  HOW_TO_READ,
+  howToRead,
+  PINNED,
   PLANNED_PACE_LABEL,
   PLANNED_PACE_NOTE,
   STREAM_HINT,
@@ -35,9 +38,12 @@ import {
   drawablePoints,
   metresPerUnit,
   nearestRowIndex,
+  overCeiling,
   plannedPaceBand,
   streamXAxis,
+  xTicks,
   type AlignedRow,
+  type OverPoint,
   type SeriesPoint,
   type StreamChannel,
   type StreamData,
@@ -58,15 +64,19 @@ export interface StreamChartProps {
    * has no place.
    */
   cursor?: DistanceCursor
-  /** The planned pace of the session this run filled, `[slow, fast]` seconds per km; drawn as a band. */
+  /** The planned pace to draw as a band, `[slow, fast]` seconds per km (`runChartContext`). */
   plannedPaceSecPerKm?: readonly [number, number] | null
-  /** The runner's easy heart-rate ceiling in bpm (the Z1 ceiling); heart rate above it is hatched. */
+  /** The easy heart-rate ceiling in bpm; heart rate above it is hatched (`runChartContext`). */
   easyCeilingBpm?: number | null
 }
 
 const MAX_TABLE_ROWS = 10
-/** The readout and its announcement follow a moving pointer at most this often. */
-const READOUT_THROTTLE_MS = 250
+/** The announcement of a moving pointer is made at most this often. */
+const ANNOUNCE_THROTTLE_MS = 250
+/** A press this long on a touch screen pins the reading. */
+const LONG_PRESS_MS = 500
+/** A finger that moves this far before the press is long is scrubbing, not pressing. */
+const PRESS_SLOP_PX = 10
 /** Plot margin right (visual design 12); the left is the y axis width. */
 const MARGIN_RIGHT = 12
 const X_AXIS_HEIGHT = 24
@@ -79,7 +89,7 @@ const NAMES: Record<StreamChannel, string> = {
 }
 
 /** A value with a gap on both sides draws no line, so it gets a dot of its own. */
-function lonelyDot(drawn: DrawnPoint[]) {
+function lonelyDot(drawn: SeriesPoint[]) {
   return (props: { cx?: number; cy?: number; index?: number }) => {
     const { cx, cy, index } = props
     const i = index ?? -1
@@ -90,11 +100,6 @@ function lonelyDot(drawn: DrawnPoint[]) {
       <g key={i} />
     )
   }
-}
-
-interface DrawnPoint extends SeriesPoint {
-  /** The stretch of heart rate above the ceiling, `[ceiling, y]`; null where there is none. */
-  over: [number, number] | null
 }
 
 function valuesOf(points: SeriesPoint[]): number[] {
@@ -171,7 +176,7 @@ function withThousands(n: number): string {
   return Math.round(n).toLocaleString('en-US')
 }
 
-/** The figure of one readout cell and its unit, or a dash for a channel with no value at the cursor. */
+/** The figure and unit of one readout cell; a dash for a channel with no value at the cursor. */
 function readoutParts(
   channel: StreamChannel,
   value: number | null,
@@ -183,6 +188,35 @@ function readoutParts(
   return { figure: withThousands(value), unit: altUnit(units) }
 }
 
+/** The first cell of the readout: where on the run the cursor is. */
+function positionParts(
+  row: AlignedRow,
+  axis: 'distance' | 'time',
+  units: Units,
+): { figure: string; unit: string } {
+  return axis === 'distance'
+    ? { figure: row.x.toFixed(2), unit: units }
+    : { figure: formatDuration(row.x * 60), unit: '' }
+}
+
+/** The sentence the polite status region says for a row. */
+function announcement(
+  row: AlignedRow,
+  channels: StreamChannel[],
+  axis: 'distance' | 'time',
+  units: Units,
+): string {
+  const where = positionParts(row, axis, units)
+  const parts = [
+    `${axis === 'distance' ? 'Distance' : 'Time'} ${where.figure}${where.unit === '' ? '' : ` ${where.unit}`}`,
+    ...channels.map((channel) => {
+      const v = readoutParts(channel, row[channel], units)
+      return `${NAMES[channel]} ${v.figure}${v.unit === '' ? '' : ` ${v.unit}`}`
+    }),
+  ]
+  return parts.join(', ')
+}
+
 interface PlotProps {
   channel: StreamChannel
   stream: StreamData
@@ -191,15 +225,16 @@ interface PlotProps {
   xMax: number
   yWidth: number
   last: boolean
-  /** The x of the cursor, or null when there is none. */
-  cursorX: number | null
   band: { fast: number; slow: number } | null
   ceiling: number | null
-  hatchId: string
+  patternId: string
 }
 
-/** One channel's plot with its own hidden table; the panel owns the cursor and the readout. */
-function Plot({
+/**
+ * One channel's plot with its own hidden table. It takes nothing that changes with the cursor and
+ * is memoised, so moving the cursor draws no plot again: the crosshair is the panel's own overlay.
+ */
+const Plot = memo(function Plot({
   channel,
   stream,
   units,
@@ -207,37 +242,65 @@ function Plot({
   xMax,
   yWidth,
   last,
-  cursorX,
   band,
   ceiling,
-  hatchId,
+  patternId,
 }: PlotProps) {
-  const points = buildSeries(stream, channel, units)
-  const values = valuesOf(points)
-  const patternId = `${hatchId}-${channel}`
-  const useBand = channel === 'pace' ? band : null
-  const useCeiling = channel === 'hr' ? ceiling : null
-  const drawn: DrawnPoint[] = drawablePoints(points, stream.sampleSec).map((p) => ({
-    ...p,
-    over: useCeiling !== null && p.y !== null && p.y > useCeiling ? [useCeiling, p.y] : null,
-  }))
-  const anyOver = drawn.some((p) => p.over !== null)
-  const extra = [
-    ...(useBand === null ? [] : [useBand.fast, useBand.slow]),
-    ...(useCeiling === null ? [] : [useCeiling]),
-  ]
-  const { domain, ticks } = yScale(values, channel, extra)
-  const label = describe(channel, units, values)
+  const model = useMemo(() => {
+    const points = buildSeries(stream, channel, units)
+    const values = valuesOf(points)
+    const useBand = channel === 'pace' ? band : null
+    const useCeiling = channel === 'hr' ? ceiling : null
+    const drawn: OverPoint[] = overCeiling(drawablePoints(points, stream.sampleSec), useCeiling)
+    const extra = [
+      ...(useBand === null ? [] : [useBand.fast, useBand.slow]),
+      ...(useCeiling === null ? [] : [useCeiling]),
+    ]
+    return {
+      points,
+      drawn,
+      useBand,
+      useCeiling,
+      anyOver: drawn.some((p) => p.over !== null && p.over[1] > p.over[0]),
+      label: describe(channel, units, values),
+      rows: sampleRows(points),
+      ...yScale(values, channel, extra),
+    }
+  }, [stream, channel, units, band, ceiling])
+  const { drawn, useBand, useCeiling, anyOver, label, rows, domain, ticks } = model
+  const bottom = channel === 'pace' ? domain[1] : domain[0]
   const xFormat = (x: number): string =>
     axis === 'distance' ? x.toFixed(2) : String(Math.round(x))
   const yFormat = (y: number): string =>
     channel === 'pace' ? formatDuration(y) : String(Math.round(y))
-  const rows = sampleRows(points)
   const unitCaption = channel === 'pace' ? `/${units}` : channel === 'hr' ? 'bpm' : altUnit(units)
-  const labelStyle = {
-    fill: 'var(--text-muted)',
-    fontFamily: 'var(--font-sans)',
-    fontSize: 'var(--text-xs)',
+  const xLabels = useMemo(() => xTicks(xMax, axis), [xMax, axis])
+  const note =
+    useBand !== null
+      ? PLANNED_PACE_LABEL
+      : useCeiling !== null
+        ? easyCeilingLabel(useCeiling)
+        : null
+
+  // The bottom label sits above its gridline, inside the plot, instead of half below it.
+  const renderYTick = (props: {
+    x?: number | string
+    y?: number | string
+    payload?: { value: number | string }
+  }) => {
+    const value = Number(props.payload?.value)
+    if (props.x === undefined || props.y === undefined || !Number.isFinite(value)) return <g />
+    return (
+      <text
+        x={props.x}
+        y={props.y}
+        dy={value === bottom ? -3 : 4}
+        textAnchor="end"
+        style={axisProps.tick.style}
+      >
+        {yFormat(value)}
+      </text>
+    )
   }
 
   return (
@@ -271,11 +334,17 @@ function Plot({
               type="number"
               dataKey="x"
               domain={[0, xMax]}
-              tickCount={5}
+              ticks={xLabels}
+              interval={0}
+              minTickGap={0}
               hide={!last}
               height={X_AXIS_HEIGHT}
               tickFormatter={(x: number) =>
-                axis === 'distance' ? x.toFixed(1) : String(Math.round(x))
+                axis === 'distance'
+                  ? Number.isInteger(x)
+                    ? String(x)
+                    : x.toFixed(1)
+                  : String(Math.round(x))
               }
             />
             <YAxis
@@ -284,8 +353,10 @@ function Plot({
               reversed={channel === 'pace'}
               domain={domain}
               ticks={ticks}
+              interval={0}
+              minTickGap={0}
               allowDataOverflow
-              tickFormatter={yFormat}
+              tick={renderYTick}
             />
             {useBand === null ? null : (
               <ReferenceArea
@@ -296,11 +367,6 @@ function Plot({
                 strokeWidth={1}
                 strokeDasharray="4 3"
                 ifOverflow="hidden"
-                label={{
-                  value: PLANNED_PACE_LABEL,
-                  position: 'insideTopRight',
-                  style: labelStyle,
-                }}
               />
             )}
             {useCeiling === null ? null : (
@@ -310,11 +376,6 @@ function Plot({
                 strokeWidth={1}
                 strokeDasharray="4 3"
                 ifOverflow="hidden"
-                label={{
-                  value: easyCeilingLabel(useCeiling),
-                  position: 'insideTopRight',
-                  style: labelStyle,
-                }}
               />
             )}
             {channel === 'alt' ? (
@@ -355,15 +416,17 @@ function Plot({
                 legendType="none"
               />
             ) : null}
-            {cursorX === null ? null : (
-              <ReferenceLine x={cursorX} stroke="var(--border-strong)" strokeWidth={1} />
-            )}
           </ComposedChart>
         </ResponsiveContainer>
       </div>
       <span className={styles.plotName} style={{ left: yWidth }} aria-hidden="true">
         {`${NAMES[channel]}, ${unitCaption}`}
       </span>
+      {note === null ? null : (
+        <span className={styles.plotNote} style={{ right: MARGIN_RIGHT }} aria-hidden="true">
+          {note}
+        </span>
+      )}
       {/* The wrapper clips the table: `overflow` does not apply to a table, and a hidden table as wide
           as its no-wrap caption pushed the page 15 px sideways at 360 px. */}
       <div className="visually-hidden">
@@ -387,67 +450,16 @@ function Plot({
       </div>
     </div>
   )
-}
-
-/** The fixed readout row: the values at the cursor, in the runner's units; a hint when there is none. */
-function Readout({
-  row,
-  channels,
-  axis,
-  units,
-}: {
-  row: AlignedRow | null
-  channels: StreamChannel[]
-  axis: 'distance' | 'time'
-  units: Units
-}) {
-  return (
-    <div className={styles.readout} role="status" aria-label="Value at the cursor">
-      {row === null ? (
-        <span className={styles.hint} aria-hidden="true">
-          {STREAM_HINT}
-        </span>
-      ) : (
-        <>
-          <span className={styles.item}>
-            <span className="visually-hidden">{axis === 'distance' ? 'Distance ' : 'Time '}</span>
-            <span className={styles.value}>
-              {axis === 'distance' ? row.x.toFixed(2) : formatDuration(row.x * 60)}
-            </span>
-            {axis === 'distance' ? (
-              <>
-                {' '}
-                <span className={styles.unit}>{units}</span>
-              </>
-            ) : null}
-          </span>
-          {channels.map((channel) => {
-            const parts = readoutParts(channel, row[channel], units)
-            return (
-              <span key={channel} className={styles.item}>
-                <span className="visually-hidden">{`${NAMES[channel]} `}</span>
-                <span className={styles.value}>{parts.figure}</span>
-                {parts.unit === '' ? null : (
-                  <>
-                    {' '}
-                    <span className={styles.unit}>{parts.unit}</span>
-                  </>
-                )}
-              </span>
-            )
-          })}
-        </>
-      )}
-    </div>
-  )
-}
+})
 
 /**
  * Pace, heart rate and elevation stacked on one distance axis (time when the stream has no
- * distance), with one cursor and one readout row above them. A pointer, a finger or the arrow
- * keys move the cursor; the run map's dot follows it through `cursor`, which is outside React so
- * the map does not render. Gaps stay gaps. Each channel also has a hidden table. Renders nothing
- * when no channel has values.
+ * distance), with one crosshair and one readout row above them. A pointer, a finger or the arrow
+ * keys move the cursor. Nothing here is React state: the crosshair, the readout and the run map's
+ * dot (through `cursor`) are written to the DOM directly, so a moving pointer renders no plot and
+ * no parent. Only the polite status line is throttled. A press of half a second on a touch screen
+ * pins the reading; a tap elsewhere or Escape releases it. Gaps stay gaps; each channel also has a
+ * hidden table. Renders nothing when no channel has values.
  */
 export function StreamChart({
   stream,
@@ -458,79 +470,120 @@ export function StreamChart({
   easyCeilingBpm = null,
 }: StreamChartProps) {
   const rows = useMemo(() => alignSeries(stream, units), [stream, units])
-  const shownChannels = channels.filter((channel) =>
-    buildSeries(stream, channel, units).some((p) => p.y !== null),
+  const shownChannels = useMemo(
+    () =>
+      channels.filter((channel) => buildSeries(stream, channel, units).some((p) => p.y !== null)),
+    [channels, stream, units],
   )
-  const [index, setIndex] = useState<number | null>(null)
-  const [shown, setShown] = useState<number | null>(null)
-  const plotsRef = useRef<HTMLDivElement>(null)
-  const lastShown = useRef(0)
-  const pending = useRef<number | null>(null)
-  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
-  const hatchId = `hatch-${useId().replace(/[^A-Za-z0-9_-]/g, '')}`
   const axis = streamXAxis(stream)
-
-  // The readout of a pointer follows at most every 250 ms (a leading update, then a trailing one);
-  // keys and leaving update it at once.
-  const move = (next: number | null, immediate: boolean) => {
-    setIndex(next)
-    const now = Date.now()
-    if (immediate || next === null || now - lastShown.current >= READOUT_THROTTLE_MS) {
-      clearTimeout(timer.current)
-      timer.current = undefined
-      lastShown.current = now
-      setShown(next)
-      return
-    }
-    pending.current = next
-    timer.current ??= setTimeout(
-      () => {
-        timer.current = undefined
-        lastShown.current = Date.now()
-        setShown(pending.current)
-      },
-      READOUT_THROTTLE_MS - (now - lastShown.current),
-    )
-  }
-
-  const cursorRow = index === null ? null : (rows[index] ?? null)
-  const cursorMetres =
-    cursorRow === null || axis !== 'distance' ? null : cursorRow.x * metresPerUnit(units)
-  useEffect(() => {
-    cursor?.set(cursorMetres)
-  }, [cursor, cursorMetres])
-  useEffect(
-    () => () => {
-      cursor?.set(null)
-      clearTimeout(timer.current)
-    },
-    [cursor],
-  )
-
-  if (shownChannels.length === 0 || rows.length === 0) return null
-
   const xMax = Math.max(rows.at(-1)?.x ?? 0, Number.EPSILON)
-  const band = plannedPaceBand(plannedPaceSecPerKm, units)
+  const band = useMemo(
+    () => plannedPaceBand(plannedPaceSecPerKm, units),
+    [plannedPaceSecPerKm, units],
+  )
   const ceiling =
     easyCeilingBpm !== null && Number.isFinite(easyCeilingBpm) && easyCeilingBpm > 0
       ? easyCeilingBpm
       : null
   // One width for every plot, so the plots share an x axis to the pixel.
-  const yWidth = Math.max(
-    ...shownChannels.map((channel) => {
-      const values = valuesOf(buildSeries(stream, channel, units))
-      const extra =
-        channel === 'pace' && band !== null
-          ? [band.fast, band.slow]
-          : channel === 'hr' && ceiling !== null
-            ? [ceiling]
-            : []
-      const { ticks } = yScale(values, channel, extra)
-      return yAxisWidth(
-        ticks.map((tick) => (channel === 'pace' ? formatDuration(tick) : String(Math.round(tick)))),
-      )
-    }),
+  const yWidth = useMemo(
+    () =>
+      Math.max(
+        ...shownChannels.map((channel) => {
+          const extra =
+            channel === 'pace' && band !== null
+              ? [band.fast, band.slow]
+              : channel === 'hr' && ceiling !== null
+                ? [ceiling]
+                : []
+          const { ticks } = yScale(valuesOf(buildSeries(stream, channel, units)), channel, extra)
+          return yAxisWidth(
+            ticks.map((tick) =>
+              channel === 'pace' ? formatDuration(tick) : String(Math.round(tick)),
+            ),
+          )
+        }),
+      ),
+    [shownChannels, stream, units, band, ceiling],
   )
+  const hatchId = `hatch-${useId().replace(/[^A-Za-z0-9_-]/g, '')}`
+
+  const plotsRef = useRef<HTMLDivElement>(null)
+  const lineRef = useRef<HTMLDivElement>(null)
+  const readoutRef = useRef<HTMLDivElement>(null)
+  const statusRef = useRef<HTMLDivElement>(null)
+  const indexRef = useRef<number | null>(null)
+  const pinnedRef = useRef(false)
+  const pressRef = useRef<{ timer: ReturnType<typeof setTimeout>; x: number; y: number } | null>(
+    null,
+  )
+  const announced = useRef({
+    at: 0,
+    text: '',
+    timer: undefined as ReturnType<typeof setTimeout> | undefined,
+  })
+
+  /** The polite status line: leading and trailing at most every 250 ms; `now` skips the wait. */
+  const announce = (text: string, now: boolean) => {
+    const state = announced.current
+    state.text = text
+    const write = () => {
+      state.timer = undefined
+      state.at = Date.now()
+      if (statusRef.current !== null) statusRef.current.textContent = state.text
+    }
+    const wait = ANNOUNCE_THROTTLE_MS - (Date.now() - state.at)
+    if (now || text === '' || wait <= 0) {
+      clearTimeout(state.timer)
+      write()
+    } else state.timer ??= setTimeout(write, wait)
+  }
+
+  /** Moves the cursor to a row (or removes it): the crosshair, the readout and the map's dot. */
+  const paint = (index: number | null, now: boolean) => {
+    const row = index === null ? null : (rows[index] ?? null)
+    indexRef.current = row === null ? null : index
+    const line = lineRef.current
+    if (line !== null) {
+      line.hidden = row === null
+      if (row !== null) line.style.left = `${String((row.x / xMax) * 100)}%`
+    }
+    const readout = readoutRef.current
+    if (readout !== null) {
+      readout.dataset.pinned = pinnedRef.current && row !== null ? 'true' : 'false'
+      readout.querySelector<HTMLElement>('[data-hint]')?.toggleAttribute('hidden', row !== null)
+      readout.querySelector<HTMLElement>('[data-cells]')?.toggleAttribute('hidden', row === null)
+      if (row !== null) {
+        const write = (cell: string, figure: string, unit: string) => {
+          const box = readout.querySelector(`[data-cell="${cell}"]`)
+          const f = box?.querySelector('[data-f]')
+          const u = box?.querySelector('[data-u]')
+          if (f) f.textContent = figure
+          if (u) u.textContent = unit
+        }
+        const where = positionParts(row, axis, units)
+        write('x', where.figure, where.unit)
+        for (const channel of shownChannels) {
+          const v = readoutParts(channel, row[channel], units)
+          write(channel, v.figure, v.unit)
+        }
+      }
+    }
+    cursor?.set(row === null || axis !== 'distance' ? null : row.x * metresPerUnit(units))
+    const said = row === null ? '' : announcement(row, shownChannels, axis, units)
+    announce(pinnedRef.current && said !== '' ? `${PINNED} ${said}` : said, now)
+  }
+
+  useEffect(
+    () => () => {
+      cursor?.set(null)
+      clearTimeout(announced.current.timer)
+      clearTimeout(pressRef.current?.timer)
+    },
+    [cursor],
+  )
+
+  if (shownChannels.length === 0 || rows.length === 0) return null
 
   const indexAt = (clientX: number): number | null => {
     const box = plotsRef.current?.getBoundingClientRect()
@@ -541,11 +594,46 @@ export function StreamChart({
     const found = nearestRowIndex(rows, fraction * xMax)
     return found < 0 ? null : found
   }
-  const onPointer = (event: PointerEvent<HTMLDivElement>) => {
+  const release = () => {
+    pinnedRef.current = false
+    if (readoutRef.current !== null) readoutRef.current.dataset.pinned = 'false'
+  }
+  const endPress = () => {
+    clearTimeout(pressRef.current?.timer)
+    pressRef.current = null
+  }
+  const onPointerDown = (event: PointerEvent<HTMLDivElement>) => {
+    endPress()
+    release()
     const next = indexAt(event.clientX)
-    if (next !== null) move(next, false)
+    if (next !== null) paint(next, true)
+    if (event.pointerType === 'mouse') return
+    pressRef.current = {
+      x: event.clientX,
+      y: event.clientY,
+      timer: setTimeout(() => {
+        pressRef.current = null
+        if (indexRef.current === null) return
+        pinnedRef.current = true
+        paint(indexRef.current, true)
+      }, LONG_PRESS_MS),
+    }
+  }
+  const onPointerMove = (event: PointerEvent<HTMLDivElement>) => {
+    const press = pressRef.current
+    if (
+      press !== null &&
+      Math.hypot(event.clientX - press.x, event.clientY - press.y) > PRESS_SLOP_PX
+    ) {
+      endPress()
+    }
+    if (pinnedRef.current) return
+    const next = indexAt(event.clientX)
+    if (next !== null) paint(next, false)
   }
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.altKey || event.metaKey || event.ctrlKey) return
+    const index = indexRef.current
     const last = rows.length - 1
     const step = Math.max(1, Math.round(rows.length / 100)) * (event.shiftKey ? 10 : 1)
     let next: number | null
@@ -553,10 +641,13 @@ export function StreamChart({
     else if (event.key === 'ArrowLeft') next = Math.max(0, (index ?? last + step) - step)
     else if (event.key === 'Home') next = 0
     else if (event.key === 'End') next = last
-    else if (event.key === 'Escape') next = null
-    else return
+    else if (event.key === 'Escape') {
+      if (index === null && !pinnedRef.current) return
+      next = null
+    } else return
     event.preventDefault()
-    move(next, true)
+    if (next === null) release()
+    paint(next, true)
   }
 
   const xName = axis === 'distance' ? `distance in ${units}` : 'time in minutes'
@@ -565,6 +656,10 @@ export function StreamChart({
     band !== null && shownChannels.includes('pace') ? PLANNED_PACE_NOTE : null,
     ceiling !== null && shownChannels.includes('hr') ? easyCeilingNote(ceiling) : null,
   ].filter((note): note is string => note !== null)
+  const cells: Array<{ key: string; hidden?: boolean }> = [
+    { key: 'x' },
+    ...shownChannels.map((channel) => ({ key: channel })),
+  ]
 
   return (
     <figure className={styles.figure}>
@@ -576,22 +671,47 @@ export function StreamChart({
         className={styles.panel}
         onKeyDown={onKeyDown}
         onBlur={() => {
-          move(null, true)
+          if (!pinnedRef.current) paint(null, true)
         }}
       >
-        <Readout
-          row={shown === null ? null : (rows[shown] ?? null)}
-          channels={shownChannels}
-          axis={axis}
-          units={units}
+        {/* The visible readout is written to directly on every move; the status line beside it is
+            what a screen reader hears, and only that is throttled. */}
+        <div ref={readoutRef} className={styles.readout} data-pinned="false" aria-hidden="true">
+          <span className={styles.hint} data-hint>
+            {STREAM_HINT}
+          </span>
+          <span className={styles.cells} data-cells hidden>
+            {cells.map((cell) => (
+              <span key={cell.key} className={styles.item} data-cell={cell.key}>
+                <span className={styles.value} data-f />
+                <span className={styles.unit} data-u />
+              </span>
+            ))}
+          </span>
+        </div>
+        <div
+          ref={statusRef}
+          role="status"
+          aria-label="Value at the cursor"
+          className="visually-hidden"
         />
         <div
           ref={plotsRef}
           className={styles.plots}
-          onPointerDown={onPointer}
-          onPointerMove={onPointer}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={endPress}
+          onPointerCancel={endPress}
           onPointerLeave={(event) => {
-            if (event.pointerType === 'mouse') move(null, true)
+            endPress()
+            // a finger lifting leaves the reading where it was; a mouse leaving takes it away
+            if (
+              event.pointerType !== 'touch' &&
+              event.pointerType !== 'pen' &&
+              !pinnedRef.current
+            ) {
+              paint(null, true)
+            }
           }}
         >
           {shownChannels.map((channel, i) => (
@@ -604,19 +724,26 @@ export function StreamChart({
               xMax={xMax}
               yWidth={yWidth}
               last={i === shownChannels.length - 1}
-              cursorX={cursorRow === null ? null : cursorRow.x}
               band={band}
               ceiling={ceiling}
-              hatchId={hatchId}
+              patternId={`${hatchId}-${channel}`}
             />
           ))}
+          <div
+            className={styles.crossWrap}
+            style={{ left: yWidth, right: MARGIN_RIGHT }}
+            aria-hidden="true"
+          >
+            <div ref={lineRef} className={styles.cross} hidden />
+          </div>
         </div>
       </div>
       <figcaption className={styles.caption}>
-        <span>{`Against ${xName}.`}</span>
-        {notes.map((note) => (
-          <span key={note}>{` ${note}`}</span>
-        ))}
+        {notes.length === 0 ? null : <p className={styles.notes}>{notes.join(' ')}</p>}
+        <details className={styles.how}>
+          <summary>{HOW_TO_READ}</summary>
+          <p>{howToRead(xName)}</p>
+        </details>
       </figcaption>
     </figure>
   )

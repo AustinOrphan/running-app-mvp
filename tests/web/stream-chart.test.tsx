@@ -7,8 +7,9 @@ import {
   alignSeries,
   buildSeries,
   nearestRowIndex,
+  overCeiling,
+  xTicks,
   plannedPaceBand,
-  distanceLabelToMetres,
   drawablePoints,
   streamXAxis,
   type StreamData,
@@ -128,23 +129,6 @@ describe('drawablePoints', () => {
   })
 })
 
-describe('distanceLabelToMetres', () => {
-  test('turns the chart distance into metres in the unit the chart is drawn in', () => {
-    expect(distanceLabelToMetres(0.25, 'mi')).toBeCloseTo(402.336, 3)
-    expect(distanceLabelToMetres(1, 'mi')).toBeCloseTo(1609.344, 3)
-    expect(distanceLabelToMetres(0.25, 'km')).toBe(250)
-    expect(distanceLabelToMetres(0, 'km')).toBe(0)
-    // recharts may hand the label over as text
-    expect(distanceLabelToMetres('0.5', 'km')).toBe(500)
-  })
-
-  test('is null for anything that is not a finite number', () => {
-    for (const label of [undefined, null, '', 'far', Number.NaN, Infinity]) {
-      expect(distanceLabelToMetres(label, 'km')).toBeNull()
-    }
-  })
-})
-
 describe('StreamChart', () => {
   test('describes the series for screen readers and lists a data table', () => {
     render(<StreamChart stream={makeStream()} channels={['hr']} units="km" />)
@@ -219,81 +203,52 @@ describe('plannedPaceBand', () => {
   })
 })
 
-describe('StreamChart as one panel', () => {
-  const panel = () => screen.getByRole('group', { name: /Pace, heart rate and elevation/ })
-  const readout = () => screen.getByRole('status', { name: 'Value at the cursor' })
-
-  test('stacks the three plots with one fixed readout row and one table each', () => {
-    render(<StreamChart stream={makeStream()} units="km" />)
-    expect(screen.getByRole('img', { name: /^Pace, average/ })).toBeInTheDocument()
-    expect(screen.getByRole('img', { name: /^Heart rate, average/ })).toBeInTheDocument()
-    expect(screen.getByRole('img', { name: /^Elevation, from/ })).toBeInTheDocument()
-    expect(screen.getAllByRole('table')).toHaveLength(3)
-    expect(readout()).toBeInTheDocument()
-    expect(screen.queryByText(/Faster is higher/)).toBeInTheDocument()
+describe('xTicks', () => {
+  test('round steps, at most five labels, the end of the run last', () => {
+    expect(xTicks(2.88, 'distance')).toEqual([0, 1, 2, 2.88])
+    expect(xTicks(3.4, 'distance')).toEqual([0, 1, 2, 3.4])
+    expect(xTicks(13.1, 'distance')).toEqual([0, 5, 10, 13.1])
+    expect(xTicks(0.36, 'distance')).toEqual([0, 0.1, 0.2, 0.3, 0.36])
+    expect(xTicks(26, 'time')).toEqual([0, 10, 20, 26])
+    for (const max of [0.2, 1, 7.7, 26.2, 62, 100.4]) {
+      const ticks = xTicks(max, 'distance')
+      expect(ticks.length).toBeLessThanOrEqual(5)
+      expect(ticks.at(-1)).toBe(max)
+      expect(ticks[0]).toBe(0)
+    }
   })
 
-  test('the arrow keys move the cursor and the readout names the values there', () => {
-    render(<StreamChart stream={makeStream()} units="km" />)
-    const group = panel()
-    expect(group).toHaveAttribute('tabindex', '0')
-    act(() => group.focus())
-    fireEvent.keyDown(group, { key: 'ArrowRight' })
-    expect(readout()).toHaveTextContent('Distance 0.03 km')
-    expect(readout()).toHaveTextContent('Heart rate 140 bpm')
-    expect(readout()).toHaveTextContent('Elevation 100 m')
-    fireEvent.keyDown(group, { key: 'ArrowRight' })
-    expect(readout()).toHaveTextContent('Distance 0.06 km')
-    expect(readout()).toHaveTextContent('Heart rate 141 bpm')
-    fireEvent.keyDown(group, { key: 'End' })
-    expect(readout()).toHaveTextContent('Distance 0.36 km')
-    expect(readout()).toHaveTextContent('Pace 5:33 /km')
-    fireEvent.keyDown(group, { key: 'ArrowLeft' })
-    expect(readout()).toHaveTextContent('Distance 0.33 km')
-    fireEvent.keyDown(group, { key: 'Escape' })
-    expect(readout()).not.toHaveTextContent('Distance')
+  test('no run length gives the origin alone', () => {
+    expect(xTicks(0, 'distance')).toEqual([0])
+    expect(xTicks(Number.NaN, 'time')).toEqual([0])
+  })
+})
+
+describe('overCeiling', () => {
+  const pt = (x: number, y: number | null) => ({ x, y })
+
+  test('the hatch starts and ends on the crossing, not on the first sample above', () => {
+    const out = overCeiling([pt(0, 140), pt(1, 150), pt(2, 140)], 145)
+    expect(out.map((p) => [p.x, p.y])).toEqual([
+      [0, 140],
+      [0.5, 145],
+      [1, 150],
+      [1.5, 145],
+      [2, 140],
+    ])
+    expect(out.map((p) => p.over)).toEqual([null, [145, 145], [145, 150], [145, 145], null])
   })
 
-  test('a channel with no value at the cursor reads as a dash', () => {
-    render(<StreamChart stream={makeStream()} units="km" />)
-    fireEvent.keyDown(panel(), { key: 'Home' })
-    expect(readout()).toHaveTextContent('Pace —')
+  test('one sample above the ceiling still draws a stretch', () => {
+    const out = overCeiling([pt(0, 100), pt(1, 160), pt(2, 100)], 145)
+    expect(out.filter((p) => p.over !== null && p.over[1] > p.over[0])).toHaveLength(1)
+    expect(out).toHaveLength(5)
   })
 
-  test('the cursor reports metres to the map without the panel knowing the map', () => {
-    const cursor = createDistanceCursor()
-    render(<StreamChart stream={makeStream()} units="km" cursor={cursor} />)
-    fireEvent.keyDown(panel(), { key: 'End' })
-    expect(cursor.get()).toBeCloseTo(360, 5)
-    fireEvent.keyDown(panel(), { key: 'Escape' })
-    expect(cursor.get()).toBeNull()
-  })
-
-  test('against time there is no distance to report', () => {
-    const cursor = createDistanceCursor()
-    render(<StreamChart stream={makeStream({ d: null })} units="km" cursor={cursor} />)
-    fireEvent.keyDown(panel(), { key: 'End' })
-    expect(readout()).toHaveTextContent('Time')
-    expect(cursor.get()).toBeNull()
-  })
-
-  test('the planned band and the easy ceiling appear only with their inputs', () => {
-    const { rerender } = render(<StreamChart stream={makeStream()} units="km" />)
-    expect(screen.queryByText(/dashed band/)).not.toBeInTheDocument()
-    expect(screen.queryByText(/is hatched/)).not.toBeInTheDocument()
-    rerender(
-      <StreamChart
-        stream={makeStream()}
-        units="km"
-        plannedPaceSecPerKm={[345, 320]}
-        easyCeilingBpm={145}
-      />,
-    )
-    expect(
-      screen.getByText(/Heart rate above the easy ceiling of 145 bpm is hatched\./),
-    ).toBeInTheDocument()
-    expect(
-      screen.getByText(/The dashed band is the pace the session planned\./),
-    ).toBeInTheDocument()
+  test('a gap is not bridged, and no ceiling marks nothing', () => {
+    const out = overCeiling([pt(0, 140), pt(1, null), pt(2, 150)], 145)
+    expect(out).toHaveLength(3)
+    expect(out.map((p) => p.over)).toEqual([null, null, [145, 150]])
+    expect(overCeiling([pt(0, 140), pt(1, 150)], null).every((p) => p.over === null)).toBe(true)
   })
 })

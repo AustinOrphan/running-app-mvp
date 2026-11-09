@@ -13,6 +13,7 @@ import {
 import { formatAirTemperature } from '../../shared/copy/quantity.ts'
 import { movingTimeDiffers } from '../../shared/domain/movingTime.ts'
 import { mondayOf } from '../../shared/dates.ts'
+import { runChartContext } from '../../shared/domain/runChartContext.ts'
 import type {
   Activity,
   ActivityDetail,
@@ -41,12 +42,17 @@ import { FeedbackFields, type FeedbackValues } from '../components/FeelPicker.ts
 import { ErrorState } from '../components/ErrorState.tsx'
 import { useLoadView } from '../components/loadView.ts'
 import { Figure } from '../components/Figure.tsx'
-import { PlanBars } from '../components/PlanBars.tsx'
+import { hasPlanBars, PlanBars } from '../components/PlanBars.tsx'
 import { createDistanceCursor, type DistanceCursor } from '../components/map/distanceCursor.ts'
 import { RunMap, RunMapLoading } from '../components/map/RunMap.tsx'
 import { FuelSection } from '../components/fuel/FuelSection.tsx'
 import { ActivitySets } from '../components/strength/ActivitySets.tsx'
-import { assessmentLines, ratingCounts, unratedEffortNote } from '../components/engineText.ts'
+import {
+  assessmentLines,
+  ratingCounts,
+  unratedEffortNote,
+  withoutMinutesShare,
+} from '../components/engineText.ts'
 import { formatLongDate } from '../components/format.ts'
 import { PageHeader } from '../components/PageHeader.tsx'
 import { Skeleton } from '../components/Skeleton.tsx'
@@ -287,6 +293,12 @@ function Charts({
   if (stream === null || !hasData) return null
   const isRun = activity.type === 'run' || activity.type === 'race'
   const session = plan.data?.sessions.find((candidate) => candidate.activityId === activity.id)
+  // What the plan and the zones add is drawn once the plan is read, for a run only: until then it
+  // is not known whether the run filled a session the ceiling would not suit.
+  const context =
+    isRun && plan.isSuccess
+      ? runChartContext(session, zones.data ?? null)
+      : { plannedPaceSecPerKm: null, easyCeilingBpm: null }
   return (
     <Section title="Charts">
       <div className={styles.charts}>
@@ -295,8 +307,8 @@ function Charts({
           channels={channels}
           units={units}
           cursor={cursor}
-          plannedPaceSecPerKm={session?.target.paceSecPerKm ?? null}
-          easyCeilingBpm={isRun ? (zones.data?.hr?.z1[1] ?? null) : null}
+          plannedPaceSecPerKm={context.plannedPaceSecPerKm}
+          easyCeilingBpm={context.easyCeilingBpm}
         />
       </div>
     </Section>
@@ -361,7 +373,10 @@ function AgainstThePlan({ activity, units }: { activity: Activity; units: Units 
     )
   }
   const { execution } = session
-  const lines = execution === null ? [] : assessmentLines(execution, session.target.rpe)
+  const assessed = execution === null ? [] : assessmentLines(execution, session.target.rpe)
+  // The bars say how the time compares with the plan; the sentence that says it in a percentage
+  // would read as a target met, so it stands aside for them.
+  const lines = hasPlanBars(session, activity) ? withoutMinutesShare(assessed) : assessed
   return (
     <Section title={title}>
       <p className={styles.line}>{plannedAgainstRan(session, activity, units)}</p>

@@ -19,9 +19,24 @@
   height: 11rem;
 }
 
-/* The stacked stream panel: the readout row (40 px), three plots (96 px) and an x axis (24 px). */
-.streamPanel {
-  height: 22rem;
+/* The stacked stream panel: the readout row (40 px), a plot of --chart-h-sm for each channel, the x
+   axis (24 px) and the caption (a note of two lines and the closed "How to read this"). */
+.streamPanel1,
+.streamPanel2,
+.streamPanel3 {
+  --panel-fixed: calc(40px + 24px + 72px);
+}
+
+.streamPanel1 {
+  height: calc(var(--panel-fixed) + var(--chart-h-sm));
+}
+
+.streamPanel2 {
+  height: calc(var(--panel-fixed) + 2 * var(--chart-h-sm));
+}
+
+.streamPanel3 {
+  height: calc(var(--panel-fixed) + 3 * var(--chart-h-sm));
 }
 
 .track {

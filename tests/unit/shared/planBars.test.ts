@@ -59,12 +59,8 @@ describe('planBarGeometry', () => {
 
 describe('the words of the run charts', () => {
   test('figures read in the runner units', () => {
-    expect(barFigure('time', 12_000, 'km')).toBe('3 h 20 min')
-    expect(barFigure('distance', 10_000, 'km')).toBe('10 km')
-    expect(barFigure('distance', 10_000, 'mi')).toBe('6.2 mi')
-    expect(barPairName('time', 12_000, 12_600, 'km')).toBe(
-      'Time: planned 3 h 20 min, ran 3 h 30 min.',
-    )
+    expect(barFigure(12_000, 'km')).toBe('3 h 20 min')
+    expect(barPairName(12_000, 12_600, 'km')).toBe('Time: planned 3 h 20 min, ran 3 h 30 min.')
   })
 
   test('every line is clean under G5 and none states a percentage or a verdict', () => {
@@ -78,7 +74,7 @@ describe('the words of the run charts', () => {
       easyCeilingLabel(142),
       BARS_CAPTION,
       BARS_OVERSHOOT_CAPTION,
-      barPairName('distance', 10_000, 12_000, 'mi'),
+      barPairName(10_000, 12_000, 'mi'),
     ]
     for (const line of lines) {
       assertCleanCopy(line, 'run charts')
