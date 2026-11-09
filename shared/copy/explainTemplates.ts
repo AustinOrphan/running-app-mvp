@@ -883,6 +883,14 @@ export const EXPLAIN_TEMPLATES = {
     'You start on the return ladder at runs of {session}, because of an injury in your profile.',
     { session: 'minutes' },
   ),
+  // The spacing of the ladder's runs (rule g-3): the tendon case says why it is longer.
+  'explain.e6-injury-rest-tendon': tpl(
+    'The ladder keeps {days} rest days between runs, because the injury is a tendon injury and tendons adapt over two to three days.',
+    { days: 'count' },
+  ),
+  'explain.e6-injury-rest': tpl('The ladder keeps {days} rest day between runs.', {
+    days: 'count',
+  }),
   'explain.e6-none': tpl(
     'You already run enough to skip a start path: the plan builds from your start level of {level} a week.',
     { level: 'weekMinutes' },

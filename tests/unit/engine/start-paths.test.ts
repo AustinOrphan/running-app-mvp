@@ -138,6 +138,7 @@ describe('the ladder data [rules E6]', () => {
       P.injuryReturn.levelsMin,
       P.injuryReturn.repeatsPerLevel,
       P.injuryReturn.restDaysBetween,
+      P.injuryReturn.restDaysBetweenTendon,
       P.a5.lowFrequencyRunsPerWeek,
       P.a5.lowFrequencyWindowWeeks,
       P.macroDesign.startFloorWeekMin,
@@ -157,6 +158,13 @@ describe('the ladder data [rules E6]', () => {
     expect(P.injuryReturn.levelsMin.value).toEqual([5, 10, 15, 20, 25, 30])
     expect(P.injuryReturn.repeatsPerLevel.value).toBe(2)
     expect(P.injuryReturn.restDaysBetween.value).toBe(1)
+    expect(P.injuryReturn.restDaysBetweenTendon.value).toBe(2)
+    expect(P.injuryReturn.restDaysBetweenTendon.grade).toBe('D')
+    expect(P.injuryReturn.restDaysBetweenTendon.rule).toBe('g-3')
+    expect(P.injuryReturn.restDaysBetweenTendon.evidence).toEqual([
+      'sanford-2024-return-to-running',
+    ])
+    expect(P.injuryReturn.restDaysBetweenTendon.note).toMatch(/default/i)
     expect(P.a5.lowFrequencyRunsPerWeek.value).toBe(2)
     expect(P.macroDesign.startFloorWeekMin.value).toBe(60)
   })

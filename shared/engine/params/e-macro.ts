@@ -434,7 +434,18 @@ export const eMacro = {
       ['sanford-2024-return-to-running', 'bjsm-2019-bone-stress-return-to-run'],
       {
         unit: 'days',
-        note: 'Default: at least this many rest days between two runs of the ladder.',
+        note: 'Default: at least this many rest days between two runs of the ladder, for a bone-stress, muscle, joint or other injury, and when the kind of the injury is unknown.',
+      },
+    ),
+    restDaysBetweenTendon: param(
+      'injuryReturn.restDaysBetweenTendon',
+      2,
+      'D',
+      'g-3',
+      ['sanford-2024-return-to-running'],
+      {
+        unit: 'days',
+        note: 'Default: at least this many rest days between two runs of the ladder when the injury is a tendon injury. The tendon programme of the source puts 2 to 3 days between runs (72 hours for tendon collagen net synthesis); the lower end is taken, and applying it to a generic injury flag is an extrapolation.',
       },
     ),
     advanceMaxPain: param(
