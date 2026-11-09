@@ -46,6 +46,8 @@ const FALLBACK_FONT_PX = 13
 const LABEL_NAME_MAX = 14
 const LABEL_ROWS = 2
 const STATUS_THROTTLE_MS = 250
+/** The room the last x tick and its unit take, pixels. */
+const END_TICK_ROOM_PX = 60
 
 interface Known {
   name: string
@@ -323,6 +325,9 @@ export function RaceProfileChart({ profile, units }: RaceProfileChartProps) {
                     return <g />
                   }
                   const atEnd = Math.abs(value - totalX) < totalX * 0.02
+                  // the end tick carries the unit, so the tick before it gives way when they would meet
+                  const toEndPx = ((totalX - value) / totalX) * plotWidth
+                  if (!atEnd && toEndPx < END_TICK_ROOM_PX) return <g />
                   return (
                     <text
                       x={props.x}
