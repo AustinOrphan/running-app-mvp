@@ -110,7 +110,7 @@ describe('map area routes', () => {
   test('start empty', async () => {
     const res = await get()
     expect(res.status).toBe(200)
-    expect(res.body).toEqual({ area: null, busy: false })
+    expect(res.body).toEqual({ tz: 'UTC', area: null, busy: false })
   })
 
   test('the download needs a stored route', async () => {
@@ -373,7 +373,7 @@ describe('map area routes', () => {
     await addRun(user.id, line([-500, 0], [500, 0]))
     overpass()
     await post()
-    expect((await get(other)).body).toEqual({ area: null, busy: false })
+    expect((await get(other)).body).toEqual({ tz: 'UTC', area: null, busy: false })
     expect((await del(other)).status).toBe(200)
     expect(await ctx.prisma.mapWay.count({ where: { userId: user.id } })).toBe(3)
     expect(await ctx.prisma.mapArea.count({ where: { userId: user.id } })).toBe(1)
@@ -418,7 +418,7 @@ describe('map area routes', () => {
     })
     const res = await del()
     expect(res.status).toBe(200)
-    expect(res.body).toEqual({ area: null, busy: false })
+    expect(res.body).toEqual({ tz: 'UTC', area: null, busy: false })
     expect(await ctx.prisma.mapWay.count({ where: { userId: user.id } })).toBe(0)
     expect(await ctx.prisma.mapArea.count({ where: { userId: user.id } })).toBe(0)
     expect((await ctx.prisma.activity.findUniqueOrThrow({ where: { id } })).surfaceBins).toBeNull()
