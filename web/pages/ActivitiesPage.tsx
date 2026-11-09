@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import {
+  ACTIVITY_EMPTY_TEXT,
   ACTIVITY_MORE_ERROR,
   activityCountText,
   activityMoreLabel,
@@ -342,7 +343,7 @@ export function ActivitiesPage() {
     body = (
       <EmptyState
         title="No activities yet."
-        body="Runs list here by day, newest first. Log a run, or import a Smashrun export to bring your history in."
+        body={ACTIVITY_EMPTY_TEXT}
         preview={<EmptyPreview columns={['Date', 'Type', 'Distance', 'Time']} />}
         action={
           <div className={styles.emptyActions}>

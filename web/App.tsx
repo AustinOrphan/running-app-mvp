@@ -2,6 +2,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { Suspense, useEffect, useLayoutEffect } from 'react'
 import { matchPath, Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import { useMe, useSetupStatus } from './api/auth.ts'
+import { useBrowserDefaults } from './api/browserDefaults.ts'
 import { dropUserQueries, keys, UNAUTHORIZED_EVENT } from './api/client.ts'
 import { ErrorState } from './components/ErrorState.tsx'
 import { applyCondensedFigures, useCondensedFigures } from './components/figureType.ts'
@@ -103,6 +104,8 @@ function AuthGate() {
   // Writes kept on this phone while offline go out whenever the app is open, once the queue has
   // been checked against the signed-in user; a 401 drops them.
   useOutboxReplay(me.data?.id ?? null)
+  // An account made by `create-user` without units or a zone takes them from this browser, once.
+  useBrowserDefaults(me.data)
   // One view for the two reads the gate waits on: it fails when either has failed without data.
   const view = useLoadView({
     data: setup.data !== undefined && me.data !== undefined ? true : undefined,

@@ -23,11 +23,13 @@ export interface ImportDialogProps {
 
 type Kind = 'smashrun' | 'csv' | 'files' | 'apple'
 
+// Activity files come first and open selected: a Garmin or Strava export and a FIT, GPX or TCX file
+// are what a new runner has. Smashrun is one source among several and comes last.
 const KIND_OPTIONS: Array<{ value: Kind; label: string }> = [
-  { value: 'smashrun', label: 'Smashrun' },
-  { value: 'csv', label: 'Generic CSV' },
   { value: 'files', label: 'Activity files' },
+  { value: 'csv', label: 'Generic CSV' },
   { value: 'apple', label: 'Apple Health' },
+  { value: 'smashrun', label: 'Smashrun' },
 ]
 
 const UNIT_OPTIONS: Array<{ value: Units; label: string }> = [
@@ -124,7 +126,7 @@ function ImportDialogSheet({ onClose }: ImportDialogProps) {
   const importFile = useImportFile()
   const importFiles = useImportFiles()
   const importParsed = useImportParsed()
-  const [kind, setKind] = useState<Kind>('smashrun')
+  const [kind, setKind] = useState<Kind>('files')
   // Until the runner picks a unit, the account setting decides (once it has loaded).
   const [pickedUnit, setPickedUnit] = useState<Units | null>(null)
   const unit = pickedUnit ?? settings.data?.units ?? 'mi'

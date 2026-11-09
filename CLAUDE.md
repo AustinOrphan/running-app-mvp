@@ -208,6 +208,13 @@ its build runs `prisma migrate deploy` as a smoke test.
   19; the colour pairs are tested in `tests/unit/shared/tokensContrast.test.ts`). Each visual change lands as
   its own PR so it can be reverted alone.
 - npm only. Strict TypeScript. Prettier formats, ESLint 9 flat config lints.
+- Accounts (B1): the owner adds one with `npm run create-user` (`createUser`, `server/auth/createUser.ts`:
+  a generated temporary password printed once to stdout, `mustChangePassword` set, units and zone either
+  given or left to the browser through `unitsFromBrowser` and `zoneFromBrowser`, applied once by
+  `POST /api/settings/browser-defaults`). Sessions are signed cookies with no server-side record, so ending
+  the other devices is `User.sessionsValidFrom`: `requireAuth` refuses a cookie issued before it, and
+  `PUT /api/auth/password` and `setPasswordByEmail` set it. `ALLOW_REGISTRATION` stays the only way to open
+  sign-up.
 - Env vars are exactly `DATABASE_URL`, `SESSION_SECRET`, `PORT`, `NODE_ENV`, `ALLOW_REGISTRATION`
   and `LOG_LEVEL` (plus `TZ` as an OS setting in Docker).
 - Migrations under `prisma/migrations` are committed; never ignore them.

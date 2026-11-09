@@ -144,6 +144,10 @@ describe('Activities page', () => {
     // the preview of the list to come is hidden from assistive technology
     expect(screen.queryByRole('columnheader')).toBeNull()
     expect(screen.getByText(/^Runs list here by day/)).toBeInTheDocument()
+    // the exports and files a new runner has come first; Smashrun is not named
+    const body = screen.getByText(/^Runs list here by day/)
+    expect(body).toHaveTextContent(/Garmin or Strava export, or FIT, GPX or TCX files/)
+    expect(body).not.toHaveTextContent(/Smashrun/)
 
     await userEvent.click(screen.getByRole('button', { name: 'Import' }))
     expect(await screen.findByRole('dialog', { name: 'Import activities' })).toBeInTheDocument()
@@ -1119,6 +1123,13 @@ describe('Import dialog', () => {
     return api
   }
 
+  /** The dialog opens on Activity files; these tests are about the Smashrun CSV. */
+  async function smashrunDialog(): Promise<HTMLElement> {
+    const dialog = await screen.findByRole('dialog', { name: 'Import activities' })
+    await userEvent.click(within(dialog).getByRole('radio', { name: 'Smashrun' }))
+    return dialog
+  }
+
   async function chooseFile(dialog: HTMLElement, name = 'runs.csv') {
     await userEvent.upload(
       within(dialog).getByLabelText('CSV file'),
@@ -1130,7 +1141,7 @@ describe('Import dialog', () => {
     const api = renderDialog({
       'POST /api/imports/smashrun': () => ({ status: 201, body: batch() }),
     })
-    const dialog = await screen.findByRole('dialog', { name: 'Import activities' })
+    const dialog = await smashrunDialog()
     expect(within(dialog).getByRole('button', { name: 'Import file' })).toBeDisabled()
     await chooseFile(dialog)
     await userEvent.click(within(dialog).getByRole('button', { name: 'Import file' }))
@@ -1154,7 +1165,7 @@ describe('Import dialog', () => {
           makeActivity({ id: 'r2', date: '2026-03-01', distanceM: 5000 }),
         ]),
     })
-    const dialog = await screen.findByRole('dialog', { name: 'Import activities' })
+    const dialog = await smashrunDialog()
     await chooseFile(dialog)
     await userEvent.click(within(dialog).getByRole('button', { name: 'Import file' }))
     const list = await within(dialog).findByRole('list', { name: 'Newest runs added' })
@@ -1169,13 +1180,25 @@ describe('Import dialog', () => {
 
   test('the choices have a visible label, and the unit says what a wrong pick does', async () => {
     renderDialog({})
-    const dialog = await screen.findByRole('dialog', { name: 'Import activities' })
+    const dialog = await smashrunDialog()
     expect(within(dialog).getByText('Source')).toBeVisible()
     expect(within(dialog).getByText('The app or service the file came from.')).toBeVisible()
     expect(within(dialog).getByText('Distance unit in the file')).toBeVisible()
     expect(
       within(dialog).getByRole('radiogroup', { name: 'Distance unit in the file' }),
     ).toHaveAccessibleDescription(/A wrong pick scales every distance/)
+  })
+
+  test('opens on Activity files, with Smashrun the last of the sources', async () => {
+    renderDialog({})
+    const dialog = await screen.findByRole('dialog', { name: 'Import activities' })
+    expect(within(dialog).getByRole('radio', { name: 'Activity files' })).toBeChecked()
+    const sources = within(dialog)
+      .getAllByRole('radio')
+      .map((radio) => radio.getAttribute('aria-label') ?? radio.textContent)
+    expect(sources).toEqual(['Activity files', 'Generic CSV', 'Apple Health', 'Smashrun'])
+    // the Garmin and Strava export is named on the first screen
+    expect(within(dialog).getByText(/such as the Garmin or Strava data export/)).toBeVisible()
   })
 
   test('the form reads cleanly for every source', async () => {
@@ -1192,7 +1215,7 @@ describe('Import dialog', () => {
       { 'POST /api/imports/smashrun': () => ({ status: 201, body: batch() }) },
       'km',
     )
-    const dialog = await screen.findByRole('dialog')
+    const dialog = await smashrunDialog()
     await waitFor(() => {
       expect(within(dialog).getByRole('radio', { name: 'km' })).toBeChecked()
     })
@@ -1234,7 +1257,7 @@ describe('Import dialog', () => {
         }),
       }),
     })
-    const dialog = await screen.findByRole('dialog')
+    const dialog = await smashrunDialog()
     await chooseFile(dialog)
     await userEvent.click(within(dialog).getByRole('button', { name: 'Import file' }))
     expect(
@@ -1252,7 +1275,7 @@ describe('Import dialog', () => {
         body: { error: { code: 'validation', message: 'The file has no rows.' } },
       }),
     })
-    const dialog = await screen.findByRole('dialog')
+    const dialog = await smashrunDialog()
     await chooseFile(dialog)
     await userEvent.click(within(dialog).getByRole('button', { name: 'Import file' }))
     const alert = await within(dialog).findByRole('alert')
@@ -1265,7 +1288,7 @@ describe('Import dialog', () => {
 
   test('a file over 10 MB is refused before it is read, and the message says how to go on', async () => {
     const api = renderDialog({})
-    const dialog = await screen.findByRole('dialog')
+    const dialog = await smashrunDialog()
     const big = new File([new Uint8Array(10 * 1024 * 1024 + 1)], 'big.csv', { type: 'text/csv' })
     await userEvent.upload(within(dialog).getByLabelText('CSV file'), big)
     await userEvent.click(within(dialog).getByRole('button', { name: 'Import file' }))

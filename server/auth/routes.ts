@@ -36,6 +36,8 @@ interface UserRow {
   showBodyWeight: boolean
   hideMapEnds: boolean
   mustChangePassword: boolean
+  unitsFromBrowser: boolean
+  zoneFromBrowser: boolean
 }
 
 function toSessionUser(row: UserRow): SessionUser {
@@ -48,6 +50,8 @@ function toSessionUser(row: UserRow): SessionUser {
     showBodyWeight: row.showBodyWeight,
     hideMapEnds: row.hideMapEnds,
     mustChangePassword: row.mustChangePassword,
+    unitsFromBrowser: row.unitsFromBrowser,
+    zoneFromBrowser: row.zoneFromBrowser,
   }
 }
 
