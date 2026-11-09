@@ -54,11 +54,12 @@ function createLimiter(
 export const ACCOUNT_FAILURE_LIMIT = 10
 
 /**
- * Failed sign-in or setup attempts per window and address. Looser than the per-account budget
- * (several users can share an address, a proxy's among them) but still a bound on one address
- * trying many accounts.
+ * Failed sign-in or setup attempts per window and address. Behind a reverse proxy (`trust proxy`
+ * stays unset) every runner has the proxy's address, so this is one budget for all of them: a
+ * backstop against one client spraying many accounts, set far above what mistyping runners reach.
+ * The per-account budget is the tight one.
  */
-export const ADDRESS_FAILURE_LIMIT = 30
+export const ADDRESS_FAILURE_LIMIT = 100
 
 /** The email of an already-parsed sign-in or setup body, lower-cased; null when it has none. */
 function emailOf(req: Request): string | null {
@@ -69,9 +70,10 @@ function emailOf(req: Request): string | null {
 }
 
 /**
- * Sign-in and setup, per address: 30 failed attempts per 15 minutes. A success is not counted
- * (status under 400), so a busy address stays under it; a typo storm from one address is slowed.
- * Mount it ahead of the per-account limiter.
+ * Sign-in and setup, per address: 100 failed attempts per 15 minutes, proxy-wide when the app sits
+ * behind a proxy. A success is not counted (status under 400). Mount it after the per-account
+ * limiter, so an attempt that one refuses never reaches or counts against this budget; a request
+ * with no usable email skips the account limiter and is counted here.
  */
 export function createSignInAddressLimiter(opts: LimiterOptions = {}): RequestHandler {
   return createLimiter(

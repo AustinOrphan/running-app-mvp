@@ -56,7 +56,8 @@ function isUniqueViolation(error: unknown): boolean {
 export function authRouter(deps: Deps): Router {
   const router = Router()
   const { prisma, config } = deps
-  // Setup and sign-in share both budgets: failures per address, then failures per account.
+  // Setup and sign-in share both budgets. The account limiter comes first, so a locked account's
+  // refusals never spend the address budget, which behind a proxy is one budget for every runner.
   const addressLimiter = createSignInAddressLimiter()
   const accountLimiter = createSignInAccountLimiter()
 
@@ -65,7 +66,7 @@ export function authRouter(deps: Deps): Router {
     res.json({ needsSetup: users === 0 })
   })
 
-  router.post('/setup', addressLimiter, accountLimiter.limit, async (req, res) => {
+  router.post('/setup', accountLimiter.limit, addressLimiter, async (req, res) => {
     if ((await prisma.user.count()) > 0 && !config.allowRegistration) {
       throw conflict('Setup is closed because an account already exists.')
     }
@@ -90,7 +91,7 @@ export function authRouter(deps: Deps): Router {
     res.status(201).json(toSessionUser(user))
   })
 
-  router.post('/auth/login', addressLimiter, accountLimiter.limit, async (req, res) => {
+  router.post('/auth/login', accountLimiter.limit, addressLimiter, async (req, res) => {
     const body = parse(loginSchema, req.body)
     const user = await prisma.user.findUnique({ where: { email: body.email } })
     // Always one compare, so an unknown email takes as long as a wrong password.

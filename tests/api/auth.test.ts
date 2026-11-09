@@ -339,16 +339,16 @@ describe('rate limits: failed sign-ins per account, looser per address', () => {
       expect((await rightLogin(ctx)).status).toBe(200)
     }
     // Two rounds of nine failures, each cleared by a success: the account is not locked (and 28
-    // failures in all stay under the address budget of 30).
+    // failures in all stay under the address budget of 100).
     for (let i = 0; i < 10; i++) expect((await wrongLogin(ctx)).status).toBe(401)
     expect((await wrongLogin(ctx)).status).toBe(429)
   })
 
-  test('one address spraying many accounts is slowed: 30 failures, then 429 for any account', async () => {
+  test('one address spraying many accounts is slowed: 100 failures, then 429 for any account', async () => {
     const ctx = await ctxFor()
     await seedUser(ctx)
     // A body without a password fails validation (400) before any password is checked.
-    for (let i = 0; i < 30; i++) {
+    for (let i = 0; i < 100; i++) {
       const res = await client(ctx)
         .post('/api/auth/login')
         .send({ email: `user${String(i)}@example.com` })
@@ -356,8 +356,44 @@ describe('rate limits: failed sign-ins per account, looser per address', () => {
     }
     const blocked = await wrongLogin(ctx, 'fresh@example.com')
     expect(blocked.status).toBe(429)
-    expect(blocked.headers['ratelimit-policy']).toBe('30;w=900')
+    expect(blocked.headers['ratelimit-policy']).toBe('100;w=900')
     expect((await rightLogin(ctx)).status).toBe(429)
+    // The 101st request is refused whatever its body.
+    expect((await client(ctx).post('/api/auth/login').send({})).status).toBe(429)
+  })
+
+  test('setup and sign-in share one account budget, and one address budget', async () => {
+    const ctx = await ctxFor()
+    await seedUser(ctx)
+    // Setup is closed while an account exists: 409, a failure for the email.
+    for (let i = 0; i < 5; i++) {
+      expect((await client(ctx).post('/api/setup').send(setupBody())).status).toBe(409)
+    }
+    for (let i = 0; i < 5; i++) expect((await wrongLogin(ctx)).status).toBe(401)
+    expect((await wrongLogin(ctx)).status).toBe(429)
+    expect((await client(ctx).post('/api/setup').send(setupBody())).status).toBe(429)
+    // One address budget: 10 failures so far came from this email, so the rest of the 100 are
+    // spent on other emails on both routes, and then every request is refused.
+    for (let i = 0; i < 90; i++) {
+      const path = i % 2 === 0 ? '/api/setup' : '/api/auth/login'
+      const res = await client(ctx)
+        .post(path)
+        .send({ email: `other${String(i)}@example.com` })
+      // 409 from the closed setup, 400 from sign-in validation: both are failures.
+      expect(res.status).toBe(i % 2 === 0 ? 409 : 400)
+    }
+    expect((await rightLogin(ctx, 'someone@example.com')).status).toBe(429)
+  })
+
+  test('a locked account does not lock out another runner behind the same address', async () => {
+    const ctx = await ctxFor()
+    await seedUser(ctx, { email: 'alice@example.com', password: PASSWORD })
+    await seedUser(ctx, { email: 'bob@example.com', password: PASSWORD })
+    // Ten failures, then repeated attempts on the locked account: 40 in all, 30 of them refused.
+    for (let i = 0; i < 40; i++) {
+      expect((await wrongLogin(ctx, 'alice@example.com')).status).toBe(i < 10 ? 401 : 429)
+    }
+    expect((await rightLogin(ctx, 'bob@example.com')).status).toBe(200)
   })
 
   test('successes from one address never count against the address budget', async () => {
@@ -393,7 +429,7 @@ describe('rate limits: failed sign-ins per account, looser per address', () => {
 
   test('POST /api/setup with no email counts against the address budget only', async () => {
     const ctx = await ctxFor({ allowRegistration: true })
-    for (let i = 0; i < 30; i++) {
+    for (let i = 0; i < 100; i++) {
       await client(ctx).post('/api/setup').send({})
     }
     expect((await client(ctx).post('/api/setup').send(setupBody())).status).toBe(429)

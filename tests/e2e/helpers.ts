@@ -78,7 +78,7 @@ export const E2E_SESSION_SECRET = 'e2e-test-only-secret-0123456789abcdef!!'
 /**
  * Makes the page signed in as the runner without driving the UI: creates the account on a fresh
  * database. Once the account exists it sets a session cookie signed with the server's secret
- * instead of calling the sign-in route: the route counts failed attempts (10 per account, 30 per
+ * instead of calling the sign-in route: the route counts failed attempts (10 per account, 100 per
  * address) and costs a bcrypt compare, and a minted cookie needs neither. A spec starts from here unless it is testing the auth
  * screens.
  */

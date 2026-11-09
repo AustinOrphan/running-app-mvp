@@ -151,8 +151,9 @@ its build runs `prisma migrate deploy` as a smoke test.
   does (supertest sends `Connection: close` and reports `EPIPE`).
 - Rate limits (`server/auth/rateLimit.ts`; `trust proxy` stays unset, so behind a proxy every request
   has the proxy's address and only the loose budgets are keyed by address): sign-in and setup count
-  failures only, 10 per lower-cased email (read from the already-parsed 16 KB body) behind 30 per
-  address, and a success resets the account; the API has `createAddressLimiter` (10x the user
+  failures only, 10 per lower-cased email (read from the already-parsed 16 KB body) then 100 per
+  address (behind a proxy one budget for all runners, a backstop only; the account limiter runs
+  first so its refusals never spend it), and a success resets the account; the API has `createAddressLimiter` (10x the user
   budget) ahead of authentication and `createUserLimiter` (1000 per 15 minutes in production, keyed
   on `req.userId`) right below `requireAuth`; the calendar feed counts refusals per token hash (10)
   and per address (100). A new limiter keys on the narrowest identity it has at that point of the
@@ -345,7 +346,7 @@ its build runs `prisma migrate deploy` as a smoke test.
   column except `User`, and the shared caches that have neither a `userId` nor a parent), so a new
   table needs no edit there.
   `signedInApi()` signs in with a minted session cookie once the account exists: it costs no bcrypt
-  compare and spends none of the sign-in failure budgets (10 per account, 30 per address; successes
+  compare and spends none of the sign-in failure budgets (10 per account, 100 per address; successes
   do not count).
   Playwright blocks service workers (`serviceWorkers: 'block'` in the config, which makes
   `register` do nothing); only `17-offline.spec.ts` allows them, with

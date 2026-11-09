@@ -31,7 +31,9 @@ install; the setup page closes afterwards. A second account needs `ALLOW_REGISTR
 
 Sign-in sets an httpOnly cookie that lasts 30 days. Only failed attempts count: an account is
 limited to 10 failed sign-ins per 15 minutes (the email is compared in lower case) and an address to
-30, and a successful sign-in clears that account's failures. Setup shares both budgets. The API is
+100, and a successful sign-in clears that account's failures. Setup shares both budgets. Behind a
+proxy the address budget is one budget for all runners, a backstop against one client trying many
+accounts, so it is set far above what mistyping runners reach. The API is
 limited to 1,000 requests per 15 minutes per signed-in user, and to 10,000 per address (the
 address budget also covers requests with no session, such as the calendar feed and phone pushes).
 The calendar feed counts refusals only: 10 per token and 100 per address. The limits are held in
