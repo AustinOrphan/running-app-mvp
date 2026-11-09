@@ -47,8 +47,8 @@ const RIGHT_ROOM = 12
  * hue alone.
  */
 const FILL_OPACITY: Record<Exclude<Part, 'none'>, number> = {
-  below: 0.35,
-  between: 0.65,
+  below: 0.6,
+  between: 0.8,
   above: 1,
 }
 
