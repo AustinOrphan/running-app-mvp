@@ -16,7 +16,7 @@
   },
   {
     "id": "volume-marathon-weekly-floor",
-    "statement": "For a competitive marathon goal, plan average build-block volume at or above 40 km/wk where the athlete can safely get there. Below 40 km/wk was associated with slower finishes. Treat as a floor on the target, not a cap. Do not make it a hard requirement for finish-only goals.",
+    "statement": "For a competitive marathon goal, plan average build-block volume at or above 40 km/wk where the athlete can safely get there. Below 40 km/wk was associated with slower finishes. Treat as a floor on the target, not a cap. Do not make it a hard requirement for finish-only goals. The 40 km figure comes from Fokkema 2020; Doherty 2020 supports the direction only (its abstract gives no threshold).",
     "parameter": "marathon_weekly_volume_floor",
     "value": "40",
     "unit": "km/week",
@@ -217,7 +217,7 @@
   },
   {
     "id": "volume-short-race-long-run-cap",
-    "statement": "Cap the long run for 5 km and 10 km goals by a volume tier chosen from the runner's completed typical week (median of the last 4 weeks with a run), never from the planned week: 5 km 60 / 75 / 90 min and 10 km 75 / 90 / 100 min at under 180, 180-360 and over 360 min/week. G-1 and G-2 still bind every week, so the cap is reached only from the runner's own history. No minimum long run applies to 5-10 km goals; Johnson's minimums (5 mi for 5K, 7-8 mi for 10K) are context, not floors. The values follow established plans and coaches; they are not evidence-derived.",
+    "statement": "Cap the long run for 5 km and 10 km goals by a volume tier chosen from the runner's completed typical week (median of the last 4 weeks with a run), never from the planned week: 5 km 60 / 75 / 90 min and 10 km 75 / 90 / 100 min at under 180, 180-360 and over 360 min/week. G-1 and G-2 still bind every week, so the cap is reached only from the runner's own history. No minimum long run applies to 5-10 km goals; Johnson's minimums (5 mi for 5K, 7-8 mi for 10K) are context, not floors. The values follow established plans and coaches; they are not evidence-derived. Higdon's advanced 5K page supplies the 60-90 min range and the 20-30+ mi/week audience only, and the Daniels article only the share and the 150 min ceiling; the tier thresholds and the 5-10 km values are the app's design.",
     "parameter": "peakLongRunMin.5k / peakLongRunMin.10k",
     "value": "5 km 60/75/90; 10 km 75/90/100 (tiers <180, 180-360, >360 min/week)",
     "unit": "min",

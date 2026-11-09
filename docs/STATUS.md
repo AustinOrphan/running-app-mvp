@@ -9,14 +9,18 @@ Last update: 2026-11-08.
 
 Each item names the default that holds until the owner answers.
 
-1. **Collect the sources.** Books (pages photographed with the copyright page): _Daniels' Running
-   Formula_ 4th ed. (the long-run limit), _Run Less, Run Faster_ 3rd ed. (the 3PLUS2 chapters),
-   Lydiard and Gilmour 1997 (the phase lengths), Koop 2nd ed. (recovery after a race, long run by
-   distance), Pfitzinger 4th ed. (low). Papers, full text: Tyler 2016 with its erratum, Ely 2007,
-   Mountjoy 2023 with its correction, Warden 2014, Zourdos 2016, Jukic 2024, Paulsen 2025, Doherty
-   2020, Bourdon 2017, Keogh 2016. Pages saved from a browser: the Higdon advanced 5K plan, the
-   original Couch-to-5K text. Into `data/sources/` (git-ignored). Default: the rules that cite them
-   keep their present grades.
+1. **Collect the sources.** A full-text check on 2026-11-09 read Tyler 2016 (accepted manuscript),
+   Zourdos 2016 (accepted manuscript), Jukic 2024, Paulsen 2025, the Higdon advanced 5K page, the
+   original Couch-to-5K text, the Daniels article and Koop's article (Internet Archive copy), and
+   corrected the rules that overstated them. Still to collect, into `data/sources/` (ignored by
+   Git). Books first, pages photographed with the copyright page: Koop 2nd ed. (recovery after a
+   race, long run by distance; the 20 min cap in the first week after 100 miles now rests on his
+   article alone), _Daniels' Running Formula_ 4th ed. (the long-run limit), _Run Less, Run Faster_
+   3rd ed. (the 3PLUS2 chapters), Lydiard and Gilmour 1997 (the phase lengths), Pfitzinger 4th ed.
+   (low). Then the papers with no legal full text (Europe PMC, PMC and the publisher were tried on
+   2026-11-09), whose claims rest on the abstract: Warden 2014, Doherty 2020, Keogh 2016, Mountjoy
+   2023 with its correction, Bourdon 2017, Ely 2007, and the erratum of Tyler 2016. Default: the
+   rules that cite them keep their present grades.
 2. **Rest days between runs on an injury-return ladder** (RU3): `injuryReturn.restDaysBetween` is 1
    day; its tendon source says 2 to 3. Recommended: 2. Default: 1 until answered.
 3. **Passive heat before a warm race** (the heat pass): may the plan suggest sauna or hot-water

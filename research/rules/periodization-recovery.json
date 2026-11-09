@@ -257,9 +257,9 @@
   },
   {
     "id": "periodization-post-race-return-steps",
-    "statement": "After the hold, return through 7-day steps of easy running capped at fractions of the pre-taper reference week: 0.5 then 0.75 for marathon and 50 km classes; 0.25, 0.5 then 0.75 for the 100 km class and longer. Run caps: first step at most 3 runs on non-consecutive days, each at most 40 min, no gain target; second step runs at most 60 min, short uphills allowed; later steps longest run at most 90 min. All running in Z1. Races of 5 km to half marathon keep the existing single 7-day step at 0.5. Fractions and caps are defaults except the marathon first step (see periodization-post-race-marathon-return).",
+    "statement": "After the hold, return through 7-day steps of easy running capped at fractions of the pre-taper reference week: 0.5 then 0.75 for marathon and 50 km classes; 0.25, 0.5 then 0.75 for the 100 km class and longer. Run caps: first step at most 3 runs on non-consecutive days, each at most 40 min (20 min from 100 miles, after Koop's guidance of no runs over 20 min in week 1 after a 100-miler), no gain target; second step runs at most 60 min, short uphills allowed; later steps longest run at most 90 min. All running in Z1. Races of 5 km to half marathon keep the existing single 7-day step at 0.5. Fractions and caps are defaults except the marathon first step (see periodization-post-race-marathon-return).",
     "parameter": "macroDesign.postRaceLongFractions",
-    "value": "marathon/50 km: [0.5, 0.75]; 100 km and longer: [0.25, 0.5, 0.75]; caps 40/60/90 min",
+    "value": "marathon/50 km: [0.5, 0.75]; 100 km and longer: [0.25, 0.5, 0.75]; caps 40/60/90 min (first step 20 min from 100 miles)",
     "unit": "fraction of reference week; min per run",
     "appliesTo": "Marathon and ultra goal races",
     "grade": "D",

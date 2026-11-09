@@ -99,6 +99,13 @@ function baseHoldDays(distanceClass: RaceClass): number {
   }
 }
 
+/** The cap of a run in the first step: 20 min from 100 miles (Koop, D), 40 min for shorter races [H12]. */
+function step1RunMaxMinOf(distanceClass: RaceClass): number {
+  return distanceClass === 'ultra100mi' || distanceClass === 'beyond'
+    ? P.h12.step1RunMaxMin100mi.value
+    : P.h12.step1RunMaxMin.value
+}
+
 /** Fractions of the 7-day steps by class: one step to a half marathon, two to 80.5 km, three beyond. */
 function stepFractions(distanceClass: RaceClass): number[] {
   switch (distanceClass) {
@@ -271,6 +278,7 @@ export function postRaceWindow(
     bounds.push(boundary)
   }
 
+  const step1RunMax = step1RunMaxMinOf(race.distanceClass)
   const stages: PostRaceStage[] = fractions.map((fraction, i) => {
     const first = i === 0
     const later = i >= 2
@@ -279,12 +287,12 @@ export function postRaceWindow(
       from: bounds[i]!,
       to: addDays(bounds[i + 1]!, -1),
       fraction,
-      runMaxMin: first ? P.h12.step1RunMaxMin.value : P.h12.step2RunMaxMin.value,
+      runMaxMin: first ? step1RunMax : P.h12.step2RunMaxMin.value,
       maxRuns: first ? P.h12.step1MaxRuns.value : null,
       longRunMaxMin: later
         ? P.h12.laterStepLongRunMaxMin.value
         : first
-          ? P.h12.step1RunMaxMin.value
+          ? step1RunMax
           : P.h12.step2RunMaxMin.value,
     }
   })

@@ -590,14 +590,21 @@ export const hUltra = {
       40,
       'D',
       'H12',
-      [
-        'martinez-navarro-2021-marathon-week-rct',
-        'irunfar-2016-powell-post-100-return',
-        'cts-2025-koop-ultra-recovery',
-      ],
+      ['martinez-navarro-2021-marathon-week-rct', 'irunfar-2016-powell-post-100-return'],
       {
         unit: 'min per run',
-        note: 'Default. The marathon first step is the dose of one small randomised trial of recreational runners (40 min at first-threshold heart rate), grade B there; the value is graded D because it also caps the first step after 50K and longer races, where it extrapolates to the 25-45 min jogs coaches describe.',
+        note: 'Default. The marathon first step is the dose of one small randomised trial of recreational runners (40 min at first-threshold heart rate), grade B there; the value is graded D because it also caps the first step after 50K and 100K races, where it extrapolates to the 25-45 min jogs coaches describe. After a race of 100 miles or more the cap is h12.step1RunMaxMin100mi. No value was set for a midpoint between 50 km and 100 miles: 40 is kept there.',
+      },
+    ),
+    step1RunMaxMin100mi: param(
+      'h12.step1RunMaxMin100mi',
+      20,
+      'D',
+      'H12',
+      ['cts-2025-koop-ultra-recovery'],
+      {
+        unit: 'min per run',
+        note: 'Default: the cap of each run in the first step after a race of 100 miles or more (the 100 miles and beyond classes). One coach\'s guidance, not evidence: Koop\'s "No Runs Over 20 Minutes for the First Week" after a 100-miler, half of h12.step1RunMaxMin, which comes from a marathon trial.',
       },
     ),
     step1MaxRuns: param(
@@ -605,11 +612,7 @@ export const hUltra = {
       3,
       'D',
       'H12',
-      [
-        'martinez-navarro-2021-marathon-week-rct',
-        'irunfar-2016-powell-post-100-return',
-        'cts-2025-koop-ultra-recovery',
-      ],
+      ['martinez-navarro-2021-marathon-week-rct', 'irunfar-2016-powell-post-100-return'],
       {
         unit: 'runs',
         note: 'Default. The marathon first step is the schedule of one small randomised trial (days 2, 4 and 6, three runs on non-consecutive days), grade B there; the value is graded D because it also caps the first step after 50K and longer races, where it is an extrapolation.',
@@ -631,7 +634,7 @@ export const hUltra = {
       90,
       'D',
       'H12',
-      ['cts-2025-koop-ultra-recovery', 'skurka-2017-roche-100-recovery'],
+      ['skurka-2017-roche-100-recovery'],
       {
         unit: 'min',
         note: 'Default: from the third step on, the longest run of a week is at most this long; an engineering default that no study supports.',
