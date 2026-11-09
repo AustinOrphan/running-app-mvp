@@ -59,9 +59,11 @@ export function requireAuth(deps: Deps): RequestHandler {
       }
       const user = await deps.prisma.user.findUnique({
         where: { id: session.userId },
-        select: { id: true },
+        select: { id: true, sessionVersion: true },
       })
-      if (!user) {
+      // A cookie signed with another version than the account's is refused (the counter is raised
+      // by a password change or reset).
+      if (!user || session.version !== user.sessionVersion) {
         next(unauthorized())
         return
       }

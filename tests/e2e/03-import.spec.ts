@@ -6,7 +6,9 @@ const FIXTURE = 'tests/fixtures/smashrun-sample.csv'
 async function importFixture(page: Page) {
   await page.getByRole('button', { name: 'Import', exact: true }).click()
   const sheet = page.getByRole('dialog', { name: 'Import activities' })
-  await expect(sheet.getByRole('radio', { name: 'Smashrun' })).toBeChecked()
+  // the dialog opens on Activity files; this spec imports a Smashrun CSV
+  await expect(sheet.getByRole('radio', { name: 'Activity files' })).toBeChecked()
+  await sheet.getByRole('radio', { name: 'Smashrun' }).click()
   await expect(sheet.getByRole('radio', { name: 'mi' })).toBeChecked()
   await sheet.getByLabel('CSV file').setInputFiles(FIXTURE)
   await sheet.getByRole('button', { name: 'Import file' }).click()

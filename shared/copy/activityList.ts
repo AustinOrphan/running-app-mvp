@@ -23,6 +23,10 @@ export const ACTIVITY_LIST_TEMPLATES = {
     { n: 'count' },
     { shape: 'label', fallback: 'Show more' },
   ),
+  // The empty list: what a new runner can bring, the exports and files first.
+  'activity-list.empty': tpl(
+    'Runs list here by day, newest first. Import a Garmin or Strava export, or FIT, GPX or TCX files, or log a run.',
+  ),
   'activity-list.more-error': tpl('More activities did not load. Try again.'),
   // The pace of a row. The list has room for one pace: the moving pace (from `movingSec`) when the
   // activity has a moving time that differs from its elapsed time, otherwise the elapsed pace. A
@@ -69,6 +73,9 @@ export function activityCountText(shown: number, total: number): string {
 export function activityMoreLabel(n: number): string {
   return render(T['activity-list.more'], { n: { kind: 'count', n } }, UNITS)
 }
+
+/** The body of the empty Activities page. */
+export const ACTIVITY_EMPTY_TEXT = render(T['activity-list.empty'], {}, UNITS)
 
 export const ACTIVITY_MORE_ERROR = render(T['activity-list.more-error'], {}, UNITS)
 

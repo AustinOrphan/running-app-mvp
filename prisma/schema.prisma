@@ -19,6 +19,10 @@ model User {
   weightUnit     String   @default("lb") // 'lb' | 'kg'; strength loads are shown in it (the migration sets 'kg' where units = 'km')
   showBodyWeight Boolean  @default(false) // Trends draws a weight chart only when true (ADR 0019); false hides it and deletes nothing
   hideMapEnds    Boolean  @default(true) // the track read leaves out the first and last 200 m of a run (M1a); the stored track is whole
+  mustChangePassword Boolean @default(false) // set by create-user: the first sign-in asks for a new password before anything else
+  unitsFromBrowser   Boolean @default(false) // set by create-user when no units were given: the first load takes the units and the weight unit from the browser's locale, once
+  sessionVersion     Int     @default(0) // carried by the session cookie; raised when the password changes or is reset, which ends every other session
+  zoneFromBrowser    Boolean @default(false) // set by create-user when no zone was given: the first load saves the browser's zone while the profile still reads UTC, once
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 

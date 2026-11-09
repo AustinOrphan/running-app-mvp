@@ -215,3 +215,19 @@ export function createFeedLimiters(opts: LimiterOptions = {}): RequestHandler[] 
     ),
   ]
 }
+
+/**
+ * Limiter of the password change: 5 refusals per 15 minutes per signed-in user (it sits after
+ * `requireAuth`). A success does not count, so changing a password once never uses the budget, and
+ * the key is the user id, so a second device or address does not get a fresh one.
+ */
+export function createPasswordChangeLimiter(opts: LimiterOptions = {}): RequestHandler {
+  return createLimiter(
+    opts,
+    5,
+    'unauthorized',
+    'Too many attempts. Try again later.',
+    'refusals',
+    (req) => `password:${req.userId}`,
+  )
+}

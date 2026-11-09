@@ -1864,6 +1864,37 @@ function verifyHrQuality(db: DatabaseSync, before: Snapshot): void {
   ])
 }
 
+function verifyUserMustChangePassword(db: DatabaseSync, before: Snapshot): void {
+  expectNothingLost(before, db)
+  expectConsistent(db)
+  // The accounts of the previous release keep signing in as they did: nothing is asked of them.
+  expect(
+    rowsOf(
+      db,
+      `SELECT email, "mustChangePassword", "unitsFromBrowser", "zoneFromBrowser" FROM "User"`,
+    ),
+  ).toEqual([
+    {
+      email: 'runner@example.com',
+      mustChangePassword: 0,
+      unitsFromBrowser: 0,
+      zoneFromBrowser: 0,
+    },
+  ])
+}
+
+function verifyUserSessionVersion(db: DatabaseSync, before: Snapshot): void {
+  expectNothingLost(before, db)
+  expectConsistent(db)
+  // Every account of the previous release reads 0, the version a cookie without one carries, so the
+  // sessions that are open stay open.
+  expect(rowsOf(db, `SELECT email, "sessionVersion" FROM "User"`)).toEqual([
+    { email: 'runner@example.com', sessionVersion: 0 },
+  ])
+  db.prepare(`UPDATE "User" SET "sessionVersion" = "sessionVersion" + 1 WHERE id = 'u1'`).run()
+  expect(rowsOf(db, `SELECT "sessionVersion" FROM "User"`)).toEqual([{ sessionVersion: 1 }])
+}
+
 function verifyActivityHeatExposure(db: DatabaseSync, before: Snapshot): void {
   // Rows, including the sessions linked to activities, are all kept.
   expectNothingLost(before, db)
@@ -2156,6 +2187,16 @@ const CASES: FixtureCase[] = [
     migration: 'activity_heat_exposure',
     seed: seedTerrainRelease,
     verify: verifyActivityHeatExposure,
+  },
+  {
+    migration: 'user_must_change_password',
+    seed: seedTerrainRelease,
+    verify: verifyUserMustChangePassword,
+  },
+  {
+    migration: 'user_session_version',
+    seed: seedTerrainRelease,
+    verify: verifyUserSessionVersion,
   },
 ]
 

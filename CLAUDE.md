@@ -156,7 +156,8 @@ its build runs `prisma migrate deploy` as a smoke test.
   first so its refusals never spend it), and a success resets the account; the API has `createAddressLimiter` (10x the user
   budget) ahead of authentication and `createUserLimiter` (1000 per 15 minutes in production, keyed
   on `req.userId`) right below `requireAuth`; the calendar feed counts refusals per token hash (10)
-  and per address (100). A new limiter keys on the narrowest identity it has at that point of the
+  and per address (100); `PUT /api/auth/password` counts refusals per user id (5, `createPasswordChangeLimiter`,
+  below `requireAuth`). A new limiter keys on the narrowest identity it has at that point of the
   request order.
 - Server errors are thrown as `HttpError` (`server/errors.ts`) and reach the client as
   `{ error: { code, message, details? } }`. Zod parses every body and query.
@@ -217,6 +218,13 @@ its build runs `prisma migrate deploy` as a smoke test.
   19; the colour pairs are tested in `tests/unit/shared/tokensContrast.test.ts`). Each visual change lands as
   its own PR so it can be reverted alone.
 - npm only. Strict TypeScript. Prettier formats, ESLint 9 flat config lints.
+- Accounts (B1): the owner adds one with `npm run create-user` (`createUser`, `server/auth/createUser.ts`:
+  a generated temporary password printed once to stdout, `mustChangePassword` set, units and zone either
+  given or left to the browser through `unitsFromBrowser` and `zoneFromBrowser`, applied once by
+  `POST /api/settings/browser-defaults`). Sessions are signed cookies with no server-side record, so ending
+  every session is `User.sessionVersion`: the cookie carries it (none reads as 0), `requireAuth` refuses any other value, and
+  `PUT /api/auth/password` and `setPasswordByEmail` set it. `ALLOW_REGISTRATION` stays the only way to open
+  sign-up.
 - Env vars are exactly `DATABASE_URL`, `SESSION_SECRET`, `PORT`, `NODE_ENV`, `ALLOW_REGISTRATION`
   and `LOG_LEVEL` (plus `TZ` as an OS setting in Docker).
 - Migrations under `prisma/migrations` are committed; never ignore them.

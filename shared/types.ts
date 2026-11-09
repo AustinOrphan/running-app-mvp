@@ -788,6 +788,12 @@ export interface UserSettings {
 }
 export interface SessionUser extends UserSettings {
   id: string
+  /** True after create-user until the first password change: the app asks for a new one first. */
+  mustChangePassword: boolean
+  /** True until the browser's locale has set the units and the weight unit, once (create-user). */
+  unitsFromBrowser: boolean
+  /** True until the browser's zone has been saved to the profile, once (create-user). */
+  zoneFromBrowser: boolean
 }
 export type GoalPriority = 'A' | 'B' | 'C'
 export type GoalStatus = 'target' | 'considering' | 'done' | 'dropped'

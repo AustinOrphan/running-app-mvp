@@ -11,6 +11,7 @@ import { fieldErrors } from '../api/client.ts'
 import { exportRefusal, useDownloadExport, type ExportRefusal } from '../api/export.ts'
 import { useSettings, useUpdateSettings, type SettingsPatch } from '../api/settings.ts'
 import { Button } from '../components/Button.tsx'
+import { ChangePasswordForm } from '../components/ChangePasswordForm.tsx'
 import { ErrorState } from '../components/ErrorState.tsx'
 import { useLoadView } from '../components/loadView.ts'
 import { Field, Input } from '../components/Field.tsx'
@@ -416,6 +417,13 @@ function SettingsForm({ initial }: { initial: UserSettings }) {
           </p>
         ) : null}
         <p className={styles.note}>{render(OFFLINE_USE[offline], {}, units)}</p>
+      </section>
+
+      <section className={styles.section} aria-labelledby="password-heading">
+        <h2 id="password-heading" className={styles.heading}>
+          {render(TEMPLATES['account.password.heading'], {}, units)}
+        </h2>
+        <ChangePasswordForm />
       </section>
 
       <section className={styles.section} aria-labelledby="session-heading">
