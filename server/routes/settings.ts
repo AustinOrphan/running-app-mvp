@@ -65,6 +65,10 @@ export function settingsRouter(deps: Deps): Router {
       data: {
         ...(body.units === undefined ? {} : { units: body.units }),
         ...(body.weightUnit === undefined ? {} : { weightUnit: body.weightUnit }),
+        // Units the runner wrote are theirs: the browser's locale no longer replaces them.
+        ...(body.units === undefined && body.weightUnit === undefined
+          ? {}
+          : { unitsFromBrowser: false }),
         ...(body.showBodyWeight === undefined ? {} : { showBodyWeight: body.showBodyWeight }),
         ...(body.hideMapEnds === undefined ? {} : { hideMapEnds: body.hideMapEnds }),
         ...(body.displayName === undefined ? {} : { displayName: body.displayName }),

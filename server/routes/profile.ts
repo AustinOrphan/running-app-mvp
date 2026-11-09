@@ -141,6 +141,10 @@ export function profileRouter(deps: Deps): Router {
       create: { userId: req.userId, ...data },
       update: data,
     })
+    // A zone the runner wrote is theirs: the browser's zone no longer replaces it (create-user).
+    if (body.timezone !== undefined) {
+      await prisma.user.update({ where: { id: req.userId }, data: { zoneFromBrowser: false } })
+    }
     // A new home place, or a change in whether races without a place of their own use it, needs a
     // forecast and race climates the cache does not hold yet; they are fetched after the response.
     if (

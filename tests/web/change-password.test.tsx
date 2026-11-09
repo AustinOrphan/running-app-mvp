@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Route, Routes } from 'react-router-dom'
 import { describe, expect, test } from 'vitest'
@@ -132,7 +132,7 @@ describe('the Password block of Settings', () => {
 })
 
 describe('the screen that follows a first sign-in', () => {
-  function renderApp(mustChangePassword: boolean) {
+  function renderApp(mustChangePassword: boolean, extra: Record<string, () => unknown> = {}) {
     let flagged = mustChangePassword
     const mock = mockApi({
       'GET /api/setup': () => ({ needsSetup: false }),
@@ -148,12 +148,14 @@ describe('the screen that follows a first sign-in', () => {
       'GET /api/activities': () => activityPage([]),
       'GET /api/today': () => makeToday(),
       'GET /api/settings': () => settings,
+      'GET /api/integrations': () => [],
+      ...extra,
     })
     return { ...mock, ...renderWithProviders(<App />) }
   }
 
   test('asks for a new password before anything else, then lets the app through', async () => {
-    const { container } = renderApp(true)
+    const { container, calls } = renderApp(true)
     const typist = userEvent.setup()
 
     expect(await screen.findByRole('heading', { name: 'Choose your password' })).toBeInTheDocument()
@@ -161,10 +163,32 @@ describe('the screen that follows a first sign-in', () => {
     expect(screen.queryByRole('heading', { name: 'Today' })).not.toBeInTheDocument()
     expectCleanCopy(container)
 
+    const meReads = () => calls.filter((call) => call.url === '/api/auth/me').length
+    const before = meReads()
     await fill(typist, 'the temporary one', 'a brand new passphrase')
 
     expect(await screen.findByRole('heading', { name: 'Today' })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Choose your password' })).not.toBeInTheDocument()
+    // the session is read again, so the worker's copy of it loses the flag
+    await waitFor(() => {
+      expect(meReads()).toBeGreaterThan(before)
+    })
+  })
+
+  test('has a Sign out button, so the screen is never a dead end', async () => {
+    const { calls } = renderApp(true, {
+      'POST /api/auth/logout': () => ({ status: 204, body: undefined }),
+    })
+    const typist = userEvent.setup()
+    await screen.findByRole('heading', { name: 'Choose your password' })
+
+    await typist.click(screen.getByRole('button', { name: 'Sign out' }))
+
+    await waitFor(() => {
+      expect(calls.some((call) => call.method === 'POST' && call.url === '/api/auth/logout')).toBe(
+        true,
+      )
+    })
   })
 
   test('is not shown to an account without the flag', async () => {

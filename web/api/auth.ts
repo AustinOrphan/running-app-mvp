@@ -109,6 +109,9 @@ export function useChangePassword() {
       api<SessionUser>('PUT', '/auth/password', request),
     onSuccess: (user) => {
       queryClient.setQueryData([keys.me], user)
+      // Read again, so the service worker stores the payload without the flag: its copy of
+      // `/api/auth/me` (ADR 0012) would otherwise bring the password screen back when offline.
+      void queryClient.invalidateQueries({ queryKey: [keys.me] })
     },
   })
 }

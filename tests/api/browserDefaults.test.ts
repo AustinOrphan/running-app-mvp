@@ -149,3 +149,30 @@ describe('POST /api/settings/browser-defaults', () => {
     expect((await stored(ctx, user.id)).flags).toEqual([true, true])
   })
 })
+
+describe('a choice made before any browser-defaults call', () => {
+  test('units written in Settings clear the units flag, so the browser never replaces them', async () => {
+    const ctx = await ctxFor()
+    const user = await invited(ctx, { email: 'a@example.com' })
+    await client(ctx, user).put('/api/settings').send({ units: 'mi' })
+    expect((await stored(ctx, user.id)).flags).toEqual([false, true])
+    await client(ctx, user).post('/api/settings/browser-defaults').send(BROWSER)
+    expect(await stored(ctx, user.id)).toMatchObject({ units: 'mi', weightUnit: 'lb' })
+  })
+
+  test('a zone written on the Profile page, even UTC, clears the zone flag', async () => {
+    const ctx = await ctxFor()
+    const user = await invited(ctx, { email: 'a@example.com' })
+    await client(ctx, user).put('/api/profile').send({ timezone: 'UTC' })
+    expect((await stored(ctx, user.id)).flags).toEqual([true, false])
+    await client(ctx, user).post('/api/settings/browser-defaults').send(BROWSER)
+    expect(await stored(ctx, user.id)).toMatchObject({ timezone: 'UTC', units: 'km' })
+  })
+
+  test('a Settings write that changes neither units nor weight unit leaves the flags', async () => {
+    const ctx = await ctxFor()
+    const user = await invited(ctx, { email: 'a@example.com' })
+    await client(ctx, user).put('/api/settings').send({ displayName: 'Ann' })
+    expect((await stored(ctx, user.id)).flags).toEqual([true, true])
+  })
+})
