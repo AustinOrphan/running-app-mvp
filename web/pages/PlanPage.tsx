@@ -1494,7 +1494,7 @@ function PlanTable({
                       <span className={styles.windowChip}>Return week</span>
                     ) : null}
                   </td>
-                  <td className={styles.target} data-cell="target">
+                  <td className={`${styles.target} figure-type`} data-cell="target">
                     <TargetCell week={week} units={units} />
                   </td>
                   <td className={styles.actual} data-cell="actual">

@@ -190,7 +190,7 @@ export function RaceCard({ plan, units }: RaceCardProps) {
                       >
                         {block.windowLabel}
                       </p>
-                      <p className={styles.lead}>{block.window}</p>
+                      <p className={`${styles.lead} figure-type`}>{block.window}</p>
                     </div>
                   )}
                   {block.cutoff.map((line) => (

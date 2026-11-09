@@ -82,7 +82,7 @@ function Scenario({ label, value }: { label: string; value: { value: string; uni
   return (
     <div className={styles.scenario}>
       <dt>{label}</dt>
-      <dd>{`${value.value} ${value.unit}`}</dd>
+      <dd className="figure-type">{`${value.value} ${value.unit}`}</dd>
     </div>
   )
 }
@@ -146,7 +146,9 @@ export function EasyPaceSection({ easy, units }: EasyPaceSectionProps) {
           <div className={styles.hero}>
             <div className={styles.lead}>
               <p className={styles.figure}>
-                <span className={styles.figureValue}>{paceBandParts(pace.range, units).value}</span>{' '}
+                <span className={`${styles.figureValue} figure-type`}>
+                  {paceBandParts(pace.range, units).value}
+                </span>{' '}
                 <span className={styles.figureUnit}>{paceBandParts(pace.range, units).unit}</span>
               </p>
               <p className={styles.text}>{leadLine(pace, units)}</p>

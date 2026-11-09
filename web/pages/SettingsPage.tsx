@@ -14,6 +14,7 @@ import { Button } from '../components/Button.tsx'
 import { ErrorState } from '../components/ErrorState.tsx'
 import { useLoadView } from '../components/loadView.ts'
 import { Field, Input } from '../components/Field.tsx'
+import { useCondensedFigures } from '../components/figureType.ts'
 import { useIllustrations } from '../components/illustrations/useIllustrations.ts'
 import { useMapTiles } from '../components/map/useMapTiles.ts'
 import { useTheme, type Theme } from '../components/Nav.tsx'
@@ -51,6 +52,7 @@ function SettingsForm({ initial }: { initial: UserSettings }) {
   const navigate = useNavigate()
   const { theme, setTheme } = useTheme()
   const illustrations = useIllustrations()
+  const condensed = useCondensedFigures()
   const mapTiles = useMapTiles()
   const update = useUpdateSettings()
   const logout = useLogout()
@@ -182,6 +184,11 @@ function SettingsForm({ initial }: { initial: UserSettings }) {
 
   function onIllustrationsChange(next: boolean) {
     illustrations.setOn(next)
+    confirm()
+  }
+
+  function onCondensedChange(next: boolean) {
+    condensed.setOn(next)
     confirm()
   }
 
@@ -319,6 +326,20 @@ function SettingsForm({ initial }: { initial: UserSettings }) {
         <p id="illustrations-note" className={styles.note}>
           Line drawings on empty pages and on pages that did not load. An experiment; this device
           only.
+        </p>
+        <label className={styles.check}>
+          <input
+            type="checkbox"
+            checked={condensed.on}
+            aria-describedby="condensed-note"
+            onChange={(event) => {
+              onCondensedChange(event.target.checked)
+            }}
+          />
+          Condensed figures
+        </label>
+        <p id="condensed-note" className={styles.note}>
+          Narrower, bolder numbers. This device only.
         </p>
       </section>
 
