@@ -286,7 +286,31 @@ describe('owner only (F1)', () => {
     ] as const) {
       expect((await client(ctx, tester)[method](url)).status, url).toBe(404)
     }
+  })
 
+  test('an encoded spelling of the provider is refused the same way', async () => {
+    for (const spelling of ['fol%64er', '%66older', '%66%6f%6c%64%65%72']) {
+      const base = `/api/integrations/${spelling}`
+      for (const [method, url] of [
+        ['put', base],
+        ['post', `${base}/sync`],
+        ['get', `${base}/runs`],
+        ['delete', base],
+      ] as const) {
+        const res = await client(ctx, tester)[method](url).send({})
+        expect(res.status, `${method} ${url}`).toBe(404)
+        expect((res.body as { error: { message: string } }).error.message).toBe(
+          'Unknown provider: folder',
+        )
+      }
+    }
+    expect(await ctx.prisma.integration.count({ where: { userId: tester.id } })).toBe(0)
+    // The owner reaches the routes by either spelling.
+    const owner = await client(ctx, user).get('/api/integrations/fol%64er/runs')
+    expect(owner.status).toBe(200)
+  })
+
+  test('the list omits the folder for another account', async () => {
     const list = (await client(ctx, tester).get('/api/integrations')).body as Array<{
       provider: string
     }>
@@ -421,11 +445,97 @@ describe('bounds on unpacking and on a scan (F1)', () => {
   })
 
   test('the bound covers nested archives together', async () => {
-    const inner = gzipSync(new Uint8Array(600 * 1024))
-    put('nest.zip', zipSync({ 'a.fit.gz': inner, 'b.fit.gz': inner }))
-    // Each member alone is under the cap; both together are not.
+    // Different payloads, so that the members do not dedupe by hash: each inner file unpacks to
+    // 600 KB, under the cap alone, and the two together pass it.
+    const inner = (byte: number) => gzipSync(new Uint8Array(600 * 1024).fill(byte))
+    put('nest.zip', zipSync({ 'a.fit.gz': inner(1), 'b.fit.gz': inner(2) }))
+    expect(await scanFolder(deps(), user.id, { limits: ONE_MB })).toBe(0)
+    const outer = await ctx.prisma.importedFile.findFirstOrThrow({
+      where: { fileName: 'nest.zip' },
+    })
+    expect(outer.outcome).toBe('invalid')
+    const batch = await ctx.prisma.importBatch.findFirstOrThrow()
+    expect(batch.errors).toContain('nest.zip: unpacks to more than 1 MB')
+    expect(await ctx.prisma.activity.count()).toBe(0)
+    // The same archive passes under a cap that holds both (the test proves the cap is what stops it).
+    await ctx.prisma.importedFile.deleteMany()
+    expect(
+      await scanFolder(deps(), user.id, { limits: { maxUnpackedBytes: 4 * 1024 * 1024 } }),
+    ).toBe(0)
+    expect(
+      (await ctx.prisma.importedFile.findFirstOrThrow({ where: { fileName: 'nest.zip' } })).outcome,
+    ).not.toBe('invalid')
+  })
+
+  test('a forged size in the ZIP headers does not lift the cap', async () => {
+    const bytes = zipSync({ 'big.fit': new Uint8Array(3 * 1024 * 1024) })
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
+    // Local header: uncompressed size at offset 22. Central directory entry: at offset 24.
+    expect(view.getUint32(22, true)).toBe(3 * 1024 * 1024)
+    view.setUint32(22, 100, true)
+    let central = -1
+    for (let at = 0; at + 4 <= bytes.length; at += 1) {
+      if (view.getUint32(at, true) === 0x02014b50) central = at
+    }
+    expect(central).toBeGreaterThan(0)
+    view.setUint32(central + 24, 100, true)
+    put('forged.zip', bytes)
     expect(await scanFolder(deps(), user.id, { limits: ONE_MB })).toBe(0)
     expect((await ctx.prisma.importedFile.findFirstOrThrow()).outcome).toBe('invalid')
+    const batch = await ctx.prisma.importBatch.findFirstOrThrow()
+    expect(batch.errors).toContain('unpacks to more than 1 MB')
+  })
+
+  describe('an archive that is not a whole one is invalid and reported', () => {
+    const zipped = () => zipSync({ 'a.fit': fitBytes(0), 'b.fit': fitBytes(3600) })
+    const gzipped = () => gzipSync(fitBytes(0))
+    const cases: Array<[string, string, () => Uint8Array]> = [
+      ['junk.zip', 'an HTML page', () => new TextEncoder().encode('<html>Not found</html>')],
+      ['empty.zip', 'zero bytes', () => new Uint8Array(0)],
+      ['no-entries.zip', 'a ZIP with no entries', () => zipSync({})],
+      [
+        'cut.zip',
+        'a ZIP cut before its central directory',
+        () => zipped().subarray(0, zipped().length - 60),
+      ],
+      ['empty.fit.gz', 'zero bytes', () => new Uint8Array(0)],
+      ['junk.fit.gz', 'an HTML page', () => new TextEncoder().encode('<html>Not found</html>')],
+      ['cut.fit.gz', 'a gzip cut in its data', () => gzipped().subarray(0, gzipped().length - 20)],
+      [
+        'cut-trailer.fit.gz',
+        'a gzip cut in its trailer',
+        () => gzipped().subarray(0, gzipped().length - 4),
+      ],
+    ]
+    test.each(cases)('%s (%s)', async (name, _what, make) => {
+      put(name, make())
+      expect(await scanFolder(deps(), user.id)).toBe(0)
+      expect((await ctx.prisma.importedFile.findFirstOrThrow()).outcome).toBe('invalid')
+      expect(await ctx.prisma.activity.count()).toBe(0)
+      const batch = await ctx.prisma.importBatch.findFirstOrThrow()
+      expect(batch.skippedInvalid).toBe(1)
+      expect(batch.errors).toContain(name)
+    })
+
+    test('a scan that meets one records a partial run with the failure', async () => {
+      await ctx.prisma.integration.create({
+        data: {
+          userId: user.id,
+          provider: 'folder',
+          status: 'connected',
+          secret: sealSecret({}, ctx.config.sessionSecret),
+          config: '{}',
+        },
+      })
+      put('junk.zip', new TextEncoder().encode('<html>Not found</html>'))
+      await scanFolderIntegration(deps(), user.id, { trigger: 'manual' })
+      expect(
+        await ctx.prisma.syncRun.findFirstOrThrow({
+          where: { channel: 'folder' },
+          orderBy: { startedAt: 'desc' },
+        }),
+      ).toMatchObject({ status: 'partial', failed: 1 })
+    })
   })
 
   test('a ZIP with too many members is invalid', async () => {

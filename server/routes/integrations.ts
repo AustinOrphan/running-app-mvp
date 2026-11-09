@@ -112,13 +112,21 @@ export function integrationsRouter(deps: Deps): Router {
   }
 
   // The Watched folder reaches the host's disk, so only the install owner may use it (F1). Anyone
-  // else gets what an unknown provider gets, whatever the route and whatever a stale row says.
-  router.use('/folder', async (req, _res, next) => {
-    if (await isInstallOwner(prisma, req.userId)) {
+  // else gets what an unknown provider gets, whatever the route and whatever a stale row says. The
+  // check reads the decoded `:provider`, so an encoded spelling (`fol%64er`) is caught too.
+  router.param('provider', (req, _res, next, value: string) => {
+    if (value !== 'folder') {
       next()
       return
     }
-    next(notFound('Unknown provider: folder'))
+    isInstallOwner(prisma, req.userId).then(
+      (owner) => {
+        next(owner ? undefined : notFound('Unknown provider: folder'))
+      },
+      (error: unknown) => {
+        next(error)
+      },
+    )
   })
 
   router.get('/', async (req, res) => {

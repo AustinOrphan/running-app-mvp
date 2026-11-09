@@ -29,7 +29,7 @@ export interface FolderLimits {
   maxArchiveMembers: number
   /** New top-level files taken per scan and user, so one tick stays short for every user. */
   maxScanFiles: number
-  /** Bytes of new top-level files taken per scan and user. */
+  /** A scan stops taking new files once it has taken this many bytes; the last file may pass it. */
   maxScanBytes: number
 }
 
@@ -138,6 +138,32 @@ function concat(chunks: Uint8Array[], size: number): Uint8Array {
   return out
 }
 
+/** An archive that is not a whole, readable gzip or ZIP file (`unzipSync` and `gunzipSync` refused these). */
+class UnreadableArchiveError extends Error {}
+
+const EOCD_SIGNATURE = 0x06054b50
+const EOCD_MIN_BYTES = 22
+/** The end record may be followed by a comment of up to 65,535 bytes. */
+const EOCD_SEARCH_BYTES = EOCD_MIN_BYTES + 65_535
+
+/**
+ * Whether a ZIP ends with an end-of-central-directory record that points at a central directory
+ * inside the file. The streaming reader never looks at it, so a ZIP cut before its end would
+ * otherwise import the members that came before the cut.
+ */
+function hasCentralDirectory(bytes: Uint8Array): boolean {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
+  const lowest = Math.max(0, bytes.length - EOCD_SEARCH_BYTES)
+  for (let at = bytes.length - EOCD_MIN_BYTES; at >= lowest; at -= 1) {
+    if (view.getUint32(at, true) !== EOCD_SIGNATURE) continue
+    const size = view.getUint32(at + 12, true)
+    const offset = view.getUint32(at + 16, true)
+    // 0xFFFFFFFF marks a ZIP64 value kept in the ZIP64 record.
+    return size === 0xffffffff || offset === 0xffffffff || offset + size <= at
+  }
+  return false
+}
+
 /** Takes `n` unpacked bytes from the budget; throws once the file has unpacked past its bound. */
 function spend(budget: Budget, n: number): void {
   budget.left -= n
@@ -158,6 +184,7 @@ function expand(
   budget: Budget,
 ): Array<{ name: string; bytes: Uint8Array }> | null {
   if (/\.gz$/i.test(name)) {
+    if (bytes.length === 0) throw new UnreadableArchiveError('empty gzip file')
     const chunks: Uint8Array[] = []
     let size = 0
     const gunzip = new Gunzip((chunk) => {
@@ -167,6 +194,11 @@ function expand(
       chunks.push(chunk)
     })
     feed(gunzip, bytes)
+    // The last four bytes are the unpacked size (mod 2^32): a file cut inside its trailer fails this.
+    const trailer = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
+    if (bytes.length < 18 || trailer.getUint32(bytes.length - 4, true) !== size % 2 ** 32) {
+      throw new UnreadableArchiveError('gzip file is cut short')
+    }
     return [{ name: name.replace(/\.gz$/i, ''), bytes: concat(chunks, size) }]
   }
   if (/\.zip$/i.test(name)) {
@@ -203,6 +235,9 @@ function expand(
     })
     unzip.register(UnzipInflate)
     feed(unzip, bytes)
+    if (listed === 0 || !hasCentralDirectory(bytes)) {
+      throw new UnreadableArchiveError('not a readable ZIP file')
+    }
     return members
   }
   return null
@@ -293,34 +328,44 @@ async function ingest(
       await recordFile(deps, userId, sha, name, 'invalid', null)
       return null
     }
-    let members: ReturnType<typeof expand>
-    try {
-      members = expand(name, bytes, budget)
-    } catch (error) {
+    // A bound broken anywhere below makes the top-level archive invalid, not only the member.
+    const invalidArchive = async (error: unknown): Promise<null> => {
       tally.invalid += 1
       note(tally, name, error instanceof Error ? error.message : 'unreadable archive')
       await recordFile(deps, userId, sha, name, 'invalid', null)
       return null
     }
+    let members: ReturnType<typeof expand>
+    try {
+      members = expand(name, bytes, budget)
+    } catch (error) {
+      if (depth > 0 && error instanceof ArchiveLimitError) throw error
+      return invalidArchive(error)
+    }
     let first: string | null = null
     let stored = 0
-    for (const member of members ?? []) {
-      if (member.bytes.length > MAX_FILE_BYTES) continue
-      const id = await ingest(
-        deps,
-        userId,
-        path,
-        member.name,
-        member.bytes,
-        timezone,
-        tally,
-        depth + 1,
-        budget,
-      )
-      if (id !== null) {
-        first ??= id
-        stored += 1
+    try {
+      for (const member of members ?? []) {
+        if (member.bytes.length > MAX_FILE_BYTES) continue
+        const id = await ingest(
+          deps,
+          userId,
+          path,
+          member.name,
+          member.bytes,
+          timezone,
+          tally,
+          depth + 1,
+          budget,
+        )
+        if (id !== null) {
+          first ??= id
+          stored += 1
+        }
       }
+    } catch (error) {
+      if (depth === 0 && error instanceof ArchiveLimitError) return invalidArchive(error)
+      throw error
     }
     await recordFile(deps, userId, sha, name, stored > 0 ? 'imported' : 'no-activity', first)
     return first

@@ -227,9 +227,10 @@ with Import on the Activities page.
 - The folder is read-only to the app. It is scanned every 5 minutes, including subfolders, and a
   file changed in the last few seconds waits for the next scan. Files are remembered by content, so
   moving or renaming one does not import it twice. Symbolic links inside the folder are skipped.
-- Limits per scan: at most 100 new files and 512 MB of them (the rest wait for the next scan); a
-  `.zip` or `.gz` that unpacks to more than 256 MB in total, or a ZIP with more than 10,000 files,
-  is reported as invalid and not imported.
+- Limits per scan: a scan stops taking new files once it has taken 100 of them or 512 MB of them
+  (the file that passes 512 MB is still taken; the rest wait for the next scan). A `.zip` or `.gz`
+  that unpacks to more than 256 MB in total, a ZIP with more than 10,000 entries, and a ZIP or gzip
+  file that is empty, cut short or not an archive are reported as invalid and not imported.
 - In Docker the folder must be mounted at `/import`. Add a read-only bind mount to
   `docker-compose.yml`:
 

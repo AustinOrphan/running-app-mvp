@@ -88,8 +88,9 @@ its build runs `prisma migrate deploy` as a smoke test.
   row's stored `path` is ignored, and `resolveFolderRoot` gives one message
   (`sync.msg.folder-unreadable`) for every failure, on the route and in `lastError`. Archives are
   unpacked by fflate's streaming `Gunzip` and `Unzip` under `FOLDER_LIMITS` (unpacked bytes per
-  file, ZIP members, new files and bytes per scan and user); the browser upload unpacks in the
-  browser, so no server route decompresses.
+  file, ZIP entries, new files and bytes per scan and user, the last checked after each file); a
+  browser upload is unpacked in the browser, so no upload route decompresses. The `gunzipSync` and
+  `unzipSync` calls of the intervals.icu and Garmin providers are outside F1's caps.
 - A provider returns `ParsedActivity` and `WellnessInput` values; it never writes to the database.
   `server/services/activityStore.ts` is the only writer of imported activities, and
   `server/services/sync.ts` drives pull providers.

@@ -14,6 +14,7 @@ import type { HealthNote, TodayHealth } from '../../shared/types.ts'
 import { publishable } from '../../shared/workouts/labels.ts'
 import type { Deps } from '../app.ts'
 import { REPLAN_SLOT, weekSlotStart, weeklyUpdateStatus } from '../jobs/weeklyUpdate.ts'
+import { isInstallOwner } from '../installOwner.ts'
 import { createLogger } from '../logger.ts'
 import { PROVIDERS } from '../providers/registry.ts'
 import type { PrismaClient } from '../db.ts'
@@ -272,7 +273,12 @@ async function sourceRows(prisma: PrismaClient, userId: string): Promise<SourceR
     select: { provider: true, status: true, pausedUntil: true, createdAt: true },
   })
   const order = [...labels.keys()]
+  // The Watched folder belongs to the install owner (F1); a row of another account is stale. The
+  // owner is looked up only when there is such a row, so a reader without one reads nothing more.
+  const stale =
+    rows.some((row) => row.provider === 'folder') && !(await isInstallOwner(prisma, userId))
   return rows
+    .filter((row) => !(stale && row.provider === 'folder'))
     .map((row) => ({ ...row, label: labels.get(row.provider) ?? row.provider }))
     .sort((a, b) => order.indexOf(a.provider) - order.indexOf(b.provider))
 }
