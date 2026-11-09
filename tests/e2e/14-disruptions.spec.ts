@@ -607,8 +607,19 @@ test('an illness and an injury window open on the same day have a line each at 3
 // matters at this width.
 for (const percent of [150, 200]) {
   test(`the three-button banner shows every word and button at ${String(percent)}% text at 360 px`, async () => {
-    const { today } = relativeDates()
+    const { today, lastWednesday } = relativeDates()
     await page.setViewportSize({ width: 360, height: 740 })
+    // An unrated run of the last week puts the "How did it go?" card (an RPE grid and the feel
+    // chips) on the page every day, not only on the Monday and Tuesday when the seeded history
+    // falls inside its 7 days; the page must not scroll sideways with it.
+    const history = new Set([0, 3, 6, 9, 12, 15, 18, 21].map((n) => addDays(lastWednesday, -n)))
+    const unratedDay = [3, 4, 5, 6].map((n) => addDays(today, -n)).find((d) => !history.has(d))!
+    const unrated = (await api.post('/activities', {
+      date: unratedDay,
+      type: 'run',
+      durationSec: 28 * 60,
+      distanceM: 4200,
+    })) as { id: string }
     const made = (await api.post('/plan/disruptions', {
       reason: 'short-on-time',
       mode: 'rest',
@@ -632,10 +643,12 @@ for (const percent of [150, 200]) {
         body: await page.screenshot(),
         contentType: 'image/png',
       })
+      await expect(page.getByRole('region', { name: 'How did it go?' })).toBeVisible()
       expect(await scrollsSideways()).toBe(false)
     } finally {
       await page.setViewportSize({ width: 1280, height: 720 })
       await api.delete(`/plan/disruptions/${made.disruption.id}`)
+      await api.delete(`/activities/${unrated.id}`)
     }
   })
 }

@@ -46,6 +46,9 @@ async function planWithRunToday(origin: string): Promise<PlanSession> {
       type: 'run',
       durationSec: (30 + 5 * i) * 60,
       distanceM: 5000 + i * 500,
+      // Rated, so no history run (the newest is 5 days back on a Monday) is offered in the
+      // "How did it go?" card, whatever the weekday.
+      rpe: 4,
     })
   }
   const goal = (await api.post('/goals', {
