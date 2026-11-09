@@ -62,6 +62,7 @@ export function makeHeat(over: Partial<TodayHeat> = {}): TodayHeat {
     coolerValue: null,
     index: null,
     hotForSteering: false,
+    heatDays: false,
     ...over,
   }
 }

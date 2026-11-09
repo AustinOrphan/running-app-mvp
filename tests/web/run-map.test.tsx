@@ -11,6 +11,7 @@ import { MAP_TILES_KEY } from '../../web/components/map/useMapTiles.ts'
 import { ToastProvider } from '../../web/components/Toast.tsx'
 import { ActivityDetailPage } from '../../web/pages/ActivityDetailPage.tsx'
 import { makeActivity } from '../factories.ts'
+import { makeToday } from './today-fixtures.ts'
 import { makeView } from './strength-fixtures.ts'
 import { mockApi, noTrackRoute, renderWithProviders, type MockRoutes } from './helpers.tsx'
 
@@ -118,6 +119,7 @@ function renderPage(
     'GET /api/activities/a1/standout': () => ({ items: [], more: 0 }),
     'GET /api/plan': () => null,
     'GET /api/zones': () => ({ hr: null }),
+    'GET /api/today': () => makeToday(),
     ...(track === null ? noTrackRoute : { 'GET /api/activities/a1/track': () => track }),
     ...routes,
   })

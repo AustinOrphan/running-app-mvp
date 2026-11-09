@@ -3,13 +3,18 @@ import {
   acclimationCredit,
   heatAbilityMultiplier,
   heatPenaltyPct,
+  easySessionActivityIds,
+  heatBlockWindow,
+  heatExposureDays,
   heatWarning,
   isHeatExposure,
   isHotForSteering,
   liljegrenWbgt,
+  suggestsHeatDays,
   trainingHeatAdvice,
   weatherIndex,
 } from '../../../shared/engine/heat.ts'
+import { addDays } from '../../../shared/dates.ts'
 import { P } from '../../../shared/engine/params/index.ts'
 import type { EngineInput, SessionSpec } from '../../../shared/engine/types.ts'
 
@@ -451,5 +456,194 @@ describe('isHeatExposure (rules I8)', () => {
     ).toBe(false)
     expect(isHeatExposure({ ...run, tempC: null })).toBe(false)
     expect(isHeatExposure({ ...run, type: 'strength' })).toBe(false)
+  })
+})
+
+describe('isHeatExposure: the runner-marked kinds (rules I8, HT1)', () => {
+  const mild = { type: 'run', tempC: 15, durationSec: 3600, rpe: 3, heatExposure: null } as const
+  const minutes = (n: number) => n * 60
+
+  it('counts a run marked overdressed or in a warm room, at any temperature', () => {
+    expect(isHeatExposure({ ...mild, heatExposure: 'warm-room' })).toBe(true)
+    expect(isHeatExposure({ ...mild, tempC: null, heatExposure: 'warm-room' })).toBe(true)
+    // a hard run in extra layers is still a run in extra layers
+    expect(isHeatExposure({ ...mild, rpe: 8, heatExposure: 'warm-room' })).toBe(true)
+  })
+
+  it('needs the exposure minutes for an overdressed run and never counts strength work', () => {
+    const short = minutes(P.acclim.exposureMinDurationMin.value) - 1
+    expect(isHeatExposure({ ...mild, durationSec: short, heatExposure: 'warm-room' })).toBe(false)
+    expect(isHeatExposure({ ...mild, type: 'strength', heatExposure: 'warm-room' })).toBe(false)
+    expect(isHeatExposure({ ...mild, type: 'strength', heatExposure: 'passive' })).toBe(false)
+  })
+
+  it('counts a hot bath or sauna only after an easy run of enough minutes', () => {
+    const passive = { ...mild, heatExposure: 'passive' } as const
+    expect(isHeatExposure(passive)).toBe(true)
+    // no RPE: counts only when the run filled a planned easy or recovery session
+    expect(isHeatExposure({ ...passive, rpe: null })).toBe(false)
+    expect(isHeatExposure({ ...passive, rpe: null }, true)).toBe(true)
+    // a rating decides over the session: a hard run on an easy session is not easy
+    expect(isHeatExposure({ ...passive, rpe: 8 }, true)).toBe(false)
+    expect(isHeatExposure({ ...passive, rpe: P.acclim.passiveEasyMaxRpe.value })).toBe(true)
+    expect(isHeatExposure({ ...passive, rpe: P.acclim.passiveEasyMaxRpe.value + 1 })).toBe(false)
+    expect(
+      isHeatExposure({ ...passive, durationSec: minutes(P.acclim.passiveMinRunMin.value) }),
+    ).toBe(true)
+    expect(
+      isHeatExposure({ ...passive, durationSec: minutes(P.acclim.passiveMinRunMin.value) - 1 }),
+    ).toBe(false)
+    // a race, a cross-training session or any other type is not an easy run
+    expect(isHeatExposure({ ...passive, type: 'race' })).toBe(false)
+    expect(isHeatExposure({ ...passive, type: 'cross' })).toBe(false)
+  })
+
+  it('counts nothing for an unmarked mild run, and the weather still counts without a mark', () => {
+    expect(isHeatExposure(mild)).toBe(false)
+    expect(isHeatExposure({ ...mild, tempC: 27 })).toBe(true)
+    expect(isHeatExposure({ ...mild, tempC: 27, heatExposure: 'passive', rpe: 9 })).toBe(true)
+  })
+
+  it('grades the new cut-offs D with a note that says they are defaults', () => {
+    for (const param of [P.acclim.passiveMinRunMin, P.acclim.passiveEasyMaxRpe]) {
+      expect(param.grade).toBe('D')
+      expect(param.rule).toBe('I8')
+      expect(param.note).toMatch(/default/i)
+    }
+  })
+})
+
+describe('heatExposureDays: one per day (rules I8, HT1)', () => {
+  const run = (date: string, over: Record<string, unknown> = {}) => ({
+    date,
+    type: 'run',
+    tempC: 15,
+    durationSec: 3600,
+    rpe: 3,
+    heatExposure: null,
+    ...over,
+  })
+
+  it('lists each day once however many of the three happened, sorted, inside the window', () => {
+    const days = heatExposureDays(
+      [
+        run('2026-07-03', { tempC: 28 }),
+        run('2026-07-03', { heatExposure: 'passive' }),
+        run('2026-07-02', { heatExposure: 'warm-room', tempC: 30 }),
+        run('2026-07-01', { heatExposure: 'passive' }),
+        run('2026-06-30', { tempC: 28 }),
+        run('2026-07-04', { tempC: 28 }),
+        run('2026-07-02', { tempC: 10 }),
+      ] as never,
+      '2026-07-01',
+      '2026-07-03',
+    )
+    expect(days).toEqual(['2026-07-01', '2026-07-02', '2026-07-03'])
+  })
+
+  it('feeds the credit one gain per day', () => {
+    const both = [
+      run('2026-07-03', { tempC: 28, heatExposure: 'passive' }),
+      run('2026-07-03', { heatExposure: 'warm-room' }),
+    ]
+    const days = heatExposureDays(both, '2026-07-01', '2026-07-03')
+    expect(days).toHaveLength(1)
+    expect(acclimationCredit(days, '2026-07-03')).toBeCloseTo(1 / P.i8.blockDays.value, 9)
+  })
+})
+
+describe('suggestsHeatDays (rules I8, HT1)', () => {
+  const raceDate = '2027-06-12' // a Saturday; the Monday of its week is 2027-06-07
+  const window = heatBlockWindow(raceDate)
+  const day = (date: string, over: Record<string, unknown> = {}) => ({
+    date,
+    type: 'run',
+    tempC: 15,
+    durationSec: 3600,
+    rpe: 3,
+    heatExposure: 'passive',
+    ...over,
+  })
+  const base = {
+    raceWbgtC: P.i8.triggerWbgtC.value + 2,
+    raceDate,
+    today: addDays(raceDate, -9),
+    activities: [] as never[],
+  }
+
+  it('opens the window ceil(blockDays / 7) weeks before the Monday of race week', () => {
+    const weeks = Math.ceil(P.i8.blockDays.value / 7)
+    expect(window).toEqual({ from: addDays('2027-06-07', -7 * weeks), to: '2027-06-11' })
+  })
+
+  it('suggests when the race is expected warm, the window is open and the days are few', () => {
+    expect(suggestsHeatDays(base)).toBe(true)
+    expect(suggestsHeatDays({ ...base, raceWbgtC: P.i8.triggerWbgtC.value })).toBe(true)
+  })
+
+  it('stays quiet when the race is not expected warm or the heat is unknown', () => {
+    expect(suggestsHeatDays({ ...base, raceWbgtC: P.i8.triggerWbgtC.value - 0.1 })).toBe(false)
+    expect(suggestsHeatDays({ ...base, raceWbgtC: null })).toBe(false)
+  })
+
+  it('stays quiet before the window opens, on race day and after the race', () => {
+    expect(suggestsHeatDays({ ...base, today: addDays(window.from, -1) })).toBe(false)
+    expect(suggestsHeatDays({ ...base, today: window.from })).toBe(true)
+    expect(suggestsHeatDays({ ...base, today: window.to })).toBe(true)
+    expect(suggestsHeatDays({ ...base, today: raceDate })).toBe(false)
+    expect(suggestsHeatDays({ ...base, today: addDays(raceDate, 3) })).toBe(false)
+  })
+
+  it('stops once the block asks no more days, and counts the marked kinds like hot runs', () => {
+    const need = P.i8.blockDays.value
+    const counted = (n: number) =>
+      Array.from({ length: n }, (_, i) =>
+        day(addDays(window.from, i), i % 2 === 0 ? {} : { heatExposure: 'warm-room' }),
+      )
+    expect(suggestsHeatDays({ ...base, activities: counted(need - 1) as never[] })).toBe(true)
+    expect(suggestsHeatDays({ ...base, activities: counted(need) as never[] })).toBe(false)
+    // two entries on one day are one day
+    const doubled = [...counted(need - 1), ...counted(need - 1)]
+    expect(suggestsHeatDays({ ...base, activities: doubled as never[] })).toBe(true)
+    // days before the window do not count toward it
+    const early = Array.from({ length: need }, (_, i) => day(addDays(window.from, -1 - i)))
+    expect(suggestsHeatDays({ ...base, activities: early as never[] })).toBe(true)
+    // a bath after a hard run is not a heat day, so it does not end the suggestion
+    const hard = Array.from({ length: need }, (_, i) => day(addDays(window.from, i), { rpe: 8 }))
+    expect(suggestsHeatDays({ ...base, activities: hard as never[] })).toBe(true)
+  })
+})
+
+describe('easySessionActivityIds (rules I8, HT1)', () => {
+  it('lists the activities that filled an easy or recovery session', () => {
+    const ids = easySessionActivityIds([
+      { kind: 'easy', activityId: 'a1' },
+      { kind: 'recovery', activityId: 'a2' },
+      { kind: 'long', activityId: 'a3' },
+      { kind: 'easy', activityId: null },
+    ])
+    expect([...ids].sort()).toEqual(['a1', 'a2'])
+    expect(easySessionActivityIds(null).size).toBe(0)
+  })
+
+  it('lets an unrated bath count through the day, and a held runner is never offered it', () => {
+    const raceDate = '2027-06-12'
+    const window = heatBlockWindow(raceDate)
+    const unrated = {
+      id: 'u1',
+      date: window.from,
+      type: 'run',
+      tempC: 12,
+      durationSec: 2400,
+      rpe: null,
+      heatExposure: 'passive',
+    } as const
+    expect(heatExposureDays([unrated], window.from, window.to)).toEqual([])
+    expect(heatExposureDays([unrated], window.from, window.to, new Set(['u1']))).toEqual([
+      window.from,
+    ])
+    const base = { raceWbgtC: 24, raceDate, today: window.from, activities: [] }
+    expect(suggestsHeatDays(base)).toBe(true)
+    expect(suggestsHeatDays({ ...base, held: true })).toBe(false)
   })
 })

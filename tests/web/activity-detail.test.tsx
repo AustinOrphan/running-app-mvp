@@ -17,6 +17,7 @@ import type {
   PlanSessionView,
   PlanWithSessions,
   StrengthLog,
+  TodayView,
   Units,
   UserSettings,
 } from '../../shared/types.ts'
@@ -24,6 +25,7 @@ import { keys } from '../../web/api/client.ts'
 import { ToastProvider } from '../../web/components/Toast.tsx'
 import { ActivityDetailPage } from '../../web/pages/ActivityDetailPage.tsx'
 import { makeActivity } from '../factories.ts'
+import { makeHeat, makeToday } from './today-fixtures.ts'
 import { loggedRun, logOf, makeLab, saved } from './fuel-fixtures.ts'
 import {
   delayResponses,
@@ -148,6 +150,7 @@ function renderDetail(
     units?: Units
     plan?: PlanWithSessions | null
     routes?: MockRoutes
+    today?: TodayView
     /** A client the test has put something in before the page mounts. */
     queryClient?: QueryClient
   } = {},
@@ -164,6 +167,7 @@ function renderDetail(
     ...noTrackRoute,
     'GET /api/plan': () => opts.plan ?? null,
     'GET /api/zones': () => ({ hr: null }),
+    'GET /api/today': () => opts.today ?? makeToday(),
     'GET /api/strength': () => makeView(),
     'GET /api/strength/logs': () => [],
     ...opts.routes,
@@ -579,6 +583,7 @@ describe('ActivityDetailPage', () => {
       rpe: 7,
       feel: 1,
       pain: 2,
+      heatExposure: null,
     })
   })
 
@@ -620,6 +625,89 @@ describe('ActivityDetailPage', () => {
       rpe: null,
       feel: -1,
       pain: 0,
+      heatExposure: null,
+    })
+  })
+
+  test('the Heat mark is offered on a run only while Today says what counts, or when marked', async () => {
+    const base = makeDetail()
+    const run = { ...base, activity: { ...base.activity, type: 'run' as const } }
+    // no suggestion and no mark: not advertised
+    const api = renderDetail({ detail: run })
+    await screen.findByRole('region', { name: 'How did it go?' })
+    await waitFor(() => {
+      expect(api.calls.some((c) => c.url.startsWith('/api/today'))).toBe(true)
+    })
+    expect(screen.queryByRole('group', { name: 'Heat' })).not.toBeInTheDocument()
+  })
+
+  test('with the suggestion on, a run offers the Heat mark with the same safety disclosure', async () => {
+    const base = makeDetail()
+    renderDetail({
+      detail: { ...base, activity: { ...base.activity, type: 'run' as const } },
+      today: makeToday({ heat: makeHeat({ heatDays: true }) }),
+    })
+    const group = await screen.findByRole('group', { name: 'Heat' })
+    const section = screen.getByRole('region', { name: 'How did it go?' })
+    expect(within(group).getAllByRole('button')).toHaveLength(3)
+    await userEvent.click(within(section).getByText('How to do it safely'))
+    expect(within(section).getByText(/^The trials used about 40 minutes/)).toBeVisible()
+    expect(within(section).getByText('No alcohol before or during.')).toBeVisible()
+  })
+
+  test('a race never offers the Heat mark, even with the suggestion on', async () => {
+    const base = makeDetail()
+    const api = renderDetail({
+      detail: { ...base, activity: { ...base.activity, type: 'race' as const } },
+      today: makeToday({ heat: makeHeat({ heatDays: true }) }),
+    })
+    await screen.findByRole('region', { name: 'How did it go?' })
+    await waitFor(() => {
+      expect(api.calls.some((c) => c.url.startsWith('/api/today'))).toBe(true)
+    })
+    expect(screen.queryByRole('group', { name: 'Heat' })).not.toBeInTheDocument()
+  })
+
+  test('a heat-only save says so', async () => {
+    const user = userEvent.setup()
+    const base = makeDetail()
+    const api = renderDetail({
+      detail: { ...base, activity: { ...base.activity, type: 'run' as const, rpe: 3 } },
+      today: makeToday({ heat: makeHeat({ heatDays: true }) }),
+      routes: { 'PATCH /api/activities/a1/feedback': () => ({}) },
+    })
+    const section = await screen.findByRole('region', { name: 'How did it go?' })
+    await user.click(
+      await within(section).findByRole('button', { name: 'Hot bath or sauna after' }),
+    )
+    await user.click(within(section).getByRole('button', { name: 'Save' }))
+    await waitFor(() => {
+      expect(api.calls.some((c) => c.method === 'PATCH')).toBe(true)
+    })
+    expect(await screen.findByText('Heat saved')).toBeInTheDocument()
+  })
+
+  test('the heat mark starts from the stored one and is saved with the rating', async () => {
+    const user = userEvent.setup()
+    const base = makeDetail()
+    const api = renderDetail({
+      detail: { ...base, activity: { ...base.activity, rpe: 3, heatExposure: 'passive' } },
+      routes: { 'PATCH /api/activities/a1/feedback': () => ({}) },
+    })
+    const section = await screen.findByRole('region', { name: 'How did it go?' })
+    expect(
+      within(section).getByRole('button', { name: 'Hot bath or sauna after' }),
+    ).toHaveAttribute('aria-pressed', 'true')
+    await user.click(
+      within(section).getByRole('button', { name: 'Ran in a warm room (25 °C or more)' }),
+    )
+    await user.click(within(section).getByRole('button', { name: 'Save' }))
+    await waitFor(() => {
+      expect(api.calls.some((c) => c.method === 'PATCH')).toBe(true)
+    })
+    expect(api.calls.find((c) => c.method === 'PATCH')?.body).toMatchObject({
+      rpe: 3,
+      heatExposure: 'warm-room',
     })
   })
 
@@ -642,6 +730,7 @@ describe('ActivityDetailPage', () => {
       ...noTrackRoute,
       'GET /api/plan': () => null,
       'GET /api/zones': () => ({ hr: null }),
+      'GET /api/today': () => makeToday(),
       'PATCH /api/activities/a1/feedback': () => {
         stored = { rpe: 8, feel: 1, pain: 0 }
         return {}
@@ -819,6 +908,7 @@ describe('ActivityDetailPage', () => {
         ...noTrackRoute,
         'GET /api/plan': () => planWith(makeExecution(-1)),
         'GET /api/zones': () => ({ hr: null }),
+        'GET /api/today': () => makeToday(),
         'PATCH /api/activities/a1/feedback': (req) => {
           const body = req.body as { rpe: number | null; feel: number | null }
           stored = { rpe: body.rpe, feel: body.feel }

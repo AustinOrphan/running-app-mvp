@@ -82,6 +82,7 @@ describe('Today: the Why of a note is an info icon at the end of its line', () =
           coolerValue: 17,
           index: 'wbgt',
           hotForSteering: false,
+          heatDays: false,
         },
         sessions: [{ session: hero.session, advice: 'as-planned', reasons: [] }],
         coach: makeCoach({ hero }),

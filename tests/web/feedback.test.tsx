@@ -172,6 +172,7 @@ describe('Today: How did it go?', () => {
       rpe: 6,
       feel: -1,
       pain: 0,
+      heatExposure: null,
     })
   })
 
@@ -214,6 +215,7 @@ describe('Today: How did it go?', () => {
       rpe: 4,
       feel: null,
       pain: 3,
+      heatExposure: null,
     })
   })
 

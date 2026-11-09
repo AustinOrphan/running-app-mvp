@@ -267,6 +267,54 @@ describe('PUT /api/activities/:id/feedback', () => {
     expect([stored.rpe, stored.feel, stored.pain]).toEqual([5, 1, 1])
   })
 
+  test('stores the heat mark (rule I8), replays to the same row, and keeps it when a rating omits it', async () => {
+    const id = randomUUID()
+    const made = await client(ctx, fx.u)
+      .put(`/api/activities/done/${id}`)
+      .send(body(aRun(fx.plan).date))
+    expect((made.body as Activity).heatExposure).toBeNull()
+    const send = (payload: Record<string, unknown>) =>
+      client(ctx, fx.u).put(`/api/activities/${id}/feedback`).send(payload)
+    const first = await send({ rpe: 3, heatExposure: 'passive' })
+    expect(first.status, JSON.stringify(first.body)).toBe(200)
+    expect((first.body as Activity).heatExposure).toBe('passive')
+    // a replay of the queued write is the same write
+    expect((await send({ rpe: 3, heatExposure: 'passive' })).status).toBe(200)
+    expect((await ctx.prisma.activity.findUniqueOrThrow({ where: { id } })).heatExposure).toBe(
+      'passive',
+    )
+    // a rating that does not name the mark leaves it
+    await send({ feel: 1 })
+    expect((await ctx.prisma.activity.findUniqueOrThrow({ where: { id } })).heatExposure).toBe(
+      'passive',
+    )
+    // the other kind replaces it, and null clears it
+    expect(((await send({ heatExposure: 'warm-room' })).body as Activity).heatExposure).toBe(
+      'warm-room',
+    )
+    expect(((await send({ heatExposure: null })).body as Activity).heatExposure).toBeNull()
+    expect((await ctx.prisma.activity.findUniqueOrThrow({ where: { id } })).heatExposure).toBeNull()
+    // the activity read carries it too
+    const read = await client(ctx, fx.u).get(`/api/activities/${id}`)
+    expect((read.body as Activity).heatExposure).toBeNull()
+  })
+
+  test('refuses a mark that is not one of the two, and a key the route does not know', async () => {
+    const id = randomUUID()
+    await client(ctx, fx.u)
+      .put(`/api/activities/done/${id}`)
+      .send(body(aRun(fx.plan).date))
+    const bad = await client(ctx, fx.u)
+      .put(`/api/activities/${id}/feedback`)
+      .send({ heatExposure: 'sauna' })
+    expect(bad.status).toBe(400)
+    const stray = await client(ctx, fx.u)
+      .put(`/api/activities/${id}/feedback`)
+      .send({ heat: 'passive' })
+    expect(stray.status).toBe(400)
+    expect((await ctx.prisma.activity.findUniqueOrThrow({ where: { id } })).heatExposure).toBeNull()
+  })
+
   test("404 for another runner's activity", async () => {
     const id = randomUUID()
     await client(ctx, fx.u)

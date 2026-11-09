@@ -123,11 +123,11 @@ export function exportTables(prisma: PrismaClient, userId: string): Table[] {
       file: 'activities.json',
       models: ['Activity'],
       about:
-        'Every activity, including its feedback (rpe, feel, pain), weather, and terrain bins. Flagged duplicates are included.',
+        'Every activity, including its feedback (rpe, feel, pain, heatExposure), weather, and terrain bins. Flagged duplicates are included.',
       fields: [
         'date: the runner’s local day, YYYY-MM-DD. startTime: HH:MM local. startUtc: ISO 8601 UTC.',
         'durationSec, movingSec: seconds. distanceM, gapDistanceM, elevationGainM, elevationLossM: metres.',
-        'rpe: 1 to 10. feel: -2 (much easier than expected) to +2 (much harder). pain: 0 to 10.',
+        'rpe: 1 to 10. feel: -2 (much easier than expected) to +2 (much harder). pain: 0 to 10. heatExposure: warm-room (a run indoors at 25 C or more) or passive (a hot bath or sauna after an easy run), marked by the runner, else null.',
         'avgHr, maxHr: beats per minute. avgCadence: steps per minute. avgPowerW: watts.',
         'tempC, dewPointC: degrees Celsius. windKph: kilometres per hour. humidityPct: percent.',
         'startLat, startLng: degrees, rounded to 0.01.',

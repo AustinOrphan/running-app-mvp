@@ -32,9 +32,10 @@ export async function moveConfirmedLogs(
 ): Promise<boolean> {
   const copies = await prisma.activity.findMany({
     where: { userId, duplicateOfId: originalId, duplicateStatus: 'confirmed' },
-    select: { id: true },
+    select: { id: true, heatExposure: true },
     orderBy: { id: 'asc' },
   })
+  await carryHeatMark(prisma, originalId, copies)
   const fuel = await handOverLog(
     copies,
     originalId,
@@ -59,6 +60,24 @@ export async function moveConfirmedLogs(
         )
       : false
   return fuel || strength
+}
+
+/**
+ * The runner's heat mark (rule I8) is part of the rating of a run: when the original has none, the
+ * first copy (by id) that carries one gives it to the original, so a mark made on a copy that was
+ * later confirmed as a duplicate still counts for the day.
+ */
+async function carryHeatMark(
+  prisma: Pick<PrismaClient, 'activity'>,
+  originalId: string,
+  copies: ReadonlyArray<{ heatExposure: string | null }>,
+): Promise<void> {
+  const mark = copies.find((copy) => copy.heatExposure !== null)?.heatExposure ?? null
+  if (mark === null) return
+  await prisma.activity.updateMany({
+    where: { id: originalId, heatExposure: null },
+    data: { heatExposure: mark },
+  })
 }
 
 /**

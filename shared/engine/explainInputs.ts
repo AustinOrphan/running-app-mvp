@@ -54,7 +54,7 @@ import {
   weeklyRamp,
   wholeMinutes,
 } from './limits.ts'
-import { isHeatExposure } from './heat.ts'
+import { easySessionActivityIds, isHeatExposure, suggestsHeatDays } from './heat.ts'
 import { isDuplicate, sessionLoad } from './load.ts'
 import { blockLiftMin, loadPosition, rebuildZone, responseBasis, zoneBlock } from './loadSetting.ts'
 import { effective, overrides, resolveMethod, type MethodPosition } from './methods.ts'
@@ -3376,37 +3376,67 @@ function postRaceFacts(scope: Scope): InputFact[] {
   return facts
 }
 
-/** I8 and H13 read the same credit: the heat adaptation of the recent hot runs. */
+/** I8 and H13 read the same credit: the heat adaptation of the recent heat days. */
 function heatAdaptationFacts(rule: 'I8' | 'H13'): Builder {
   return (scope) => {
     const { ctx } = scope
     const credit = ctx.state.heatAcclimation
     const days = P.i8.zeroCreditDays.value
     const window = lastDays(ctx, days + 1)
-    const exposed = countedUpTo(ctx).filter((a) => a.date >= window.from && isHeatExposure(a))
-    if (!(credit > 0)) {
-      return [
-        gap(
-          rule,
-          'explain.i8-gap',
-          {
-            min: minutes(P.acclim.exposureMinDurationMin.value),
-            temp: temp(P.acclim.exposureTempC.value),
-            days: count(days),
-          },
-          { window },
-        ),
-      ]
+    const easyIds = easySessionActivityIds(ctx.input.existing?.sessions)
+    const exposed = countedUpTo(ctx).filter(
+      (a) => a.date >= window.from && isHeatExposure(a, easyIds.has(a.id)),
+    )
+    const facts: InputFact[] = !(credit > 0)
+      ? [
+          gap(
+            rule,
+            'explain.i8-gap',
+            {
+              min: minutes(P.acclim.exposureMinDurationMin.value),
+              temp: temp(P.acclim.exposureTempC.value),
+              days: count(days),
+            },
+            { window },
+          ),
+        ]
+      : [
+          make(
+            rule,
+            'credit',
+            'explain.i8-credit',
+            { share: share(Math.round(credit * 100) / 100) },
+            { sources: exposed.map(activitySource), window },
+          ),
+        ]
+    // What counts as a heat day, with the safety lines, only when the race is expected warm and
+    // the block is open and short of days: the same test as Today's note (`suggestsHeatDays`).
+    const race = ctx.race
+    if (
+      rule === 'I8' &&
+      race !== null &&
+      suggestsHeatDays({
+        raceWbgtC: race.raceWbgtC,
+        raceDate: race.date,
+        today: ctx.asOf,
+        activities: countedUpTo(ctx),
+        easyIds,
+        held:
+          ctx.readiness.redFlags.length > 0 ||
+          (ctx.input.disruptions ?? []).some(
+            (w) => w.startDate <= ctx.asOf && ctx.asOf <= w.endDate,
+          ),
+      })
+    ) {
+      facts.push(
+        make(rule, 'counts', 'explain.i8-counts', { temp: temp(P.acclim.exposureTempC.value) }),
+        make(rule, 'dose', 'explain.i8-dose', {}),
+        make(rule, 'safety', 'explain.i8-safety', {}),
+        make(rule, 'safety-more', 'explain.i8-safety-more', {}),
+        make(rule, 'safety-ask', 'explain.i8-safety-ask', {}),
+      )
     }
-    return [
-      make(
-        rule,
-        'credit',
-        'explain.i8-credit',
-        { share: share(Math.round(credit * 100) / 100) },
-        { sources: exposed.map(activitySource), window },
-      ),
-    ]
+    return facts
   }
 }
 
@@ -3874,6 +3904,7 @@ const RACE_RULES: ReadonlySet<string> = new Set(
     'H12',
     'I2',
     'I3',
+    'I8',
     'K1',
     'n-7',
   ].map(lower),

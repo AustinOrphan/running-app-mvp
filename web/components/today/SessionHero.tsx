@@ -244,7 +244,12 @@ export function SessionHero({ hero, heat, next, units, readOnly = false }: Sessi
                 </Link>
               </p>
               {readOnly || !isRunLike(linkedRun) ? null : (
-                <RunRating key={linkedRun.id} run={linkedRun} units={units} />
+                <RunRating
+                  key={linkedRun.id}
+                  run={linkedRun}
+                  units={units}
+                  heatDays={heat.heatDays}
+                />
               )}
             </>
           )}

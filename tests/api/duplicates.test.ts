@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'vitest'
-import { markDuplicates } from '../../server/services/duplicates.ts'
+import { markDuplicates, moveConfirmedLogs } from '../../server/services/duplicates.ts'
 import { createTestCtx, seedUser, type TestCtx, type TestUser } from './helpers.ts'
 
 let ctx: TestCtx
@@ -162,6 +162,27 @@ describe('markDuplicates across sources', () => {
     const strava = await seed('strava', { startUtc: at(20), date: '2026-03-03' })
     expect(await markDuplicates(ctx.prisma, user.id, [strava.id])).toBe(1)
     expect((await reload(strava.id)).duplicateOfId).toBe(file.id)
+  })
+})
+
+describe('a confirmed duplicate hands its heat mark to the original (rule I8)', () => {
+  test('the mark of the copy moves when the original has none, and never replaces one', async () => {
+    const file = await seed('file', { startUtc: T0 })
+    const strava = await seed('strava', { startUtc: at(30), distanceM: 5040 })
+    await ctx.prisma.activity.update({
+      where: { id: strava.id },
+      data: { heatExposure: 'passive' },
+    })
+    await markDuplicates(ctx.prisma, user.id, [strava.id])
+    await moveConfirmedLogs(ctx.prisma, user.id, file.id)
+    expect((await reload(file.id)).heatExposure).toBe('passive')
+    // a second pass changes nothing, and an own mark of the original stays
+    await ctx.prisma.activity.update({
+      where: { id: file.id },
+      data: { heatExposure: 'warm-room' },
+    })
+    await moveConfirmedLogs(ctx.prisma, user.id, file.id)
+    expect((await reload(file.id)).heatExposure).toBe('warm-room')
   })
 })
 

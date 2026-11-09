@@ -18,6 +18,7 @@ import type {
   ActivityTrackView,
   ActivityType,
   Feel,
+  HeatExposure,
   RouteGlyph,
 } from '../../shared/types.ts'
 import { ApiError, api, keys, qs } from './client.ts'
@@ -50,11 +51,13 @@ export interface ActivityInput {
   pain?: number | null
 }
 
-/** Partial update of the three feedback fields; `null` clears one. */
+/** Partial update of the feedback fields; `null` clears one. */
 export interface FeedbackPatch {
   rpe?: number | null
   feel?: Feel | null
   pain?: number | null
+  /** The runner's mark of a heat exposure besides the weather (rule I8). */
+  heatExposure?: HeatExposure | null
 }
 
 export interface ActivityParams {

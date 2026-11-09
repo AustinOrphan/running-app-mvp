@@ -46,6 +46,7 @@ export function makeActivity(over: Partial<Activity> = {}): Activity {
     gapDistanceM: null,
     feel: null,
     pain: null,
+    heatExposure: null,
     createdAt: '2026-03-02T12:00:00.000Z',
     updatedAt: '2026-03-02T12:00:00.000Z',
     ...over,

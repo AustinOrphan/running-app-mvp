@@ -90,6 +90,7 @@ model Activity {
   gapDistanceM    Int?
   feel            Int? // -2 much easier .. +2 much harder than expected
   pain            Int? // 0-10
+  heatExposure    String? // null | 'warm-room' | 'passive': the runner's mark of a heat exposure besides the outdoor weather (rule I8)
   importBatchId   String?
   duplicateOfId   String?
   duplicateStatus String   @default("none") // 'none' | 'possible' | 'confirmed' | 'dismissed'

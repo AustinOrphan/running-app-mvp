@@ -36,6 +36,7 @@ import {
 } from '../api/activities.ts'
 import { ApiError, keys } from '../api/client.ts'
 import { usePlan } from '../api/plan.ts'
+import { useToday } from '../api/today.ts'
 import { useSettings } from '../api/settings.ts'
 import { useZones } from '../api/zones.ts'
 import { Button } from '../components/Button.tsx'
@@ -43,7 +44,7 @@ import { ConfirmSheet } from '../components/ConfirmSheet.tsx'
 import { TrashGlyph } from '../components/Glyphs.tsx'
 import { StreamChart } from '../components/charts/lazyCharts.tsx'
 import { buildSeries, type StreamChannel } from '../components/charts/streamSeries.ts'
-import { FeedbackFields, type FeedbackValues } from '../components/FeelPicker.tsx'
+import { FeedbackFields, showHeatMark, type FeedbackValues } from '../components/FeelPicker.tsx'
 import { ErrorState } from '../components/ErrorState.tsx'
 import { useLoadView } from '../components/loadView.ts'
 import { Figure } from '../components/Figure.tsx'
@@ -572,8 +573,10 @@ function HeartRate({ activity }: { activity: Activity }) {
   )
 }
 
-function Feedback({ activity }: { activity: Activity }) {
+function Feedback({ activity, units }: { activity: Activity; units: Units }) {
   const save = useSaveFeedback(activity.id)
+  // Whether Today says what counts as a heat day: the Heat mark is offered only then.
+  const today = useToday()
   const toast = useToast()
   // The assessment of the planned session this activity fulfils, from the plan that other pages
   // share. While the plan loads, or when no session is assessed, the section has no note.
@@ -584,6 +587,7 @@ function Feedback({ activity }: { activity: Activity }) {
     rpe: activity.rpe,
     feel: activity.feel,
     pain: activity.pain,
+    heatExposure: activity.heatExposure,
   })
 
   return (
@@ -593,7 +597,12 @@ function Feedback({ activity }: { activity: Activity }) {
           {unratedEffortNote(execution.effort.score, execution.completion)}
         </p>
       ) : null}
-      <FeedbackFields value={value} onChange={setValue} />
+      <FeedbackFields
+        value={value}
+        onChange={setValue}
+        showHeat={showHeatMark(activity, today.data?.heat.heatDays ?? false)}
+        units={units}
+      />
       <div className={styles.actions}>
         <Button
           variant="primary"
@@ -603,7 +612,13 @@ function Feedback({ activity }: { activity: Activity }) {
             // this component before a per-call callback of `mutate` would run; the promise does not.
             save.mutateAsync(value).then(
               () => {
-                toast.show('Feedback saved')
+                toast.show(
+                  value.rpe === activity.rpe &&
+                    value.feel === activity.feel &&
+                    value.pain === activity.pain
+                    ? 'Heat saved'
+                    : 'Feedback saved',
+                )
               },
               () => {
                 // The failure is shown in the section's alert.
@@ -749,8 +764,9 @@ export function ActivityDetailPage() {
       <AgainstThePlan activity={activity} units={units} />
       {/* Keyed on the stored values, so the pickers start again from them when they change. */}
       <Feedback
-        key={`${activity.id}:${String(activity.rpe)}:${String(activity.feel)}:${String(activity.pain)}`}
+        key={`${activity.id}:${String(activity.rpe)}:${String(activity.feel)}:${String(activity.pain)}:${String(activity.heatExposure)}`}
         activity={activity}
+        units={units}
       />
       <FuelSection activity={activity} />
       {laps !== null && laps.length > 0 ? (

@@ -500,7 +500,29 @@ export const aState = {
       ['racinais-2015-heat-consensus'],
       {
         unit: 'min',
-        note: 'Default: a hot run shorter than this does not count as a heat exposure day.',
+        note: 'Default: a hot run shorter than this does not count as a heat exposure day. A run the runner marks as in a warm room (25 C or more indoors) needs the same minutes.',
+      },
+    ),
+    passiveMinRunMin: param(
+      'acclim.passiveMinRunMin',
+      30,
+      'D',
+      'I8',
+      ['zurawlew-2016-hot-water-immersion', 'heathcote-2018-passive-heating-review'],
+      {
+        unit: 'min',
+        note: 'Default: a hot bath or sauna counts as a heat day only after a run of at least this long. The hot-water trial used a 40 min run and the review asks 30 min or more of heat; no study tests a shorter run, so the 30 is a default.',
+      },
+    ),
+    passiveEasyMaxRpe: param(
+      'acclim.passiveEasyMaxRpe',
+      4,
+      'D',
+      'I8',
+      ['zurawlew-2016-hot-water-immersion', 'scoon-2007-post-exercise-sauna'],
+      {
+        unit: 'CR-10',
+        note: 'Default: a hot bath or sauna counts only after an easy run, an RPE of this or lower (the top of the long-run band, expectedRpe.long). The trials ran moderate sessions in young trained men; the cut-off is a default. A run with no RPE is taken as the runner marked it.',
       },
     ),
   },

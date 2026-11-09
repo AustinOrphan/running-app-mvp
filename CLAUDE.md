@@ -172,6 +172,13 @@ its build runs `prisma migrate deploy` as a smoke test.
   hold that starts applies at once: the resolver cannot draw a shape it reads as the default (ADR 0017,
   addendum). The change of the preset in place is `PUT /api/plan/method` (`commitMethod`, reason
   `method-change`).
+- Heat days (rule I8, HT1): `isHeatExposure` (`shared/engine/heat.ts`) is the one predicate for what
+  counts toward the heat block: a run at `acclim.exposureTempC`, a run marked `warm-room`
+  (`Activity.heatExposure`, a run indoors at that temperature), or a `passive` hot bath or sauna after
+  an easy run (rated RPE 4 or less, or filling a planned easy or recovery session). Extra clothing in
+  mild weather is not counted (stevens-2018). The mark is set only through the rating write; a day counts once. `suggestsHeatDays`
+  (the same file) is the one test for Today's `heat.heatDays` and the Explain facts: an option with
+  safety lines (`shared/copy/heatDays.ts`), never a target or a count of missing days.
 - My paces (ADR 0020, rule C9) is derived on read and stored nowhere: `myPaces` and `eventRow`
   (`shared/engine/myPaces.ts`) over the snapshot and `hrModelOf`, the memo `paces.view` behind
   `GET /api/paces`, and the zones shown through `ZoneSummary`, the one rendering the Profile shares. A

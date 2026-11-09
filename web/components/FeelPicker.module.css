@@ -85,3 +85,15 @@
   font-size: var(--text-sm);
   line-height: var(--lh-sm);
 }
+
+/* Three chips that wrap: the words are long ("Ran in a warm room (25 °C or more)"). */
+.heatChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.heatChips .chip {
+  flex: 1 1 auto;
+  padding: var(--space-2);
+}

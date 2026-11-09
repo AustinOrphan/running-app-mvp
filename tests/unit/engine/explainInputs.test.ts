@@ -3749,6 +3749,83 @@ describe('heat: D6, I2, I3, I8 and H13', () => {
       state: 'insufficient',
     })
   })
+
+  test('I8 says what counts as a heat day, with the safety lines, only when Today does', () => {
+    const base = ctxOf('half')
+    const warm = (over: Partial<NonNullable<ExplainContext['race']>>): ExplainContext => ({
+      ...base,
+      race: { ...base.race!, raceWbgtC: 24, date: addDays(TODAY, 9), ...over },
+    })
+    const facts = factsOf('I8', warm({}))
+    expect(facts.map((f) => f.template)).toEqual([
+      'explain.i8-gap',
+      'explain.i8-counts',
+      'explain.i8-dose',
+      'explain.i8-safety',
+      'explain.i8-safety-more',
+      'explain.i8-safety-ask',
+    ])
+    expect(text(facts[1]!)).toBe(
+      'Heat days count from runs at 25 °C or more, outdoors or in a warm room, or a hot bath or sauna after an easy run.',
+    )
+    // an option and not a target: no count of days, none missing, in any of the lines
+    for (const fact of facts.slice(1)) expect(text(fact)).not.toMatch(/\d+ (days?|more)|missing/)
+    // the same conditions as Today: a cool race, the race past, or the block done say nothing
+    for (const quiet of [
+      warm({ raceWbgtC: 12 }),
+      warm({ raceWbgtC: null }),
+      warm({ date: addDays(TODAY, -2) }),
+      warm({ date: addDays(TODAY, 120) }),
+    ]) {
+      expect(factsOf('I8', quiet).map((f) => f.template)).toEqual(['explain.i8-gap'])
+    }
+    // an open disruption window, or a red flag, says nothing
+    const ill = warm({})
+    expect(
+      factsOf('I8', {
+        ...ill,
+        input: {
+          ...ill.input,
+          disruptions: [
+            {
+              id: 'w1',
+              reason: 'illness-below-neck',
+              mode: 'rest',
+              startDate: addDays(TODAY, -1),
+              endDate: addDays(TODAY, 2),
+              maxRunMin: null,
+              pain: null,
+              gaitChange: false,
+            },
+          ],
+        },
+      }).map((f) => f.template),
+    ).toEqual(['explain.i8-gap'])
+    // H13 reads the same credit and does not add the lines
+    expect(factsOf('H13', warm({})).map((f) => f.template)).toEqual(['explain.i8-gap'])
+    const marked = Array.from({ length: P.i8.blockDays.value }, (_, i) =>
+      activity(addDays(TODAY, -i), {
+        id: `bath-${String(i)}`,
+        tempC: 12,
+        durationSec: 40 * 60,
+        rpe: 3,
+        heatExposure: 'passive',
+      }),
+    )
+    const done = contextOf({
+      ...matrix('half').input,
+      activities: [...matrix('half').input.activities, ...marked],
+    })
+    const sources = factsOf('I8', {
+      ...done,
+      // a race three days out: the window opened at least ten days ago
+      race: { ...done.race!, raceWbgtC: 24, date: addDays(TODAY, 3) },
+    })
+    expect(sources[0]!.id).toBe('i8.credit')
+    // the baths are the heat days behind the credit, and ten of them end the suggestion
+    expect(sources[0]!.sources.length).toBeGreaterThan(0)
+    expect(sources.map((f) => f.template)).not.toContain('explain.i8-counts')
+  })
 })
 
 describe('zero minutes are not a number to state', () => {
@@ -4035,8 +4112,9 @@ describe('subjects', () => {
     expect(explainNeeds(['D1', 'k1'])).toMatchObject({ race: true, prediction: false })
     expect(explainNeeds(['n-7'])).toMatchObject({ race: true, prediction: true })
     expect(explainNeeds(['H4', 'I3', 'H12', 'D6'])).toMatchObject({ race: true })
-    // the heat adaptation reads the runs, not the goal
-    expect(explainNeeds(['I8', 'H13'])).toMatchObject({ race: false })
+    // the heat adaptation reads the runs, not the goal; I8 also reads the race for what counts
+    expect(explainNeeds(['H13'])).toMatchObject({ race: false })
+    expect(explainNeeds(['I8'])).toMatchObject({ race: true })
   })
 })
 

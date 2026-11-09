@@ -103,7 +103,7 @@ export const OUTBOX_ROUTES: readonly OutboxRoute[] = [
     expires: false,
   },
   {
-    // `PUT /api/activities/:id/feedback` stores the rating keys it names (effort, feel, pain) and
+    // `PUT /api/activities/:id/feedback` stores the rating keys it names (effort, feel, pain, heat exposure) and
     // leaves the others, so a second write merges into the first and a replay changes nothing.
     label: 'rating',
     matches: (url) => /^\/api\/activities\/[\w-]{1,64}\/feedback$/.test(url),

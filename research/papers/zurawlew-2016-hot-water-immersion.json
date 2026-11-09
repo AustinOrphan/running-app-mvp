@@ -1,0 +1,35 @@
+{
+  "id": "zurawlew-2016-hot-water-immersion",
+  "title": "Post-exercise hot water immersion induces heat acclimation and improves endurance exercise performance in the heat",
+  "authors": "Zurawlew MJ, Walsh NP, Fortes MB, Potter C",
+  "year": 2016,
+  "journal": "Scandinavian Journal of Medicine & Science in Sports",
+  "doi": "10.1111/sms.12638",
+  "pmid": "26661992",
+  "url": "https://doi.org/10.1111/sms.12638",
+  "design": "randomised-controlled-trial",
+  "population": "17 non-heat-acclimatised healthy men (10 in hot water, 7 in thermoneutral water)",
+  "sampleSize": 17,
+  "evidenceLevel": "B",
+  "topics": ["heat-weather"],
+  "findings": [
+    "Six consecutive days of a 40 min treadmill run at 65% VO2max in temperate conditions (18 C), each followed at once by 40 min of immersion in 40 C water, produced heat acclimation: resting rectal temperature fell 0.27 C and final rectal temperature during submaximal exercise fell 0.28 C at 18 C and 0.36 C at 33 C.",
+    "Skin temperature, rectal temperature at sweating onset and RPE were lower in 18 C and 33 C after the six days; physiological strain and thermal sensation were lower at 33 C.",
+    "A 5 km treadmill time trial in 33 C improved 4.9% after the hot water days and did not change at 18 C; the control group (34 C water, thermoneutral) showed no change in thermoregulatory measures or performance.",
+    "The authors call hot water immersion after exercise a simple, practical and effective heat acclimation strategy."
+  ],
+  "limitations": "Seventeen young men in a laboratory, with a small control group; one six-day protocol, so the effect of fewer days, cooler water or a shorter soak is not tested; the run was 40 min at 65% VO2max, not an easy run for a recreational runner; the performance test was a 5 km treadmill time trial, not a long race; women, older runners and people with health conditions were not studied. Abstract read on Europe PMC; the full text was not read.",
+  "implications": [
+    "Supports counting a day on which a hot bath follows a run of about 40 min as a heat day, as an option and not as a requirement: the dose studied was 40 min at about 40 C on six consecutive days straight after the run.",
+    "Gives a dose to state in plain words (soak straight after the run, around 40 min at about 40 C), not a target; no study here tests a shorter soak, a cooler bath or a run shorter than 40 min.",
+    "Passive heating after a run adds heat stress; the safety lines (drink, start shorter, not alone at first, get out if dizzy or unwell) come from Heathcote 2018, not from this abstract."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Added 2026-11-09 for task HT1 (rule I8). Crossref: Scand J Med Sci Sports 26:745-754, four authors, first deposited online 2015-12-09 (the stored year 2016 is the volume year; the id and `year` follow the issue, and research:verify allows one year of difference). No updated-by notice. Abstract and publication type (randomised controlled trial) read on Europe PMC (PMID 26661992). Numbers are the abstract's.",
+    "checkedAt": "2026-11-09"
+  }
+}

@@ -1864,6 +1864,39 @@ function verifyHrQuality(db: DatabaseSync, before: Snapshot): void {
   ])
 }
 
+function verifyActivityHeatExposure(db: DatabaseSync, before: Snapshot): void {
+  // Rows, including the sessions linked to activities, are all kept.
+  expectNothingLost(before, db)
+  expectConsistent(db)
+
+  // Every activity of the previous release reads null: no run was marked, and the weather still counts.
+  expect(rowsOf(db, 'SELECT id, "heatExposure" FROM "Activity" ORDER BY id')).toEqual([
+    { id: 'a1', heatExposure: null },
+    { id: 'a2', heatExposure: null },
+    { id: 'a3', heatExposure: null },
+    { id: 'a4', heatExposure: null },
+  ])
+  expect(
+    rowsOf(db, `SELECT "hrHistogram", "gapDistanceM" FROM "Activity" WHERE id = 'a1'`),
+  ).toEqual([{ hrHistogram: '{"start":40,"width":1,"sec":[1,2,3]}', gapDistanceM: 8100 }])
+  // The column takes the runner's mark as text, and a new activity without it reads null.
+  db.prepare(`UPDATE "Activity" SET "heatExposure" = ? WHERE id = 'a1'`).run('passive')
+  expect(rowsOf(db, `SELECT "heatExposure" FROM "Activity" WHERE id = 'a1'`)).toEqual([
+    { heatExposure: 'passive' },
+  ])
+  insert(db, 'Activity', {
+    id: 'a5',
+    userId: 'u1',
+    date: '2026-10-07',
+    type: 'run',
+    durationSec: 1800,
+    updatedAt: STAMP,
+  })
+  expect(rowsOf(db, `SELECT "heatExposure" FROM "Activity" WHERE id = 'a5'`)).toEqual([
+    { heatExposure: null },
+  ])
+}
+
 function seedReviewRelease(db: DatabaseSync): void {
   insert(db, 'User', {
     id: 'u1',
@@ -2118,6 +2151,11 @@ const CASES: FixtureCase[] = [
     migration: 'trail_road',
     seed: seedTerrainRelease,
     verify: verifyTrailRoad,
+  },
+  {
+    migration: 'activity_heat_exposure',
+    seed: seedTerrainRelease,
+    verify: verifyActivityHeatExposure,
   },
 ]
 
