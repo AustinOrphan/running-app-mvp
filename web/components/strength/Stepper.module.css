@@ -34,7 +34,10 @@
 
 .button[aria-disabled='true'] {
   cursor: default;
-  opacity: 0.5;
+  /* A limit reached: a flat sunken fill and muted words, not a fade (visual design 11). */
+  background: var(--surface-sunken);
+  border-style: dashed;
+  color: var(--text-muted);
 }
 
 .button:focus-visible,
@@ -64,7 +67,7 @@
 }
 
 .field[aria-invalid='true'] {
-  outline: 2px solid var(--danger);
+  outline: 2px solid var(--warning);
   outline-offset: -2px;
 }
 

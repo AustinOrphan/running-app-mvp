@@ -3661,7 +3661,7 @@ describe('the Strength page: the recent sessions (design 11.3)', () => {
     await page('Recent sessions')
     const user = userEvent.setup()
     await user.click(screen.getByRole('button', { name: 'Delete the session of Thu 12 Mar' }))
-    const ask = screen.getByRole('group', { name: 'Delete the session of Thu 12 Mar' })
+    const ask = screen.getByRole('dialog', { name: 'Delete the session of Thu 12 Mar' })
     expect(
       within(ask).getByText('Delete the sets of this session? The activity stays.'),
     ).toBeVisible()

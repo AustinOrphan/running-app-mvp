@@ -6,6 +6,7 @@ import {
   type SelectHTMLAttributes,
   type TextareaHTMLAttributes,
 } from 'react'
+import { AlertGlyph } from './Glyphs.tsx'
 import styles from './Field.module.css'
 
 export interface FieldControlProps {
@@ -39,7 +40,8 @@ export function Field({ label, hint, error, children }: FieldProps) {
       {children(control)}
       {message !== undefined && message !== '' ? (
         <p id={messageId} className={hasError ? styles.error : styles.hint}>
-          {message}
+          {hasError ? <AlertGlyph /> : null}
+          {hasError ? <span>{message}</span> : message}
         </p>
       ) : null}
     </div>

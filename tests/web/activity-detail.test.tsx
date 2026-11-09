@@ -873,6 +873,61 @@ describe('ActivityDetailPage', () => {
     expect(api.calls.some((c) => c.method === 'DELETE')).toBe(true)
   })
 
+  test('the Delete question is a sheet named for it, with a trash glyph on a secondary button', async () => {
+    const user = userEvent.setup()
+    renderDetail()
+    const trigger = await screen.findByRole('button', { name: 'Delete' })
+    expect(trigger.querySelector('svg[aria-hidden="true"]')).not.toBeNull()
+    await user.click(trigger)
+    const ask = await screen.findByRole('dialog', { name: 'Delete this activity?' })
+    expect(within(ask).getByRole('button', { name: 'Delete activity' })).toBeInTheDocument()
+    expect(within(ask).getByRole('button', { name: 'Keep' })).toHaveFocus()
+  })
+
+  test('Escape closes the Delete sheet, sends nothing and returns focus to Delete', async () => {
+    const user = userEvent.setup()
+    const api = renderDetail({ routes: { 'DELETE /api/activities/a1': () => undefined } })
+    const trigger = await screen.findByRole('button', { name: 'Delete' })
+    await user.click(trigger)
+    await screen.findByRole('dialog', { name: 'Delete this activity?' })
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('dialog', { name: 'Delete this activity?' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Delete' })).toHaveFocus()
+    expect(api.calls.some((c) => c.method === 'DELETE')).toBe(false)
+  })
+
+  test('Keep closes the Delete sheet and returns focus to Delete', async () => {
+    const user = userEvent.setup()
+    const api = renderDetail({ routes: { 'DELETE /api/activities/a1': () => undefined } })
+    await user.click(await screen.findByRole('button', { name: 'Delete' }))
+    await user.click(await screen.findByRole('button', { name: 'Keep' }))
+    expect(screen.queryByRole('dialog', { name: 'Delete this activity?' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Delete' })).toHaveFocus()
+    expect(api.calls.some((c) => c.method === 'DELETE')).toBe(false)
+  })
+
+  test('a refused delete says so in the sheet, which stays open', async () => {
+    const user = userEvent.setup()
+    renderDetail({
+      routes: {
+        'DELETE /api/activities/a1': () => ({
+          status: 500,
+          body: { error: { code: 'internal', message: 'The server did not respond.' } },
+        }),
+      },
+    })
+    await user.click(await screen.findByRole('button', { name: 'Delete' }))
+    const ask = await screen.findByRole('dialog', { name: 'Delete this activity?' })
+    await user.click(within(ask).getByRole('button', { name: 'Delete activity' }))
+    expect(await within(ask).findByRole('alert')).toHaveTextContent(
+      'Activity not deleted. The server did not respond. Try again.',
+    )
+    expect(within(ask).getByRole('button', { name: 'Delete activity' })).toBeEnabled()
+    // focus stays on a control inside the dialog, not on the page
+    expect(ask).toContainElement(document.activeElement as HTMLElement)
+    expect(document.activeElement).not.toBe(document.body)
+  })
+
   test('an unknown activity says so and links back', async () => {
     mockApi({
       'GET /api/settings': () => ({ email: 'runner@example.com', displayName: null, units: 'mi' }),

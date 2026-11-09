@@ -36,6 +36,8 @@ import { usePlan } from '../api/plan.ts'
 import { useSettings } from '../api/settings.ts'
 import { useZones } from '../api/zones.ts'
 import { Button } from '../components/Button.tsx'
+import { ConfirmSheet } from '../components/ConfirmSheet.tsx'
+import { TrashGlyph } from '../components/Glyphs.tsx'
 import { StreamChart } from '../components/charts/lazyCharts.tsx'
 import { buildSeries, type StreamChannel } from '../components/charts/streamSeries.ts'
 import { FeedbackFields, type FeedbackValues } from '../components/FeelPicker.tsx'
@@ -615,44 +617,33 @@ function DeleteActivity({ activity }: { activity: Activity }) {
 
   return (
     <div className={styles.danger}>
-      {confirming ? (
-        <>
-          <p>Delete this activity?</p>
-          <div className={styles.actions}>
-            <Button
-              variant="danger"
-              loading={remove.isPending}
-              onClick={() => {
-                void run()
-              }}
-            >
-              Delete activity
-            </Button>
-            <Button
-              variant="quiet"
-              onClick={() => {
-                setConfirming(false)
-              }}
-            >
-              Keep
-            </Button>
-          </div>
-          {remove.isError ? (
-            <p role="alert" className={styles.error}>
-              {`Activity not deleted. ${remove.error instanceof ApiError ? remove.error.message : 'Something went wrong.'} Try again.`}
-            </p>
-          ) : null}
-        </>
-      ) : (
-        <Button
-          variant="danger"
-          onClick={() => {
-            setConfirming(true)
-          }}
-        >
-          Delete
-        </Button>
-      )}
+      <Button
+        variant="secondary"
+        onClick={() => {
+          remove.reset()
+          setConfirming(true)
+        }}
+      >
+        <TrashGlyph />
+        Delete
+      </Button>
+      <ConfirmSheet
+        open={confirming}
+        title="Delete this activity?"
+        confirmLabel="Delete activity"
+        pending={remove.isPending}
+        error={
+          remove.isError
+            ? `Activity not deleted. ${remove.error instanceof ApiError ? remove.error.message : 'Something went wrong.'} Try again.`
+            : null
+        }
+        onConfirm={() => {
+          void run()
+        }}
+        onClose={() => {
+          setConfirming(false)
+        }}
+      />
     </div>
   )
 }

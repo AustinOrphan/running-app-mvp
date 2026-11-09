@@ -46,8 +46,31 @@ test('logging a run from the Activities page shows it in the list and on the das
   await expect(edit.getByLabel('Duration')).toHaveValue('45:00')
   await edit.getByRole('button', { name: 'Close' }).click()
   await expect(edit).toBeHidden()
-  await page.getByRole('button', { name: 'Delete', exact: true }).click()
-  await page.getByRole('button', { name: 'Delete activity' }).click()
+  const deleteButton = page.getByRole('button', { name: 'Delete', exact: true })
+  await deleteButton.click()
+  // The question is a sheet: Escape keeps the activity and gives focus back to Delete.
+  const ask = page.getByRole('dialog', { name: 'Delete this activity?' })
+  await expect(ask).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(ask).toBeHidden()
+  await expect(deleteButton).toBeFocused()
+  // The confirming button is a secondary one, not red.
+  await deleteButton.click()
+  const confirm = ask.getByRole('button', { name: 'Delete activity' })
+  await expect(confirm.locator('svg[aria-hidden="true"]')).toHaveCount(1)
+  const { danger, colour, border } = await confirm.evaluate((node) => {
+    // resolve the --danger token the way the old variant did, then compare what the button draws
+    const probe = document.createElement('span')
+    probe.style.color = 'var(--danger)'
+    document.body.append(probe)
+    const resolved = getComputedStyle(probe).color
+    probe.remove()
+    const style = getComputedStyle(node)
+    return { danger: resolved, colour: style.color, border: style.borderTopColor }
+  })
+  expect(colour).not.toBe(danger)
+  expect(border).not.toBe(danger)
+  await confirm.click()
   await expect(toast(page, 'Activity deleted')).toBeVisible()
   await expect(page.getByText('No activities yet.')).toBeVisible()
 })

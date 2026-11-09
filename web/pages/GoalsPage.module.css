@@ -57,8 +57,7 @@
   overflow-wrap: anywhere;
 }
 
-.actions,
-.confirm {
+.actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -76,11 +75,6 @@
 
 .restore .note {
   margin: 0;
-}
-
-.confirmText {
-  margin: 0 var(--space-2) 0 0;
-  font-weight: 600;
 }
 
 .error {
