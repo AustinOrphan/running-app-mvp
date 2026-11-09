@@ -27,10 +27,22 @@ Open <http://localhost:5173>.
 
 A fresh database sends every visitor to the setup page. Enter an email, an optional display name
 and a password of at least 12 characters (72 bytes at most). That creates the one account for the
-install; the setup page closes afterwards. A second account needs `ALLOW_REGISTRATION=true`.
+install; the setup page closes afterwards. Later accounts are added by the person who runs the
+server (see "Accounts for other people" below), and `ALLOW_REGISTRATION=true` is not needed for
+that; it opens the setup page to anyone who can reach the server, so leave it `false`.
 
-Sign-in sets an httpOnly cookie that lasts 30 days. Sign-in is limited to 10 attempts per address
-per 15 minutes (successful ones count too); the limit is held in memory and resets on restart.
+Sign-in sets an httpOnly cookie that lasts 30 days. Only failed attempts count: an account is
+limited to 10 failed sign-ins per 15 minutes (the email is compared in lower case) and an address to
+100, and a successful sign-in clears that account's failures. Setup shares both budgets. Behind a
+proxy the address budget is one budget for all runners, a backstop against one client trying many
+accounts, so it is set far above what mistyping runners reach. The API is
+limited to 1,000 requests per 15 minutes per signed-in user, and to 10,000 per address (the
+address budget also covers requests with no session, such as the calendar feed and phone pushes).
+A password change counts refusals only, 5 per 15 minutes per signed-in user (the wrong current
+password, a weak new one). The calendar feed counts refusals only: 10 per token and 100 per address. The limits are held in
+memory and reset on restart. The app does not trust `X-Forwarded-For`, so behind a reverse proxy
+every request has the proxy's address; users there are told apart by account, user and token, and
+only the address budgets are shared.
 
 ## Commands
 
@@ -46,6 +58,7 @@ per 15 minutes (successful ones count too); the limit is held in memory and rese
 | `npm run backup`                    | copy the database to `backups/` and check the copy       |
 | `npm run restore -- <file>`         | replace the database with a backup (server stopped)      |
 | `npm run reset-password -- <email>` | set a new password from the command line                 |
+| `npm run create-user -- <email>`    | add an account with a temporary password (see Accounts)  |
 | `npm run icons`                     | render the PNG app icons in `web/public` from `icon.svg` |
 
 The e2e suite needs a build first and a Chromium install once: `npx playwright install chromium`.
@@ -584,6 +597,36 @@ there is no `pre-migrate` copy to restore (nothing existed to copy), so revertin
 `--rolled-back`, or finishing the statements by hand and `migrate resolve --applied <migration name>`,
 is the only way there.
 
+## Accounts for other people
+
+Each person has their own account, history and settings on the same server. The owner adds one
+from the command line:
+
+```sh
+npm run create-user -- friend@example.com "Friend" --units km --weight kg --tz Europe/London
+```
+
+In Docker, run the compiled script inside the container:
+
+```sh
+docker compose exec app node dist/scripts/create-user.js friend@example.com "Friend"
+```
+
+Only the email is required. The script prints a long random temporary password once, on standard
+output (the words around it go to standard error, so `... > file` captures the password alone);
+only its hash is stored, so a lost one is replaced with `reset-password`. Send it to the person
+by a private channel. The first sign-in asks for a new password before anything else; Settings has
+a Password block for later changes (current password, new password, confirmation). Changing the
+password signs the account's other devices out and keeps the one in use. Wrong current passwords are
+limited to 5 per 15 minutes (see the rate limits under First run). A second account with the same email is refused.
+
+`--units` (`km` or `mi`), `--weight` (`kg` or `lb`) and `--tz` (an IANA zone such as
+`America/Chicago`) set the account's own settings. Whatever is left out is taken from the browser
+on the first load after sign-in: the zone is saved if the account still has the UTC default, and
+a browser set to `en-US` gives miles and pounds, any other locale kilometres and kilograms. Both
+stay changeable in Settings and on the Profile page. Giving either of `--units` and `--weight`
+settles both (`km` with `kg`, `mi` with `lb`, unless the other is also given).
+
 ## Resetting the password
 
 ```sh
@@ -596,6 +639,9 @@ line from standard input):
 ```sh
 docker compose exec app node dist/scripts/reset-password.js you@example.com
 ```
+
+This is also how a tester's forgotten password is reset: the owner runs it for that email and tells
+the person the new password. A reset ends every session the account had open.
 
 ## Installing as an app
 

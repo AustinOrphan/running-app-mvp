@@ -161,6 +161,16 @@ its build runs `prisma migrate deploy` as a smoke test.
   gets its parser there, so an anonymous request is a 401 before any byte is read. Tests that send
   a large body to a route that answers early use a plain `http.request`, as `bodyParsers.test.ts`
   does (supertest sends `Connection: close` and reports `EPIPE`).
+- Rate limits (`server/auth/rateLimit.ts`; `trust proxy` stays unset, so behind a proxy every request
+  has the proxy's address and only the loose budgets are keyed by address): sign-in and setup count
+  failures only, 10 per lower-cased email (read from the already-parsed 16 KB body) then 100 per
+  address (behind a proxy one budget for all runners, a backstop only; the account limiter runs
+  first so its refusals never spend it), and a success resets the account; the API has `createAddressLimiter` (10x the user
+  budget) ahead of authentication and `createUserLimiter` (1000 per 15 minutes in production, keyed
+  on `req.userId`) right below `requireAuth`; the calendar feed counts refusals per token hash (10)
+  and per address (100); `PUT /api/auth/password` counts refusals per user id (5, `createPasswordChangeLimiter`,
+  below `requireAuth`). A new limiter keys on the narrowest identity it has at that point of the
+  request order.
 - Server errors are thrown as `HttpError` (`server/errors.ts`) and reach the client as
   `{ error: { code, message, details? } }`. Zod parses every body and query.
 - Server data hooks live in `web/api/<resource>.ts`; pages only consume them. Domain rules go in
@@ -220,6 +230,13 @@ its build runs `prisma migrate deploy` as a smoke test.
   19; the colour pairs are tested in `tests/unit/shared/tokensContrast.test.ts`). Each visual change lands as
   its own PR so it can be reverted alone.
 - npm only. Strict TypeScript. Prettier formats, ESLint 9 flat config lints.
+- Accounts (B1): the owner adds one with `npm run create-user` (`createUser`, `server/auth/createUser.ts`:
+  a generated temporary password printed once to stdout, `mustChangePassword` set, units and zone either
+  given or left to the browser through `unitsFromBrowser` and `zoneFromBrowser`, applied once by
+  `POST /api/settings/browser-defaults`). Sessions are signed cookies with no server-side record, so ending
+  every session is `User.sessionVersion`: the cookie carries it (none reads as 0), `requireAuth` refuses any other value, and
+  `PUT /api/auth/password` and `setPasswordByEmail` set it. `ALLOW_REGISTRATION` stays the only way to open
+  sign-up.
 - Env vars are exactly `DATABASE_URL`, `SESSION_SECRET`, `PORT`, `NODE_ENV`, `ALLOW_REGISTRATION`
   and `LOG_LEVEL` (plus `TZ` as an OS setting in Docker).
 - Migrations under `prisma/migrations` are committed; never ignore them.
@@ -348,8 +365,9 @@ its build runs `prisma migrate deploy` as a smoke test.
   `resetData()` derives its table list from `prisma/schema.prisma` (every model with a `userId`
   column except `User`, and the shared caches that have neither a `userId` nor a parent), so a new
   table needs no edit there.
-  `signedInApi()` signs in with a minted session cookie once the account exists, because the
-  sign-in route allows 10 attempts per window and the suite would exhaust it.
+  `signedInApi()` signs in with a minted session cookie once the account exists: it costs no bcrypt
+  compare and spends none of the sign-in failure budgets (10 per account, 100 per address; successes
+  do not count).
   Playwright blocks service workers (`serviceWorkers: 'block'` in the config, which makes
   `register` do nothing); only `17-offline.spec.ts` allows them, with
   `browser.newContext({ serviceWorkers: 'allow' })`. The worker's rules are tested by running

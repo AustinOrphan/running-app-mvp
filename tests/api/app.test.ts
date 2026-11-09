@@ -187,9 +187,9 @@ function remainingBudget(res: { headers: Record<string, unknown> }): number {
   return Number(match[1])
 }
 
-describe('global rate limit', () => {
+describe('API rate limits: per address ahead of authentication, per user below it', () => {
   test('static files and the SPA fallback leave the budget alone, API calls spend it', async () => {
-    const limited = await createTestCtx({}, { globalLimit: 20 })
+    const limited = await createTestCtx({}, { addressLimit: 20 })
     try {
       const first = remainingBudget(await client(limited).get('/api/health'))
       expect(first).toBe(19)
@@ -210,8 +210,8 @@ describe('global rate limit', () => {
     }
   })
 
-  test('the request after the limit gets 429 with the standard error body', async () => {
-    const limited = await createTestCtx({}, { globalLimit: 3 })
+  test('the request after the address limit gets 429 with the standard error body', async () => {
+    const limited = await createTestCtx({}, { addressLimit: 3 })
     try {
       for (let i = 0; i < 3; i++) {
         expect((await client(limited).get('/api/health')).status).toBe(200)
@@ -222,7 +222,7 @@ describe('global rate limit', () => {
         error: { code: 'internal', details: { retryAfterSec: 900 } },
       })
       expect(res.headers['retry-after']).toBeTruthy()
-      // Every API path shares the budget, including unknown ones.
+      // Every API path counts against the address, including unknown ones and anonymous 401s.
       expect((await client(limited).get('/api/no-such-route')).status).toBe(429)
       expect((await client(limited).post('/api/auth/logout')).status).toBe(429)
       // The SPA fallback and the static files sit outside it.
@@ -234,32 +234,79 @@ describe('global rate limit', () => {
     }
   })
 
-  test('in production the default allows 1000 requests per window and blocks the 1001st', async () => {
+  test('in production the default allows a user 1000 requests per window and blocks the 1001st', async () => {
     const fresh = await createTestCtx({ nodeEnv: 'production' })
     try {
-      const agent = client(fresh)
+      const runner = await seedUser(fresh)
+      const agent = client(fresh, runner)
       for (let i = 0; i < 1000; i++) {
-        const res = await agent.get('/api/health')
+        const res = await agent.get('/api/settings')
         if (res.status !== 200)
           throw new Error(`request ${String(i + 1)} got ${String(res.status)}`)
       }
-      expect((await agent.get('/api/health')).status).toBe(429)
+      expect((await agent.get('/api/settings')).status).toBe(429)
     } finally {
       await fresh.close()
     }
   }, 60_000)
 
-  test('outside production the default is 20000, so the e2e suite does not reach it', async () => {
-    // The Playwright server runs with NODE_ENV=development and spends about 950 requests today.
+  test('outside production the default is 20000 per user, so the e2e suite does not reach it', async () => {
+    // The Playwright server runs with NODE_ENV=development and spends about 1,450 requests today.
     for (const nodeEnv of ['development', 'test'] as const) {
       const fresh = await createTestCtx({ nodeEnv })
       try {
-        const res = await client(fresh).get('/api/health')
+        const runner = await seedUser(fresh)
+        const res = await client(fresh, runner).get('/api/settings')
         expect(res.headers['ratelimit-policy'], nodeEnv).toBe('20000;w=900')
         expect(remainingBudget(res), nodeEnv).toBe(19_999)
+        // An anonymous call counts against the address, which allows ten times as much.
+        const anonymous = await client(fresh).get('/api/health')
+        expect(anonymous.headers['ratelimit-policy'], nodeEnv).toBe('200000;w=900')
       } finally {
         await fresh.close()
       }
+    }
+  })
+
+  test('the user budget is per user: users behind one address do not share it', async () => {
+    const limited = await createTestCtx({}, { userLimit: 3 })
+    try {
+      const alice = await seedUser(limited, { email: 'alice@example.com' })
+      const bob = await seedUser(limited, { email: 'bob@example.com' })
+      // supertest connects every request from the same address.
+      for (let i = 0; i < 3; i++) {
+        expect((await client(limited, alice).get('/api/settings')).status).toBe(200)
+      }
+      const refused = await client(limited, alice).get('/api/settings')
+      expect(refused.status).toBe(429)
+      expect(refused.body).toMatchObject({ error: { code: 'internal' } })
+      expect((await client(limited, alice).get('/api/zones')).status).toBe(429)
+      for (let i = 0; i < 3; i++) {
+        expect((await client(limited, bob).get('/api/settings')).status).toBe(200)
+      }
+      expect((await client(limited, bob).get('/api/settings')).status).toBe(429)
+      // Anonymous routes sit ahead of it, and an anonymous 401 spends no user's budget.
+      expect((await client(limited).get('/api/health')).status).toBe(200)
+      expect((await client(limited).get('/api/settings')).status).toBe(401)
+    } finally {
+      await limited.close()
+    }
+  })
+
+  test('anonymous routes are still limited per address, signed-in users too', async () => {
+    const limited = await createTestCtx({}, { addressLimit: 4, userLimit: 100 })
+    try {
+      const runner = await seedUser(limited)
+      for (let i = 0; i < 2; i++) {
+        expect((await client(limited).get('/api/health')).status).toBe(200)
+        expect((await client(limited, runner).get('/api/settings')).status).toBe(200)
+      }
+      expect((await client(limited).get('/api/health')).status).toBe(429)
+      expect((await client(limited).get(`/api/calendar/${'A'.repeat(43)}/plan.ics`)).status).toBe(
+        429,
+      )
+    } finally {
+      await limited.close()
     }
   })
 })

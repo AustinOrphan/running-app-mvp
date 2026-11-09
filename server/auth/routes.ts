@@ -3,10 +3,14 @@ import { z } from 'zod'
 import { toWeightUnit } from '../serialize.ts'
 import type { SessionUser, Units } from '../../shared/types.ts'
 import type { Deps } from '../app.ts'
-import { conflict, parse, unauthorized } from '../errors.ts'
+import { conflict, parse, unauthorized, validationError } from '../errors.ts'
 import { requireAuth } from './middleware.ts'
 import { DUMMY_PASSWORD_HASH, hashPassword, passwordSchema, verifyPassword } from './password.ts'
-import { createLoginLimiter } from './rateLimit.ts'
+import {
+  createPasswordChangeLimiter,
+  createSignInAccountLimiter,
+  createSignInAddressLimiter,
+} from './rateLimit.ts'
 import { clearSessionCookie, setSessionCookie, signSession } from './session.ts'
 
 const email = z.string().trim().toLowerCase()
@@ -22,6 +26,11 @@ const loginSchema = z.object({
   password: z.string().min(1).max(1024),
 })
 
+const changePasswordSchema = z.strictObject({
+  currentPassword: z.string().min(1).max(1024),
+  newPassword: passwordSchema,
+})
+
 interface UserRow {
   id: string
   email: string
@@ -30,6 +39,10 @@ interface UserRow {
   weightUnit: string
   showBodyWeight: boolean
   hideMapEnds: boolean
+  mustChangePassword: boolean
+  unitsFromBrowser: boolean
+  zoneFromBrowser: boolean
+  sessionVersion: number
 }
 
 function toSessionUser(row: UserRow): SessionUser {
@@ -41,6 +54,9 @@ function toSessionUser(row: UserRow): SessionUser {
     weightUnit: toWeightUnit(row.weightUnit),
     showBodyWeight: row.showBodyWeight,
     hideMapEnds: row.hideMapEnds,
+    mustChangePassword: row.mustChangePassword,
+    unitsFromBrowser: row.unitsFromBrowser,
+    zoneFromBrowser: row.zoneFromBrowser,
   }
 }
 
@@ -56,14 +72,18 @@ function isUniqueViolation(error: unknown): boolean {
 export function authRouter(deps: Deps): Router {
   const router = Router()
   const { prisma, config } = deps
-  const loginLimiter = createLoginLimiter()
+  // Setup and sign-in share both budgets. The account limiter comes first, so a locked account's
+  // refusals never spend the address budget, which behind a proxy is one budget for every runner.
+  const addressLimiter = createSignInAddressLimiter()
+  const accountLimiter = createSignInAccountLimiter()
+  const passwordLimiter = createPasswordChangeLimiter()
 
   router.get('/setup', async (_req, res) => {
     const users = await prisma.user.count()
     res.json({ needsSetup: users === 0 })
   })
 
-  router.post('/setup', loginLimiter, async (req, res) => {
+  router.post('/setup', accountLimiter.limit, addressLimiter, async (req, res) => {
     if ((await prisma.user.count()) > 0 && !config.allowRegistration) {
       throw conflict('Setup is closed because an account already exists.')
     }
@@ -84,23 +104,65 @@ export function authRouter(deps: Deps): Router {
       if (isUniqueViolation(error)) throw conflict('An account with that email already exists.')
       throw error
     }
-    setSessionCookie(res, signSession(user.id, config.sessionSecret), isSecure(req))
+    setSessionCookie(
+      res,
+      signSession(user.id, config.sessionSecret, user.sessionVersion),
+      isSecure(req),
+    )
     res.status(201).json(toSessionUser(user))
   })
 
-  router.post('/auth/login', loginLimiter, async (req, res) => {
+  router.post('/auth/login', accountLimiter.limit, addressLimiter, async (req, res) => {
     const body = parse(loginSchema, req.body)
     const user = await prisma.user.findUnique({ where: { email: body.email } })
     // Always one compare, so an unknown email takes as long as a wrong password.
     const matches = await verifyPassword(body.password, user?.passwordHash ?? DUMMY_PASSWORD_HASH)
     if (!user || !matches) throw unauthorized('Invalid email or password')
-    setSessionCookie(res, signSession(user.id, config.sessionSecret), isSecure(req))
+    accountLimiter.reset(body.email)
+    setSessionCookie(
+      res,
+      signSession(user.id, config.sessionSecret, user.sessionVersion),
+      isSecure(req),
+    )
     res.json(toSessionUser(user))
   })
 
   router.post('/auth/logout', (_req, res) => {
     clearSessionCookie(res)
     res.status(204).end()
+  })
+
+  // Sessions are signed cookies with no server-side record, so "sign out the other devices" is a
+  // counter (`sessionVersion`): the cookies carry its value and `requireAuth` refuses any other.
+  // The cookie of this request is replaced by one with the new value, so this device stays in.
+  router.put('/auth/password', requireAuth(deps), passwordLimiter, async (req, res) => {
+    const body = parse(changePasswordSchema, req.body)
+    const user = await prisma.user.findUnique({ where: { id: req.userId } })
+    if (!user) throw unauthorized()
+    if (!(await verifyPassword(body.currentPassword, user.passwordHash))) {
+      throw validationError('The current password is not right.', [
+        { path: 'currentPassword', message: 'That is not the current password.' },
+      ])
+    }
+    if (body.newPassword === body.currentPassword) {
+      throw validationError('Choose a password you have not used here.', [
+        { path: 'newPassword', message: 'Choose a different password from the current one.' },
+      ])
+    }
+    const updated = await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordHash: await hashPassword(body.newPassword),
+        mustChangePassword: false,
+        sessionVersion: { increment: 1 },
+      },
+    })
+    setSessionCookie(
+      res,
+      signSession(updated.id, config.sessionSecret, updated.sessionVersion),
+      isSecure(req),
+    )
+    res.json(toSessionUser(updated))
   })
 
   router.get('/auth/me', requireAuth(deps), async (req, res) => {

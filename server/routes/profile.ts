@@ -2,20 +2,12 @@ import { Router } from 'express'
 import { z } from 'zod'
 import type { Deps } from '../app.ts'
 import { parse, validationError } from '../errors.ts'
+import { isValidTimezone } from '../../shared/domain/timezone.ts'
 import { loadProfile } from '../serialize.ts'
 import { warmWeatherCaches } from '../services/weatherCache.ts'
 import type { AthleteProfile, ValidationIssue, Weekday } from '../../shared/types.ts'
 
 const WEEKDAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const
-
-function validTimezone(name: string): boolean {
-  try {
-    new Intl.DateTimeFormat('en', { timeZone: name })
-    return true
-  } catch {
-    return false
-  }
-}
 
 const nullableInt = (min: number, max: number) => z.number().int().min(min).max(max).nullable()
 const nullableNumber = (min: number, max: number) => z.number().min(min).max(max).nullable()
@@ -73,7 +65,7 @@ function buildSchema(now: Date) {
       .optional(),
     timezone: z
       .string()
-      .refine(validTimezone, 'Use an IANA timezone such as Europe/London.')
+      .refine(isValidTimezone, 'Use an IANA timezone such as Europe/London.')
       .optional(),
     homeLat: nullableNumber(-90, 90).optional(),
     homeLng: nullableNumber(-180, 180).optional(),
@@ -149,6 +141,10 @@ export function profileRouter(deps: Deps): Router {
       create: { userId: req.userId, ...data },
       update: data,
     })
+    // A zone the runner wrote is theirs: the browser's zone no longer replaces it (create-user).
+    if (body.timezone !== undefined) {
+      await prisma.user.update({ where: { id: req.userId }, data: { zoneFromBrowser: false } })
+    }
     // A new home place, or a change in whether races without a place of their own use it, needs a
     // forecast and race climates the cache does not hold yet; they are fetched after the response.
     if (

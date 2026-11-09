@@ -1,5 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Navigate } from 'react-router-dom'
+import { render } from '../../shared/copy/template.ts'
+import { TEMPLATES } from '../../shared/copy/templates.ts'
 import { useSetup, useSetupStatus } from '../api/auth.ts'
 import { ApiError, fieldErrors } from '../api/client.ts'
 import { Button } from '../components/Button.tsx'
@@ -76,7 +78,7 @@ export function SetupPage() {
       <form className={styles.form} onSubmit={onSubmit} noValidate>
         <p className={styles.wordmark}>Running log</p>
         <h1>Set up your log</h1>
-        <p className={styles.intro}>Create the one account for this install.</p>
+        <p className={styles.intro}>{render(TEMPLATES['account.setup.intro'], {}, 'km')}</p>
         <Field label="Email" error={errors['email']}>
           {(control) => (
             <Input

@@ -2,12 +2,14 @@ import { useQueryClient } from '@tanstack/react-query'
 import { Suspense, useEffect, useLayoutEffect } from 'react'
 import { matchPath, Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import { useMe, useSetupStatus } from './api/auth.ts'
+import { useBrowserDefaults } from './api/browserDefaults.ts'
 import { dropUserQueries, keys, UNAUTHORIZED_EVENT } from './api/client.ts'
 import { ErrorState } from './components/ErrorState.tsx'
 import { applyCondensedFigures, useCondensedFigures } from './components/figureType.ts'
 import { Layout } from './components/Layout.tsx'
 import { useLoadView } from './components/loadView.ts'
 import { Skeleton } from './components/Skeleton.tsx'
+import { ChangePasswordPage } from './pages/ChangePasswordPage.tsx'
 import { useOutboxReplay } from './pwa/outbox.ts'
 import styles from './App.module.css'
 import { lazyPage, warmPages, type Page } from './lazyPage.tsx'
@@ -102,6 +104,8 @@ function AuthGate() {
   // Writes kept on this phone while offline go out whenever the app is open, once the queue has
   // been checked against the signed-in user; a 401 drops them.
   useOutboxReplay(me.data?.id ?? null)
+  // An account made by `create-user` without units or a zone takes them from this browser, once.
+  useBrowserDefaults(me.data)
   // One view for the two reads the gate waits on: it fails when either has failed without data.
   const view = useLoadView({
     data: setup.data !== undefined && me.data !== undefined ? true : undefined,
@@ -144,6 +148,8 @@ function AuthGate() {
   }
   if (setup.data.needsSetup) return <Navigate to="/setup" replace />
   if (me.data === null) return <Navigate to="/login" replace />
+  // A temporary password asks for its replacement before anything else is shown.
+  if (me.data.mustChangePassword) return <ChangePasswordPage />
   return <Outlet />
 }
 
