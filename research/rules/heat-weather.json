@@ -28,7 +28,7 @@
   },
   {
     "id": "heat-optimum-wbgt-band",
-    "statement": "Treat WBGT 7.5-15 C as the optimum band with no weather penalty; keep the edges tunable (Ely 2007 shows +0.8% already at 10-15 C relative to 5-10 C).",
+    "statement": "Treat WBGT 7.5-15 C as the optimum band with no weather penalty; keep the edges tunable (Ely 2007 means are 0.8 points higher at 10-15 C than at 5-10 C, a difference its abstract does not report as significant).",
     "parameter": "optimum_wbgt_band",
     "value": "7.5 to 15",
     "unit": "C WBGT",
@@ -46,7 +46,7 @@
     "appliesTo": "Elite or highly trained runners, marathon and shorter",
     "grade": "C",
     "confidence": "moderate",
-    "evidence": ["mantzios-2022-weather-endurance", "ely-2007-weather-marathon"]
+    "evidence": ["mantzios-2022-weather-endurance"]
   },
   {
     "id": "heat-marathon-reference-table",
@@ -114,7 +114,7 @@
   },
   {
     "id": "heat-acclimation-block",
-    "statement": "When forecast race WBGT is in a moderate-or-higher heat band (default trigger WBGT >= 18 C, tunable and not evidence-derived), schedule daily heat exposure for 7-14 days before the race; lengthen beyond 14 days if time allows. Five days is the minimum for HR and core-temperature adaptation. Flag plans without such a window.",
+    "statement": "When forecast race WBGT is in a moderate-or-higher heat band (default trigger WBGT >= 18 C, tunable and not evidence-derived), schedule daily heat exposure for 7-14 days before the race; lengthen beyond 14 days if time allows. Five days is the minimum for HR and core-temperature adaptation (Daanen 2018; Tyler 2016 sets no floor and finds protocols under 7 days can already change them). Flag plans without such a window.",
     "parameter": "acclimation_block_length",
     "value": "7-14 (minimum 5, extend >14)",
     "unit": "days of daily heat exposure",

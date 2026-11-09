@@ -39,7 +39,7 @@
     "metadataMatches": true,
     "abstractSource": "pubmed",
     "findingsSupported": true,
-    "notes": "Crossref and PubMed abstract re-fetched; quartile values match. The per-5 C slope is my arithmetic. Evidence level C kept; no sample count is stated.",
-    "checkedAt": "2026-10-22"
+    "notes": "Crossref and PubMed abstract re-fetched; quartile values match. The per-5 C slope is my arithmetic. Evidence level C kept; no sample count is stated. No legal full text found on 2026-11-09 (Europe PMC: no PMCID; the publisher page returned HTTP 403; only the PubMed abstract was read), so its claims rest on the abstract. The abstract gives Q2 2.5% against Q1 1.7% with no test of that pair, and no per-degree slope or optimum band.",
+    "checkedAt": "2026-11-09"
   }
 }
