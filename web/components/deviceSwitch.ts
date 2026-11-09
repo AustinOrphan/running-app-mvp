@@ -2,7 +2,7 @@ import { useCallback, useSyncExternalStore } from 'react'
 
 /**
  * A device setting that is a switch, kept in `localStorage` under `key` as `on` or `off` (the theme
- * and the Illustrations switch work the same way; nothing about it reaches the server). Nothing
+ * and the Condensed figures switch work the same way; nothing about it reaches the server). Nothing
  * stored reads as `defaultOn`; a blocked or unreadable store reads as `defaultOn` too, and a choice
  * made where storage cannot be written still holds for the life of the page.
  */

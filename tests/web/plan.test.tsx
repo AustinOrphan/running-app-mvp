@@ -17,11 +17,9 @@ import { makeWeekRow } from '../factories.ts'
 import { makeProfile } from './plan-fixtures.ts'
 import {
   delayResponses,
-  drawnArt,
   expectCleanCopy,
   mockApi,
   renderWithProviders,
-  showIllustrations,
   type MockRoutes,
 } from './helpers.tsx'
 import { wristRoutes } from './wrist-fixtures.ts'
@@ -158,14 +156,12 @@ afterEach(() => {
 
 describe('Plan page', () => {
   test('no plan: shows "No plan yet. Choose a goal race, then generate weekly targets." and the generate form; no goals shows an Add goal link instead', async () => {
-    showIllustrations()
     mockApi(routes(null))
     const first = renderWithProviders(<PlanPage />)
 
     expect(
       await screen.findByText('No plan yet. Choose a goal race, then generate weekly targets.'),
     ).toBeInTheDocument()
-    expect(drawnArt(first.container)).toEqual(['plan'])
     expect(screen.getByRole('heading', { name: 'Plan', level: 1 })).toBeInTheDocument()
     expect(screen.getByLabelText('Goal')).toHaveValue('g1')
     // the version-1 fields are gone; the engine options are offered instead

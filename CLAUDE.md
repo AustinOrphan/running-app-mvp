@@ -171,6 +171,9 @@ its build runs `prisma migrate deploy` as a smoke test.
   least `b2.qMinCleanShare` clean. Only the Trends panels read it, through `HrFitOptions.hilly` and
   `longRunReadings`; `fitHrModel`, My paces, the zones, A7 and C9 stay flat-only. A new check or threshold
   is a `b2.q` Param, a `HR_QUALITY_VERSION` bump when its meaning changes, and a Params version.
+- No hand-drawn illustrations (visual design, section 18; the Illustrations switch of #665 was retired 2026-11-09). A
+  picture is drawn from the runner's data (course silhouette and profile, route map, route glyphs) or not at
+  all; an empty state is type, with an optional `preview` (`EmptyPreview`, `EmptyAxis`). A test scans `web/`.
 - Targets are a sketch, not minimums: no red, no "behind" or "missed" copy, no streaks or badges.
 - UI changes follow the design rules in `docs/superpowers/specs/2026-10-21-visual-design.md` (sections 8 to
   19; the colour pairs are tested in `tests/unit/shared/tokensContrast.test.ts`). Each visual change lands as
@@ -258,7 +261,7 @@ its build runs `prisma migrate deploy` as a smoke test.
   the worker passes cross-origin requests through (`web/sw/sw.js`, tested in
   `tests/unit/shared/sw.test.ts`). The Map tiles switch is a
   device setting (`rl_map_tiles`, `useMapTiles`, on by default, made by `createDeviceSwitch` like
-  Illustrations); off or offline the route is drawn alone. Colours and sizes of the map are custom
+  Condensed figures); off or offline the route is drawn alone. Colours and sizes of the map are custom
   properties on `.map` in `RunMap.module.css`, except the chip band along its foot (`CHIP_HEIGHT`, `CHIP_GAP`,
   `STACK_BELOW` in `RunMap.tsx`), which the fit and the stylesheet both read. The charts report the distance under the pointer through
   `DistanceCursor` (`distanceCursor.ts`), and the map's dot is moved by writing to its element, with no
