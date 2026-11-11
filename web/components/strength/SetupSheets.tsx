@@ -60,9 +60,9 @@ import {
   type LoadsMode,
   type SetupPart,
 } from './setupForm.ts'
-import { REPS_LEFT_MAX } from './strengthForm.ts'
+import { parseLoad, REPS_LEFT_MAX } from './strengthForm.ts'
 import { pageWords, type PageWords } from './strengthPageText.ts'
-import { loadMeaningLine } from './strengthText.ts'
+import { loadMeaningLine, loadTotalLine } from './strengthText.ts'
 import styles from './SetupSheets.module.css'
 
 export interface StrengthSetupSheetProps {
@@ -682,6 +682,17 @@ function AnchorsPart({ words, view, weightUnit }: PartProps) {
           form.exerciseId,
           anchorImplement(form.exerciseId, view.settings.equipment),
         )
+  // a pair of dumbbells: the two together, under the weight of each
+  const typedG = parseLoad(form.load, weightUnit)
+  const total =
+    form.exerciseId === '' || typedG === 'invalid'
+      ? null
+      : loadTotalLine(
+          words,
+          form.exerciseId,
+          anchorImplement(form.exerciseId, view.settings.equipment),
+          typedG,
+        )
   const formRef = useRef<HTMLFormElement>(null)
   useFocusFirstInvalid(formRef, problems)
 
@@ -774,7 +785,7 @@ function AnchorsPart({ words, view, weightUnit }: PartProps) {
         />
         <Field
           label={words.say('strength.page.anchor-load', { unit: words.unitName() })}
-          hint={meaning ?? undefined}
+          hint={meaning === null ? undefined : total === null ? meaning : `${meaning}. ${total}`}
           error={problems?.load === true ? words.say('strength.page.err-weight') : undefined}
         >
           {(control) => (

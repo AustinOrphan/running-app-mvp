@@ -73,6 +73,13 @@ export type LoadBasis =
  */
 export type LoadMeaning = 'total-with-bar' | 'stack' | 'one-implement' | 'added' | 'none'
 
+/**
+ * How many implements a dumbbell or kettlebell exercise is done with: `one` (a goblet squat) or a
+ * `pair`, one in each hand or on each side (a calf raise, a carry). The load is the weight of one
+ * implement either way (design 5.2); the hold only words the label and the total.
+ */
+export type Hold = 'one' | 'pair'
+
 export interface Exercise {
   /** Never renamed or reused: logs store it. */
   id: ExerciseId
@@ -101,6 +108,11 @@ export interface Exercise {
    */
   eachSide?: true
   basis: LoadBasis
+  /**
+   * How many dumbbells or kettlebells it is done with. Set on every exercise whose `implements`
+   * holds one of them (a test fails on one that omits it); absent for the rest.
+   */
+  held?: Hold
   /** The next harder movement, reached by progression, a swap or a pin and not by the ladder. */
   harder: ExerciseId | null
   serves: readonly RuleTag[]
@@ -151,6 +163,7 @@ const SPECS: Readonly<Record<ExerciseId, ExerciseSpec>> = {
     needs: [],
     optionalNeeds: [],
     measure: 'reps',
+    held: 'one',
     basis: 'one-implement',
     harder: 'split-squat',
     serves: LIFT,
@@ -163,6 +176,7 @@ const SPECS: Readonly<Record<ExerciseId, ExerciseSpec>> = {
     needs: [],
     optionalNeeds: ['step'],
     measure: 'reps',
+    held: 'pair',
     basis: 'one-implement-a-hand',
     harder: 'step-up',
     serves: LIFT,
@@ -175,6 +189,7 @@ const SPECS: Readonly<Record<ExerciseId, ExerciseSpec>> = {
     needs: ['step'],
     optionalNeeds: [],
     measure: 'reps',
+    held: 'pair',
     basis: 'one-implement-a-hand',
     harder: 'single-leg-box-squat',
     serves: LIFT,
@@ -199,6 +214,7 @@ const SPECS: Readonly<Record<ExerciseId, ExerciseSpec>> = {
     needs: ['step'],
     optionalNeeds: [],
     measure: 'reps',
+    held: 'one',
     basis: 'added',
     harder: null,
     serves: LIFT,
@@ -223,6 +239,7 @@ const SPECS: Readonly<Record<ExerciseId, ExerciseSpec>> = {
     needs: [],
     optionalNeeds: [],
     measure: 'reps',
+    held: 'pair',
     basis: 'one-implement-a-hand',
     harder: 'single-leg-rdl',
     serves: HINGE,
@@ -235,6 +252,7 @@ const SPECS: Readonly<Record<ExerciseId, ExerciseSpec>> = {
     needs: [],
     optionalNeeds: [],
     measure: 'reps',
+    held: 'one',
     basis: 'one-implement',
     harder: 'single-leg-rdl',
     serves: HINGE,
@@ -259,6 +277,7 @@ const SPECS: Readonly<Record<ExerciseId, ExerciseSpec>> = {
     needs: [],
     optionalNeeds: ['step'],
     measure: 'reps',
+    held: 'one',
     basis: 'total-or-one-implement',
     harder: 'single-leg-rdl',
     serves: POSTERIOR,
@@ -271,6 +290,7 @@ const SPECS: Readonly<Record<ExerciseId, ExerciseSpec>> = {
     needs: [],
     optionalNeeds: [],
     measure: 'reps',
+    held: 'one',
     basis: 'one-implement',
     harder: null,
     serves: HINGE,
@@ -283,6 +303,7 @@ const SPECS: Readonly<Record<ExerciseId, ExerciseSpec>> = {
     needs: [],
     optionalNeeds: ['step'],
     measure: 'reps',
+    held: 'pair',
     basis: 'by-implement',
     harder: 'single-leg-calf-raise',
     serves: CALF,
@@ -295,6 +316,7 @@ const SPECS: Readonly<Record<ExerciseId, ExerciseSpec>> = {
     needs: [],
     optionalNeeds: [],
     measure: 'reps',
+    held: 'pair',
     basis: 'by-implement',
     harder: 'single-leg-calf-raise',
     serves: CALF,
@@ -307,6 +329,7 @@ const SPECS: Readonly<Record<ExerciseId, ExerciseSpec>> = {
     needs: ['step'],
     optionalNeeds: [],
     measure: 'reps',
+    held: 'one',
     basis: 'added',
     harder: null,
     serves: CALF,
@@ -416,6 +439,7 @@ const SPECS: Readonly<Record<ExerciseId, ExerciseSpec>> = {
     needs: [],
     optionalNeeds: [],
     measure: 'seconds',
+    held: 'pair',
     basis: 'one-implement-a-hand',
     harder: null,
     serves: TRUNK,
@@ -592,4 +616,15 @@ export function loadMeaning(id: ExerciseId, implement: EquipmentKind | null): Lo
     case 'step':
       return 'none'
   }
+}
+
+/**
+ * How many implements a load of `id` done with `implement` is spread over: `pair` when two
+ * dumbbells or kettlebells are held (the load is the weight of each), `one` when one is. Null where
+ * the load is not the weight of one implement (a barbell, a machine, an added weight, bodyweight),
+ * so no label and no total apply.
+ */
+export function implementHold(id: ExerciseId, implement: EquipmentKind | null): Hold | null {
+  if (loadMeaning(id, implement) !== 'one-implement') return null
+  return BY_ID.get(id)?.held ?? null
 }

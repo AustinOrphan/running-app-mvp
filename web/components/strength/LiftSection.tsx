@@ -31,7 +31,7 @@ import {
   type Block,
   type SetRow,
 } from './strengthForm.ts'
-import { loadMeaningLine, measureOf, type StrengthWords } from './strengthText.ts'
+import { loadMeaningLine, loadTotalLine, measureOf, type StrengthWords } from './strengthText.ts'
 import { usualLoadOf } from './workoutRows.ts'
 import styles from './StrengthSheet.module.css'
 
@@ -112,6 +112,9 @@ export function LiftSection({
   // lift that was kept on the phone has its loads and not its steps)
   const loaded = shown.steps !== null || rows.some((row) => row.load !== '')
   const meaning = loaded ? loadMeaningLine(words, shown.exerciseId, shown.implement) : null
+  const suggestedTotal = loaded
+    ? loadTotalLine(words, shown.exerciseId, shown.implement, shown.loadG)
+    : null
   const swapped = shown !== block.original
   const reason = words.reason(shown)
   const usualLoadG = usualLoadOf(shown)
@@ -121,6 +124,13 @@ export function LiftSection({
     equipment === null
       ? []
       : swapChoices(block, equipment, barbellOf(workout), avoid, heldElsewhere)
+  /** The two implements of a pair together, as the load is typed; null for one implement. */
+  const setTotal = (row: SetRow): string | null => {
+    const typedG = rowLoadG(row, weightUnit)
+    return typedG === 'invalid'
+      ? null
+      : loadTotalLine(words, shown.exerciseId, shown.implement, typedG)
+  }
   const pinnable = !editing && swapped && PINNABLE.has(shown.slot)
   const reachedBy = (index: number, update: (row: SetRow) => SetRow) => {
     onChange((current) => ({
@@ -196,6 +206,9 @@ export function LiftSection({
           {meaning}
         </p>
       )}
+
+      {/* a pair of dumbbells: the suggested load is each one's, so the two together are said once */}
+      {suggestedTotal === null ? null : <p className={styles.muted}>{suggestedTotal}</p>}
 
       {lighterDay ? (
         <div className={styles.usual}>
@@ -371,6 +384,7 @@ export function LiftSection({
                     }}
                   />
                 </div>
+                {setTotal(row) === null ? null : <p className={styles.muted}>{setTotal(row)}</p>}
                 {shown.rir === null ? null : (
                   <div className={styles.allSets}>
                     <span className={styles.repsLeftLabel} aria-hidden="true">

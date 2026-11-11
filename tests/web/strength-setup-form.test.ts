@@ -26,7 +26,11 @@ import {
   type EquipmentForm,
 } from '../../web/components/strength/setupForm.ts'
 import { ALL_KINDS, ITEM, have } from '../unit/engine/strength-fixtures.ts'
-import { loadMeaningLine, strengthWords } from '../../web/components/strength/strengthText.ts'
+import {
+  loadMeaningLine,
+  loadTotalLine,
+  strengthWords,
+} from '../../web/components/strength/strengthText.ts'
 import { STRENGTH_SETTINGS, lb } from './strength-fixtures.ts'
 
 const everything = have(...ALL_KINDS)
@@ -314,13 +318,35 @@ describe('what a load means (design 5.2)', () => {
       words.say('strength.basis.total-with-bar'),
     )
     expect(loadMeaningLine(words, 'leg-press', 'leg-press')).toBe(words.say('strength.basis.stack'))
-    expect(loadMeaningLine(words, 'goblet-squat', 'dumbbells')).toBe(
-      words.say('strength.basis.one-implement'),
-    )
+    expect(loadMeaningLine(words, 'goblet-squat', 'dumbbells')).toBe('One dumbbell')
+    expect(loadMeaningLine(words, 'goblet-squat', 'kettlebells')).toBe('One kettlebell')
+    expect(loadMeaningLine(words, 'farmer-carry', 'dumbbells')).toBe('Each dumbbell')
+    expect(loadMeaningLine(words, 'farmer-carry', 'kettlebells')).toBe('Each kettlebell')
     // the same movement with weight added to the body
     expect(loadMeaningLine(words, 'single-leg-calf-raise', 'dumbbells')).toBe(
       words.say('strength.basis.added'),
     )
+  })
+
+  test('the total of a pair is in the runner unit, and only for a pair', () => {
+    const lb50 = toGrams(50, 'lb')
+    expect(loadTotalLine(words, 'standing-calf-raise', 'dumbbells', lb50)).toBe('100 lb in all')
+    const kg = strengthWords('km', 'kg')
+    expect(loadTotalLine(kg, 'standing-calf-raise', 'dumbbells', toGrams(22.5, 'kg'))).toBe(
+      '45 kg in all',
+    )
+    // 22.25 kg each is 44.5 kg together, on the 0.25 kg grid
+    expect(loadTotalLine(kg, 'farmer-carry', 'kettlebells', toGrams(22.25, 'kg'))).toBe(
+      '44.5 kg in all',
+    )
+    // 50 lb is 22 679 g; two of them are 45 359 g, shown on the 0.25 kg grid
+    expect(loadTotalLine(kg, 'farmer-carry', 'dumbbells', lb50)).toBe('45.25 kg in all')
+    expect(loadTotalLine(words, 'goblet-squat', 'dumbbells', lb50)).toBeNull()
+    expect(loadTotalLine(words, 'back-squat', 'barbell', lb50)).toBeNull()
+    expect(loadTotalLine(words, 'leg-press', 'leg-press', lb50)).toBeNull()
+    expect(loadTotalLine(words, 'single-leg-calf-raise', 'dumbbells', lb50)).toBeNull()
+    expect(loadTotalLine(words, 'standing-calf-raise', 'calf-machine', lb50)).toBeNull()
+    expect(loadTotalLine(words, 'standing-calf-raise', 'dumbbells', null)).toBeNull()
   })
 
   test('is nothing for a load there is none of, and for an exercise the catalogue does not hold', () => {

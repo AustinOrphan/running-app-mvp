@@ -12,6 +12,7 @@ import { render, type Template } from '../../../shared/copy/template.ts'
 import { renderFact } from '../../../shared/copy/templates.ts'
 import {
   exerciseById,
+  implementHold,
   isExerciseId,
   loadMeaning,
   type Measure,
@@ -190,6 +191,7 @@ export function strengthWords(units: Units, weightUnit: WeightUnit) {
     return {
       name: name(lift.exerciseId),
       load: lift.loadG === null ? null : say('strength.row.load', { load: load(lift.loadG) }),
+      total: loadTotalLine({ say }, lift.exerciseId, lift.implement, lift.loadG),
       line: reserve === null ? prescription : say('strength.row.line', { prescription, reserve }),
       reserved: reserve !== null,
       sentence: suggestion(lift),
@@ -304,6 +306,8 @@ export interface LiftRowText {
   name: string
   /** The load in the runner's unit; null for a lift with no added load. */
   load: string | null
+  /** The two implements together ("100 lb in all") for a pair of dumbbells or kettlebells, else null. */
+  total: string | null
   /** The prescription and the reps left, one muted line. */
   line: string
   /** Whether `line` names the reps left. */
@@ -314,17 +318,48 @@ export interface LiftRowText {
 
 /**
  * What a load of an exercise done with an implement means (design 5.2), as the line shown beside the
- * field: the total with the bar, the stack or plate total, the weight of one implement, the added
- * weight. Null where there is no load to name (bodyweight, a band) and for an exercise the catalogue
- * does not hold. The logging sheet and the setup's starting points both read it here, so the two
- * fields say the same words for the same load.
+ * field: the total with the bar, the stack or plate total, the weight of each of a pair of
+ * dumbbells or kettlebells ("Each dumbbell") or of the one held ("One dumbbell"), the added weight.
+ * Null where there is no load to name (bodyweight, a band) and for an exercise the catalogue does not
+ * hold. The logging sheet and the setup's starting points both read it here, so the two fields say
+ * the same words for the same load.
  */
 export function loadMeaningLine(
-  words: StrengthWords,
+  words: Pick<StrengthWords, 'say'>,
   exerciseId: string,
   implement: EquipmentKind | null,
 ): string | null {
   if (!isExerciseId(exerciseId)) return null
   const meaning = loadMeaning(exerciseId, implement)
-  return meaning === 'none' ? null : words.say(`strength.basis.${meaning}`)
+  if (meaning === 'none') return null
+  if (meaning === 'one-implement') {
+    const pair = implementHold(exerciseId, implement) === 'pair'
+    const kettlebell = implement === 'kettlebells'
+    return words.say(
+      pair
+        ? kettlebell
+          ? 'strength.basis.pair-kettlebells'
+          : 'strength.basis.pair-dumbbells'
+        : kettlebell
+          ? 'strength.basis.one-kettlebell'
+          : 'strength.basis.one-dumbbell',
+    )
+  }
+  return words.say(`strength.basis.${meaning}`)
+}
+
+/**
+ * The two implements of a pair together, in the runner's unit ("100 lb in all"). Null for one
+ * implement, a barbell, a machine, an added weight and a load that is not a positive weight: the
+ * load itself stays the weight of one implement and this line is display only.
+ */
+export function loadTotalLine(
+  words: Pick<StrengthWords, 'say'>,
+  exerciseId: string,
+  implement: EquipmentKind | null,
+  loadG: number | null,
+): string | null {
+  if (loadG === null || !Number.isFinite(loadG) || loadG <= 0) return null
+  if (!isExerciseId(exerciseId) || implementHold(exerciseId, implement) !== 'pair') return null
+  return words.say('strength.basis.total-in-all', { load: load(loadG * 2) })
 }

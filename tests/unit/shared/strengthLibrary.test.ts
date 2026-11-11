@@ -9,6 +9,7 @@ import {
   SLOT_LADDERS,
   exerciseById,
   exercisesOfSlot,
+  implementHold,
   isExerciseId,
   isFeasible,
   ladderFor,
@@ -857,5 +858,34 @@ describe('shared/domain/strengthLibrary.ts', () => {
     expect(imports).toEqual(['../copy/strengthTemplates.ts', '../types.ts'])
     expect(code).toMatch(/import type \{ StrengthTemplateId \}/)
     expect(code).toMatch(/import type \{ EquipmentConfig, EquipmentKind, Slot \}/)
+  })
+})
+
+describe('how many implements a dumbbell or kettlebell exercise holds', () => {
+  const withBells = EXERCISES.filter(
+    (e) => e.implements.includes('dumbbells') || e.implements.includes('kettlebells'),
+  )
+
+  it('is declared by every exercise that can be done with either, and by no other', () => {
+    expect(withBells.length).toBeGreaterThan(5)
+    for (const exercise of EXERCISES) {
+      if (withBells.includes(exercise)) {
+        expect(['one', 'pair'], exercise.id).toContain(exercise.held)
+      } else {
+        expect(exercise.held, exercise.id).toBeUndefined()
+      }
+    }
+  })
+
+  it('gives the hold only where the load is the weight of one implement', () => {
+    expect(implementHold('standing-calf-raise', 'dumbbells')).toBe('pair')
+    expect(implementHold('farmer-carry', 'kettlebells')).toBe('pair')
+    expect(implementHold('goblet-squat', 'dumbbells')).toBe('one')
+    // a barbell or a machine, an added weight, bodyweight and a band: no hold
+    expect(implementHold('standing-calf-raise', 'barbell')).toBeNull()
+    expect(implementHold('standing-calf-raise', 'calf-machine')).toBeNull()
+    expect(implementHold('single-leg-calf-raise', 'dumbbells')).toBeNull()
+    expect(implementHold('tempo-squat', null)).toBeNull()
+    expect(implementHold('banded-lateral-walk', 'bands')).toBeNull()
   })
 })

@@ -1601,12 +1601,22 @@ describe('what a load means, beside the field (design 5.2)', () => {
     [
       'Goblet squat',
       squat({ exerciseId: 'goblet-squat', implement: 'dumbbells', steps: bells, loadG: lb(20) }),
-      'Weight of one dumbbell or kettlebell',
+      'One dumbbell',
     ],
     [
       'Goblet squat',
       squat({ exerciseId: 'goblet-squat', implement: 'kettlebells', steps: bells, loadG: lb(20) }),
-      'Weight of one dumbbell or kettlebell',
+      'One kettlebell',
+    ],
+    [
+      'Standing calf raise',
+      calf({ implement: 'dumbbells', steps: bells, loadG: lb(40) }),
+      'Each dumbbell',
+    ],
+    [
+      'Dumbbell Romanian deadlift',
+      rdl({ exerciseId: 'dumbbell-rdl', implement: 'dumbbells', steps: bells, loadG: lb(30) }),
+      'Each dumbbell',
     ],
     [
       'Leg press',
@@ -1653,7 +1663,7 @@ describe('what a load means, beside the field (design 5.2)', () => {
     const dialog = await sheet('Strength, ramp-in, session A')
     expect(
       within(dialog).queryByText(
-        /Total, including the bar|Stack or plate total|Weight of one dumbbell or kettlebell|Added weight/,
+        /Total, including the bar|Stack or plate total|One dumbbell|Each dumbbell|Added weight/,
       ),
     ).toBeNull()
   })
@@ -1670,14 +1680,67 @@ describe('what a load means, beside the field (design 5.2)', () => {
     await user.click(screen.getByRole('button', { name: 'Goblet squat' }))
     expect(
       await within(await screen.findByRole('region', { name: 'Goblet squat' })).findByText(
-        'Weight of one dumbbell or kettlebell',
+        'One dumbbell',
       ),
     ).toBeVisible()
     expect(screen.queryAllByText('Total, including the bar')).toHaveLength(0)
     await user.click(screen.getByRole('button', { name: 'Swap: Goblet squat' }))
     await user.click(screen.getByRole('button', { name: 'Tempo squat' }))
     await screen.findByRole('region', { name: 'Tempo squat' })
-    expect(region('Tempo squat').queryByText(/Weight of one|Total, including/)).toBeNull()
+    expect(
+      region('Tempo squat').queryByText(/One dumbbell|Each dumbbell|Total, including/),
+    ).toBeNull()
+  })
+})
+
+describe('the two implements together, under a pair of dumbbells (design 5.2)', () => {
+  const bells = { loadsG: [20, 40, 50, 60].map(lb) }
+
+  test('a pair exercise says "Each dumbbell" and the total under the suggestion and each set', async () => {
+    open({
+      workout: makeWorkout({
+        lifts: [calf({ implement: 'dumbbells', steps: bells, loadG: lb(50) })],
+        plyo: null,
+        trunk: [],
+      }),
+    })
+    await sheet()
+    const user = userEvent.setup()
+    expect(region('Standing calf raise').getByText('Each dumbbell')).toBeVisible()
+    // the suggestion, then the one set it starts with
+    expect(region('Standing calf raise').getAllByText('100 lb in all').length).toBeGreaterThan(0)
+    const load = field('Standing calf raise', 1, 'load')
+    await user.clear(load)
+    await user.type(load, '60')
+    expect(region('Standing calf raise').getByText('120 lb in all')).toBeVisible()
+    await user.clear(load)
+    expect(region('Standing calf raise').queryByText('120 lb in all')).toBeNull()
+  })
+
+  test('one implement says "One dumbbell" and no total', async () => {
+    open({
+      workout: makeWorkout({
+        lifts: [
+          squat({
+            exerciseId: 'goblet-squat',
+            implement: 'dumbbells',
+            steps: bells,
+            loadG: lb(50),
+          }),
+        ],
+        plyo: null,
+        trunk: [],
+      }),
+    })
+    await sheet()
+    expect(region('Goblet squat').getByText('One dumbbell')).toBeVisible()
+    expect(region('Goblet squat').queryByText(/in all/)).toBeNull()
+  })
+
+  test('a barbell and a machine have no total', async () => {
+    open({ workout: makeWorkout({ lifts: [squat()], plyo: null, trunk: [] }) })
+    await sheet()
+    expect(region('Back squat').queryByText(/in all/)).toBeNull()
   })
 })
 
@@ -4265,7 +4328,8 @@ describe('the Strength page: the setup (design 6.2, 6.5)', () => {
     expect(weight).not.toHaveAccessibleDescription()
     for (const [exercise, meaning] of [
       ['back-squat', 'Total, including the bar'],
-      ['goblet-squat', 'Weight of one dumbbell or kettlebell'],
+      ['goblet-squat', 'One dumbbell'],
+      ['dumbbell-rdl', 'Each dumbbell'],
       ['leg-press', 'Stack or plate total'],
     ] as const) {
       await user.selectOptions(sheet.getByLabelText('Exercise'), exercise)

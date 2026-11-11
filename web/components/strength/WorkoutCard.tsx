@@ -103,6 +103,7 @@ function LiftRow({
         )}
       </div>
       <span className="visually-hidden">{row.sentence}</span>
+      {row.total === null ? null : <span className={styles.rowLine}>{row.total}</span>}
       <span className={styles.rowLine} aria-hidden="true">
         {row.line}
       </span>
