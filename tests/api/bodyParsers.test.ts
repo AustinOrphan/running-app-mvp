@@ -83,6 +83,7 @@ describe('request pipeline: parsers run after authentication', () => {
   test.each([
     ['/api/activities', 2 * MB],
     ['/api/goals', 2 * MB],
+    ['/api/client-errors', 2 * MB],
     ['/api/imports/csv', 11 * MB],
     ['/api/imports/files', 17 * MB],
     ['/api/imports/parsed', 17 * MB],
@@ -149,6 +150,13 @@ describe('request pipeline: parsers run after authentication', () => {
   test('ingest: a provider that takes no push is 404 before any body is read', async () => {
     const res = await post('/api/ingest/strava', json(17 * MB), {}, false)
     expect(res.status).toBe(404)
+  })
+
+  test('client errors read at most 16 KB, and only for a signed-in caller', async () => {
+    const anonymous = await post('/api/client-errors', json(20 * 1024))
+    expect(anonymous.status).toBe(401)
+    const signedIn = await post('/api/client-errors', json(20 * 1024), { cookie: user.cookie })
+    expect(signedIn.status).toBe(413)
   })
 
   test('sign-in and setup read at most 16 KB, signed in or not', async () => {

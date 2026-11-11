@@ -5,7 +5,11 @@ import cookieParser from 'cookie-parser'
 import express, { type Express } from 'express'
 import helmet from 'helmet'
 import { pinoHttp } from 'pino-http'
-import { createAddressLimiter, createUserLimiter } from './auth/rateLimit.ts'
+import {
+  createAddressLimiter,
+  createClientErrorLimiter,
+  createUserLimiter,
+} from './auth/rateLimit.ts'
 import { authRouter } from './auth/routes.ts'
 import { requireAuth, sameOriginGuard } from './auth/middleware.ts'
 import type { Config } from './config.ts'
@@ -14,6 +18,7 @@ import { createLogger } from './logger.ts'
 import { activitiesRouter } from './routes/activities.ts'
 import { briefRouter, briefsRouter } from './routes/brief.ts'
 import { calendarRouter, redactedRequest } from './routes/calendar.ts'
+import { clientErrorsRouter, CLIENT_ERROR_BODY_LIMIT } from './routes/clientErrors.ts'
 import { checkinsRouter } from './routes/checkins.ts'
 import { explainRouter } from './routes/explain.ts'
 import { exportRouter } from './routes/export.ts'
@@ -148,8 +153,16 @@ export function createApp(
   // so the general 1 MB parser only sees every other route.
   app.use(['/api/imports/files', '/api/imports/parsed'], express.json({ limit: '16mb' }))
   app.use('/api/imports', express.json({ limit: '10mb' }))
+  // A page's error report (E1): its own 16 KB parser and a small per-user budget, ahead of the
+  // general parser so a larger body is refused at 16 KB.
+  app.use(
+    '/api/client-errors',
+    createClientErrorLimiter(),
+    express.json({ limit: CLIENT_ERROR_BODY_LIMIT }),
+  )
   app.use('/api', express.json({ limit: '1mb' }))
 
+  app.use('/api/client-errors', clientErrorsRouter(logger))
   app.use('/api/settings', settingsRouter(deps))
   app.use('/api/state', stateRouter(deps))
   app.use('/api/stats', statsRouter(deps))

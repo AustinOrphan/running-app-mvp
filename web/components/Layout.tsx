@@ -1,6 +1,7 @@
 import { Suspense, useEffect } from 'react'
 import { Outlet } from 'react-router-dom'
 import { useQueuedSentToasts } from '../api/activityOutbox.ts'
+import { PageBoundary } from './ErrorBoundary.tsx'
 import styles from './Layout.module.css'
 import { Nav, restoreTheme } from './Nav.tsx'
 import { Skeleton } from './Skeleton.tsx'
@@ -29,9 +30,12 @@ export function Layout() {
       <Nav />
       <main id="main" tabIndex={-1} className={styles.main}>
         <div className={styles.content}>
-          <Suspense fallback={<Skeleton />}>
-            <Outlet />
-          </Suspense>
+          {/* A page that throws is replaced here, so the navigation beside it stays usable. */}
+          <PageBoundary>
+            <Suspense fallback={<Skeleton />}>
+              <Outlet />
+            </Suspense>
+          </PageBoundary>
         </div>
       </main>
     </ToastProvider>

@@ -171,6 +171,13 @@ its build runs `prisma migrate deploy` as a smoke test.
   and per address (100); `PUT /api/auth/password` counts refusals per user id (5, `createPasswordChangeLimiter`,
   below `requireAuth`). A new limiter keys on the narrowest identity it has at that point of the
   request order.
+- Error boundaries (E1): `ErrorBoundary` (`web/components/ErrorBoundary.tsx`) wraps the app (`App`) and
+  each routed page (`PageBoundary` in `Layout`, so the tabs stay); `ChunkBoundary` keeps a failed chunk
+  load and rethrows any other error to them, a sheet's included. A caught error goes to the console with
+  its component stack and once to `POST /api/client-errors` (`web/pwa/clientErrors.ts`: keepalive, no
+  retry, never the outbox, dropped offline). The route (`server/routes/clientErrors.ts`) sits below
+  `requireAuth` with its own 16 KB parser and 5 reports per minute per user, logs one `client error`
+  warn with the body's six fields and stores nothing.
 - Server errors are thrown as `HttpError` (`server/errors.ts`) and reach the client as
   `{ error: { code, message, details? } }`. Zod parses every body and query.
 - Server data hooks live in `web/api/<resource>.ts`; pages only consume them. Domain rules go in
