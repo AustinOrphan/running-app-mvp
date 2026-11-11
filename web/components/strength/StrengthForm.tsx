@@ -260,7 +260,15 @@ export function StrengthForm({
         if (result.status === 'queued') {
           done({ status: 'queued', next: [] }, words.say('strength.sheet.saved-queued'))
         } else {
-          done({ status: 'sent', next: result.next }, words.saved(result.next))
+          done(
+            { status: 'sent', next: result.next },
+            words.saved(
+              result.next,
+              (exerciseId) =>
+                state.blocks.find((block) => block.shown.exerciseId === exerciseId)?.shown
+                  .implement ?? null,
+            ),
+          )
         }
       },
       () => {

@@ -533,7 +533,10 @@ test('the next load rises one step after a session at the top of the range with 
   const progressing = ['Goblet squat', 'Dumbbell Romanian deadlift']
   const saved = toast(page, /^Strength log saved\. Next time: /)
   await expect(saved).toBeVisible()
-  for (const name of progressing) await expect(saved).toContainText(`${name} up to 45 lb`)
+  // a pair of dumbbells says each, one dumbbell does not
+  await expect(saved).toContainText('Goblet squat up to 45 lb')
+  await expect(saved).not.toContainText('Goblet squat up to 45 lb each')
+  await expect(saved).toContainText('Dumbbell Romanian deadlift up to 45 lb each')
   await expect(sheet).toBeHidden()
   for (const name of progressing) {
     await expect(rowOf(next, name)).toContainText('Suggested 45 lb')

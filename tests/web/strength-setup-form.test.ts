@@ -347,6 +347,12 @@ describe('what a load means (design 5.2)', () => {
     expect(loadTotalLine(words, 'farmer-carry', 'dumbbells', toGrams(22.75, 'kg'))).toBe(
       '100 lb in all',
     )
+    // a load too small for the display grid shows as 0, which has no total to say
+    expect(loadTotalLine(words, 'standing-calf-raise', 'dumbbells', toGrams(0.2, 'lb'))).toBeNull()
+    expect(loadTotalLine(kg, 'standing-calf-raise', 'dumbbells', toGrams(0.1, 'kg'))).toBeNull()
+    expect(loadTotalLine(words, 'standing-calf-raise', 'dumbbells', toGrams(0.5, 'lb'))).toBe(
+      '1 lb in all',
+    )
     expect(loadTotalLine(words, 'goblet-squat', 'dumbbells', lb50)).toBeNull()
     expect(loadTotalLine(words, 'back-squat', 'barbell', lb50)).toBeNull()
     expect(loadTotalLine(words, 'leg-press', 'leg-press', lb50)).toBeNull()

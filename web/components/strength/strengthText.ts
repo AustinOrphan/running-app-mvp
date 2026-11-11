@@ -44,6 +44,9 @@ export function isEachSide(exerciseId: string): boolean {
 const count = (n: number): Quantity => ({ kind: 'count', n })
 const load = (g: number): Quantity => ({ kind: 'load', g })
 
+/** The implement a lift was done with, by exercise id; null when it is not known. */
+export type ImplementOf = (exerciseId: string) => EquipmentKind | null
+
 /** Whether a lift is done holding a pair of dumbbells or kettlebells (its load is each one's). */
 export function holdsPair(exerciseId: string, implement: EquipmentKind | null): boolean {
   return isExerciseId(exerciseId) && implementHold(exerciseId, implement) === 'pair'
@@ -262,12 +265,19 @@ export function strengthWords(units: Units, weightUnit: WeightUnit) {
     })
   }
 
-  /** One lift of "Next time": "Back squat up to 115 lb". */
-  function nextLine(next: StrengthNextLoad): string {
+  /**
+   * One lift of "Next time": "Back squat up to 115 lb", and "Dumbbell Romanian deadlift up to 45 lb
+   * each" for a pair, which `implementOf` says (the implement of that lift in the log just saved;
+   * the next-load payload carries none).
+   */
+  function nextLine(next: StrengthNextLoad, implementOf: ImplementOf): string {
     const exercise = name(next.exerciseId)
     if (next.change === 'variation') return say('strength.next.variation', { exercise })
     if (next.loadG === null) return say('strength.next.no-load', { exercise })
-    const slots = { exercise, load: load(next.loadG) }
+    const slots = {
+      exercise,
+      load: liftLoad(next.exerciseId, implementOf(next.exerciseId), next.loadG),
+    }
     switch (next.change) {
       case 'increase':
         return say('strength.next.increase', slots)
@@ -288,13 +298,15 @@ export function strengthWords(units: Units, weightUnit: WeightUnit) {
    * What the toast of a saved log says: that it is saved, and for the lifts that move first and then
    * the ones that hold, the loads for next time (at most `NEXT_LINES_MAX`).
    */
-  function saved(next: readonly StrengthNextLoad[]): string {
+  function saved(next: readonly StrengthNextLoad[], implementOf: ImplementOf): string {
     const ordered = [
       ...next.filter((item) => item.change !== 'hold'),
       ...next.filter((item) => item.change === 'hold'),
     ].slice(0, NEXT_LINES_MAX)
     if (ordered.length === 0) return say('strength.sheet.saved')
-    return say('strength.sheet.saved-next', { lines: ordered.map(nextLine).join(', ') })
+    return say('strength.sheet.saved-next', {
+      lines: ordered.map((item) => nextLine(item, implementOf)).join(', '),
+    })
   }
 
   return {
@@ -383,6 +395,8 @@ export function loadTotalLine(
   // twice the figure as it is shown ("22.75 kg" each is "45.5 kg"), not twice the stored grams
   // rounded on their own, so the two lines add up for a reader
   const shown = fromGrams(loadG, words.weightUnit)
+  // a load too small for the display grid shows as 0, and "0 lb in all" says nothing
+  if (shown <= 0) return null
   return words.say('strength.basis.total-in-all', {
     load: load(toGrams(shown * 2, words.weightUnit)),
   })

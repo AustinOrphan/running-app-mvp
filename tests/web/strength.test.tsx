@@ -1965,10 +1965,26 @@ describe('saving', () => {
     await user.click(screen.getByRole('button', { name: 'Save' }))
     expect(
       await screen.findByText(
-        'Strength log saved. Next time: Back squat up to 115 lb, Standing calf raise with no added load, Dumbbell Romanian deadlift stays at 40 lb.',
+        'Strength log saved. Next time: Back squat up to 115 lb, Standing calf raise with no added load, Dumbbell Romanian deadlift stays at 40 lb each.',
       ),
     ).toBeVisible()
     expect(onSaved).toHaveBeenCalledTimes(1)
+  })
+
+  test("says a pair of dumbbells is each one's next time, and a barbell lift stays bare", async () => {
+    const next = [
+      { exerciseId: 'dumbbell-rdl', change: 'increase', loadG: lb(45) },
+      { exerciseId: 'back-squat', change: 'increase', loadG: lb(115) },
+    ] as const
+    open({ routes: { [`PUT ${LOG_URL}`]: () => savedLog(LOG_ID, [...next]) } })
+    await sheet()
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    expect(
+      await screen.findByText(
+        'Strength log saved. Next time: Dumbbell Romanian deadlift up to 45 lb each, Back squat up to 115 lb.',
+      ),
+    ).toBeVisible()
   })
 
   test('says only that it is saved when the server sent no loads for next time', async () => {
