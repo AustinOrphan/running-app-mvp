@@ -202,7 +202,10 @@ export function quantityParts(
     case 'load':
       // A strength load is stored in grams; the weight unit is a setting of its own, not derived
       // from the distance units (miles with kilograms is common).
-      return loadParts(q.g, isWeightUnit(weightUnit) ? weightUnit : DEFAULT_WEIGHT_UNIT)
+      return withEach(
+        loadParts(q.g, isWeightUnit(weightUnit) ? weightUnit : DEFAULT_WEIGHT_UNIT),
+        q.each === true,
+      )
     case 'date':
       return dateParts(q)
     case 'weekday':
@@ -317,4 +320,9 @@ export function ordinal(n: number): string {
   const suffix =
     lastTwo >= 11 && lastTwo <= 13 ? 'th' : (['th', 'st', 'nd', 'rd'][lastTwo % 10] ?? 'th')
   return `${String(n)}${suffix}`
+}
+
+/** "50 lb" as "50 lb each" for the weight of each of a pair of implements; null stays null. */
+function withEach<T extends { suffix: string }>(parts: T | null, each: boolean): T | null {
+  return parts === null || !each ? parts : { ...parts, suffix: `${parts.suffix} each` }
 }

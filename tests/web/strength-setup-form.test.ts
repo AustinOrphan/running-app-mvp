@@ -339,8 +339,14 @@ describe('what a load means (design 5.2)', () => {
     expect(loadTotalLine(kg, 'farmer-carry', 'kettlebells', toGrams(22.25, 'kg'))).toBe(
       '44.5 kg in all',
     )
-    // 50 lb is 22 679 g; two of them are 45 359 g, shown on the 0.25 kg grid
-    expect(loadTotalLine(kg, 'farmer-carry', 'dumbbells', lb50)).toBe('45.25 kg in all')
+    // a pair stored as 50 lb, read in kilograms: each shows as 22.75 kg (22.68 kg stored), so the
+    // total is twice what is shown, 45.5 kg, and not twice the stored grams rounded alone (45.25 kg)
+    expect(loadTotalLine(kg, 'farmer-carry', 'dumbbells', lb50)).toBe('45.5 kg in all')
+    // a pair stored as 22.75 kg, read in pounds: each shows as 50 lb (50.15 stored), so 100 lb in
+    // all, and not 100.5 lb from the stored grams
+    expect(loadTotalLine(words, 'farmer-carry', 'dumbbells', toGrams(22.75, 'kg'))).toBe(
+      '100 lb in all',
+    )
     expect(loadTotalLine(words, 'goblet-squat', 'dumbbells', lb50)).toBeNull()
     expect(loadTotalLine(words, 'back-squat', 'barbell', lb50)).toBeNull()
     expect(loadTotalLine(words, 'leg-press', 'leg-press', lb50)).toBeNull()

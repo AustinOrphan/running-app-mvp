@@ -32,7 +32,7 @@ import {
   settings,
 } from './plan-fixtures.ts'
 import { prescribed, SESSION_KINDS, zoneSetFixture } from '../unit/engine/fixtures.ts'
-import { SESSION_ID, makeView, makeWorkout, savedLog } from './strength-fixtures.ts'
+import { SESSION_ID, makeView, makeWorkout, pairWorkout, savedLog } from './strength-fixtures.ts'
 import { makeCoach, makeHero, makeToday } from './today-fixtures.ts'
 import { makeWorkoutView, sheetRoutes } from './wrist-fixtures.ts'
 
@@ -759,7 +759,7 @@ describe('SessionSheet: the Strength section', () => {
         .map((item) => item.firstElementChild?.textContent),
     ).toEqual([
       'Back squat: 4 x 3 to 6, 110 lb, leave 1 to 3.',
-      'Dumbbell Romanian deadlift: 3 x 3 to 6, 40 lb, leave 2 or more.',
+      'Dumbbell Romanian deadlift: 3 x 3 to 6, 40 lb each, leave 2 or more.',
       'Standing calf raise: 3 x 8 to 15, leave 1 to 3.',
       'Pogo hops, 40 ground contacts.',
       'Side plank 2x30–45 s.',
@@ -770,6 +770,20 @@ describe('SessionSheet: the Strength section', () => {
     expect(within(strength).queryByText(/^As of today/)).not.toBeInTheDocument()
     expect(calls.some((call) => call.url.startsWith('/api/strength/workouts'))).toBe(false)
     expectCleanCopy(strength)
+  })
+
+  test("says the load of a pair of dumbbells is each one's, and not for one dumbbell or a barbell", async () => {
+    renderStrength(strengthSession(), {}, pairWorkout())
+    const strength = await section()
+    expect(
+      within(strength)
+        .getAllByRole('listitem')
+        .map((item) => item.firstElementChild?.textContent),
+    ).toEqual([
+      'Standing calf raise: 3 x 8 to 15, 50 lb each, leave 1 to 3.',
+      'Goblet squat: 4 x 3 to 6, 50 lb, leave 1 to 3.',
+      'Back squat: 4 x 3 to 6, 110 lb, leave 1 to 3.',
+    ])
   })
 
   test('has a "Why" for each lift, on the lift of the session with its rule, and none for the jumps', async () => {

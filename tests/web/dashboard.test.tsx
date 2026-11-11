@@ -26,6 +26,7 @@ import {
   lightestRungWorkout,
   makeView,
   makeWorkout,
+  pairWorkout,
   plank,
   rdl,
   savedLog,
@@ -623,6 +624,16 @@ describe('DashboardPage: a strength session', () => {
       .getAllByRole('listitem')
       .map((item) => item.textContent ?? '')
 
+  test("says the load of a pair of dumbbells is each one's, in the runner's unit, and not for one dumbbell or a barbell", async () => {
+    renderToday(strengthDay(pairWorkout()), routes())
+    const card = await screen.findByRole('article', { name: 'Strength' })
+    expect(rowsOf(card)).toEqual([
+      'Standing calf raise: 3 x 8 to 15, 50 lb each, leave 1 to 3.',
+      'Goblet squat: 4 x 3 to 6, 50 lb, leave 1 to 3.',
+      'Back squat: 4 x 3 to 6, 110 lb, leave 1 to 3.',
+    ])
+  })
+
   test('lists the lifts, the jumps and the trunk movements, with Log sets in place of Done', async () => {
     const lead = squat({ evidence: { latest: null, judged: null, estimateG: lb(200) } })
     const workout = makeWorkout()
@@ -633,7 +644,7 @@ describe('DashboardPage: a strength session', () => {
     const card = await screen.findByRole('article', { name: 'Strength' })
     expect(rowsOf(card)).toEqual([
       'Back squat: 4 x 3 to 6, 110 lb, leave 1 to 3.',
-      'Dumbbell Romanian deadlift: 3 x 3 to 6, 40 lb, leave 2 or more.',
+      'Dumbbell Romanian deadlift: 3 x 3 to 6, 40 lb each, leave 2 or more.',
       'Standing calf raise: 3 x 8 to 15, leave 1 to 3.',
       'Pogo hops, 40 ground contacts.',
       'Side plank 2x30–45 s.',
@@ -827,7 +838,7 @@ describe('DashboardPage: a strength session', () => {
       const card = await screen.findByRole('article', { name: 'Strength' })
       expect(rowsOf(card)).toEqual([
         'Back squat: 3 x 3 to 6, 100 lb, leave 1 to 3.',
-        'Dumbbell Romanian deadlift: 2 x 3 to 6, 40 lb, leave 2 or more.',
+        'Dumbbell Romanian deadlift: 2 x 3 to 6, 40 lb each, leave 2 or more.',
       ])
       expect(
         within(card).getByText(

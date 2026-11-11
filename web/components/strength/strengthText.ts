@@ -17,6 +17,7 @@ import {
   loadMeaning,
   type Measure,
 } from '../../../shared/domain/strengthLibrary.ts'
+import { fromGrams, toGrams } from '../../../shared/domain/weight.ts'
 import type { Quantity } from '../../../shared/engine/types.ts'
 import type {
   EquipmentKind,
@@ -42,6 +43,20 @@ export function isEachSide(exerciseId: string): boolean {
 
 const count = (n: number): Quantity => ({ kind: 'count', n })
 const load = (g: number): Quantity => ({ kind: 'load', g })
+
+/** Whether a lift is done holding a pair of dumbbells or kettlebells (its load is each one's). */
+export function holdsPair(exerciseId: string, implement: EquipmentKind | null): boolean {
+  return isExerciseId(exerciseId) && implementHold(exerciseId, implement) === 'pair'
+}
+
+/**
+ * A lift's prescribed load as a quantity: the weight of each implement of a pair reads "50 lb each",
+ * so a pair's figure is never mistaken for the total; one implement, a barbell and a machine read as
+ * they are.
+ */
+export function liftLoad(exerciseId: string, implement: EquipmentKind | null, g: number): Quantity {
+  return holdsPair(exerciseId, implement) ? { kind: 'load', g, each: true } : { kind: 'load', g }
+}
 
 /**
  * The words of the sheet in the runner's units. `say` fills one template by id; the rest are the
@@ -92,7 +107,7 @@ export function strengthWords(units: Units, weightUnit: WeightUnit) {
       measure: measureWithSide(lift),
     }
     const carried: Record<string, Quantity | string> =
-      lift.loadG === null ? {} : { load: load(lift.loadG) }
+      lift.loadG === null ? {} : { load: liftLoad(lift.exerciseId, lift.implement, lift.loadG) }
     if (rir === null) {
       return say(
         lift.loadG === null
@@ -190,8 +205,12 @@ export function strengthWords(units: Units, weightUnit: WeightUnit) {
           : say('strength.row.reserve-range', { lo: count(rir.min), hi: count(rir.max) })
     return {
       name: name(lift.exerciseId),
-      load: lift.loadG === null ? null : say('strength.row.load', { load: load(lift.loadG) }),
-      total: loadTotalLine({ say }, lift.exerciseId, lift.implement, lift.loadG),
+      load:
+        lift.loadG === null
+          ? null
+          : say('strength.row.load', {
+              load: liftLoad(lift.exerciseId, lift.implement, lift.loadG),
+            }),
       line: reserve === null ? prescription : say('strength.row.line', { prescription, reserve }),
       reserved: reserve !== null,
       sentence: suggestion(lift),
@@ -280,6 +299,7 @@ export function strengthWords(units: Units, weightUnit: WeightUnit) {
 
   return {
     say,
+    weightUnit,
     name,
     unitName,
     measure,
@@ -306,8 +326,6 @@ export interface LiftRowText {
   name: string
   /** The load in the runner's unit; null for a lift with no added load. */
   load: string | null
-  /** The two implements together ("100 lb in all") for a pair of dumbbells or kettlebells, else null. */
-  total: string | null
   /** The prescription and the reps left, one muted line. */
   line: string
   /** Whether `line` names the reps left. */
@@ -349,17 +367,23 @@ export function loadMeaningLine(
 }
 
 /**
- * The two implements of a pair together, in the runner's unit ("100 lb in all"). Null for one
+ * The two implements of a pair together, in the runner's unit ("100 lb in all"), worked out from the
+ * figure that is shown for one. Null for one
  * implement, a barbell, a machine, an added weight and a load that is not a positive weight: the
  * load itself stays the weight of one implement and this line is display only.
  */
 export function loadTotalLine(
-  words: Pick<StrengthWords, 'say'>,
+  words: Pick<StrengthWords, 'say' | 'weightUnit'>,
   exerciseId: string,
   implement: EquipmentKind | null,
   loadG: number | null,
 ): string | null {
   if (loadG === null || !Number.isFinite(loadG) || loadG <= 0) return null
-  if (!isExerciseId(exerciseId) || implementHold(exerciseId, implement) !== 'pair') return null
-  return words.say('strength.basis.total-in-all', { load: load(loadG * 2) })
+  if (!holdsPair(exerciseId, implement)) return null
+  // twice the figure as it is shown ("22.75 kg" each is "45.5 kg"), not twice the stored grams
+  // rounded on their own, so the two lines add up for a reader
+  const shown = fromGrams(loadG, words.weightUnit)
+  return words.say('strength.basis.total-in-all', {
+    load: load(toGrams(shown * 2, words.weightUnit)),
+  })
 }

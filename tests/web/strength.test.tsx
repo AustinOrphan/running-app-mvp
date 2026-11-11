@@ -53,6 +53,7 @@ import {
   makeLog,
   makeView,
   makeWorkout,
+  pairWorkout,
   plank,
   rdl,
   savedLog,
@@ -1696,7 +1697,7 @@ describe('what a load means, beside the field (design 5.2)', () => {
 describe('the two implements together, under a pair of dumbbells (design 5.2)', () => {
   const bells = { loadsG: [20, 40, 50, 60].map(lb) }
 
-  test('a pair exercise says "Each dumbbell" and the total under the suggestion and each set', async () => {
+  const pair = () =>
     open({
       workout: makeWorkout({
         lifts: [calf({ implement: 'dumbbells', steps: bells, loadG: lb(50) })],
@@ -1704,17 +1705,59 @@ describe('the two implements together, under a pair of dumbbells (design 5.2)', 
         trunk: [],
       }),
     })
+
+  test('a pair says "Each dumbbell", and the total in the suggestion and in the set row, each in its own place', async () => {
+    pair()
+    await sheet()
+    expect(region('Standing calf raise').getByText('Each dumbbell')).toBeVisible()
+    // the suggestion says the load is each one's, and the two together
+    const suggestion = region('Standing calf raise').getByText(/^Suggested 50 lb each,/)
+    expect(within(suggestion).getByText('100 lb in all')).toBeVisible()
+    // the set row, which starts from the suggested 50 lb, says its own total
+    const row = field('Standing calf raise', 1, 'load').closest('li') as HTMLElement
+    expect(within(row).getByText('100 lb in all')).toBeVisible()
+    expect(row).not.toContainElement(suggestion)
+    expect(suggestion).not.toContainElement(row)
+  })
+
+  test('the total of a set follows the load as it is typed and is read with the field', async () => {
+    pair()
     await sheet()
     const user = userEvent.setup()
-    expect(region('Standing calf raise').getByText('Each dumbbell')).toBeVisible()
-    // the suggestion, then the one set it starts with
-    expect(region('Standing calf raise').getAllByText('100 lb in all').length).toBeGreaterThan(0)
     const load = field('Standing calf raise', 1, 'load')
+    // a screen reader on the field hears what the load means and the total
+    expect(load).toHaveAccessibleDescription(/Each dumbbell/)
+    expect(load).toHaveAccessibleDescription(/100 lb in all/)
     await user.clear(load)
     await user.type(load, '60')
-    expect(region('Standing calf raise').getByText('120 lb in all')).toBeVisible()
+    expect(load).toHaveAccessibleDescription(/Each dumbbell/)
+    expect(load).toHaveAccessibleDescription(/120 lb in all/)
+    const row = load.closest('li') as HTMLElement
+    expect(within(row).getByText('120 lb in all')).toBeVisible()
+    // the other sets keep their own
+    expect(
+      within(field('Standing calf raise', 2, 'load').closest('li') as HTMLElement).getByText(
+        '100 lb in all',
+      ),
+    ).toBeVisible()
     await user.clear(load)
-    expect(region('Standing calf raise').queryByText('120 lb in all')).toBeNull()
+    expect(within(row).queryByText(/in all/)).toBeNull()
+    expect(load).toHaveAccessibleDescription('lb Each dumbbell')
+  })
+
+  test('the line of a set total is kept when it is empty, hidden from assistive technology, so the rows below do not move', async () => {
+    pair()
+    await sheet()
+    const user = userEvent.setup()
+    const load = field('Standing calf raise', 1, 'load')
+    const row = load.closest('li') as HTMLElement
+    const line = () => row.querySelector<HTMLElement>('[class*="setTotal"]')
+    expect(line()).not.toBeNull()
+    expect(line()).not.toHaveAttribute('aria-hidden')
+    await user.clear(load)
+    expect(line()).not.toBeNull()
+    expect(line()).toHaveTextContent('')
+    expect(line()).toHaveAttribute('aria-hidden', 'true')
   })
 
   test('one implement says "One dumbbell" and no total', async () => {
@@ -2699,7 +2742,9 @@ describe('the Strength page: the next session (design 11.3, 6.4)', () => {
       next.getByText('Suggested 110 lb, four sets of 3 to 6 reps, leave 1 to 3 in reserve.'),
     ).toBeVisible()
     expect(
-      next.getByText('Suggested 40 lb, three sets of 3 to 6 reps, leave 2 or more in reserve.'),
+      next.getByText(
+        'Suggested 40 lb each, three sets of 3 to 6 reps, leave 2 or more in reserve.',
+      ),
     ).toBeVisible()
     expect(
       next.getByText('Suggested three sets of 8 to 15 reps, leave 1 to 3 in reserve.'),
@@ -2880,8 +2925,31 @@ describe('the Strength page: the rows of the next session (UX critique of 2026-1
   test('the load follows the runner’s weight unit through the one formatter, on the same grams', async () => {
     await open(makeWorkout(), SETTINGS_KG)
     expect(within(rowOf('Back squat')).getByText('50 kg')).toBeVisible()
-    expect(within(rowOf('Dumbbell Romanian deadlift')).getByText('18.25 kg')).toBeVisible()
+    expect(within(rowOf('Dumbbell Romanian deadlift')).getByText('18.25 kg each')).toBeVisible()
     expect(next().queryByText(/ lb/)).not.toBeInTheDocument()
+  })
+
+  test("a pair of dumbbells says its load is each one's; one dumbbell and a barbell say nothing of the kind", async () => {
+    await open(pairWorkout())
+    const pairRow = rowOf('Standing calf raise')
+    expect(within(pairRow).getByText('50 lb each')).toBeVisible()
+    expect(within(pairRow).getByText('50 lb each')).toHaveAttribute('aria-hidden', 'true')
+    expect(
+      within(pairRow).getByText(
+        'Suggested 50 lb each, three sets of 8 to 15 reps, leave 1 to 3 in reserve.',
+      ),
+    ).toHaveClass('visually-hidden')
+    for (const name of ['Goblet squat', 'Back squat']) {
+      expect(within(rowOf(name)).queryByText(/ each/)).not.toBeInTheDocument()
+    }
+    expect(within(rowOf('Goblet squat')).getByText('50 lb')).toBeVisible()
+  })
+
+  test("the figure of a pair is the one shown for each implement, in the runner's unit", async () => {
+    await open(pairWorkout(), SETTINGS_KG)
+    // 50 lb stored shows as 22.75 kg each
+    expect(within(rowOf('Standing calf raise')).getByText('22.75 kg each')).toBeVisible()
+    expect(within(rowOf('Goblet squat')).getByText('22.75 kg')).toBeVisible()
   })
 
   test('a lift with no load has no figure and keeps its reps line', async () => {
@@ -4342,6 +4410,23 @@ describe('the Strength page: the setup (design 6.2, 6.5)', () => {
     )
     await user.selectOptions(sheet.getByLabelText('Exercise'), '')
     expect(weight).not.toHaveAccessibleDescription()
+  })
+
+  test('the weight of a starting point on a pair of dumbbells says each and the total under it', async () => {
+    openPage()
+    await page()
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Edit starting points' }))
+    const sheet = await setupSheet('Starting points')
+    await user.selectOptions(sheet.getByLabelText('Exercise'), 'dumbbell-rdl')
+    const weight = sheet.getByLabelText('Weight in pounds')
+    expect(weight).toHaveAccessibleDescription('Each dumbbell')
+    await user.type(weight, '50')
+    expect(weight).toHaveAccessibleDescription(/Each dumbbell/)
+    expect(weight).toHaveAccessibleDescription(/100 lb in all/)
+    // one dumbbell has no total
+    await user.selectOptions(sheet.getByLabelText('Exercise'), 'goblet-squat')
+    expect(weight).toHaveAccessibleDescription('One dumbbell')
   })
 
   test('the starting point picker offers only exercises counted in reps', async () => {

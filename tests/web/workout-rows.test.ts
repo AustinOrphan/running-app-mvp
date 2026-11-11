@@ -18,6 +18,7 @@ import {
   lighterDayWorkout,
   lightestRungWorkout,
   makeWorkout,
+  pairWorkout,
   plank,
   rdl,
   squat,
@@ -35,7 +36,7 @@ describe('workoutRows', () => {
     const rows = workoutRows(makeWorkout(), 'mi', 'lb')
     expect(texts(rows)).toEqual([
       'Back squat: 4 x 3 to 6, 110 lb, leave 1 to 3.',
-      'Dumbbell Romanian deadlift: 3 x 3 to 6, 40 lb, leave 2 or more.',
+      'Dumbbell Romanian deadlift: 3 x 3 to 6, 40 lb each, leave 2 or more.',
       'Standing calf raise: 3 x 8 to 15, leave 1 to 3.',
       'Pogo hops, 40 ground contacts.',
       'Side plank 2x30–45 s.',
@@ -62,6 +63,28 @@ describe('workoutRows', () => {
     const kilograms = workoutRows(makeWorkout(), 'mi', 'kg')[0]?.text
     expect(pounds).toBe('Back squat: 4 x 3 to 6, 110 lb, leave 1 to 3.')
     expect(kilograms).toBe('Back squat: 4 x 3 to 6, 50 kg, leave 1 to 3.')
+  })
+
+  test("says the load of a pair is each implement's, and leaves one implement, a barbell and a machine as they are", () => {
+    expect(texts(workoutRows(pairWorkout(), 'km', 'lb'))).toEqual([
+      'Standing calf raise: 3 x 8 to 15, 50 lb each, leave 1 to 3.',
+      'Goblet squat: 4 x 3 to 6, 50 lb, leave 1 to 3.',
+      'Back squat: 4 x 3 to 6, 110 lb, leave 1 to 3.',
+    ])
+    // the figure is the one shown for each implement: 50 lb is 22.75 kg on the 0.25 kg grid
+    expect(texts(workoutRows(pairWorkout(), 'km', 'kg'))).toEqual([
+      'Standing calf raise: 3 x 8 to 15, 22.75 kg each, leave 1 to 3.',
+      'Goblet squat: 4 x 3 to 6, 22.75 kg, leave 1 to 3.',
+      'Back squat: 4 x 3 to 6, 50 kg, leave 1 to 3.',
+    ])
+    const machine = makeWorkout({
+      lifts: [calf({ implement: 'calf-machine', steps: null, loadG: lb(70) })],
+      plyo: null,
+      trunk: [],
+    })
+    expect(texts(workoutRows(machine, 'km', 'lb'))).toEqual([
+      'Standing calf raise: 3 x 8 to 15, 70 lb, leave 1 to 3.',
+    ])
   })
 
   test('has no load part for a bodyweight lift, and none of the other rows without a dose or trunk work', () => {
@@ -184,12 +207,12 @@ describe('workoutRows', () => {
     const lighter = lighterDayWorkout()
     expect(texts(workoutRows(lighter, 'km', 'lb'))).toEqual([
       'Back squat: 3 x 3 to 6, 100 lb, leave 1 to 3.',
-      'Dumbbell Romanian deadlift: 2 x 3 to 6, 40 lb, leave 2 or more.',
+      'Dumbbell Romanian deadlift: 2 x 3 to 6, 40 lb each, leave 2 or more.',
     ])
     expect(texts(workoutRows(lighter, 'km', 'lb', { usual: true }))).toEqual([
       // the set count is still the lighter day's: only the load is the usual one
       'Back squat: 3 x 3 to 6, 110 lb, leave 1 to 3.',
-      'Dumbbell Romanian deadlift: 2 x 3 to 6, 40 lb, leave 2 or more.',
+      'Dumbbell Romanian deadlift: 2 x 3 to 6, 40 lb each, leave 2 or more.',
     ])
     // the workout it was given is not touched
     expect(lighter.lifts[0]?.loadG).toBe(lb(100))

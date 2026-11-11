@@ -6,7 +6,7 @@
 import { countPhrase } from '../../../shared/copy/quantity.ts'
 import type { Quantity } from '../../../shared/engine/types.ts'
 import type { StrengthWorkout, Units, WeightUnit, WorkoutLift } from '../../../shared/types.ts'
-import { strengthWords, type StrengthWords } from './strengthText.ts'
+import { liftLoad, strengthWords, type StrengthWords } from './strengthText.ts'
 
 /** The most rows a hero shows: three lifts, the jumps and the trunk movements. */
 export const WORKOUT_ROWS_MAX = 5
@@ -114,7 +114,7 @@ function liftRow(words: StrengthWords, lift: WorkoutLift, usual: boolean): strin
   return words.say(easy ? 'strength.hero.workout-row-leave-min' : 'strength.hero.workout-row', {
     ...base,
     ...efforts,
-    load: { kind: 'load', g: loadG },
+    load: liftLoad(lift.exerciseId, lift.implement, loadG),
   })
 }
 
