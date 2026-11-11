@@ -3,7 +3,6 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { App } from '../../web/App.tsx'
 import { ChunkLoadError } from '../../web/components/ChunkBoundary.tsx'
-import { BUILD_ID } from '../../web/pwa/buildId.ts'
 import { clientErrorBody, resetClientErrorReportsForTests } from '../../web/pwa/clientErrors.ts'
 import { activityPage, mockApi, renderWithProviders } from './helpers.tsx'
 
@@ -64,7 +63,12 @@ function reportsOf(calls: Array<{ method: string; url: string; body: unknown }>)
   return calls.filter((call) => call.method === 'POST' && call.url === '/api/client-errors')
 }
 
+/** The clock the reports read, so a test says how long ago an error was reported. */
+let now = 1_000_000
+
 beforeEach(() => {
+  now = 1_000_000
+  vi.spyOn(Date, 'now').mockImplementation(() => now)
   control.planThrows = true
   resetClientErrorReportsForTests()
   vi.spyOn(console, 'error').mockImplementation(() => {})
@@ -102,7 +106,7 @@ describe('the error boundaries', () => {
     expect(report['path']).toBe('/plan')
     expect(report['componentStack']).toContain('ThrowingPage')
     expect(report['userAgent']).toBeTruthy()
-    expect(report['buildId']).toBe(BUILD_ID)
+    expect(report['buildId']).toBe('dev')
 
     // The console has the error and its component stack.
     expect(console.error).toHaveBeenCalledWith(
@@ -158,7 +162,16 @@ describe('the error boundaries', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('This screen hit a problem.')
     const primary = screen.getByRole('navigation', { name: 'Primary' })
 
-    // Same path, still broken: the screen comes back once, with one more report, and no loop.
+    // Same path, still broken, straight after: the screen comes back (no loop), and the same
+    // occurrence is not reported again.
+    await user.click(within(primary).getByRole('link', { name: 'Plan' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('This screen hit a problem.')
+    await waitFor(() => {
+      expect(reportsOf(calls)).toHaveLength(1)
+    })
+
+    // Broken again later: a new occurrence, reported.
+    now += 10_000
     await user.click(within(primary).getByRole('link', { name: 'Plan' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('This screen hit a problem.')
     await waitFor(() => {
@@ -175,17 +188,42 @@ describe('the error boundaries', () => {
 })
 
 describe('the report', () => {
-  test('names the build the page was made with, whatever the caches hold', async () => {
+  test('names the build by the entry script of the document, whatever the caches hold', async () => {
     vi.stubGlobal('caches', {
       keys: () => Promise.resolve(['rl-shell-previous', 'rl-shell-other']),
     })
+    const script = document.createElement('script')
+    script.type = 'module'
+    script.src = '/assets/index-AbC123_x.js'
+    document.head.append(script)
     window.history.replaceState(null, '', '/plan')
     const { calls } = mockApi(signedIn)
-    renderWithProviders(<App />, { route: '/plan' })
+    try {
+      renderWithProviders(<App />, { route: '/plan' })
+      await waitFor(() => {
+        expect(reportsOf(calls)).toHaveLength(1)
+      })
+    } finally {
+      script.remove()
+    }
+    expect((reportsOf(calls)[0]?.body as Record<string, string>)['buildId']).toBe('index-AbC123_x')
+  })
+
+  test('one occurrence is one report, a later one is another', async () => {
+    const { calls } = mockApi(signedIn)
+    const { reportClientError } = await import('../../web/pwa/clientErrors.ts')
+    // Two error objects for one occurrence: a render retried on the way to the boundary.
+    reportClientError(new Error('Same crash'), '\n    at Page')
+    reportClientError(new Error('Same crash'), '\n    at Page')
+    reportClientError(new Error('Another crash'), '\n    at Page')
     await waitFor(() => {
-      expect(reportsOf(calls)).toHaveLength(1)
+      expect(reportsOf(calls)).toHaveLength(2)
     })
-    expect((reportsOf(calls)[0]?.body as Record<string, string>)['buildId']).toBe(BUILD_ID)
+    now += 10_000
+    reportClientError(new Error('Same crash'), '\n    at Page')
+    await waitFor(() => {
+      expect(reportsOf(calls)).toHaveLength(3)
+    })
   })
 
   test('a value with no string form still gives one report with a fallback message', async () => {
@@ -195,6 +233,7 @@ describe('the report', () => {
     const { calls } = mockApi(signedIn)
     const { reportClientError } = await import('../../web/pwa/clientErrors.ts')
     reportClientError(Object.create(null) as object, undefined)
+    now += 10_000
     reportClientError(
       Object.assign(new Error('x'), { message: Object.create(null) as object }),
       undefined,
