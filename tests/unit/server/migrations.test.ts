@@ -1886,6 +1886,35 @@ function verifyUserMustChangePassword(db: DatabaseSync, before: Snapshot): void 
 /** The plan sessions of the earlier release, one of them unlinked by the runner ('owner', no activity). */
 function seedOwnerUnlink(db: DatabaseSync): void {
   seedTerrainRelease(db)
+  // s03 sits on 2026-10-07: a5 (the 8th) is one day away, a6 (the 9th) two. Another runner's
+  // activity on the same day is never named.
+  for (const [id, date] of [
+    ['a5', '2026-10-08'],
+    ['a6', '2026-10-09'],
+  ] as const) {
+    insert(db, 'Activity', {
+      id,
+      userId: 'u1',
+      date,
+      type: 'run',
+      durationSec: 2700,
+      updatedAt: STAMP,
+    })
+  }
+  insert(db, 'User', {
+    id: 'u2',
+    email: 'other@example.com',
+    passwordHash: 'not-a-real-hash',
+    updatedAt: STAMP,
+  })
+  insert(db, 'Activity', {
+    id: 'a7',
+    userId: 'u2',
+    date: '2026-10-07',
+    type: 'run',
+    durationSec: 2700,
+    updatedAt: STAMP,
+  })
   insert(db, 'Goal', {
     id: 'g1',
     userId: 'u1',
@@ -1940,17 +1969,22 @@ function verifyPlanSessionRefusedActivity(db: DatabaseSync, before: Snapshot): v
   for (const row of before.get('PlanSession')!) if (row.id === 's03') row.linkSource = null
   expectNothingLost(before, db)
   expectConsistent(db)
+  const rows = rowsOf(
+    db,
+    `SELECT id, "activityId", "linkSource", "refusedActivityIds" FROM "PlanSession"
+     WHERE id IN ('s01', 's02', 's03', 's04') ORDER BY id`,
+  )
+  // An old unlink refuses what was near it (the activities of that runner within a day of the
+  // session), by design, and the session itself is free again.
+  const refused = JSON.parse(String(rows[2]!.refusedActivityIds)) as string[]
+  expect([...refused].sort()).toEqual(['a1', 'a2', 'a3', 'a4', 'a5'])
   expect(
-    rowsOf(
-      db,
-      `SELECT id, "activityId", "linkSource", "refusedActivityId" FROM "PlanSession"
-       WHERE id IN ('s01', 's02', 's03', 's04') ORDER BY id`,
-    ),
+    rows.map((r) => ({ ...r, refusedActivityIds: r.id === 's03' ? 'set' : r.refusedActivityIds })),
   ).toEqual([
-    { id: 's01', activityId: 'a1', linkSource: 'auto', refusedActivityId: null },
-    { id: 's02', activityId: 'a2', linkSource: 'owner', refusedActivityId: null },
-    { id: 's03', activityId: null, linkSource: null, refusedActivityId: null },
-    { id: 's04', activityId: null, linkSource: null, refusedActivityId: null },
+    { id: 's01', activityId: 'a1', linkSource: 'auto', refusedActivityIds: null },
+    { id: 's02', activityId: 'a2', linkSource: 'owner', refusedActivityIds: null },
+    { id: 's03', activityId: null, linkSource: null, refusedActivityIds: 'set' },
+    { id: 's04', activityId: null, linkSource: null, refusedActivityIds: null },
   ])
   expect(
     rowsOf(

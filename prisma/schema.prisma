@@ -246,7 +246,7 @@ model PlanSession {
   status            String   @default("planned") // 'planned' | 'completed' | 'partial' | 'skipped' | 'downgraded' | 'moved'
   activityId        String?  @unique
   linkSource        String? // 'auto' | 'owner'
-  refusedActivityId String? // the activity the runner unlinked: the matcher skips that pair only; no foreign key, a deleted activity leaves a harmless id
+  refusedActivityIds String? // JSON text: string[] of the activities the runner unlinked (shared/domain/refusals.ts); no foreign key, a deleted activity leaves a harmless id
   execution         String? // JSON text: ExecutionAssessment
   original          String? // JSON text: the prescription before a downgrade or move
   updatedAt         DateTime @updatedAt

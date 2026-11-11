@@ -234,7 +234,7 @@ export function existingFrom(
     status: s.status,
     activityId: s.activityId,
     linkSource: s.linkSource,
-    refusedActivityId: s.refusedActivityId,
+    refusedActivityIds: s.refusedActivityIds,
   }))
   const weeks: WeekDraft[] = weekRows.map((w) => {
     const inWeek = sessionRows.filter((s) => s.weekStart === w.weekStart)

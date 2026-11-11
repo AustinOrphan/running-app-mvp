@@ -313,7 +313,7 @@ const LINK_COLUMNS: ReadonlySet<string> = new Set([
   'execution',
   'activityId',
   'linkSource',
-  'refusedActivityId',
+  'refusedActivityIds',
 ])
 const SESSION_HASH_COLUMNS = SESSION_COLUMNS.filter((c) => !LINK_COLUMNS.has(c))
 

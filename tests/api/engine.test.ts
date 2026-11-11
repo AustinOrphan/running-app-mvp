@@ -682,7 +682,7 @@ describe('linking sessions to activities', () => {
     expect(unlinked.body).toMatchObject({
       activityId: null,
       linkSource: null,
-      refusedActivityId: run.id,
+      refusedActivityIds: [run.id],
       execution: null,
       status: 'planned',
     })

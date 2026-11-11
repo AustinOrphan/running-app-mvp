@@ -930,7 +930,7 @@ describe('the refusal of an unlinked activity', () => {
     const f = await fourWeekPlan('payload-refusal@example.com')
     await ctx.prisma.planSession.updateMany({
       where: { planId: f.plan.id, weekStart: nextMonday },
-      data: { refusedActivityId: 'refused-activity' },
+      data: { refusedActivityIds: JSON.stringify(['refused-activity']) },
     })
     await closeBusyDay(f)
     const before = await snapshot(f.plan.id)
@@ -942,12 +942,13 @@ describe('the refusal of an unlinked activity', () => {
     )
     expect(kept.length).toBeGreaterThan(0)
     // A paired row keeps its refusal; a row the re-plan created has none; none is invented.
-    for (const row of kept) expect(row.refusedActivityId, row.id).toBe('refused-activity')
+    for (const row of kept)
+      expect(row.refusedActivityIds, row.id).toBe(JSON.stringify(['refused-activity']))
     for (const row of after.sessions.filter((r) => !beforeIds.has(r.id))) {
-      expect(row.refusedActivityId, row.id).toBeNull()
+      expect(row.refusedActivityIds, row.id).toBeNull()
     }
     expect(
-      after.sessions.filter((row) => row.weekStart !== nextMonday && row.refusedActivityId),
+      after.sessions.filter((row) => row.weekStart !== nextMonday && row.refusedActivityIds),
     ).toEqual([])
     await expectRoundTrip(f.plan.id, before)
   })
@@ -955,7 +956,7 @@ describe('the refusal of an unlinked activity', () => {
   test('an unlink is not an edit: the content hash ignores the refusal', async () => {
     const f = await fourWeekPlan('hash-refusal@example.com')
     const row = (await sessionsOf(f.plan.id))[0]!
-    expect(sessionHash({ ...row, refusedActivityId: 'a1' })).toBe(sessionHash(row))
+    expect(sessionHash({ ...row, refusedActivityIds: '["a1"]' })).toBe(sessionHash(row))
   })
 })
 

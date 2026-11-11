@@ -203,6 +203,10 @@ links unlinked activities to unlinked planned sessions:
   score per day; ties go to the earlier session order.
 - An owner link (`linkSource 'owner'`) is never changed automatically; the owner can link,
   relink and unlink from the session or the activity.
+- An unlink refuses the pair, not the session: `PlanSession.refusedActivityIds` (a JSON array,
+  at most 20 ids, the oldest dropped) gains the unlinked activity, and the matcher never offers
+  that session one of them again, nor a duplicate copy or original of one. The session stays
+  free for every other activity, on its own day first. An explicit link or Done clears the set.
 - Unlinked activities still count fully as load.
 
 ### 4.2 Execution assessment

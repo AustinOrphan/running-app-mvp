@@ -14,6 +14,7 @@ import {
   zoneNotStoredText,
 } from '../../shared/copy/revision.ts'
 import { carryExternalIds, pairSessions } from '../../shared/domain/sessionIdentity.ts'
+import { withRefusal } from '../../shared/domain/refusals.ts'
 import { type ExecutionRecord } from '../../shared/engine/adapt.ts'
 import { estimateState } from '../../shared/engine/athlete.ts'
 import {
@@ -617,12 +618,15 @@ export async function linkPlanSession(
   if (args.activityId === null) {
     const updated = await prisma.planSession.update({
       where: { id: row.id },
-      // The refused activity is remembered: the matcher skips that pair, not the session, so the
+      // The refused activity joins the set: the matcher skips those pairs, not the session, so the
       // session stays free for any other activity.
       data: {
         activityId: null,
         linkSource: null,
-        refusedActivityId: row.activityId ?? row.refusedActivityId,
+        refusedActivityIds:
+          row.activityId === null
+            ? row.refusedActivityIds
+            : withRefusal(row.refusedActivityIds, row.activityId),
         execution: null,
         status: row.status === 'completed' || row.status === 'partial' ? 'planned' : row.status,
       },
@@ -635,7 +639,7 @@ export async function linkPlanSession(
   await assertLinkable(deps, row, activity)
   await prisma.planSession.update({
     where: { id: row.id },
-    data: { activityId: activity.id, linkSource: 'owner', refusedActivityId: null },
+    data: { activityId: activity.id, linkSource: 'owner', refusedActivityIds: null },
   })
   return assessSessionById(deps, { userId, sessionId: row.id })
 }

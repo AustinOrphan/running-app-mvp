@@ -2,6 +2,7 @@
 // each linked session against expectation, and trim the next quality session after a run that was
 // much harder than expected [design 4.1 to 4.3]. The engine decides; this module reads and writes.
 import { addDays, daysBetween, todayIso } from '../../shared/dates.ts'
+import { parseRefusedIds } from '../../shared/domain/refusals.ts'
 import { estimateState } from '../../shared/engine/athlete.ts'
 import { shouldTrimQuality, trimQuality } from '../../shared/engine/adapt.ts'
 import {
@@ -247,16 +248,29 @@ async function matchAndAssess(
       })
     ).map((r) => r.activityId),
   )
+  // The refused activities and their duplicate copies, which the candidates may not include.
+  const refused = [...new Set(rows.flatMap((r) => parseRefusedIds(r.refusedActivityIds)))]
+  const known =
+    refused.length === 0
+      ? []
+      : await prisma.activity.findMany({
+          where: {
+            userId: args.userId,
+            OR: [{ id: { in: refused } }, { duplicateOfId: { in: refused } }],
+          },
+          select: { id: true, duplicateOfId: true },
+        })
   const matches = matchSessions(
     rows.map((r) => ({
       ...sessionSpec(toPlanSession(r)),
       id: r.id,
       activityId: r.activityId,
       linkSource: r.linkSource,
-      refusedActivityId: r.refusedActivityId,
+      refusedActivityIds: parseRefusedIds(r.refusedActivityIds),
       status: r.status,
     })),
     activities.filter((a) => !elsewhere.has(a.id)),
+    known,
   )
   const linked = new Map(rows.map((r) => [r.id, r]))
   for (const match of matches) {

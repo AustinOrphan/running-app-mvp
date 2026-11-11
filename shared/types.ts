@@ -875,8 +875,8 @@ export interface PlanSession {
   status: PlanSessionStatus
   activityId: string | null
   linkSource: 'auto' | 'owner' | null
-  /** The activity the runner unlinked from this session; the matcher skips that pair only. */
-  refusedActivityId: string | null
+  /** The activities the runner unlinked from this session; the matcher skips those pairs only. */
+  refusedActivityIds: string[]
   execution: ExecutionAssessment | null
   /** The prescription before a downgrade or move. */
   original: Partial<SessionSpec> | null

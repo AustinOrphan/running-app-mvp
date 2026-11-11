@@ -110,8 +110,8 @@ type MatchSession = SessionSpec & {
   id: string
   activityId: string | null
   linkSource: string | null
-  /** The activity the runner unlinked from this session: that pair is never matched again. */
-  refusedActivityId?: string | null
+  /** The activities the runner unlinked from this session: those pairs are never matched again. */
+  refusedActivityIds?: readonly string[]
   /** Present on stored sessions; an adjacent-day match needs one still to run (`isToRun`). */
   status?: string
 }
@@ -125,12 +125,28 @@ function matchScore(plannedMin: number, activity: Activity, dayOffset: number): 
 
 /**
  * Links unlinked activities to unlinked planned sessions; owner links are never touched. A
- * session the runner unlinked stays free for every activity but the one it refused.
+ * session the runner unlinked stays free for every activity but the ones it refused (and their
+ * duplicate copies).
  */
 export function matchSessions(
   sessions: MatchSession[],
   activities: Activity[],
+  /** Other activities that may be copies of a refused one (`duplicateOfId`), for the refusals. */
+  known: ReadonlyArray<Pick<Activity, 'id' | 'duplicateOfId'>> = [],
 ): Array<{ sessionId: string; activityId: string }> {
+  const pool = [...known, ...activities]
+  /** The refused ids of a session and every activity in their duplicate family. */
+  const refusedBy = (session: MatchSession): ReadonlySet<string> => {
+    const refused = new Set(session.refusedActivityIds ?? [])
+    if (refused.size === 0) return refused
+    const family = new Set(refused)
+    for (const a of pool) {
+      if (refused.has(a.id) && a.duplicateOfId) family.add(a.duplicateOfId)
+      if (a.duplicateOfId && refused.has(a.duplicateOfId)) family.add(a.id)
+    }
+    return family
+  }
+  const refusals = new Map(sessions.map((s) => [s.id, refusedBy(s)]))
   const linkedActivities = new Set(
     sessions.map((s) => s.activityId).filter((id): id is string => id !== null),
   )
@@ -148,7 +164,7 @@ export function matchSessions(
       if (takenSessions.has(session.id)) continue
       for (const activity of freeActivities) {
         if (takenActivities.has(activity.id) || !compatible(session.kind, activity)) continue
-        if (session.refusedActivityId === activity.id) continue
+        if (refusals.get(session.id)?.has(activity.id)) continue
         const offset = Math.abs(daysBetween(session.date, activity.date))
         if (offset < minOffset || offset > maxOffset) continue
         if (
