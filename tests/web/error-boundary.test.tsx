@@ -10,7 +10,7 @@ import { activityPage, mockApi, renderWithProviders } from './helpers.tsx'
 // blank page. The pages are stood in for so that one throws while it draws.
 
 vi.mock('../../web/pages/PlanPage.tsx', () => ({
-  PlanPage: () => {
+  PlanPage: function ThrowingPage() {
     throw new Error('Plan page exploded')
   },
 }))
@@ -30,7 +30,7 @@ vi.mock('../../web/pages/ReviewPage.tsx', async () => {
   }
 })
 vi.mock('../../web/components/today/DoneSheet.tsx', () => ({
-  DoneSheet: () => {
+  DoneSheet: function ThrowingSheet() {
     throw new Error('Done sheet exploded')
   },
 }))
@@ -92,7 +92,7 @@ describe('the error boundaries', () => {
     const report = reportsOf(calls)[0]?.body as Record<string, string>
     expect(report['message']).toBe('Plan page exploded')
     expect(report['path']).toBe('/plan')
-    expect(report['componentStack']).toContain('PageBoundary')
+    expect(report['componentStack']).toContain('ThrowingPage')
     expect(report['userAgent']).toBeTruthy()
     expect(report['buildId']).toBe('unknown')
 
@@ -100,7 +100,7 @@ describe('the error boundaries', () => {
     expect(console.error).toHaveBeenCalledWith(
       expect.stringContaining('Render error'),
       expect.objectContaining({ message: 'Plan page exploded' }),
-      expect.stringContaining('PageBoundary'),
+      expect.stringContaining('ThrowingPage'),
     )
   })
 
@@ -114,8 +114,13 @@ describe('the error boundaries', () => {
     await waitFor(() => {
       expect(reportsOf(calls)).toHaveLength(1)
     })
-    expect((reportsOf(calls)[0]?.body as Record<string, string>)['message']).toBe(
-      'Done sheet exploded',
+    const sent = reportsOf(calls)[0]?.body as Record<string, string>
+    expect(sent['message']).toBe('Done sheet exploded')
+    expect(sent['componentStack']).toContain('ThrowingSheet')
+    expect(console.error).toHaveBeenCalledWith(
+      expect.stringContaining('Render error'),
+      expect.objectContaining({ message: 'Done sheet exploded' }),
+      expect.stringContaining('ThrowingSheet'),
     )
   })
 

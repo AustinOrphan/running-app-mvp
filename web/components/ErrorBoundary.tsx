@@ -6,6 +6,18 @@ import { reportClientError } from '../pwa/clientErrors.ts'
 import { Button } from './Button.tsx'
 import styles from './ErrorState.module.css'
 
+const originalStacks = new WeakMap<object, string>()
+
+/**
+ * Keeps the component stack of the first boundary that saw `error`. A `ChunkBoundary` rethrows an
+ * error that is not a failed chunk load, and the boundary above it sees a stack that starts at the
+ * rethrower; this one names the component that threw. The first call for an error wins.
+ */
+export function rememberComponentStack(error: unknown, componentStack: string | null | undefined) {
+  if (typeof error !== 'object' || error === null || !componentStack) return
+  if (!originalStacks.has(error)) originalStacks.set(error, componentStack)
+}
+
 export interface ErrorBoundaryProps {
   /**
    * `app` stands in for the whole app and offers a reload only. `page` stands in for one routed
@@ -36,8 +48,11 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   }
 
   override componentDidCatch(error: unknown, info: ErrorInfo): void {
-    console.error(`Render error (${this.props.scope} boundary):`, error, info.componentStack)
-    reportClientError(error, info.componentStack)
+    const stack =
+      (typeof error === 'object' && error !== null ? originalStacks.get(error) : undefined) ??
+      info.componentStack
+    console.error(`Render error (${this.props.scope} boundary):`, error, stack)
+    reportClientError(error, stack)
   }
 
   override componentDidUpdate(previous: ErrorBoundaryProps): void {
