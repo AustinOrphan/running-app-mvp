@@ -925,6 +925,41 @@ describe('applyUndoPayload', () => {
   })
 })
 
+describe('the refusal of an unlinked activity', () => {
+  test('survives a re-plan that updates the session in place and comes back with the undo', async () => {
+    const f = await fourWeekPlan('payload-refusal@example.com')
+    await ctx.prisma.planSession.updateMany({
+      where: { planId: f.plan.id, weekStart: nextMonday },
+      data: { refusedActivityIds: JSON.stringify(['refused-activity']) },
+    })
+    await closeBusyDay(f)
+    const before = await snapshot(f.plan.id)
+    await replanActivePlan(deps(), { userId: f.u.id, reason: 'weekly', today: thisMonday })
+    const after = await snapshot(f.plan.id)
+    const beforeIds = new Set(before.sessions.map((row) => row.id))
+    const kept = after.sessions.filter(
+      (row) => beforeIds.has(row.id) && row.weekStart === nextMonday,
+    )
+    expect(kept.length).toBeGreaterThan(0)
+    // A paired row keeps its refusal; a row the re-plan created has none; none is invented.
+    for (const row of kept)
+      expect(row.refusedActivityIds, row.id).toBe(JSON.stringify(['refused-activity']))
+    for (const row of after.sessions.filter((r) => !beforeIds.has(r.id))) {
+      expect(row.refusedActivityIds, row.id).toBeNull()
+    }
+    expect(
+      after.sessions.filter((row) => row.weekStart !== nextMonday && row.refusedActivityIds),
+    ).toEqual([])
+    await expectRoundTrip(f.plan.id, before)
+  })
+
+  test('an unlink is not an edit: the content hash ignores the refusal', async () => {
+    const f = await fourWeekPlan('hash-refusal@example.com')
+    const row = (await sessionsOf(f.plan.id))[0]!
+    expect(sessionHash({ ...row, refusedActivityIds: '["a1"]' })).toBe(sessionHash(row))
+  })
+})
+
 describe('the content hashes', () => {
   test('cover the content columns and not the activity link or the timestamp', async () => {
     const f = await fourWeekPlan('hash-columns@example.com')

@@ -278,6 +278,12 @@ describe('GET /api/export', () => {
       })
     })
 
+    test('the refused activities of a session come out as an array, not a quoted string', () => {
+      const sessions = JSON.parse(text(entries, 'plan-sessions.json')) as Record<string, unknown>[]
+      expect(sessions.length).toBeGreaterThan(0)
+      expect(sessions[0]!['refusedActivityIds']).toEqual(['refused-1', 'refused-2'])
+    })
+
     test('the whole stored track is there, untrimmed, and the settings say whether the map trims', () => {
       const [track] = JSON.parse(text(entries, 'activity-tracks.json')) as Record<string, unknown>[]
       expect(track).toMatchObject({

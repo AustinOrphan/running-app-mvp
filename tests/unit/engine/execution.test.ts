@@ -90,7 +90,12 @@ function session(over: Partial<SessionSpec> = {}): SessionSpec {
   }
 }
 
-type Linked = SessionSpec & { id: string; activityId: string | null; linkSource: string | null }
+type Linked = SessionSpec & {
+  id: string
+  activityId: string | null
+  linkSource: string | null
+  refusedActivityIds?: string[]
+}
 function linked(id: string, over: Partial<Linked> = {}): Linked {
   return { ...session(), id, activityId: null, linkSource: null, ...over }
 }
@@ -155,11 +160,57 @@ describe('matchSessions', () => {
 
   it('never changes owner links and never reuses a linked activity', () => {
     const owner = linked('own', { activityId: 'a1', linkSource: 'owner' })
-    const unlinkedByOwner = linked('off', { linkSource: 'owner' })
     const open = linked('open', { order: 1 })
     const activities = [activity({ id: 'a1' }), activity({ id: 'a2', durationSec: 59 * 60 })]
-    expect(matchSessions([owner, unlinkedByOwner, open], activities)).toEqual([
+    expect(matchSessions([owner, open], activities)).toEqual([
       { sessionId: 'open', activityId: 'a2' },
+    ])
+  })
+
+  it('skips the refused pair only: the session stays free for any other activity', () => {
+    const refused = linked('off', { refusedActivityIds: ['a1'] })
+    expect(matchSessions([refused], [activity({ id: 'a1' })])).toEqual([])
+    expect(matchSessions([refused], [activity({ id: 'a1' }), activity({ id: 'a2' })])).toEqual([
+      { sessionId: 'off', activityId: 'a2' },
+    ])
+  })
+
+  it('gives a refused session its own day before the next day session', () => {
+    const refused = linked('same', { date: TODAY, refusedActivityIds: ['old'] })
+    const next = linked('next', { date: '2026-07-01', order: 1 })
+    expect(matchSessions([refused, next], [activity({ id: 'run', date: TODAY })])).toEqual([
+      { sessionId: 'same', activityId: 'run' },
+    ])
+  })
+
+  it('refuses a set: every unlinked activity stays refused, a third is offered', () => {
+    const refused = linked('off', { refusedActivityIds: ['x', 'y'] })
+    const activities = [activity({ id: 'x' }), activity({ id: 'y' }), activity({ id: 'z' })]
+    expect(matchSessions([refused], activities)).toEqual([{ sessionId: 'off', activityId: 'z' }])
+  })
+
+  it('refuses the duplicate family of a refused activity, both ways', () => {
+    const refused = linked('off', { refusedActivityIds: ['copy'] })
+    // The original of a refused copy, which arrives later.
+    const original = activity({ id: 'orig' })
+    const known = [{ id: 'copy', duplicateOfId: 'orig' }]
+    expect(matchSessions([refused], [original], known)).toEqual([])
+    // A copy of a refused original.
+    const copyOfRefused = linked('off2', { refusedActivityIds: ['orig'] })
+    expect(
+      matchSessions([copyOfRefused], [activity({ id: 'copy2', duplicateOfId: 'orig' })]),
+    ).toEqual([])
+    // The refused copy released back to none: it stays refused itself, the original is free.
+    expect(matchSessions([refused], [original], [{ id: 'copy', duplicateOfId: null }])).toEqual([
+      { sessionId: 'off', activityId: 'orig' },
+    ])
+  })
+
+  it('offers the refused activity to another session', () => {
+    const refused = linked('off', { refusedActivityIds: ['a1'] })
+    const other = linked('other', { date: '2026-07-01' })
+    expect(matchSessions([refused, other], [activity({ id: 'a1' })])).toEqual([
+      { sessionId: 'other', activityId: 'a1' },
     ])
   })
 

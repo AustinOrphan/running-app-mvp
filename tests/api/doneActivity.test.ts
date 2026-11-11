@@ -63,6 +63,24 @@ describe('PUT /api/activities/done/:activityId', () => {
     expect(linked.activityId).toBe(id)
   })
 
+  test('Done on a session clears what the runner unlinked from it', async () => {
+    const session = await ctx.prisma.planSession.findFirstOrThrow({
+      where: { planId: fx.plan.id, kind: { in: [...RUN_KINDS] }, activityId: null },
+    })
+    await ctx.prisma.planSession.update({
+      where: { id: session.id },
+      data: { refusedActivityIds: JSON.stringify(['unlinked-earlier']) },
+    })
+    const id = randomUUID()
+    const res = await client(ctx, fx.u)
+      .put(`/api/activities/done/${id}`)
+      .send(body(session.date, { sessionId: session.id }))
+    expect(res.status, JSON.stringify(res.body)).toBe(201)
+    expect(
+      await ctx.prisma.planSession.findUniqueOrThrow({ where: { id: session.id } }),
+    ).toMatchObject({ activityId: id, linkSource: 'owner', refusedActivityIds: null })
+  })
+
   test('two sends at once store one activity', async () => {
     const session = aRun(fx.plan)
     const other = fx.plan.sessions.find((s) => RUN_KINDS.has(s.kind) && s.id !== session.id)

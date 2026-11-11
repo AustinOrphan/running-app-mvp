@@ -56,6 +56,7 @@ import { DEFAULT_WEIGHT_UNIT, isWeightUnit } from '../shared/domain/weight.ts'
 import { renderFact } from '../shared/copy/templates.ts'
 import { mondayOf, todayIso } from '../shared/dates.ts'
 import { plannedWeek } from '../shared/domain/plannedWeek.ts'
+import { parseRefusedIds } from '../shared/domain/refusals.ts'
 import { countsLine } from '../shared/engine/fuelCopy.ts'
 import { P } from '../shared/engine/params/index.ts'
 import { causesOf } from '../shared/engine/revisionDiff.ts'
@@ -565,6 +566,7 @@ export function toPlanSession(row: PlanSessionRow): PlanSession {
     status: row.status as PlanSessionStatus,
     activityId: row.activityId,
     linkSource: row.linkSource as PlanSession['linkSource'],
+    refusedActivityIds: parseRefusedIds(row.refusedActivityIds),
     execution: executionOf(row.execution),
     original: parseJson<Partial<SessionSpec> | null>(row.original, null),
     updatedAt: row.updatedAt.toISOString(),

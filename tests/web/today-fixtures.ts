@@ -44,6 +44,7 @@ export function makeSession(over: Partial<PlanSessionView> = {}): PlanSessionVie
     status: 'planned',
     activityId: null,
     linkSource: null,
+    refusedActivityIds: [],
     execution: null,
     original: null,
     updatedAt: '2026-03-01T00:00:00.000Z',

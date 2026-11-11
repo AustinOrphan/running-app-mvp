@@ -681,7 +681,8 @@ describe('linking sessions to activities', () => {
     const unlinked = await c.post(`/api/plan/sessions/${a!.id}/link`).send({ activityId: null })
     expect(unlinked.body).toMatchObject({
       activityId: null,
-      linkSource: 'owner',
+      linkSource: null,
+      refusedActivityIds: [run.id],
       execution: null,
       status: 'planned',
     })
