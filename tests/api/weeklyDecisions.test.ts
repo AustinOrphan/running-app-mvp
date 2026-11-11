@@ -81,6 +81,7 @@ describe('executionRecordsByWeek', () => {
       status: 'completed',
       activityId: null,
       linkSource: null,
+      refusedActivityId: null,
       execution: assessment(0),
       original: null,
       updatedAt: new Date('2026-10-01T00:00:00Z'),

@@ -110,6 +110,8 @@ type MatchSession = SessionSpec & {
   id: string
   activityId: string | null
   linkSource: string | null
+  /** The activity the runner unlinked from this session: that pair is never matched again. */
+  refusedActivityId?: string | null
   /** Present on stored sessions; an adjacent-day match needs one still to run (`isToRun`). */
   status?: string
 }
@@ -121,7 +123,10 @@ function matchScore(plannedMin: number, activity: Activity, dayOffset: number): 
   return dayOffset === 0 ? base : base + P.matching.adjacentDayPenalty.value
 }
 
-/** Links unlinked activities to unlinked planned sessions; owner links are never touched. */
+/**
+ * Links unlinked activities to unlinked planned sessions; owner links are never touched. A
+ * session the runner unlinked stays free for every activity but the one it refused.
+ */
 export function matchSessions(
   sessions: MatchSession[],
   activities: Activity[],
@@ -129,9 +134,7 @@ export function matchSessions(
   const linkedActivities = new Set(
     sessions.map((s) => s.activityId).filter((id): id is string => id !== null),
   )
-  const freeSessions = sessions.filter(
-    (s) => s.activityId === null && s.linkSource !== 'owner' && s.kind !== 'rest',
-  )
+  const freeSessions = sessions.filter((s) => s.activityId === null && s.kind !== 'rest')
   const freeActivities = activities.filter((a) => !linkedActivities.has(a.id) && counts(a))
 
   const takenSessions = new Set<string>()
@@ -145,6 +148,7 @@ export function matchSessions(
       if (takenSessions.has(session.id)) continue
       for (const activity of freeActivities) {
         if (takenActivities.has(activity.id) || !compatible(session.kind, activity)) continue
+        if (session.refusedActivityId === activity.id) continue
         const offset = Math.abs(daysBetween(session.date, activity.date))
         if (offset < minOffset || offset > maxOffset) continue
         if (

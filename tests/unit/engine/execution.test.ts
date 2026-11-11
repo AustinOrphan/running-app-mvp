@@ -90,7 +90,12 @@ function session(over: Partial<SessionSpec> = {}): SessionSpec {
   }
 }
 
-type Linked = SessionSpec & { id: string; activityId: string | null; linkSource: string | null }
+type Linked = SessionSpec & {
+  id: string
+  activityId: string | null
+  linkSource: string | null
+  refusedActivityId?: string | null
+}
 function linked(id: string, over: Partial<Linked> = {}): Linked {
   return { ...session(), id, activityId: null, linkSource: null, ...over }
 }
@@ -155,11 +160,34 @@ describe('matchSessions', () => {
 
   it('never changes owner links and never reuses a linked activity', () => {
     const owner = linked('own', { activityId: 'a1', linkSource: 'owner' })
-    const unlinkedByOwner = linked('off', { linkSource: 'owner' })
     const open = linked('open', { order: 1 })
     const activities = [activity({ id: 'a1' }), activity({ id: 'a2', durationSec: 59 * 60 })]
-    expect(matchSessions([owner, unlinkedByOwner, open], activities)).toEqual([
+    expect(matchSessions([owner, open], activities)).toEqual([
       { sessionId: 'open', activityId: 'a2' },
+    ])
+  })
+
+  it('skips the refused pair only: the session stays free for any other activity', () => {
+    const refused = linked('off', { refusedActivityId: 'a1' })
+    expect(matchSessions([refused], [activity({ id: 'a1' })])).toEqual([])
+    expect(matchSessions([refused], [activity({ id: 'a1' }), activity({ id: 'a2' })])).toEqual([
+      { sessionId: 'off', activityId: 'a2' },
+    ])
+  })
+
+  it('gives a refused session its own day before the next day session', () => {
+    const refused = linked('same', { date: TODAY, refusedActivityId: 'old' })
+    const next = linked('next', { date: '2026-07-01', order: 1 })
+    expect(matchSessions([refused, next], [activity({ id: 'run', date: TODAY })])).toEqual([
+      { sessionId: 'same', activityId: 'run' },
+    ])
+  })
+
+  it('offers the refused activity to another session', () => {
+    const refused = linked('off', { refusedActivityId: 'a1' })
+    const other = linked('other', { date: '2026-07-01' })
+    expect(matchSessions([refused, other], [activity({ id: 'a1' })])).toEqual([
+      { sessionId: 'other', activityId: 'a1' },
     ])
   })
 

@@ -253,6 +253,7 @@ async function matchAndAssess(
       id: r.id,
       activityId: r.activityId,
       linkSource: r.linkSource,
+      refusedActivityId: r.refusedActivityId,
       status: r.status,
     })),
     activities.filter((a) => !elsewhere.has(a.id)),

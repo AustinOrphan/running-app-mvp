@@ -617,11 +617,12 @@ export async function linkPlanSession(
   if (args.activityId === null) {
     const updated = await prisma.planSession.update({
       where: { id: row.id },
-      // 'owner' with no activity records the owner's choice: the matcher leaves such a session
-      // alone, so the unlinked pair is not linked again.
+      // The refused activity is remembered: the matcher skips that pair, not the session, so the
+      // session stays free for any other activity.
       data: {
         activityId: null,
-        linkSource: 'owner',
+        linkSource: null,
+        refusedActivityId: row.activityId ?? row.refusedActivityId,
         execution: null,
         status: row.status === 'completed' || row.status === 'partial' ? 'planned' : row.status,
       },
@@ -634,7 +635,7 @@ export async function linkPlanSession(
   await assertLinkable(deps, row, activity)
   await prisma.planSession.update({
     where: { id: row.id },
-    data: { activityId: activity.id, linkSource: 'owner' },
+    data: { activityId: activity.id, linkSource: 'owner', refusedActivityId: null },
   })
   return assessSessionById(deps, { userId, sessionId: row.id })
 }

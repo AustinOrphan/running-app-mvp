@@ -309,7 +309,12 @@ export const WEEK_COLUMNS: readonly string[] = PLAN_WEEK_COLUMNS.filter((c) => c
  * move is a status too; a reader that compares hashes therefore checks `activityId` first
  * (`scopeUndo` in `revisions.ts`), so a linked run reads as a run and never as an edit.
  */
-const LINK_COLUMNS: ReadonlySet<string> = new Set(['execution', 'activityId', 'linkSource'])
+const LINK_COLUMNS: ReadonlySet<string> = new Set([
+  'execution',
+  'activityId',
+  'linkSource',
+  'refusedActivityId',
+])
 const SESSION_HASH_COLUMNS = SESSION_COLUMNS.filter((c) => !LINK_COLUMNS.has(c))
 
 type Scalar = string | number | boolean | null

@@ -146,6 +146,7 @@ function makeSession(over: Partial<PlanSessionView> = {}): PlanSessionView {
     status: 'planned',
     activityId: null,
     linkSource: null,
+    refusedActivityId: null,
     execution: null,
     original: null,
     updatedAt: '2026-10-01T00:00:00.000Z',

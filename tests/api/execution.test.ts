@@ -599,6 +599,94 @@ describe('an owner unlink', () => {
     const row = await ctx.prisma.planSession.findUniqueOrThrow({ where: { id: rows[0]!.id } })
     expect(row.activityId).toBeNull()
     expect(row.execution).toBeNull()
+    expect(row).toMatchObject({ linkSource: null, refusedActivityId: run.id })
+  })
+
+  // The owner's case (2026-11-08): a wrong run was unlinked, the session moved twice, and the run
+  // of the new day was linked to the next day's session because the session stayed marked.
+  test('refuses the pair, not the session: a moved session takes the run of its day', async () => {
+    const wrongDay = addDays(today, -2)
+    const sessionDay = addDays(today, -1)
+    const { u, rows } = await planWith('unlink-moved@example.com', [
+      { date: wrongDay, kind: 'easy', min: 60 },
+      { date: today, kind: 'easy', min: 60 },
+    ])
+    const [strides, nextDay] = rows
+    const deps = { prisma: ctx.prisma, config: ctx.config }
+    const wrong = await addRun(u.id, wrongDay, { durationSec: 58 * 60 })
+    await runExecutionForActivity(deps, { userId: u.id, activityId: wrong.id })
+    expect(
+      (await ctx.prisma.planSession.findUniqueOrThrow({ where: { id: strides!.id } })).activityId,
+    ).toBe(wrong.id)
+
+    const c = client(ctx, u)
+    expect(
+      (await c.post(`/api/plan/sessions/${strides!.id}/link`).send({ activityId: null })).status,
+    ).toBe(200)
+    // The adjust route never touches the link columns; the date is moved in place.
+    await ctx.prisma.planSession.update({ where: { id: strides!.id }, data: { date: sessionDay } })
+
+    // The refused run is within a day of the moved session and is still not linked to it.
+    await runNightlyMatching(deps, { today })
+    await runExecutionForActivity(deps, { userId: u.id, activityId: wrong.id })
+    expect(
+      await ctx.prisma.planSession.findUniqueOrThrow({ where: { id: strides!.id } }),
+    ).toMatchObject({ activityId: null, refusedActivityId: wrong.id })
+
+    // The run of the moved session's own day links to it at offset 0, not to the next day's.
+    const run = await addRun(u.id, sessionDay, { durationSec: 58 * 60 })
+    await runExecutionForActivity(deps, { userId: u.id, activityId: run.id })
+    expect(
+      await ctx.prisma.planSession.findUniqueOrThrow({ where: { id: strides!.id } }),
+    ).toMatchObject({ activityId: run.id, linkSource: 'auto', status: 'completed' })
+    const next = await ctx.prisma.planSession.findUniqueOrThrow({ where: { id: nextDay!.id } })
+    expect(next).toMatchObject({ activityId: null, status: 'planned' })
+    // The refused run stays unlinked from it, whatever runs after.
+    await runNightlyMatching(deps, { today })
+    expect(await ctx.prisma.planSession.findFirst({ where: { activityId: wrong.id } })).toBeNull()
+  })
+
+  test('an explicit link clears the refusal', async () => {
+    const { u, rows } = await planWith('unlink-relink@example.com', [
+      { date: today, kind: 'easy', min: 60 },
+    ])
+    const deps = { prisma: ctx.prisma, config: ctx.config }
+    const run = await addRun(u.id, today, { durationSec: 58 * 60 })
+    await runExecutionForActivity(deps, { userId: u.id, activityId: run.id })
+    const c = client(ctx, u)
+    await c.post(`/api/plan/sessions/${rows[0]!.id}/link`).send({ activityId: null })
+    expect(
+      (await ctx.prisma.planSession.findUniqueOrThrow({ where: { id: rows[0]!.id } }))
+        .refusedActivityId,
+    ).toBe(run.id)
+
+    expect(
+      (await c.post(`/api/plan/sessions/${rows[0]!.id}/link`).send({ activityId: run.id })).status,
+    ).toBe(200)
+    expect(
+      await ctx.prisma.planSession.findUniqueOrThrow({ where: { id: rows[0]!.id } }),
+    ).toMatchObject({ activityId: run.id, linkSource: 'owner', refusedActivityId: null })
+  })
+
+  test('an owner link with an activity is never moved by the matcher', async () => {
+    const { u, rows } = await planWith('owner-link-kept@example.com', [
+      { date: today, kind: 'easy', min: 60 },
+    ])
+    const deps = { prisma: ctx.prisma, config: ctx.config }
+    const chosen = await addRun(u.id, addDays(today, -1), { durationSec: 30 * 60 })
+    expect(
+      (
+        await client(ctx, u)
+          .post(`/api/plan/sessions/${rows[0]!.id}/link`)
+          .send({ activityId: chosen.id })
+      ).status,
+    ).toBe(200)
+    const better = await addRun(u.id, today, { durationSec: 60 * 60 })
+    await runExecutionForActivity(deps, { userId: u.id, activityId: better.id })
+    await runNightlyMatching(deps, { today })
+    expect(
+      await ctx.prisma.planSession.findUniqueOrThrow({ where: { id: rows[0]!.id } }),
+    ).toMatchObject({ activityId: chosen.id, linkSource: 'owner' })
   })
 })
 

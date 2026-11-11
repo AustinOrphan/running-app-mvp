@@ -730,6 +730,7 @@ function toPlanSession(s: SessionSpec & { id: string }): PlanSession {
     status: 'planned',
     activityId: null,
     linkSource: null,
+    refusedActivityId: null,
     execution: null,
     original: null,
     updatedAt: '',

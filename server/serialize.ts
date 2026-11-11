@@ -565,6 +565,7 @@ export function toPlanSession(row: PlanSessionRow): PlanSession {
     status: row.status as PlanSessionStatus,
     activityId: row.activityId,
     linkSource: row.linkSource as PlanSession['linkSource'],
+    refusedActivityId: row.refusedActivityId,
     execution: executionOf(row.execution),
     original: parseJson<Partial<SessionSpec> | null>(row.original, null),
     updatedAt: row.updatedAt.toISOString(),
