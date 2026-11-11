@@ -199,6 +199,7 @@ export async function seedEverything(
       target: '{}',
       purpose: 'p',
       activityId: activity.id,
+      refusedActivityIds: JSON.stringify(['refused-1', 'refused-2']),
     },
   })
   await prisma.weeklyBrief.create({

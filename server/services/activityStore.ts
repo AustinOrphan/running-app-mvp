@@ -442,7 +442,7 @@ export async function saveDoneActivity(
             within: async (tx, row) => {
               const { count } = await tx.planSession.updateMany({
                 where: { id: linkTo, activityId: null },
-                data: { activityId: row.id, linkSource: 'owner' },
+                data: { activityId: row.id, linkSource: 'owner', refusedActivityIds: null },
               })
               if (count === 0) {
                 // Another activity holds the session: refuse. A session a re-plan removed between
