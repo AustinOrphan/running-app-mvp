@@ -399,7 +399,15 @@ export function exportTables(prisma: PrismaClient, userId: string): Table[] {
         'refusedActivityIds: the activities the runner unlinked from the session, as JSON; none is linked to it again.',
         'externalId: the session’s identity outside the database.',
       ],
-      json: ['structure', 'target', 'rules', 'flags', 'execution', 'original'],
+      json: [
+        'structure',
+        'target',
+        'rules',
+        'flags',
+        'execution',
+        'original',
+        'refusedActivityIds',
+      ],
       find: (take, last) =>
         prisma.planSession.findMany({
           where: { ...ofMyPlans, ...idAfter(last) },
