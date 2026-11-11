@@ -77,6 +77,14 @@ jobs:
   e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # Microsoft's Playwright image carries chromium and the system packages it needs, so the job
+    # installs nothing from the Ubuntu archive: on 2026-11-11 the runners could not reach any Ubuntu
+    # mirror for hours (24.04 and 26.04 alike) and `playwright install-deps` failed every run. Earlier
+    # a runner twice hung on the browser download until the 20 minutes ran out. The tag must equal the
+    # installed Playwright; the first step below fails with both versions when a bump leaves it behind.
+    container:
+      image: mcr.microsoft.com/playwright:v1.64.1-noble
+      options: --ipc=host
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -84,21 +92,10 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      # The browsers are kept between runs, keyed by the installed Playwright version (the build of
-      # chromium it downloads follows from it). Twice a runner hung on that download until the job's
-      # 20 minutes ran out. A hit still installs the system packages chromium needs on a fresh runner.
-      - id: playwright-version
-        run: echo "version=$(node -p "require('playwright/package.json').version")" >> "$GITHUB_OUTPUT"
-      - id: playwright-cache
-        uses: actions/cache@v6
-        with:
-          path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ steps.playwright-version.outputs.version }}
-      - if: steps.playwright-cache.outputs.cache-hit != 'true'
-        timeout-minutes: 5
-        run: npx playwright install --with-deps chromium
-      - if: steps.playwright-cache.outputs.cache-hit == 'true'
-        run: npx playwright install-deps chromium
+      - name: Check the image matches the installed Playwright
+        run: |
+          installed="$(node -p "require('playwright/package.json').version")"
+          test "$installed" = "1.64.1" || { echo "Playwright $installed is installed but the e2e image is v1.64.1: update container.image in ci.yml"; exit 1; }
       - run: npm run build
       - run: npm run test:e2e
       - uses: actions/upload-artifact@v7
