@@ -4,6 +4,7 @@ import { matchPath, Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import { useMe, useSetupStatus } from './api/auth.ts'
 import { useBrowserDefaults } from './api/browserDefaults.ts'
 import { dropUserQueries, keys, UNAUTHORIZED_EVENT } from './api/client.ts'
+import { ErrorBoundary } from './components/ErrorBoundary.tsx'
 import { ErrorState } from './components/ErrorState.tsx'
 import { applyCondensedFigures, useCondensedFigures } from './components/figureType.ts'
 import { Layout } from './components/Layout.tsx'
@@ -160,19 +161,21 @@ export function App() {
     applyCondensedFigures(condensed.on)
   }, [condensed.on])
   return (
-    <Suspense fallback={<Skeleton />}>
-      <Routes>
-        {PUBLIC_ROUTES.map(([path, { Component }]) => (
-          <Route key={path} path={path} element={<Component />} />
-        ))}
-        <Route element={<AuthGate />}>
-          <Route element={<Layout />}>
-            {APP_ROUTES.map(([path, { Component }]) => (
-              <Route key={path} path={path} element={<Component />} />
-            ))}
+    <ErrorBoundary scope="app">
+      <Suspense fallback={<Skeleton />}>
+        <Routes>
+          {PUBLIC_ROUTES.map(([path, { Component }]) => (
+            <Route key={path} path={path} element={<Component />} />
+          ))}
+          <Route element={<AuthGate />}>
+            <Route element={<Layout />}>
+              {APP_ROUTES.map(([path, { Component }]) => (
+                <Route key={path} path={path} element={<Component />} />
+              ))}
+            </Route>
           </Route>
-        </Route>
-      </Routes>
-    </Suspense>
+        </Routes>
+      </Suspense>
+    </ErrorBoundary>
   )
 }

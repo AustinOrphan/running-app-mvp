@@ -231,3 +231,21 @@ export function createPasswordChangeLimiter(opts: LimiterOptions = {}): RequestH
     (req) => `password:${req.userId}`,
   )
 }
+
+/** Error reports per window and user. */
+export const CLIENT_ERROR_LIMIT = 5
+
+/**
+ * Limiter of `POST /api/client-errors`: 5 reports per minute per signed-in user (it sits after
+ * `requireAuth`), so a page that fails in a loop cannot fill the log. Every request counts.
+ */
+export function createClientErrorLimiter(opts: LimiterOptions = {}): RequestHandler {
+  return createLimiter(
+    { windowMs: 60_000, ...opts },
+    CLIENT_ERROR_LIMIT,
+    'internal',
+    'Too many reports. Try again later.',
+    'every-request',
+    (req) => `client-error:${req.userId}`,
+  )
+}

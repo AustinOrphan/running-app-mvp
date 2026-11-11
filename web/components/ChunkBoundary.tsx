@@ -1,4 +1,5 @@
-import { Component, type ReactNode } from 'react'
+import { Component, type ErrorInfo, type ReactNode } from 'react'
+import { rememberComponentStack } from './ErrorBoundary.tsx'
 
 /** The rejection of a lazy import: the one error a `ChunkBoundary` answers for. */
 export class ChunkLoadError extends Error {
@@ -50,6 +51,17 @@ export class ChunkBoundary extends Component<ChunkBoundaryProps, ChunkBoundarySt
     return { error, failed: true }
   }
 
+  // A non-chunk error is passed on from here, not from render: a boundary that throws again while
+  // rendering never gets this callback, and the component stack seen here names the component that
+  // threw. It is kept for the boundary that shows the error, whose own stack starts at this one.
+  override componentDidCatch(error: unknown, info: ErrorInfo): void {
+    if (error instanceof ChunkLoadError) return
+    rememberComponentStack(error, info.componentStack)
+    this.setState(() => {
+      throw error
+    })
+  }
+
   // Strict Mode mounts, unmounts and mounts the same instance, so the flag is set here too.
   override componentDidMount(): void {
     this.mounted = true
@@ -73,8 +85,9 @@ export class ChunkBoundary extends Component<ChunkBoundaryProps, ChunkBoundarySt
 
   override render(): ReactNode {
     if (!this.state.failed) return this.props.children
-    // A bug in a page that did load is not a failed load: let the next boundary up show it.
-    if (!(this.state.error instanceof ChunkLoadError)) throw this.state.error
+    // A bug in a page that did load is not a failed load: `componentDidCatch` passes it to the next
+    // boundary up, which shows it. Nothing is drawn meanwhile.
+    if (!(this.state.error instanceof ChunkLoadError)) return null
     return this.props.fallback({ retry: this.retry, retrying: this.state.retrying })
   }
 }
