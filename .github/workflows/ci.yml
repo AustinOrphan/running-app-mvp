@@ -75,7 +75,11 @@ jobs:
       - run: npm run test:sweep -- --shard=${{ matrix.shard }}
 
   e2e:
-    runs-on: ubuntu-latest
+    # Pinned to 24.04: on 2026-11-11 the ubuntu-latest images had moved to 26.04 (resolute), and
+    # `playwright install-deps` failed on four runs in a row because the runners could not fetch the
+    # resolute indexes from any Ubuntu mirror (exit 100), while the archive itself answered. This is
+    # the one job that installs system packages; move it back once 26.04 runners fetch them.
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
