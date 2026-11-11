@@ -85,11 +85,15 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   }
 }
 
-/** A page boundary that clears when the route's path changes. */
+/**
+ * A page boundary that clears on every navigation, the tab of the page that failed included (each
+ * navigation has its own location key). A page that throws again at once shows the screen again; the
+ * boundary resets only when the key changes, so there is no loop.
+ */
 export function PageBoundary({ children }: { children: ReactNode }) {
-  const { pathname } = useLocation()
+  const { key } = useLocation()
   return (
-    <ErrorBoundary scope="page" resetKey={pathname}>
+    <ErrorBoundary scope="page" resetKey={key}>
       {children}
     </ErrorBoundary>
   )

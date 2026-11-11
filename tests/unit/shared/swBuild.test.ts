@@ -251,6 +251,29 @@ describe('the Vite plugin', () => {
     }
   })
 
+  test('gives the page and the worker one build id, fixed before the bundle', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'rl-swplugin-'))
+    try {
+      writeFileSync(join(dir, 'index.html'), '<html>')
+      const plugin = serviceWorkerPlugin()
+      const config = plugin.config as () => { define: Record<string, string> }
+      const id = JSON.parse(config().define['__BUILD_ID__'] ?? '') as string
+      expect(id).toMatch(/^[0-9a-f]{12}$/)
+      // The same sources give the same id.
+      expect(JSON.parse((plugin.config as typeof config)().define['__BUILD_ID__'] ?? '')).toBe(id)
+      ;(plugin.configResolved as (config: unknown) => void)({
+        root: dirname(dir),
+        build: { outDir: dir },
+      })
+      ;(plugin.writeBundle as (this: { info: (m: string) => void }) => void).call({
+        info: () => {},
+      })
+      expect(constantsOf(readFileSync(join(dir, 'sw.js'), 'utf8')).buildId).toBe(id)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
   test('the project depends on no service worker library', () => {
     const manifest = JSON.parse(readFileSync('package.json', 'utf8')) as {
       dependencies?: Record<string, string>

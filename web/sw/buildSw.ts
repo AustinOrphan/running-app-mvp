@@ -3,7 +3,7 @@
 // shell must keep, derives the build id from it and writes the worker with both substituted. It
 // uses only Node's own modules, so the worker needs no library.
 import { createHash } from 'node:crypto'
-import { readdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { Plugin } from 'vite'
@@ -77,6 +77,36 @@ export function buildIdFor(
   return hash.digest('hex').slice(0, 12)
 }
 
+/**
+ * The build id of a build whose page must know it, which the page's own bytes cannot give (the id
+ * would be inside the file it hashes). Twelve hex digits over what the bundle is made from: the
+ * worker's source, the Vite config, the lock file and every file under `web/` and `shared/`. The
+ * Vite plugin hands it to the page as the constant `__BUILD_ID__` and to the worker, one source for
+ * both. Any change to the sources gives a new id; one that changes no shell file may too, which
+ * only costs a refetch.
+ */
+export function sourceBuildId(repoRoot: string, template: string): string {
+  const hash = createHash('sha256').update(template).update('\0')
+  for (const file of ['vite.config.ts', 'package-lock.json']) {
+    const path = join(repoRoot, file)
+    if (existsSync(path)) hash.update(file).update('\0').update(readFileSync(path)).update('\0')
+  }
+  for (const folder of ['web', 'shared']) {
+    for (const path of listFiles(join(repoRoot, folder))) {
+      const name = `${folder}/${path}`
+      hash
+        .update(name)
+        .update('\0')
+        .update(readFileSync(join(repoRoot, name)))
+        .update('\0')
+    }
+  }
+  return hash.digest('hex').slice(0, 12)
+}
+
+/** The repository root, two folders above this file. */
+const REPO_ROOT = fileURLToPath(new URL('../../', import.meta.url))
+
 export interface EmittedWorker {
   buildId: string
   /** The URL paths the worker keeps: `/index.html`, `/assets/...`. */
@@ -84,13 +114,20 @@ export interface EmittedWorker {
 }
 
 /** Writes `sw.js` into `outDir` for the files already there. */
-export function emitServiceWorker(options: { outDir: string; template: string }): EmittedWorker {
+export function emitServiceWorker(options: {
+  outDir: string
+  template: string
+  /** A build id fixed ahead of the bundle; without one it is derived from the files. */
+  buildId?: string
+}): EmittedWorker {
   const { outDir, template } = options
   const paths = listFiles(outDir).filter(isPrecached)
-  const buildId = buildIdFor(
-    template,
-    paths.map((path) => ({ path, bytes: readFileSync(join(outDir, path)) })),
-  )
+  const buildId =
+    options.buildId ??
+    buildIdFor(
+      template,
+      paths.map((path) => ({ path, bytes: readFileSync(join(outDir, path)) })),
+    )
   const precache = paths.map((path) => `/${path}`)
   writeFileSync(join(outDir, 'sw.js'), renderSw(template, buildId, precache))
   return { buildId, precache }
@@ -99,9 +136,15 @@ export function emitServiceWorker(options: { outDir: string; template: string })
 /** The Vite plugin: after the bundle is written, `dist/web/sw.js` is written beside it. */
 export function serviceWorkerPlugin(): Plugin {
   let outDir = ''
+  let fixedId: string | undefined
   return {
     name: 'running-log-service-worker',
     apply: 'build',
+    // The page's constant and the worker's id are the same value, fixed before the bundle.
+    config() {
+      fixedId = sourceBuildId(REPO_ROOT, readFileSync(SW_SOURCE, 'utf8'))
+      return { define: { __BUILD_ID__: JSON.stringify(fixedId) } }
+    },
     configResolved(config) {
       outDir = resolve(config.root, config.build.outDir)
     },
@@ -109,6 +152,7 @@ export function serviceWorkerPlugin(): Plugin {
       const { buildId, precache } = emitServiceWorker({
         outDir,
         template: readFileSync(SW_SOURCE, 'utf8'),
+        ...(fixedId === undefined ? {} : { buildId: fixedId }),
       })
       this.info(`sw.js written: build ${buildId}, ${String(precache.length)} files kept`)
     },
