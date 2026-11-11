@@ -162,6 +162,24 @@ export function makeWorkout(over: Partial<StrengthWorkout> = {}): StrengthWorkou
   }
 }
 
+/**
+ * A pair of dumbbells, one dumbbell and a barbell: a standing calf raise and a goblet squat at 50 lb
+ * on dumbbells of 20 to 60 lb, and a back squat. The calf raise is held in each hand, the goblet
+ * squat in both hands on one, so the first load is each dumbbell's and the second is the one's.
+ */
+export function pairWorkout(): StrengthWorkout {
+  const bells = { loadsG: [20, 40, 50, 60].map(lb) }
+  return makeWorkout({
+    lifts: [
+      calf({ implement: 'dumbbells', steps: bells, loadG: lb(50) }),
+      squat({ exerciseId: 'goblet-squat', implement: 'dumbbells', steps: bells, loadG: lb(50) }),
+      squat(),
+    ],
+    plyo: null,
+    trunk: [],
+  })
+}
+
 /** The same session for a runner with no equipment: a tempo squat and a glute bridge, no loads. */
 export function bodyweightWorkout(): StrengthWorkout {
   const bodyweight = (over: Partial<WorkoutLift>): WorkoutLift =>

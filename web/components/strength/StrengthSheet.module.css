@@ -263,3 +263,14 @@
   min-height: 2.75rem;
   font-weight: 600;
 }
+
+/* the two implements of a pair together: under the suggestion, and under each set's load, where a
+   line is kept when it is empty so the rows below do not move as the load is typed */
+.total {
+  display: block;
+  color: var(--text-muted);
+}
+
+.setTotal {
+  min-height: var(--lh-sm);
+}

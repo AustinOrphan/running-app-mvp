@@ -651,7 +651,12 @@ export type Quantity =
    * A strength load in grams, an integer (ADR 0003, ADR 0014); the runner's weight unit decides
    * how it reads ("115 lb" or "52.25 kg"), so a stored fact holds grams and no unit.
    */
-  | { kind: 'load'; g: number }
+  | {
+      kind: 'load'
+      g: number
+      /** The weight of each of a pair of dumbbells or kettlebells: reads "50 lb each". */
+      each?: true
+    }
   /** "19 Oct" (short, the default), "Mon 19 Oct" (weekday) or "Mon 19 Oct 2026" (long). */
   | { kind: 'date'; iso: string; style?: 'short' | 'weekday' | 'long' }
   /** "Mon" (short, the default) or "Monday". */

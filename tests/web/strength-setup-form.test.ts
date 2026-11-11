@@ -26,7 +26,11 @@ import {
   type EquipmentForm,
 } from '../../web/components/strength/setupForm.ts'
 import { ALL_KINDS, ITEM, have } from '../unit/engine/strength-fixtures.ts'
-import { loadMeaningLine, strengthWords } from '../../web/components/strength/strengthText.ts'
+import {
+  loadMeaningLine,
+  loadTotalLine,
+  strengthWords,
+} from '../../web/components/strength/strengthText.ts'
 import { STRENGTH_SETTINGS, lb } from './strength-fixtures.ts'
 
 const everything = have(...ALL_KINDS)
@@ -314,13 +318,47 @@ describe('what a load means (design 5.2)', () => {
       words.say('strength.basis.total-with-bar'),
     )
     expect(loadMeaningLine(words, 'leg-press', 'leg-press')).toBe(words.say('strength.basis.stack'))
-    expect(loadMeaningLine(words, 'goblet-squat', 'dumbbells')).toBe(
-      words.say('strength.basis.one-implement'),
-    )
+    expect(loadMeaningLine(words, 'goblet-squat', 'dumbbells')).toBe('One dumbbell')
+    expect(loadMeaningLine(words, 'goblet-squat', 'kettlebells')).toBe('One kettlebell')
+    expect(loadMeaningLine(words, 'farmer-carry', 'dumbbells')).toBe('Each dumbbell')
+    expect(loadMeaningLine(words, 'farmer-carry', 'kettlebells')).toBe('Each kettlebell')
     // the same movement with weight added to the body
     expect(loadMeaningLine(words, 'single-leg-calf-raise', 'dumbbells')).toBe(
       words.say('strength.basis.added'),
     )
+  })
+
+  test('the total of a pair is in the runner unit, and only for a pair', () => {
+    const lb50 = toGrams(50, 'lb')
+    expect(loadTotalLine(words, 'standing-calf-raise', 'dumbbells', lb50)).toBe('100 lb in all')
+    const kg = strengthWords('km', 'kg')
+    expect(loadTotalLine(kg, 'standing-calf-raise', 'dumbbells', toGrams(22.5, 'kg'))).toBe(
+      '45 kg in all',
+    )
+    // 22.25 kg each is 44.5 kg together, on the 0.25 kg grid
+    expect(loadTotalLine(kg, 'farmer-carry', 'kettlebells', toGrams(22.25, 'kg'))).toBe(
+      '44.5 kg in all',
+    )
+    // a pair stored as 50 lb, read in kilograms: each shows as 22.75 kg (22.68 kg stored), so the
+    // total is twice what is shown, 45.5 kg, and not twice the stored grams rounded alone (45.25 kg)
+    expect(loadTotalLine(kg, 'farmer-carry', 'dumbbells', lb50)).toBe('45.5 kg in all')
+    // a pair stored as 22.75 kg, read in pounds: each shows as 50 lb (50.15 stored), so 100 lb in
+    // all, and not 100.5 lb from the stored grams
+    expect(loadTotalLine(words, 'farmer-carry', 'dumbbells', toGrams(22.75, 'kg'))).toBe(
+      '100 lb in all',
+    )
+    // a load too small for the display grid shows as 0, which has no total to say
+    expect(loadTotalLine(words, 'standing-calf-raise', 'dumbbells', toGrams(0.2, 'lb'))).toBeNull()
+    expect(loadTotalLine(kg, 'standing-calf-raise', 'dumbbells', toGrams(0.1, 'kg'))).toBeNull()
+    expect(loadTotalLine(words, 'standing-calf-raise', 'dumbbells', toGrams(0.5, 'lb'))).toBe(
+      '1 lb in all',
+    )
+    expect(loadTotalLine(words, 'goblet-squat', 'dumbbells', lb50)).toBeNull()
+    expect(loadTotalLine(words, 'back-squat', 'barbell', lb50)).toBeNull()
+    expect(loadTotalLine(words, 'leg-press', 'leg-press', lb50)).toBeNull()
+    expect(loadTotalLine(words, 'single-leg-calf-raise', 'dumbbells', lb50)).toBeNull()
+    expect(loadTotalLine(words, 'standing-calf-raise', 'calf-machine', lb50)).toBeNull()
+    expect(loadTotalLine(words, 'standing-calf-raise', 'dumbbells', null)).toBeNull()
   })
 
   test('is nothing for a load there is none of, and for an exercise the catalogue does not hold', () => {

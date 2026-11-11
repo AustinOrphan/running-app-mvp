@@ -298,11 +298,13 @@ export const STRENGTH_TEMPLATES = {
   // ---- What a load means, shown beside the field (design 5.2) -----------------------------------
   'strength.basis.total-with-bar': tpl('Total, including the bar', {}, { shape: 'label' }),
   'strength.basis.stack': tpl('Stack or plate total', {}, { shape: 'label' }),
-  'strength.basis.one-implement': tpl(
-    'Weight of one dumbbell or kettlebell',
-    {},
-    { shape: 'label' },
-  ),
+  // a pair of implements: the load is the weight of each; one implement: the weight of that one
+  'strength.basis.pair-dumbbells': tpl('Each dumbbell', {}, { shape: 'label' }),
+  'strength.basis.pair-kettlebells': tpl('Each kettlebell', {}, { shape: 'label' }),
+  'strength.basis.one-dumbbell': tpl('One dumbbell', {}, { shape: 'label' }),
+  'strength.basis.one-kettlebell': tpl('One kettlebell', {}, { shape: 'label' }),
+  // under a pair's load, never for one implement; `load` is the sum of the two
+  'strength.basis.total-in-all': tpl('{load} in all', { load: 'load' }, { shape: 'label' }),
   'strength.basis.added': tpl('Added weight', {}, { shape: 'label' }),
 
   // ---- The estimated maximum: a history figure, never on Today (design 6.3, decided 2026-10-24, section 18, question 10) --

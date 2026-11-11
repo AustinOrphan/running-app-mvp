@@ -24,7 +24,7 @@ import { modeOf, workoutFor } from '../../../shared/engine/strength.ts'
 import type { Quantity, StrengthContext } from '../../../shared/engine/types.ts'
 import type { StrengthWorkout, Units, WeightUnit, WorkoutLift } from '../../../shared/types.ts'
 import { asSuggested, blocksOf } from '../../../web/components/strength/strengthForm.ts'
-import { strengthWords } from '../../../web/components/strength/strengthText.ts'
+import { holdsPair, strengthWords } from '../../../web/components/strength/strengthText.ts'
 import { TRUNK_ROW_CHARS_MAX, workoutRows } from '../../../web/components/strength/workoutRows.ts'
 import {
   everyTrunkWorkout,
@@ -70,6 +70,10 @@ const nameOf = (id: string): string => {
   return STRENGTH_TEMPLATES[key].text
 }
 const count = (n: number): Quantity => ({ kind: 'count', n })
+
+/** A pair of dumbbells or kettlebells reads "50 lb each" on every surface, so the figure is never the total. */
+const eachOf = (exerciseId: string, implement: string | null): string =>
+  holdsPair(exerciseId, implement as Parameters<typeof holdsPair>[1]) ? ' each' : ''
 
 // ---- the Today hero: one row a lift, in the sentences of design 11.6 ------------------------------
 
@@ -147,9 +151,12 @@ const sheet: SurfaceAdapter = {
         const [, load, sets, lo, hi, rirLo, rirHi] = match ?? []
         const first = block.rows[0]
         // the sets the sheet holds carry the load the line states, in the field's own text
-        expect(first?.load === '' ? null : `${first?.load ?? ''} ${weightUnit}`, line).toBe(
-          load ?? null,
-        )
+        expect(
+          first?.load === ''
+            ? null
+            : `${first?.load ?? ''} ${weightUnit}${eachOf(lift.exerciseId, lift.implement)}`,
+          line,
+        ).toBe(load ?? null)
         // the line names as many sets as the sheet holds
         const spoken = NUMBER_WORDS.indexOf(sets ?? '')
         expect(block.rows.length, line).toBe(spoken)
@@ -217,7 +224,10 @@ const snapshot: SurfaceAdapter = {
       sets: lift.sets,
       lo: lift.range.min,
       hi: lift.range.max,
-      load: lift.shownLoadG === null ? null : formatLoad(lift.shownLoadG, weightUnit),
+      load:
+        lift.shownLoadG === null
+          ? null
+          : `${formatLoad(lift.shownLoadG, weightUnit)}${eachOf(lift.exerciseId, lift.implement)}`,
       rirLo: lift.rir?.min ?? null,
       rirHi: lift.rir?.max ?? null,
       targets: lift.targets,
@@ -315,7 +325,10 @@ function expected(lift: WorkoutLift, weightUnit: WeightUnit): SurfaceLift {
     sets: lift.sets,
     lo: lift.range.min,
     hi: lift.range.max,
-    load: lift.loadG === null ? null : formatLoad(lift.loadG, weightUnit),
+    load:
+      lift.loadG === null
+        ? null
+        : `${formatLoad(lift.loadG, weightUnit)}${eachOf(lift.exerciseId, lift.implement)}`,
     rirLo: lift.rir?.min ?? null,
     rirHi: lift.rir?.max ?? null,
     targets: lift.targets,

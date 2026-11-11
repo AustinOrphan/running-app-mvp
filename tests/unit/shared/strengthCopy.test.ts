@@ -659,13 +659,22 @@ describe('the sentences of design 11.6', () => {
 
   it('says what a load means beside the field', () => {
     expect(
-      ['total-with-bar', 'stack', 'one-implement', 'added'].map((basis) =>
-        say(`strength.basis.${basis}` as StrengthTemplateId),
-      ),
+      [
+        'total-with-bar',
+        'stack',
+        'one-dumbbell',
+        'one-kettlebell',
+        'pair-dumbbells',
+        'pair-kettlebells',
+        'added',
+      ].map((basis) => say(`strength.basis.${basis}` as StrengthTemplateId)),
     ).toEqual([
       'Total, including the bar',
       'Stack or plate total',
-      'Weight of one dumbbell or kettlebell',
+      'One dumbbell',
+      'One kettlebell',
+      'Each dumbbell',
+      'Each kettlebell',
       'Added weight',
     ])
   })

@@ -31,7 +31,14 @@ import {
   type Block,
   type SetRow,
 } from './strengthForm.ts'
-import { loadMeaningLine, measureOf, type StrengthWords } from './strengthText.ts'
+import {
+  holdsPair,
+  liftLoad,
+  loadMeaningLine,
+  loadTotalLine,
+  measureOf,
+  type StrengthWords,
+} from './strengthText.ts'
 import { usualLoadOf } from './workoutRows.ts'
 import styles from './StrengthSheet.module.css'
 
@@ -101,6 +108,7 @@ export function LiftSection({
 }: LiftSectionProps) {
   const headingId = useId()
   const meaningId = useId()
+  const totalId = useId()
   const [swapOpen, setSwapOpen] = useState(false)
   const [pinFailed, setPinFailed] = useState(false)
   const swapButton = useRef<HTMLButtonElement>(null)
@@ -112,6 +120,9 @@ export function LiftSection({
   // lift that was kept on the phone has its loads and not its steps)
   const loaded = shown.steps !== null || rows.some((row) => row.load !== '')
   const meaning = loaded ? loadMeaningLine(words, shown.exerciseId, shown.implement) : null
+  const suggestedTotal = loaded
+    ? loadTotalLine(words, shown.exerciseId, shown.implement, shown.loadG)
+    : null
   const swapped = shown !== block.original
   const reason = words.reason(shown)
   const usualLoadG = usualLoadOf(shown)
@@ -121,6 +132,14 @@ export function LiftSection({
     equipment === null
       ? []
       : swapChoices(block, equipment, barbellOf(workout), avoid, heldElsewhere)
+  /** The two implements of a pair together, as the load is typed; null for one implement. */
+  const setTotal = (row: SetRow): string | null => {
+    const typedG = rowLoadG(row, weightUnit)
+    return typedG === 'invalid'
+      ? null
+      : loadTotalLine(words, shown.exerciseId, shown.implement, typedG)
+  }
+  const pairHeld = loaded && holdsPair(shown.exerciseId, shown.implement)
   const pinnable = !editing && swapped && PINNABLE.has(shown.slot)
   const reachedBy = (index: number, update: (row: SetRow) => SetRow) => {
     onChange((current) => ({
@@ -188,7 +207,12 @@ export function LiftSection({
         </div>
       </div>
 
-      <p className={styles.suggestion}>{words.suggestion(shown)}</p>
+      <p className={styles.suggestion}>
+        {words.suggestion(shown)}
+        {/* a pair of dumbbells: the suggested load is each one's, so the two together are said in the
+            suggestion's own paragraph, where a reader takes them as one */}
+        {suggestedTotal === null ? null : <span className={styles.total}>{suggestedTotal}</span>}
+      </p>
       {reason === null ? null : <p className={styles.muted}>{reason}</p>}
       {/* what the load means is fixed by the equipment and shown beside the field (design 5.2) */}
       {meaning === null ? null : (
@@ -201,7 +225,7 @@ export function LiftSection({
         <div className={styles.usual}>
           <p className={styles.muted}>
             {words.say('strength.sheet.usual-load', {
-              load: { kind: 'load', g: usualLoadG ?? 0 },
+              load: liftLoad(shown.exerciseId, shown.implement, usualLoadG ?? 0),
             })}
           </p>
           <Button
@@ -287,6 +311,7 @@ export function LiftSection({
               words.say('strength.measure.load'),
             )
             const countName = words.stepperGroup(shown.exerciseId, number, measureWord)
+            const total = setTotal(row)
             const repsLeftName = words.stepperGroup(
               shown.exerciseId,
               number,
@@ -319,7 +344,10 @@ export function LiftSection({
                       value={row.load}
                       inputMode="decimal"
                       unit={weightUnit}
-                      describedBy={meaning === null ? undefined : meaningId}
+                      describedBy={describedBy(
+                        meaning === null ? null : meaningId,
+                        total === null ? null : `${totalId}-${index}`,
+                      )}
                       lowerLabel={words.say('strength.sheet.lower-load')}
                       raiseLabel={words.say('strength.sheet.raise-load')}
                       lowerEnds={stepRowLoad(row, shown, -1, weightUnit) === row}
@@ -371,6 +399,17 @@ export function LiftSection({
                     }}
                   />
                 </div>
+                {/* a pair's total: the line is kept when it is empty, so the rows below stay where they
+                    are as the load is typed */}
+                {pairHeld ? (
+                  <p
+                    id={`${totalId}-${index}`}
+                    className={`${styles.muted} ${styles.setTotal}`}
+                    aria-hidden={total === null ? true : undefined}
+                  >
+                    {total}
+                  </p>
+                ) : null}
                 {shown.rir === null ? null : (
                   <div className={styles.allSets}>
                     <span className={styles.repsLeftLabel} aria-hidden="true">
@@ -410,4 +449,10 @@ export function LiftSection({
       </div>
     </section>
   )
+}
+
+/** The ids that describe a load field: what a load means and the total of a pair, when there are any. */
+function describedBy(...ids: Array<string | null>): string | undefined {
+  const present = ids.filter((id): id is string => id !== null)
+  return present.length === 0 ? undefined : present.join(' ')
 }
