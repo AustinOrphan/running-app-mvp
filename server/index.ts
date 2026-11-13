@@ -3,10 +3,12 @@ import { loadConfig, loadEnvFileIfPresent } from './config.ts'
 import { createPrisma, initSqlite } from './db.ts'
 import { startScheduler } from './jobs/scheduler.ts'
 import { createLogger } from './logger.ts'
+import { installProcessErrorHandlers } from './processErrors.ts'
 
 loadEnvFileIfPresent()
 const config = loadConfig(process.env)
 const logger = createLogger(config)
+installProcessErrorHandlers(logger)
 const prisma = createPrisma(config.databaseUrl)
 await initSqlite(prisma)
 

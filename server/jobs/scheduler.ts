@@ -7,7 +7,12 @@ import type { PrismaClient } from '../db.ts'
 import { sqliteFilePath } from '../dbPath.ts'
 import { createLogger } from '../logger.ts'
 import { PROVIDERS } from '../providers/registry.ts'
-import { backupDirectory, createBackup, pruneBackups } from '../services/backup.ts'
+import {
+  backupDirectory,
+  createBackup,
+  listOrdinaryBackups,
+  pruneBackups,
+} from '../services/backup.ts'
 import { generateBrief } from '../services/brief.ts'
 import { runNightlyMatching } from '../services/execution.ts'
 import { installOwnerId } from '../installOwner.ts'
@@ -384,7 +389,7 @@ export async function runPredictionJob(
  */
 export async function runBackupJob(
   deps: Deps,
-  opts: { now?: Date } = {},
+  opts: { now?: Date; trigger?: SyncTrigger } = {},
   log?: Log,
 ): Promise<void> {
   const startedAt = new Date()
@@ -401,10 +406,66 @@ export async function runBackupJob(
   const users = await deps.prisma.user.findMany({ select: { id: true } })
   for (const user of users) {
     await recordJob(deps, 'backup', user.id, startedAt, {
+      ...(opts.trigger === undefined ? {} : { trigger: opts.trigger }),
       accepted: failure === null ? 1 : 0,
       error: failure,
     })
   }
+}
+
+/** The start of the latest `slot` at or before `now`, in the process's local time. */
+export function lastSlotStart(now: Date, slot: DailySlot): Date {
+  const start = new Date(now)
+  start.setHours(slot.hour, slot.minute, 0, 0)
+  if (start.getTime() > now.getTime()) start.setDate(start.getDate() - 1)
+  return start
+}
+
+/**
+ * When the newest backup the server can vouch for was made: the later of the newest successful
+ * `backup` job run and the newest ordinary file in `backups/` (a manual `npm run backup` counts),
+ * or null when there is neither. A failed run is not a backup.
+ */
+export async function newestBackupAt(deps: Deps): Promise<Date | null> {
+  const run = await deps.prisma.syncRun.findFirst({
+    where: { channel: 'job', provider: 'backup', status: 'ok', accepted: { gt: 0 } },
+    orderBy: { startedAt: 'desc' },
+    select: { startedAt: true },
+  })
+  let file: Date | null = null
+  try {
+    file =
+      listOrdinaryBackups(backupDirectory(sqliteFilePath(deps.config.databaseUrl)))[0]?.at ?? null
+  } catch {
+    // An unreadable folder counts as no copy; the run below then decides.
+  }
+  const times = [run?.startedAt, file].filter((at): at is Date => at != null)
+  return times.length === 0 ? null : new Date(Math.max(...times.map((at) => at.getTime())))
+}
+
+/**
+ * Makes the day's backup that a restart skipped (the daily slot is seeded at start): when the newest
+ * backup is older than the latest 02:00 slot, runs one, recorded as a `backup` run with trigger
+ * `catchup`. Returns whether it ran. Failures are recorded by `runBackupJob`, never thrown; a read
+ * error on the check is logged and skips the catch-up.
+ */
+export async function runBackupCatchUp(
+  deps: Deps,
+  opts: { now?: Date } = {},
+  log?: Log,
+): Promise<boolean> {
+  const now = opts.now ?? new Date()
+  try {
+    const newest = await newestBackupAt(deps)
+    if (newest !== null && newest.getTime() >= lastSlotStart(now, BACKUP_SLOT).getTime()) {
+      return false
+    }
+  } catch (error) {
+    log?.warn({ reason: safeMessage(error) }, 'backup catch-up check failed')
+    return false
+  }
+  await runBackupJob(deps, { now, trigger: 'catchup' }, log)
+  return true
 }
 
 /** Users with an active version-2 plan: whom the nightly matching and the Monday re-plan serve. */
@@ -626,7 +687,29 @@ export function startScheduler(deps: Deps, opts: { fetch: typeof fetch }): () =>
   every('hr-quality', HR_QUALITY_INTERVAL_MS, () => runHrQualityJob(deps, log))
   every('track', TRACK_INTERVAL_MS, () => runTrackJob(deps, log))
   every('surface', SURFACE_INTERVAL_MS, () => runSurfaceJob(deps, log))
-  daily('backup', BACKUP_SLOT, () => runBackupJob(deps, {}, log))
+  // The daily slot and the start-up catch-up share this flag, so two copies never run at once.
+  let backingUp = false
+  const exclusiveBackup = async (job: () => Promise<unknown>): Promise<void> => {
+    if (backingUp) return
+    backingUp = true
+    try {
+      await job()
+    } finally {
+      backingUp = false
+    }
+  }
+  daily('backup', BACKUP_SLOT, () => exclusiveBackup(() => runBackupJob(deps, {}, log)))
+  // Seeded like the daily slot, a start after 02:00 would skip that day's copy: one catch-up after
+  // the first-run delay, off the start-up path.
+  const catchUp = setTimeout(() => {
+    timers.delete(catchUp)
+    if (stopped) return
+    exclusiveBackup(() => runBackupCatchUp(deps, {}, log)).catch((error: unknown) =>
+      log.error({ err: error, job: 'backup-catchup' }, 'scheduled job failed'),
+    )
+  }, FIRST_RUN_DELAY_MS)
+  catchUp.unref()
+  timers.add(catchUp)
   daily('matching', MATCHING_SLOT, () => runMatchingJob(deps, {}, log))
   daily('replan', REPLAN_SLOT, () => runReplanJob(deps, {}, log))
   // The daily slot is seeded at start, so a restart after 03:00 on Monday would skip the week.
