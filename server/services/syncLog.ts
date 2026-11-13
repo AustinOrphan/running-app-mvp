@@ -170,7 +170,7 @@ async function prune(prisma: PrismaClient, userId: string, provider: string): Pr
     select: { id: true },
   })
   if (surplus.length > 0) {
-    await prisma.syncRun.deleteMany({ where: { id: { in: surplus.map((row) => row.id) } } })
+    await prisma.syncRun.deleteMany({ where: { userId, id: { in: surplus.map((row) => row.id) } } })
   }
 }
 

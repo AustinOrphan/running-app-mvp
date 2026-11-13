@@ -431,7 +431,7 @@ export function windowRunner(step: WindowStep): NonNullable<ApplyOptions['window
     })
     if (now === null || disruptionHash(now) !== disruptionHash(step.before)) throw new StaleWrite()
     const after = await tx.disruption.update({
-      where: { id: now.id },
+      where: { id: now.id, userId: step.userId },
       data: step.kind === 'update' ? step.data : { status: 'undone' },
     })
     return {

@@ -202,7 +202,7 @@ export async function syncProvider(
     } catch (error) {
       if (!(error instanceof SecretError)) throw error
       await prisma.integration.update({
-        where: { id: row.id },
+        where: { id: row.id, userId },
         data: { status: 'needs_auth', lastSyncStatus: 'error', lastError: SECRET_CHANGED },
       })
       await recordSyncRun(deps, {
@@ -405,7 +405,7 @@ async function run(
 
   // `updateMany` so that a disconnect during the run does not turn into an error.
   await prisma.integration.updateMany({
-    where: { id: row.id },
+    where: { id: row.id, userId },
     data: {
       status: failedHard ? (needsReconnect(fatal) ? 'needs_auth' : 'error') : 'connected',
       cursor: cursorMs === null ? null : isoZ(cursorMs),
@@ -419,7 +419,7 @@ async function run(
   let batch: ImportBatch | null = null
   if (batchId !== null) {
     const updated = await prisma.importBatch.update({
-      where: { id: batchId },
+      where: { id: batchId, userId },
       data: {
         ...counts,
         rowCount: counts.accepted + counts.skippedDuplicate + counts.skippedInvalid,

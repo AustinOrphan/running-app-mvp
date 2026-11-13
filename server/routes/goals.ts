@@ -260,7 +260,7 @@ export function goalsRouter(deps: Deps): Router {
       }
     }
     const goal = await prisma.goal.update({
-      where: { id: req.params.id },
+      where: { id: req.params.id, userId: req.userId },
       data: {
         name: body.name,
         priority: body.priority,
@@ -299,7 +299,7 @@ export function goalsRouter(deps: Deps): Router {
     if (activePlans > 0) {
       throw conflict('This goal has an active plan. Generate a plan for another goal first.')
     }
-    await prisma.goal.delete({ where: { id: req.params.id } })
+    await prisma.goal.delete({ where: { id: req.params.id, userId: req.userId } })
     res.status(204).end()
   })
 

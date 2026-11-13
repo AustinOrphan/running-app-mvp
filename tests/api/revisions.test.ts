@@ -356,7 +356,12 @@ async function oracleReplan(
     .join(' ')
 
   await prisma.$transaction(async (tx) => {
-    await writeReplannedSessions(tx, { planId: plan.id, today: day, sessions: draft.sessions })
+    await writeReplannedSessions(tx, {
+      userId: plan.userId,
+      planId: plan.id,
+      today: day,
+      sessions: draft.sessions,
+    })
     const rows = await tx.planWeek.findMany({ where: { planId: plan.id } })
     const byStart = new Map(rows.map((w) => [w.weekStart, w]))
     const future = draft.weeks.filter((w) => w.weekStart >= currentMonday)

@@ -133,14 +133,14 @@ export async function backfillTracks(
     const track = route ? buildTrack(route) : null
     const written = await prisma.$transaction(async (tx) => {
       const marked = await tx.activity.updateMany({
-        where: { id: activity.id, trackV: null, updatedAt: activity.updatedAt },
+        where: { id: activity.id, userId, trackV: null, updatedAt: activity.updatedAt },
         data: { trackV: TRACK_VERSION, updatedAt: activity.updatedAt },
       })
       if (marked.count === 0) return null
       if (track) {
         const row = trackRow(track)
         await tx.activityTrack.upsert({
-          where: { activityId: activity.id },
+          where: { activityId: activity.id, activity: { userId } },
           create: { activityId: activity.id, ...row },
           update: row,
         })
@@ -234,7 +234,7 @@ export async function backfillTracks(
         if (error instanceof RateLimitPause) {
           const until = new Date(now.getTime() + error.retryAfterSec * 1000)
           await prisma.integration.updateMany({
-            where: { id: row.id },
+            where: { id: row.id, userId },
             data: { pausedUntil: until },
           })
           result.pause = { retryAfterSec: error.retryAfterSec }
