@@ -474,11 +474,28 @@ describe('the words of the checkpoint table', () => {
     expect(describeRacePoints(WITH_ROWS[0]![1], 'km').notes.join(' ')).toMatch(/few hours/)
   })
 
-  it('states the weights from l5.gainEquivalentM and says the later end of a range is the likelier one', () => {
+  it('states the weights from l5.gainEquivalentM and gives crew the early end without ranking the ends', () => {
     const notes = describeRacePoints(WITH_ROWS[0]![1], 'km').notes.join(' ')
     expect(notes).toContain(`climb as ${String(P.l5.gainEquivalentM.value)} units of flat`)
-    expect(notes).toMatch(/the later end of each range is the likelier one/)
+    expect(notes).toContain('Each range is an estimate at an even effort')
+    expect(notes).toContain(
+      'Be there by the early end; the runner may arrive anywhere in the range.',
+    )
     expect(notes).toMatch(/defaults/)
+  })
+
+  it('never says one end of an arrival range is likelier, on the page or the card', () => {
+    const plan = WITH_ROWS[0]![1]
+    const words = [
+      describeRacePoints(plan, 'km').notes.join(' '),
+      describeRaceCard(plan, 'km').notes.join(' '),
+    ].join(' ')
+    expect(words).toContain('anywhere in the range')
+    expect(words).not.toMatch(
+      /(later|late|upper|slower|far)\s+(end|edge|side)[^.]*(likel|probab|more often)/i,
+    )
+    expect(words).not.toMatch(/(likel|probab)[^.]*(later|late|upper|slower)\s+(end|edge|side)/i)
+    expect(words).not.toMatch(/Speed tends to fall/)
   })
 
   it('says when the runner own climbing moved the weights, and only then', () => {

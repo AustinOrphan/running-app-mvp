@@ -169,3 +169,29 @@ It is read-only and derived like the rest of the plan.
 - **Not elsewhere.** The profile is drawn on Today only, as a decorative drawing. It is not on the
   watch, the feed or the brief (`racePlanIsolation.test.ts` names `courseSilhouette` and
   `loadRaceCourse` in its delivery guard).
+
+## Addendum: arrival range words (task RC1, 2026-11-13)
+
+The sentence under the checkpoint table and on the race card (`race.plan.points.late`,
+`shared/copy/racePlan.ts`) said that speed tends to fall late in a long race, so the later end of each
+range is the likelier one. It is replaced by: "Each range is an estimate at an even effort, with the
+runner's own spread. Be there by the early end; the runner may arrive anywhere in the range." It shows
+on the Race page (`describeRacePoints` notes) and on the race card (`describeRaceCard` notes); the
+session sheet's race-day block does not carry it.
+
+- **Reason (Fact):** the ranges are scaled from one even-pace finish estimate with the runner's own
+  spread (`racePlanFor`, `shared/engine/racePlan.ts`); nothing in the computation ranks one end above the
+  other. Checked 2026-11-13 by reading the engine.
+- **Reason (Fact):** ultra pacing studies describe a relatively fast start and a fade, so early and
+  middle checkpoints are more often reached in the earlier part of an even-pace range and only late in
+  the race in the later part (Lambert 2004; Hoffman 2010 and 2014; Parise 2011, as cited in the
+  2026-11-12 review). The corpus holds `parise-2011-161km-pacing-heat` and `smyth-2018-pacing-start-end`;
+  it holds no Lambert 2004 or Hoffman 2010 entry, so none is cited in the words.
+- **Reason (Opinion):** crew sent to the later end at an early checkpoint arrive late and read an early
+  cut-off as tighter than it is; "be there by the early end" is safe whichever way the runner drifts.
+- **Decision:** the words state what the range is and the safe instruction, and rank neither end. No
+  sentence about the fade is kept, because no number in the plan models it.
+- **Unchanged:** every range, number and Param, and the engine. The ranges stay even-effort until a
+  pacing cohort enters the corpus (**Rule:** a number in `shared/engine/` is a Param with cited papers).
+- **Test:** `tests/unit/shared/racePlanCopy.test.ts` pins the new words and fails on wording that makes
+  one end likelier.

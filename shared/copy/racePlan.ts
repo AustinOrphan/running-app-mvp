@@ -393,7 +393,7 @@ export const RACE_PLAN_TEMPLATES = {
     { runs: 'count', n: 'text', standard: 'count' },
   ),
   'race.plan.points.late': tpl(
-    'Speed tends to fall late in a long race, so the later end of each range is the likelier one.',
+    "Each range is an estimate at an even effort, with the runner's own spread. Be there by the early end; the runner may arrive anywhere in the range.",
   ),
   'race.plan.points.defaults': tpl('These weights are defaults, not a model of your course.'),
   'race.plan.points.carry-note': tpl(
