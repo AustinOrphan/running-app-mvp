@@ -11,7 +11,7 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
-# Five jobs: four that run side by side, so that a run lasts as long as the longest of them and not
+# Six jobs: five that run side by side, so that a run lasts as long as the longest of them and not
 # as long as their sum, and `ci`, which waits for them. `npm run check` (`check:static`, then every
 # Vitest project) is what a developer runs before a commit; `static`, `unit` and `sweeps` run its
 # parts, so a part that `check` gains has to reach one of them: `check:static` and the `!sweep`
@@ -105,11 +105,30 @@ jobs:
           path: playwright-report
           if-no-files-found: ignore
 
+  # The image must still build after a change to dependencies, the Dockerfile, a migration or
+  # `web/sw/buildSw.ts`; its last stage runs `prisma migrate deploy` as a smoke test. No path filter:
+  # a filtered job leaves the required `ci` check unreported on other PRs. Nothing is pushed and no
+  # registry is logged in to; layers are cached in the GitHub Actions cache. The Dockerfile pulls only
+  # from Docker Hub and the npm registry (no apt), so the Ubuntu mirror outage of 2026-11-11 does not
+  # reach it.
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
   # The one check that branch protection and the merge rule read, named `ci` as the single job was.
   # A job that needs a failed job is skipped, and a skipped required check reads as passed, so this
-  # one runs after a failure too (not after a cancel) and fails itself unless all four succeeded.
+  # one runs after a failure too (not after a cancel) and fails itself unless all five succeeded.
   ci:
-    needs: [static, unit, sweeps, e2e]
+    needs: [static, unit, sweeps, e2e, docker]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -119,9 +138,10 @@ jobs:
           UNIT: ${{ needs.unit.result }}
           SWEEPS: ${{ needs.sweeps.result }}
           E2E: ${{ needs.e2e.result }}
+          DOCKER: ${{ needs.docker.result }}
         run: |
-          echo "static=$STATIC unit=$UNIT sweeps=$SWEEPS e2e=$E2E"
-          for result in "$STATIC" "$UNIT" "$SWEEPS" "$E2E"; do
+          echo "static=$STATIC unit=$UNIT sweeps=$SWEEPS e2e=$E2E docker=$DOCKER"
+          for result in "$STATIC" "$UNIT" "$SWEEPS" "$E2E" "$DOCKER"; do
             if [ "$result" != success ]; then
               echo "A job did not succeed."
               exit 1
