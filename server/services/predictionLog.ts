@@ -124,7 +124,7 @@ export async function recordPrediction(
     }),
   }
   if (existing !== null) {
-    await db.predictionLog.update({ where: { id: existing.id }, data })
+    await db.predictionLog.update({ where: { id: existing.id, userId }, data })
     return 'updated'
   }
   await db.predictionLog.create({ data: { ...key, ...data } })

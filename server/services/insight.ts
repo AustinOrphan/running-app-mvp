@@ -202,7 +202,7 @@ export async function activityInsight(
   const stored: StoredInsight = { basis, items: facts }
   const data = { version: STANDOUT_VERSION, facts: JSON.stringify(stored), computedAt }
   await prisma.activityInsight.upsert({
-    where: { activityId },
+    where: { activityId, activity: { userId } },
     create: { activityId, ...data },
     update: data,
   })

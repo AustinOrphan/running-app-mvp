@@ -298,7 +298,7 @@ export async function generateEnginePlan(
       })
       // The plan's goal drives the Dashboard countdown, so exactly that goal is active.
       await tx.goal.updateMany({ where: { userId }, data: { isActive: false } })
-      await tx.goal.update({ where: { id: goal.id }, data: { isActive: true } })
+      await tx.goal.update({ where: { id: goal.id, userId }, data: { isActive: true } })
       const plan = await tx.plan.create({
         data: {
           userId,
@@ -459,7 +459,13 @@ export function planSessionWrites(
  */
 export async function writeReplannedSessions(
   tx: Pick<PrismaClient, 'planSession'>,
-  args: { planId: string; today: string; sessions: SessionSpec[]; heldDates?: ReadonlySet<string> },
+  args: {
+    userId: string
+    planId: string
+    today: string
+    sessions: SessionSpec[]
+    heldDates?: ReadonlySet<string>
+  },
 ): Promise<SessionWriteSet> {
   const rows = await tx.planSession.findMany({ where: { planId: args.planId } })
   const planned = planSessionWrites(rows, args)
@@ -467,11 +473,14 @@ export async function writeReplannedSessions(
   const written: SessionWriteSet = { created: [], deleted: planned.deleted, updated: [] }
   if (planned.deleted.length > 0) {
     await tx.planSession.deleteMany({
-      where: { id: { in: planned.deleted.map((row) => row.id) } },
+      where: { id: { in: planned.deleted.map((row) => row.id) }, plan: { userId: args.userId } },
     })
   }
   for (const { before, data } of planned.updated) {
-    const after = await tx.planSession.update({ where: { id: before.id }, data })
+    const after = await tx.planSession.update({
+      where: { id: before.id, plan: { userId: args.userId } },
+      data,
+    })
     written.updated.push({ id: before.id, before, after })
   }
   if (planned.created.length > 0) {
@@ -617,7 +626,7 @@ export async function linkPlanSession(
 
   if (args.activityId === null) {
     const updated = await prisma.planSession.update({
-      where: { id: row.id },
+      where: { id: row.id, plan: { userId } },
       // The refused activity joins the set: the matcher skips those pairs, not the session, so the
       // session stays free for any other activity.
       data: {
@@ -638,7 +647,7 @@ export async function linkPlanSession(
   if (!activity) throw notFound('Activity not found.')
   await assertLinkable(deps, row, activity)
   await prisma.planSession.update({
-    where: { id: row.id },
+    where: { id: row.id, plan: { userId } },
     data: { activityId: activity.id, linkSource: 'owner', refusedActivityIds: null },
   })
   return assessSessionById(deps, { userId, sessionId: row.id })

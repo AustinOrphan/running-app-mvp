@@ -300,8 +300,12 @@ async function planWith(email: string, seeds: Seed[]) {
 }
 
 const specOfRow = (row: PlanSessionRow): SessionSpec => sessionSpec(toPlanSession(row))
-const write = (planId: string, sessions: SessionSpec[]) =>
-  ctx.prisma.$transaction((tx) => writeReplannedSessions(tx, { planId, today, sessions }))
+const write = async (planId: string, sessions: SessionSpec[]) => {
+  const { userId } = await ctx.prisma.plan.findUniqueOrThrow({ where: { id: planId } })
+  return ctx.prisma.$transaction((tx) =>
+    writeReplannedSessions(tx, { userId, planId, today, sessions }),
+  )
+}
 const byId = (id: string) => ctx.prisma.planSession.findUniqueOrThrow({ where: { id } })
 
 describe('the row-level re-plan write', () => {

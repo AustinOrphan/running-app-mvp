@@ -215,9 +215,9 @@ export function importsRouter(deps: Deps): Router {
     }
   }
 
-  async function closeBatch(id: string, tally: Tally) {
+  async function closeBatch(userId: string, id: string, tally: Tally) {
     const row = await prisma.importBatch.update({
-      where: { id },
+      where: { id, userId },
       data: {
         rowCount: tally.rowCount,
         accepted: tally.accepted,
@@ -391,10 +391,10 @@ export function importsRouter(deps: Deps): Router {
         }
       }
     } catch (error) {
-      await closeBatch(batch.id, tally)
+      await closeBatch(req.userId, batch.id, tally)
       throw error
     }
-    res.status(201).json(await closeBatch(batch.id, tally))
+    res.status(201).json(await closeBatch(req.userId, batch.id, tally))
   })
 
   router.post('/parsed', async (req, res) => {
@@ -436,10 +436,10 @@ export function importsRouter(deps: Deps): Router {
         }
       }
     } catch (error) {
-      await closeBatch(batch.id, tally)
+      await closeBatch(req.userId, batch.id, tally)
       throw error
     }
-    res.status(201).json(await closeBatch(batch.id, tally))
+    res.status(201).json(await closeBatch(req.userId, batch.id, tally))
   })
 
   router.get('/', async (req, res) => {
