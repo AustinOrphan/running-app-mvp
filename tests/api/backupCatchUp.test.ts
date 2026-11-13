@@ -18,6 +18,19 @@ import {
   type TestUser,
 } from './helpers.ts'
 
+// createBackup is the real one unless a test holds it open, to keep a copy in flight.
+const gate = vi.hoisted(() => ({ hold: null as Promise<void> | null }))
+vi.mock('../../server/services/backup.ts', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../../server/services/backup.ts')>()
+  return {
+    ...original,
+    createBackup: async (...args: Parameters<typeof original.createBackup>) => {
+      await gate.hold
+      return original.createBackup(...args)
+    },
+  }
+})
+
 // Local time, like the slot; a date on which no zone changes its clock.
 const AFTER_SLOT = new Date(2026, 5, 17, 9, 0)
 const BEFORE_SLOT = new Date(2026, 5, 17, 1, 0)
@@ -128,8 +141,55 @@ describe('the scheduler start', () => {
 
     await vi.advanceTimersByTimeAsync(3 * 60 * 60_000)
     expect(await runs()).toHaveLength(1)
+
+    // The next 02:00 slot (first check at 02:10 the next day) makes its own copy.
+    await vi.advanceTimersByTimeAsync(17 * 60 * 60_000 + 15 * 60_000)
+    await vi.waitFor(async () => expect(await runs()).toHaveLength(2), { timeout: 10_000 })
+    expect(copies()).toHaveLength(2)
+    expect((await runs()).map((run) => run.trigger).sort()).toEqual(['catchup', 'schedule'])
     stop()
     await settleBackground()
+  })
+
+  test('a catch-up still in flight when the slot fires blocks a second copy, and the flag resets', async () => {
+    vi.useFakeTimers({
+      toFake: ['Date', 'setTimeout', 'setInterval', 'clearTimeout', 'clearInterval'],
+    })
+    // Five minutes before the slot with no backup: the catch-up starts at 01:55:30 and is held open
+    // past the first daily check (02:05).
+    vi.setSystemTime(new Date(2026, 5, 17, 1, 55))
+    let release!: () => void
+    gate.hold = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const stop = startScheduler(
+      { prisma: ctx.prisma, config: ctx.config },
+      { fetch: noNetwork(ctx.refusedFetches) },
+    )
+    try {
+      await vi.advanceTimersByTimeAsync(31_000)
+      await vi.advanceTimersByTimeAsync(15 * 60_000)
+      expect(copies()).toHaveLength(0)
+
+      gate.hold = null
+      release()
+      await vi.waitFor(async () => expect(await runs()).toHaveLength(1), { timeout: 10_000 })
+      // Settle: a second, concurrent copy would have been recorded by now.
+      await vi.advanceTimersByTimeAsync(60_000)
+      await settleBackground()
+      expect(await runs()).toHaveLength(1)
+      expect(copies()).toHaveLength(1)
+      expect((await runs())[0]).toMatchObject({ trigger: 'catchup', status: 'ok' })
+
+      // The flag is back down: the next day's slot copies.
+      await vi.advanceTimersByTimeAsync(24 * 60 * 60_000)
+      await vi.waitFor(async () => expect(await runs()).toHaveLength(2), { timeout: 10_000 })
+      expect(copies()).toHaveLength(2)
+    } finally {
+      gate.hold = null
+      stop()
+      await settleBackground()
+    }
   })
 
   test('does nothing at start when the day is already covered', async () => {

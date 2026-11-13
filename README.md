@@ -471,7 +471,7 @@ Without Compose:
 
 ```sh
 docker build -t running-log .
-docker run -d -p 3001:3001 -v running-log-data:/data \
+docker run -d --restart unless-stopped -p 3001:3001 -v running-log-data:/data \
   -e SESSION_SECRET="$(openssl rand -base64 48)" -e TZ=Europe/London running-log
 ```
 
@@ -497,7 +497,9 @@ hours old (the daily copy plus 2 hours of slack), else 503 (a fresh install answ
 first copy). The body is `status`, `database`, `backup` (`ageSeconds`, `maxAgeSeconds`, `fresh`) and
 `jobs`, the age and status of each job's last run; it carries no account data. Alert on a non-200
 answer. A fatal process error (an uncaught exception or unhandled rejection) is logged at `fatal`
-level and the process exits with code 1, so Docker's restart policy restarts it.
+level and the process exits with code 1, so Docker's restart policy restarts it (`restart: unless-stopped`
+in `docker-compose.yml`, `--restart unless-stopped` in the `docker run` example). The deep answer is
+reused for 10 seconds, so a burst of polls costs one read.
 
 The files are in `backups/`, next to the database file: `/data/backups/` in Docker, and
 `prisma/data/backups/` for the default `DATABASE_URL` in a checkout. The folder follows

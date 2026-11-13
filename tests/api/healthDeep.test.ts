@@ -2,7 +2,11 @@ import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterAll, afterEach, beforeAll, describe, expect, test, vi } from 'vitest'
 import { sqliteFilePath } from '../../server/dbPath.ts'
-import { MAX_BACKUP_AGE_HOURS, type DeepHealth } from '../../server/routes/health.ts'
+import {
+  DEEP_HEALTH_CACHE_MS,
+  MAX_BACKUP_AGE_HOURS,
+  type DeepHealth,
+} from '../../server/routes/health.ts'
 import { backupDirectory, backupName } from '../../server/services/backup.ts'
 import { client, createTestCtx, expectNoRefusedFetches, seedUser, type TestCtx } from './helpers.ts'
 
@@ -135,5 +139,35 @@ describe('GET /api/health/deep', () => {
     expect(logged.lines.join('')).not.toContain('/api/health')
     await client(ctx).get('/api/nothing-here')
     expect(logged.lines.join('')).toContain('/api/nothing-here')
+  })
+})
+
+describe('the deep probe cache', () => {
+  let cached: TestCtx
+
+  beforeAll(async () => {
+    cached = await createTestCtx({}, { healthCacheMs: DEEP_HEALTH_CACHE_MS })
+  })
+  afterAll(async () => {
+    vi.useRealTimers()
+    await cached.close()
+  })
+
+  test('two probes inside the window read once; one after it reads again', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date(2026, 5, 17, 12))
+    const spy = vi.spyOn(cached.prisma, '$queryRaw')
+    const first = await client(cached).get('/api/health/deep')
+    vi.setSystemTime(new Date(2026, 5, 17, 12, 0, DEEP_HEALTH_CACHE_MS / 1000 - 1))
+    const second = await client(cached).get('/api/health/deep')
+    expect(spy).toHaveBeenCalledTimes(1)
+    expect(second.status).toBe(first.status)
+    expect(second.body).toEqual(first.body)
+
+    vi.setSystemTime(new Date(2026, 5, 17, 12, 0, DEEP_HEALTH_CACHE_MS / 1000))
+    await client(cached).get('/api/health/deep')
+    expect(spy).toHaveBeenCalledTimes(2)
+    spy.mockRestore()
+    expectNoRefusedFetches(cached)
   })
 })
