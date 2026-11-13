@@ -59,6 +59,7 @@ only the address budgets are shared.
 | `npm run restore -- <file>`         | replace the database with a backup (server stopped)      |
 | `npm run reset-password -- <email>` | set a new password from the command line                 |
 | `npm run create-user -- <email>`    | add an account with a temporary password (see Accounts)  |
+| `npm run delete-user -- <email>`    | show, or with `--yes` delete, an account and its data    |
 | `npm run icons`                     | render the PNG app icons in `web/public` from `icon.svg` |
 
 The e2e suite needs a build first and a Chromium install once: `npx playwright install chromium`.
@@ -626,6 +627,27 @@ on the first load after sign-in: the zone is saved if the account still has the 
 a browser set to `en-US` gives miles and pounds, any other locale kilometres and kilograms. Both
 stay changeable in Settings and on the Profile page. Giving either of `--units` and `--weight`
 settles both (`km` with `kg`, `mi` with `lb`, unless the other is also given).
+
+## Removing an account
+
+```sh
+npm run delete-user -- friend@example.com          # lists what would be removed, deletes nothing
+npm run delete-user -- friend@example.com --yes    # deletes the account and all its data
+docker compose exec app node dist/scripts/delete-user.js friend@example.com --yes
+```
+
+Without `--yes` the script prints the number of rows per table that the account holds and exits
+without deleting. With `--yes` it deletes the account and every row that belongs to it (activities
+and their stored files, plans, logs, integrations and their encrypted secrets, the calendar feed
+token, wellness and the rest) in one transaction. The install owner (the oldest account) is
+refused, and so is an email with no account; both exit 1.
+
+The account's sessions end with it: a signed cookie of a deleted account finds no user, so every
+request answers 401. Two things stay behind by design. The copies in `backups/` still hold the
+account: the daily copies are pruned to the newest of each of the last 7 days and of the last 4 ISO
+weeks, so the last one holding it goes within about 5 weeks, while `pre-migrate` and `pre-restore`
+copies are never pruned and must be deleted by hand if they must not keep it. Events that the
+intervals.icu publisher wrote stay in that person's own intervals.icu calendar.
 
 ## Resetting the password
 

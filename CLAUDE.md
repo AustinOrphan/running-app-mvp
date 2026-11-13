@@ -23,7 +23,8 @@ Self-hosted training log and planner for one runner. Specs, the task plan and AD
 - `npm run grade:report`: report-only leave-one-run-out backtest of the personal grade curve (rule I13,
   `shared/engine/gradeCurve.ts`) against Minetti on synthetic runners (`tests/reports/`). Not part of
   `check`; display only, nothing in the plan or the predictions reads the curve.
-- `npm run dev`, `npm run db:migrate`, `npm run format`, `npm run reset-password -- <email>`.
+- `npm run dev`, `npm run db:migrate`, `npm run format`, `npm run reset-password -- <email>`,
+  `npm run delete-user -- <email> [--yes]` (dry run without `--yes`; install owner refused; see Accounts).
 - `npm run backup` and `npm run restore -- <file>` (`scripts/`; the logic is in
   `server/services/backup.ts` and `restore.ts`). Copies go to `backups/` beside the database file.
   `db:migrate` and the Docker `CMD` run `backup --before-migrate` first, which copies only when a
@@ -245,7 +246,11 @@ its build runs `prisma migrate deploy` as a smoke test.
   `POST /api/settings/browser-defaults`). Sessions are signed cookies with no server-side record, so ending
   every session is `User.sessionVersion`: the cookie carries it (none reads as 0), `requireAuth` refuses any other value, and
   `PUT /api/auth/password` and `setPasswordByEmail` set it. `ALLOW_REGISTRATION` stays the only way to open
-  sign-up.
+  sign-up. The owner removes one with `npm run delete-user` (`deleteUser`, `server/auth/deleteUser.ts`):
+  one `user.delete` in a transaction, every table cascading from `User` (a new model holding a runner's
+  rows takes `onDelete: Cascade` and an entry in `OWNED` there, or in `UNOWNED_MODELS` with a reason; a test
+  compares both lists with the schema), the install owner refused, and the daily and `pre-migrate` backups
+  keep the rows until they age out. The deleted user's cookie gets 401 because `requireAuth` finds no user.
 - Env vars are exactly `DATABASE_URL`, `SESSION_SECRET`, `PORT`, `NODE_ENV`, `ALLOW_REGISTRATION`
   and `LOG_LEVEL` (plus `TZ` as an OS setting in Docker).
 - Migrations under `prisma/migrations` are committed; never ignore them.
