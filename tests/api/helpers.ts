@@ -68,7 +68,7 @@ export interface TestUser {
 /** An app wired to its own SQLite file, copied from the migrated template. */
 export async function createTestCtx(
   overrides: Partial<Config> = {},
-  appOpts: { userLimit?: number; addressLimit?: number } = {},
+  appOpts: { userLimit?: number; addressLimit?: number; healthCacheMs?: number } = {},
 ): Promise<TestCtx> {
   const dir = mkdtempSync(join(tmpdir(), 'rl-api-'))
   const dbPath = join(dir, 'test.db')
@@ -88,7 +88,7 @@ export async function createTestCtx(
   // The app keeps this object, so a later `ctx.fetch = ...` reaches the routes too.
   const refusedFetches: string[] = []
   const deps: Deps = { prisma, config, fetch: noNetwork(refusedFetches) }
-  const app = createApp(deps, appOpts)
+  const app = createApp(deps, { healthCacheMs: 0, ...appOpts })
 
   return Object.assign(deps, {
     app,
