@@ -30,7 +30,18 @@ function schemaModels(): Array<{ name: string; hasUserId: boolean }> {
 }
 
 interface Delegate {
-  count(args?: { where?: { userId: string } }): Promise<number>
+  count(args?: { where?: object }): Promise<number>
+}
+
+/** Tables without a userId column, filtered through the parent that has one. */
+const VIA_PARENT: Record<string, (userId: string) => object> = {
+  ActivityStream: (userId) => ({ activity: { userId } }),
+  ActivityTrack: (userId) => ({ activity: { userId } }),
+  ActivityFile: (userId) => ({ activity: { userId } }),
+  ActivityInsight: (userId) => ({ activity: { userId } }),
+  PlanWeek: (userId) => ({ plan: { userId } }),
+  PlanSession: (userId) => ({ plan: { userId } }),
+  PlanRevision: (userId) => ({ plan: { userId } }),
 }
 
 function delegate(ctx: TestCtx, model: string): Delegate {
@@ -92,6 +103,13 @@ describe('deleteUser', () => {
       for (const { name, hasUserId } of schemaModels()) {
         if (name in UNOWNED_MODELS) continue
         expect(byTable[name], name).toBeGreaterThan(0)
+        const viaParent = VIA_PARENT[name]
+        if (viaParent) {
+          expect(byTable[name], name).toBe(
+            await delegate(ctx, name).count({ where: viaParent(tester.id) }),
+          )
+          expect(byTable[name], name).toBeLessThan(before[name]!)
+        }
         // Where a userId column exists the count is the user's own rows, not the table total.
         if (hasUserId) {
           expect(byTable[name], name).toBe(
@@ -114,11 +132,14 @@ describe('deleteUser', () => {
       expect(plan.userId).toBe(tester.id)
 
       const after = await totals(ctx)
+      const reported = Object.fromEntries(plan.counts.map((row) => [row.table, row.count]))
       for (const { name, hasUserId } of schemaModels()) {
         if (name in UNOWNED_MODELS) {
           expect(after[name], name).toBe(before[name])
           continue
         }
+        // The reported count is exactly what the delete removed.
+        expect(reported[name], name).toBe(before[name]! - after[name]!)
         // The three seeds are alike, so two thirds of every table remain, children included.
         expect(after[name]! * 3, name).toBe(before[name]! * 2)
         if (hasUserId) {

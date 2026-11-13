@@ -45,6 +45,8 @@ async function main(): Promise<number> {
         `pruned to keep ${RETENTION_RULE}, so the last one holding it goes within about 5 weeks. ` +
         'Pre-migration and pre-restore copies are never pruned automatically: delete those by ' +
         'hand if they must not keep it.\n' +
+        'The live database file can still hold the deleted bytes (SQLite free pages and the WAL) ' +
+        'until they are overwritten; VACUUM with the server stopped clears them.\n' +
         "Calendar events that the intervals.icu publisher wrote stay in that runner's own calendar.\n",
     )
     return 0

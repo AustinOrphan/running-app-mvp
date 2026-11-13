@@ -646,7 +646,9 @@ The account's sessions end with it: a signed cookie of a deleted account finds n
 request answers 401. Two things stay behind by design. The copies in `backups/` still hold the
 account: the daily copies are pruned to the newest of each of the last 7 days and of the last 4 ISO
 weeks, so the last one holding it goes within about 5 weeks, while `pre-migrate` and `pre-restore`
-copies are never pruned and must be deleted by hand if they must not keep it. Events that the
+copies are never pruned and must be deleted by hand if they must not keep it. The live database file can
+still hold the deleted bytes (SQLite free pages and the WAL) until they are overwritten; `VACUUM` with
+the server stopped clears them, and the command does not run it. Events that the
 intervals.icu publisher wrote stay in that person's own intervals.icu calendar.
 
 ## Resetting the password
