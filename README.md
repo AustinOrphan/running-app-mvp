@@ -482,8 +482,22 @@ docker run -d -p 3001:3001 -v running-log-data:/data \
 The server copies the database every day at 02:00 (its local time; in Docker, set `TZ`). The copy is
 made with SQLite's online backup, so it is consistent while the app runs, and `PRAGMA
 integrity_check` must say `ok` on the copy before the file is kept. The job is recorded as a
-`backup` run in the job log (`GET /api/jobs`). A restart after 02:00 skips that day's run;
-`npm run backup` takes one at any time.
+`backup` run in the job log (`GET /api/jobs`). A restart after 02:00 skips the slot itself, so 30
+seconds after every start the server looks at its newest backup (the later of the last successful
+`backup` run and the newest `app-*.db` file) and, when that is older than the latest 02:00, makes one
+catch-up copy, recorded as a `backup` run with trigger `catchup`; it never runs beside the daily copy,
+and a failure is recorded and logged. `npm run backup` takes one at any time.
+
+### Monitoring
+
+`GET /api/health` is the liveness probe (it touches nothing). `GET /api/health/deep` is for an
+uptime monitor: no cookie, same address limit, and neither probe is written to the request log. It
+runs `SELECT 1` and answers 200 when the database answers and the newest `app-*.db` is at most 26
+hours old (the daily copy plus 2 hours of slack), else 503 (a fresh install answers 503 until its
+first copy). The body is `status`, `database`, `backup` (`ageSeconds`, `maxAgeSeconds`, `fresh`) and
+`jobs`, the age and status of each job's last run; it carries no account data. Alert on a non-200
+answer. A fatal process error (an uncaught exception or unhandled rejection) is logged at `fatal`
+level and the process exits with code 1, so Docker's restart policy restarts it.
 
 The files are in `backups/`, next to the database file: `/data/backups/` in Docker, and
 `prisma/data/backups/` for the default `DATABASE_URL` in a checkout. The folder follows

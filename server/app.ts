@@ -69,6 +69,8 @@ export interface Deps {
   folderRoot?: string
 }
 
+/** The liveness and deep health probes, left out of the request log. */
+const PROBE_PATHS = new Set(['/api/health', '/api/health/deep'])
 const REQUEST_ID = /^[\w.-]{1,64}$/
 
 /**
@@ -101,6 +103,8 @@ export function createApp(
   app.use(
     pinoHttp({
       logger,
+      // The probes poll all day and say nothing the log needs.
+      autoLogging: { ignore: (req) => PROBE_PATHS.has((req.url ?? '').split('?')[0] ?? '') },
       // The private calendar feed carries its token in the path; the log names the route instead.
       serializers: { req: redactedRequest },
       genReqId: (req, res) => {

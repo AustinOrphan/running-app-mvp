@@ -28,7 +28,12 @@ Self-hosted training log and planner for one runner. Specs, the task plan and AD
   `server/services/backup.ts` and `restore.ts`). Copies go to `backups/` beside the database file.
   `db:migrate` and the Docker `CMD` run `backup --before-migrate` first, which copies only when a
   migration is pending and none is recorded as failed; the daily job (`runBackupJob`, 02:00)
-  records a `backup` job run. The two scripts import nothing that loads the generated Prisma client
+  records a `backup` job run, and 30 s after start `runBackupCatchUp` makes one more when the newest
+  backup (the later of the last ok `backup` run and the newest `app-*.db`) predates the latest 02:00
+  slot (trigger `catchup`, never beside the daily copy). `GET /api/health/deep` (`deepHealth`,
+  `server/routes/health.ts`) is the anonymous monitor probe: `SELECT 1`, the age of the newest backup
+  against `MAX_BACKUP_AGE_HOURS` (26) and each job's last run, 503 when the database or the backup
+  fails; coarse fields only. Both probes stay out of the request log. The two scripts import nothing that loads the generated Prisma client
   (they run before `prisma generate` on a fresh clone; the file location is in `server/dbPath.ts`,
   and `scriptImports.test.ts` walks their imports). The README section "Backup, restore and
   update" is the operator's guide.
