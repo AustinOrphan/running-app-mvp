@@ -117,6 +117,7 @@ describe('the Send feedback row', () => {
 
     const field = await screen.findByRole<HTMLTextAreaElement>('textbox', { name: 'Feedback note' })
     expect(field).toHaveAttribute('readonly')
+    expect(field).toHaveFocus()
     expect(field.value).toContain('Page: /plan')
     expect(field.value).toContain('Plan: plan-abc')
     await waitFor(() => {

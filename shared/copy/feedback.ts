@@ -8,7 +8,7 @@ import { render, tpl } from './template.ts'
 export const FEEDBACK_TEMPLATES = {
   'feedback.heading': tpl('Send feedback', {}, { shape: 'label' }),
   'feedback.what': tpl(
-    'Copies a short note: the page you came from, the build, the time and your browser. It holds no runs, no health data and no email.',
+    "Copies a note: the page you came from, build, time, browser and, if known, your plan's id and last change. No runs, health data or email.",
   ),
   'feedback.button': tpl('Copy feedback note', {}, { shape: 'label' }),
   'feedback.copied': tpl('Copied', {}, { shape: 'label' }),

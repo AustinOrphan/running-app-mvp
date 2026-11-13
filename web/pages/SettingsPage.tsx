@@ -489,7 +489,11 @@ function FeedbackBlock({ units }: { units: Units }) {
   const field = useRef<HTMLTextAreaElement>(null)
   useEffect(() => () => clearTimeout(copiedTimer.current), [])
   useEffect(() => {
-    if (manual !== null) field.current?.select()
+    const area = field.current
+    if (manual === null || area === null) return
+    // `setSelectionRange` after `focus` selects on iOS, where `select()` alone may not.
+    area.focus()
+    area.setSelectionRange(0, area.value.length)
   }, [manual])
 
   function note(): string {
