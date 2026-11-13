@@ -181,6 +181,13 @@ protection reads. The Docker image must still build (`docker build .`) after a c
   retry, never the outbox, dropped offline). The route (`server/routes/clientErrors.ts`) sits below
   `requireAuth` with its own 16 KB parser and 5 reports per minute per user, logs one `client error`
   warn with the body's six fields and stores nothing.
+  Errors outside rendering (handlers, timers, rejected promises) arrive through the `window` `error` and
+  `unhandledrejection` listeners (`installWindowErrorReporting`, `web/pwa/windowErrors.ts`, installed in
+  `web/main.tsx` in a production build only) into the same `reportClientError`; they skip a
+  `ChunkLoadError`, a failed dynamic import, "Script error." with no stack and browser-extension scripts.
+  Settings "Send feedback" (`FeedbackBlock`, words in `shared/copy/feedback.ts`) copies a plain-text note
+  (previous page path, build id, time, user agent, plan id and last revision time when the query cache
+  holds them) and sends nothing; the client keeps no request id, so none is in it.
 - Server errors are thrown as `HttpError` (`server/errors.ts`) and reach the client as
   `{ error: { code, message, details? } }`. Zod parses every body and query.
 - Server data hooks live in `web/api/<resource>.ts`; pages only consume them. Domain rules go in
