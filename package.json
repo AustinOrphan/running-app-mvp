@@ -39,6 +39,7 @@
     "restore": "tsx scripts/restore.ts",
     "reset-password": "tsx scripts/reset-password.ts",
     "create-user": "tsx scripts/create-user.ts",
+    "delete-user": "tsx scripts/delete-user.ts",
     "icons": "tsx scripts/make-icons.ts",
     "setup": "tsx scripts/setup-env.ts"
   },
