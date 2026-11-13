@@ -35,6 +35,8 @@ import { useWristStatus, weekZipHref } from '../api/wrist.ts'
 import type { PlanRevisionView } from '../../shared/types.ts'
 import { Button } from '../components/Button.tsx'
 import { EmptyPreview, EmptyState } from '../components/EmptyState.tsx'
+import { PlanNotice } from '../components/PlanNotice.tsx'
+import { usePlanNotice } from '../api/planNotice.ts'
 import { Field, Input, Select, Textarea } from '../components/Field.tsx'
 import { LoadField } from '../components/LoadField.tsx'
 import { PageHeader } from '../components/PageHeader.tsx'
@@ -1609,6 +1611,9 @@ function PlanBanners({ windows }: { windows: DisruptionView[] }) {
 export function PlanPage() {
   const plan = usePlan()
   const goals = useGoals()
+  // Only a runner with no plan can be held at the notice (FS1); a failed read leaves the form, and
+  // the server's own gate answers if it should have stood.
+  const notice = usePlanNotice({ enabled: plan.data === null })
   const loads = combineQueries([plan, goals])
   const loadView = useLoadView(loads)
   const [regenerating, setRegenerating] = useState(false)
@@ -1678,7 +1683,11 @@ export function PlanPage() {
         ) : (
           <>
             <EmptyState title="No plan yet. Choose a goal race, then generate weekly targets." />
-            <GenerateForm goals={eligible} />
+            {notice.data?.required === true ? (
+              <PlanNotice notice={notice.data} />
+            ) : (
+              <GenerateForm goals={eligible} />
+            )}
           </>
         )}
       </>

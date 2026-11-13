@@ -14,6 +14,7 @@ import type {
   TodayView,
   WorkoutLift,
 } from '../../shared/types.ts'
+import { PLAN_NOTICE_VERSION } from '../../shared/domain/planNotice.ts'
 import { SESSION_COOKIE, signSession } from '../../server/auth/session.ts'
 import { createPrisma, initSqlite } from '../../server/db.ts'
 import { clearUserData } from '../schemaModels.ts'
@@ -82,21 +83,33 @@ export const E2E_SESSION_SECRET = 'e2e-test-only-secret-0123456789abcdef!!'
  * address) and costs a bcrypt compare, and a minted cookie needs neither. A spec starts from here unless it is testing the auth
  * screens.
  */
-export async function signedInApi(page: Page, origin: string): Promise<Api> {
+export async function signedInApi(
+  page: Page,
+  origin: string,
+  opts: { planNotice?: boolean } = {},
+): Promise<Api> {
   const api = apiFor(page, origin)
   const status = (await api.get('/setup')) as { needsSetup: boolean }
-  if (status.needsSetup) {
-    await api.post('/setup', RUNNER)
-    return api
-  }
+  if (status.needsSetup) await api.post('/setup', RUNNER)
   const prisma = createPrisma(E2E_DATABASE_URL)
   try {
-    const user = await prisma.user.findUniqueOrThrow({ where: { email: RUNNER.email } })
-    await page
-      .context()
-      .addCookies([
-        { name: SESSION_COOKIE, value: signSession(user.id, E2E_SESSION_SECRET), url: origin },
-      ])
+    // The health notice (FS1) stands confirmed unless a spec asks for the account that has not
+    // read it (`planNotice: false`), so a spec that plans is not about the notice. The account row
+    // outlives `resetData()`, so both states are written.
+    const confirmed = opts.planNotice !== false
+    const user = await prisma.user.update({
+      where: { email: RUNNER.email },
+      data: confirmed
+        ? { planNoticeVersion: PLAN_NOTICE_VERSION, planNoticeAt: new Date() }
+        : { planNoticeVersion: null, planNoticeAt: null },
+    })
+    if (!status.needsSetup) {
+      await page
+        .context()
+        .addCookies([
+          { name: SESSION_COOKIE, value: signSession(user.id, E2E_SESSION_SECRET), url: origin },
+        ])
+    }
   } finally {
     await prisma.$disconnect()
   }

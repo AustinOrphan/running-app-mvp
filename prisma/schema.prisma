@@ -23,6 +23,8 @@ model User {
   unitsFromBrowser   Boolean  @default(false) // set by create-user when no units were given: the first load takes the units and the weight unit from the browser's locale, once
   sessionVersion     Int      @default(0) // carried by the session cookie; raised when the password changes or is reset, which ends every other session
   zoneFromBrowser    Boolean  @default(false) // set by create-user when no zone was given: the first load saves the browser's zone while the profile still reads UTC, once
+  planNoticeVersion  Int? // the version of the health notice (PLAN_NOTICE_VERSION) the runner confirmed before a first plan; null = not confirmed (FS1)
+  planNoticeAt       DateTime? // when that confirmation was stored
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 

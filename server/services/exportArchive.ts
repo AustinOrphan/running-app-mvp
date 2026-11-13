@@ -84,6 +84,7 @@ export function exportTables(prisma: PrismaClient, userId: string): Table[] {
         'weightUnit: "lb" or "kg", the unit strength loads are shown in. Stored loads are grams.',
         'showBodyWeight: whether Trends draws the body-weight chart.',
         'hideMapEnds: whether the map view leaves out the first and last 200 metres of a run. It only trims the view; activity-tracks.json holds the whole route.',
+        'planNoticeVersion and planNoticeAt: the version of the health notice you confirmed before your first plan, and when. Both are null until you confirm it.',
         'The password and its hash are not included.',
       ],
       // An allowlist, so a column added to User stays out until it is listed here.
@@ -99,6 +100,8 @@ export function exportTables(prisma: PrismaClient, userId: string): Table[] {
             weightUnit: true,
             showBodyWeight: true,
             hideMapEnds: true,
+            planNoticeVersion: true,
+            planNoticeAt: true,
             createdAt: true,
             updatedAt: true,
           },

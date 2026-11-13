@@ -1,3 +1,4 @@
+import { PLAN_NOTICE_VERSION } from '../../shared/domain/planNotice.ts'
 import { copyFileSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -104,12 +105,21 @@ export async function createTestCtx(
 /** Inserts a user directly (bcrypt cost 4 keeps tests fast) and returns a ready session cookie. */
 export async function seedUser(
   ctx: TestCtx,
-  opts: { email?: string; units?: Units; password?: string } = {},
+  opts: { email?: string; units?: Units; password?: string; planNotice?: boolean } = {},
 ): Promise<TestUser> {
   const email = opts.email ?? 'runner@example.com'
   const passwordHash = await bcrypt.hash(opts.password ?? 'correct horse battery staple', 4)
   const user = await ctx.prisma.user.create({
-    data: { email, passwordHash, units: opts.units ?? 'mi' },
+    data: {
+      email,
+      passwordHash,
+      units: opts.units ?? 'mi',
+      // The health notice (FS1) is confirmed by default so that tests which plan are not about it;
+      // `planNotice: false` seeds an account that has not confirmed it.
+      ...(opts.planNotice === false
+        ? {}
+        : { planNoticeVersion: PLAN_NOTICE_VERSION, planNoticeAt: new Date() }),
+    },
   })
   return {
     id: user.id,

@@ -2006,6 +2006,20 @@ function verifyUserSessionVersion(db: DatabaseSync, before: Snapshot): void {
   expect(rowsOf(db, `SELECT "sessionVersion" FROM "User"`)).toEqual([{ sessionVersion: 1 }])
 }
 
+function verifyUserPlanNotice(db: DatabaseSync, before: Snapshot): void {
+  expectNothingLost(before, db)
+  expectConsistent(db)
+  // Accounts of the previous release have confirmed nothing: both columns read null. Nothing is
+  // backfilled, so no account is taken to have read the notice.
+  expect(rowsOf(db, `SELECT email, "planNoticeVersion", "planNoticeAt" FROM "User"`)).toEqual([
+    { email: 'runner@example.com', planNoticeVersion: null, planNoticeAt: null },
+  ])
+  db.prepare(
+    `UPDATE "User" SET "planNoticeVersion" = 1, "planNoticeAt" = 1790000000000 WHERE id = 'u1'`,
+  ).run()
+  expect(rowsOf(db, `SELECT "planNoticeVersion" FROM "User"`)).toEqual([{ planNoticeVersion: 1 }])
+}
+
 function verifyActivityHeatExposure(db: DatabaseSync, before: Snapshot): void {
   // Rows, including the sessions linked to activities, are all kept.
   expectNothingLost(before, db)
@@ -2313,6 +2327,11 @@ const CASES: FixtureCase[] = [
     migration: 'plan_session_refused_activity',
     seed: seedOwnerUnlink,
     verify: verifyPlanSessionRefusedActivity,
+  },
+  {
+    migration: 'user_plan_notice',
+    seed: seedTerrainRelease,
+    verify: verifyUserPlanNotice,
   },
 ]
 

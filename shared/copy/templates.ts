@@ -26,6 +26,7 @@ import { NAV_TEMPLATES } from './navigation.ts'
 import { OVERSHOOT_TEMPLATES } from './overshoot.ts'
 import { PACES_TEMPLATES } from './myPaces.ts'
 import { PAGE_TEMPLATES, PROVIDER_TEMPLATES } from './pageCopy.ts'
+import { PLAN_NOTICE_TEMPLATES } from './planNotice.ts'
 import { PLAN_STRIP_TEMPLATES } from './planStrip.ts'
 import { RACE_PLAN_TEMPLATES } from './racePlan.ts'
 import { RAISE_TEMPLATES } from './raise.ts'
@@ -73,6 +74,7 @@ export const TEMPLATES = {
   ...GOALS_TEMPLATES,
   ...GRADE_TEMPLATES,
   ...HEAT_DAYS_TEMPLATES,
+  ...PLAN_NOTICE_TEMPLATES,
   ...LOAD_TEMPLATES,
   ...METHOD_TEMPLATES,
   ...OVERSHOOT_TEMPLATES,

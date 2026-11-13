@@ -21,11 +21,13 @@ import {
 import { formatDuration, heightCm, heightText, milesToM } from '../../shared/units.ts'
 import { ApiError, fieldErrors } from '../api/client.ts'
 import { rulesRef } from '../api/explain.ts'
+import { usePlanNotice } from '../api/planNotice.ts'
 import { useProfile, useUpdateProfile } from '../api/profile.ts'
 import { useSaveScreening, useScreenings } from '../api/screenings.ts'
 import { useSettings } from '../api/settings.ts'
 import { useZones } from '../api/zones.ts'
 import { Button } from '../components/Button.tsx'
+import { PlanNoticeStanding } from '../components/PlanNotice.tsx'
 import { ErrorState } from '../components/ErrorState.tsx'
 import { useLoadView } from '../components/loadView.ts'
 import { ExplainButton } from '../components/ExplainButton.tsx'
@@ -963,6 +965,13 @@ function ScreeningSheet({ onClose }: { onClose: () => void }) {
 }
 
 /** The REDs screen: when it was last done, when the next is due, and the entry point. */
+/** The health notice (FS1): an account from before it sees it here, once, with its plan untouched. */
+function NoticeSection() {
+  const notice = usePlanNotice()
+  if (notice.data === undefined) return null
+  return <PlanNoticeStanding notice={notice.data} />
+}
+
 function ScreeningSection() {
   const headingId = useId()
   const screenings = useScreenings()
@@ -1069,6 +1078,7 @@ export function ProfilePage() {
       <div className={styles.extras}>
         <ZonesSection units={units} />
         <ScreeningSection />
+        <NoticeSection />
       </div>
     </>
   )
