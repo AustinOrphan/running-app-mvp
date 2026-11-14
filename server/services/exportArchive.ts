@@ -425,7 +425,7 @@ export function exportTables(prisma: PrismaClient, userId: string): Table[] {
       fields: [
         'planId: the plan in plans.json. createdAt: ISO 8601 UTC.',
         'summary: what changed, in words. changes, decision, diff, undo: the details, as JSON.',
-        'paramsVersion: the version of the plan rules the revision was drawn under; empty when unknown.',
+        'paramsVersion: the version of the plan rules the revision redrew the plan under; empty when it redrew nothing or the version is unknown.',
       ],
       json: ['changes', 'decision', 'diff', 'undo'],
       pageRows: STREAM_PAGE_ROWS,

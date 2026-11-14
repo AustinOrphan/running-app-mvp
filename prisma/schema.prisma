@@ -278,7 +278,7 @@ model PlanRevision {
   undoOf       String? // on an 'undo' revision: the revision it reverted
   seenAt       DateTime? // the one seen marker in the product
   disruptionId String? // the window this revision created, changed or removed (no foreign key)
-  paramsVersion String? // PARAMS_VERSION the revision was drawn under; null on rows written before RV1 (unknown)
+  paramsVersion String? // plan rules version the revision redrew the plan under; null when it redrew nothing or on rows before RV1
 
   plan  Plan         @relation(fields: [planId], references: [id], onDelete: Cascade)
   brief WeeklyBrief?
