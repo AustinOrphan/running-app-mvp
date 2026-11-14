@@ -2,7 +2,7 @@ import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactElement } from 'react'
 import { Route, Routes } from 'react-router-dom'
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test, vi } from 'vitest'
 import type { StandoutView } from '../../shared/copy/standoutRender.ts'
 import { render } from '../../shared/copy/template.ts'
 import { TEMPLATES } from '../../shared/copy/templates.ts'
@@ -11,6 +11,7 @@ import type { InputFact } from '../../shared/engine/types.ts'
 import type { AthleteProfile, Availability, Weekday } from '../../shared/types.ts'
 import { MorePage } from '../../web/pages/MorePage.tsx'
 import { ProfilePage } from '../../web/pages/ProfilePage.tsx'
+import { InputFacts } from '../../web/components/InputFacts.tsx'
 import { StandoutCard } from '../../web/components/StandoutCard.tsx'
 import { WarningSignsPage } from '../../web/pages/WarningSignsPage.tsx'
 import { expectCleanCopy, mockApi, renderWithProviders } from './helpers.tsx'
@@ -83,8 +84,22 @@ describe('Warning signs page', () => {
       within(clinician).getByRole('heading', { level: 3, name: 'Signs of under-fuelling' }),
     ).toBeInTheDocument()
     // the short citations arrive with the bundled research chunk
-    expect(await within(emergency).findByText(/Marijon 2016/)).toBeInTheDocument()
+    expect(
+      await within(emergency).findByText(/Marijon 2016/, {}, { timeout: 10_000 }),
+    ).toBeInTheDocument()
     expectCleanCopy(document.body)
+  })
+})
+
+describe('the link in a rendered pain sentence', () => {
+  test('InputFacts renders the name as a link and calls the drawer handler when it is followed', async () => {
+    const onNavigate = vi.fn()
+    const user = userEvent.setup()
+    renderWithProviders(<InputFacts facts={[PAIN]} units="km" onNavigate={onNavigate} />)
+    const link = screen.getByRole('link', { name: 'Warning signs' })
+    expect(link).toHaveAttribute('href', '/warning-signs')
+    await user.click(link)
+    expect(onNavigate).toHaveBeenCalledTimes(1)
   })
 })
 

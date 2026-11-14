@@ -49,6 +49,25 @@ describe('the Warning signs list', () => {
     }
   })
 
+  test('the muscle and low-sodium signs say same day, and every sign says how sure it is', () => {
+    const byId = new Map(WARNING_SIGNS.map((sign) => [sign.id, sign]))
+    for (const id of ['muscle', 'sodium']) {
+      const timing = byId.get(id)?.timing
+      expect(timing, id).toBeDefined()
+      expect(render(TEMPLATES[timing!], {}, 'km'), id).toBe('See a clinician the same day.')
+    }
+    for (const sign of WARNING_SIGNS) expect(TEMPLATES[sign.basis], sign.id).toBeDefined()
+  })
+
+  test('the low-sodium sign escalates to the first level, and its drinking advice is conditional', () => {
+    const sodium = WARNING_SIGNS.find((sign) => sign.id === 'sodium')!
+    const detail = render(TEMPLATES[sodium.detail], {}, 'km')
+    expect(detail).toMatch(/After drinking a lot, do not drink more/)
+    expect(render(TEMPLATES[sodium.escalation!], {}, 'km')).toMatch(/call emergency services/)
+    const severe = WARNING_SIGNS.find((sign) => sign.id === 'severe-sodium')!
+    expect(severe.level).toBe('emergency')
+  })
+
   test('states no odds, no diagnosis and no blame', () => {
     for (const id of Object.keys(TEMPLATES).filter((key) => key.startsWith('warning-signs.'))) {
       const text = render(TEMPLATES[id as keyof typeof TEMPLATES], {}, 'km')

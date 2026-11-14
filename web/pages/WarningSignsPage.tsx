@@ -30,7 +30,7 @@ export function WarningSignsPage() {
           <section
             key={level.id}
             aria-labelledby={headingId}
-            className={`${styles.level} ${level.id === 'emergency' ? styles.emergency : styles.clinician}`}
+            className={`${styles.level} ${level.id === 'emergency' ? styles.emergency : ''}`}
           >
             <h2 id={headingId} className={styles.heading}>
               {text(level.heading)}
@@ -41,6 +41,18 @@ export function WarningSignsPage() {
                 <li key={sign.id} className={styles.sign}>
                   <h3 className={styles.title}>{text(sign.title)}</h3>
                   <p className={styles.detail}>{text(sign.detail)}</p>
+                  {sign.timing === undefined ? null : (
+                    <p className={styles.timing}>{text(sign.timing)}</p>
+                  )}
+                  {sign.escalation === undefined ? null : (
+                    <p className={styles.detail}>{text(sign.escalation)}</p>
+                  )}
+                  <p className={styles.sources}>
+                    <span className={styles.sourcesLabel}>
+                      {text('warning-signs.basis-label')}:
+                    </span>{' '}
+                    {text(sign.basis)}
+                  </p>
                   <p className={styles.sources}>
                     <span className={styles.sourcesLabel}>
                       {text('warning-signs.sources-label')}:

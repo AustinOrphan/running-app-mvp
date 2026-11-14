@@ -118,7 +118,7 @@ export function InputFacts({ facts, units, weightUnit, onNavigate, action }: Inp
                 </span>{' '}
               </>
             ) : null}
-            <WarningSignsText text={renderFact(fact, units, weightUnit)} />
+            <WarningSignsText text={renderFact(fact, units, weightUnit)} onNavigate={onNavigate} />
           </p>
           <Sources fact={fact} units={units} onNavigate={onNavigate} />
           {action?.(fact)}

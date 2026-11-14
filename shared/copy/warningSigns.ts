@@ -17,7 +17,12 @@ export const WARNING_SIGNS_TEMPLATES = {
   'warning-signs.intro': tpl(
     'These signs mean stop running. The list is for distance and ultra running, and it is not complete.',
   ),
-  'warning-signs.sources-label': tpl('Papers it rests on', {}, { shape: 'label' }),
+  'warning-signs.sources-label': tpl('Papers cited', {}, { shape: 'label' }),
+  'warning-signs.basis-label': tpl('How sure', {}, { shape: 'label' }),
+  'warning-signs.timing.same-day': tpl('See a clinician the same day.'),
+  'warning-signs.escalation.sodium': tpl(
+    'If confusion, repeated vomiting, a worsening headache or drowsiness appear, call emergency services.',
+  ),
   'warning-signs.closing': tpl(
     'The list names signs and makes no diagnosis. If something feels wrong and is not here, stop anyway.',
   ),
@@ -32,7 +37,7 @@ export const WARNING_SIGNS_TEMPLATES = {
   ),
   'warning-signs.clinician.heading': tpl('Stop and see a clinician', {}, { shape: 'label' }),
   'warning-signs.clinician.lead': tpl(
-    'Stop running and see a doctor or other qualified clinician before the next run.',
+    'Stop running and see a doctor or other qualified clinician before the next run, or sooner where a sign says so.',
   ),
 
   'warning-signs.heart.title': tpl('Chest, breathing and heart', {}, { shape: 'label' }),
@@ -49,7 +54,15 @@ export const WARNING_SIGNS_TEMPLATES = {
     { shape: 'label' },
   ),
   'warning-signs.sodium.detail': tpl(
-    'A headache, nausea, or swollen hands or feet late in a long effort or after it, most of all after drinking a lot. Do not drink more.',
+    'A headache, nausea, or swollen hands or feet late in a long effort or after it. After drinking a lot, do not drink more until a clinician has seen it.',
+  ),
+  'warning-signs.severe-sodium.title': tpl(
+    'Worsening headache, vomiting or drowsiness after a long effort',
+    {},
+    { shape: 'label' },
+  ),
+  'warning-signs.severe-sodium.detail': tpl(
+    'A headache that keeps getting worse, repeated vomiting or unusual drowsiness late in or after a long effort, most of all after drinking a lot.',
   ),
   'warning-signs.bone.title': tpl('Pain in one spot on a bone', {}, { shape: 'label' }),
   'warning-signs.bone.detail': tpl(
@@ -64,6 +77,30 @@ export const WARNING_SIGNS_TEMPLATES = {
     'Periods that have stopped or become irregular, bone injuries that keep coming back, tiredness that does not lift, or weight loss that was not planned.',
   ),
   'warning-signs.muscle.title': tpl('Dark urine with severe muscle pain', {}, { shape: 'label' }),
+  'warning-signs.basis.heart': tpl(
+    'From studies of people who had a cardiac arrest, mostly not runners. Stopping and calling is a convention of the app (rule n-10).',
+  ),
+  'warning-signs.basis.confusion': tpl(
+    'The statement names nervous system signs and collapse in heat illness. The other wording and the call are conventions of the app.',
+  ),
+  'warning-signs.basis.severe-sodium': tpl(
+    'A convention of the app (rule n-7). The cited papers describe severe low blood sodium and do not list these symptoms.',
+  ),
+  'warning-signs.basis.sodium': tpl(
+    'From rule n-7 of the app. The cited papers do not list these symptoms, and the timing is a convention.',
+  ),
+  'warning-signs.basis.bone': tpl(
+    'The review describes pain and tenderness in one place on a bone. Seeing a clinician for it is a convention of the app (rule n-1).',
+  ),
+  'warning-signs.basis.pain': tpl(
+    'Rests on a review and a graded return-to-run table, both low-grade sources. Stopping is a convention of the app.',
+  ),
+  'warning-signs.basis.fuel': tpl(
+    'The consensus lists these as screening flags. Seeing a clinician when they gather is a convention of the app (rule n-4).',
+  ),
+  'warning-signs.basis.muscle': tpl(
+    'The cited review links severe muscle damage to kidney injury but does not describe the urine or the pain. The same-day timing is a convention.',
+  ),
   'warning-signs.muscle.detail': tpl(
     'Very dark urine, or very little, with severe muscle pain or weakness after a hard or long effort. Say if it was hot and if painkillers were taken.',
   ),
@@ -80,6 +117,12 @@ export interface WarningSign {
   detail: WarningSignsTemplateId
   /** Ids of the papers in `research/papers` that the sign rests on. */
   sources: readonly string[]
+  /** How sure the page is of the sign: what it rests on and what is the app's convention. */
+  basis: WarningSignsTemplateId
+  /** Timing of its own, where it differs from the lead of its level. */
+  timing?: WarningSignsTemplateId
+  /** What to do if it gets worse. */
+  escalation?: WarningSignsTemplateId
 }
 
 export const WARNING_LEVELS: ReadonlyArray<{
@@ -107,6 +150,7 @@ export const WARNING_SIGNS: readonly WarningSign[] = [
     title: 'warning-signs.heart.title',
     detail: 'warning-signs.heart.detail',
     sources: ['marijon-2016-sca-warning-symptoms', 'stormholt-2021-sports-scd-symptoms'],
+    basis: 'warning-signs.basis.heart',
   },
   {
     id: 'confusion',
@@ -118,6 +162,15 @@ export const WARNING_SIGNS: readonly WarningSign[] = [
       'hewbutler-2015-eah-consensus',
       'hewbutler-2017-eah-update',
     ],
+    basis: 'warning-signs.basis.confusion',
+  },
+  {
+    id: 'severe-sodium',
+    level: 'emergency',
+    title: 'warning-signs.severe-sodium.title',
+    detail: 'warning-signs.severe-sodium.detail',
+    sources: ['hewbutler-2015-eah-consensus', 'hewbutler-2017-eah-update'],
+    basis: 'warning-signs.basis.severe-sodium',
   },
   {
     id: 'sodium',
@@ -125,6 +178,9 @@ export const WARNING_SIGNS: readonly WarningSign[] = [
     title: 'warning-signs.sodium.title',
     detail: 'warning-signs.sodium.detail',
     sources: ['hewbutler-2015-eah-consensus', 'hewbutler-2017-eah-update'],
+    basis: 'warning-signs.basis.sodium',
+    timing: 'warning-signs.timing.same-day',
+    escalation: 'warning-signs.escalation.sodium',
   },
   {
     id: 'bone',
@@ -132,6 +188,7 @@ export const WARNING_SIGNS: readonly WarningSign[] = [
     title: 'warning-signs.bone.title',
     detail: 'warning-signs.bone.detail',
     sources: ['warden-2014-bsi-long-distance-runners', 'barrack-2014-bone-stress-triad'],
+    basis: 'warning-signs.basis.bone',
   },
   {
     id: 'pain',
@@ -139,6 +196,7 @@ export const WARNING_SIGNS: readonly WarningSign[] = [
     title: 'warning-signs.pain.title',
     detail: 'warning-signs.pain.detail',
     sources: ['bjsm-2019-bone-stress-return-to-run', 'warden-2014-bsi-long-distance-runners'],
+    basis: 'warning-signs.basis.pain',
   },
   {
     id: 'fuel',
@@ -146,6 +204,7 @@ export const WARNING_SIGNS: readonly WarningSign[] = [
     title: 'warning-signs.fuel.title',
     detail: 'warning-signs.fuel.detail',
     sources: ['mountjoy-2023-reds-consensus', 'melin-2014-leaf-q', 'hoeg-2022-ultramarathon-triad'],
+    basis: 'warning-signs.basis.fuel',
   },
   {
     id: 'muscle',
@@ -153,5 +212,7 @@ export const WARNING_SIGNS: readonly WarningSign[] = [
     title: 'warning-signs.muscle.title',
     detail: 'warning-signs.muscle.detail',
     sources: ['clarkson-2007-rhabdomyolysis-marathon-renal'],
+    basis: 'warning-signs.basis.muscle',
+    timing: 'warning-signs.timing.same-day',
   },
 ]

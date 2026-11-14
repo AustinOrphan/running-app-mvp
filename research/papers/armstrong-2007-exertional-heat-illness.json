@@ -10,7 +10,7 @@
   "design": "consensus-statement",
   "population": "Athletes in high-intensity or long-duration exercise; position stand of the American College of Sports Medicine",
   "sampleSize": null,
-  "evidenceLevel": "A",
+  "evidenceLevel": "C",
   "topics": ["heat-weather"],
   "findings": [
     "Exertional heat illness can affect athletes during high-intensity or long-duration exercise and result in withdrawal from activity or collapse during or soon after activity (abstract).",
@@ -18,7 +18,7 @@
     "Early recognition and rapid cooling can reduce both the morbidity and mortality associated with EHS; the clinical changes can be subtle and easy to miss unless coaches, medical personnel and athletes stay aware and monitor at-risk athletes closely (abstract).",
     "Heat exhaustion generally resolves with symptomatic care and oral fluid support, and exercise-associated muscle cramping usually responds to rest and replacement of fluid and sodium (abstract)."
   ],
-  "limitations": "Expert position stand, not a systematic review. The abstract does not list the signs of heatstroke beyond central nervous system dysfunction and collapse, so nothing more than those two is taken from it.",
+  "limitations": "Graded C, not A: README grades a consensus statement by content (rigour, base of studies) and not by its label, and only the abstract was read, which shows neither the method nor the base of studies. Expert position stand, not a systematic review. The abstract does not list the signs of heatstroke beyond central nervous system dysfunction and collapse, so nothing more than those two is taken from it.",
   "implications": [
     "Confusion, odd behaviour or collapse during or soon after a long or hot effort is a stop-and-call-emergency-services sign in the warning-signs list; the engine states the sign and does not diagnose.",
     "Heatstroke can occur in cool conditions, so the sign is not tied to a temperature."
