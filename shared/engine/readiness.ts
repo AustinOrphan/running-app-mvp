@@ -333,7 +333,7 @@ interface SleepEval {
 }
 
 /** Mean sleep of the last 7 nights in hours, or null with too few recorded nights [rules J5]. */
-function sleepEval(ctx: Ctx, date: string): SleepEval {
+function sleepEval(ctx: Pick<Ctx, 'byDate'>, date: string): SleepEval {
   const hours: number[] = []
   for (let k = 0; k < P.j5.sleepWarnNights.value; k++) {
     const v = validPositive(ctx.byDate.get(addDays(date, -k))?.sleepSec)
@@ -343,6 +343,14 @@ function sleepEval(ctx: Ctx, date: string): SleepEval {
     avgH: hours.length >= P.j5.sleepMinNights.value ? mean(hours) : null,
     nights: hours.length,
   }
+}
+
+/**
+ * Nights with a sleep recording among the last `j5.sleepWarnNights` ending on `date`: the count
+ * `sleepEval` makes, for the screen that says what the plan can see [rules J5].
+ */
+export function sleepNightsRecorded(wellness: EngineInput['wellness'], date: string): number {
+  return sleepEval({ byDate: new Map(wellness.map((row) => [row.date, row])) }, date).nights
 }
 
 function sleepAvgOn(ctx: Ctx, date: string): number | null {

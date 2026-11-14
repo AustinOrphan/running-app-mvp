@@ -228,6 +228,13 @@ protection reads. The Docker image must still build (`docker build .`) after a c
   (`shared/engine/myPaces.ts`) over the snapshot and `hrModelOf`, the memo `paces.view` behind
   `GET /api/paces`, and the zones shown through `ZoneSummary`, the one rendering the Profile shares. A
   figure on it is a range and a sketch; a new number is a Param under C9.
+- What the plan can see (rule T2, task PS1) is derived on read and stored nowhere: `planInputs`
+  (`shared/domain/planInputs.ts`) over the snapshot, the memo `plan-inputs.view` behind
+  `GET /api/plan-inputs` (`server/routes/planInputs.ts`, `server/services/planInputs.ts`), and the page
+  `/plan-inputs` (Profile, More). It counts what the engine reads through the engine's own selections
+  (`baselineReadings`, `sleepNightsRecorded`, `hrModelSample`, `hrQualityPasses`) and adds no number; the
+  one read outside the snapshot is the ids of the stored streams. It feeds nothing back, and a new count
+  is a read of an engine reader, never a second window of its own. Words: `shared/copy/planInputs.ts`.
 - Heart-rate quality (rule B2, batch HQ1, ADR 0019 addendum): `Activity.hrQuality` (JSON `HrQuality`) is
   written by `storeParsed` (`computeHrQuality`, `shared/importers/files/hrQuality.ts`) and by the
   `hr-quality` job (`backfillHrQuality`, every 5 minutes, newest runs first), which also computes again a

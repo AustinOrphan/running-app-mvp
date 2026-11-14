@@ -85,6 +85,8 @@ export const ACTIVITY_DATA_KEYS = [
   keys.predictions,
   // My paces: the heart-rate line, critical speed and the race anchors all read the activities.
   keys.paces,
+  // What the plan can see: the counts of the runs.
+  keys.planInputs,
   keys.state,
   keys.stats,
   // Trends: the drift and heart-rate panels read the runs.

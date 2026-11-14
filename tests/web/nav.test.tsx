@@ -84,7 +84,7 @@ describe('Nav', () => {
       ),
     ).toEqual([
       ['Weekly brief', 'Goals', 'My paces', 'Strength', 'Fuel lab'],
-      ['Stats', 'Trends', 'Integrations', 'Research'],
+      ['Stats', 'Trends', 'Integrations', 'What the plan can see', 'Research'],
       ['Profile', 'Warning signs', 'Settings'],
     ])
     expect(rail.getByRole('link', { name: 'Stats' })).toHaveAttribute('data-current', 'true')
@@ -217,7 +217,7 @@ describe('MorePage', () => {
       ),
     ).toEqual([
       ['/brief', '/goals', '/paces', '/strength', '/fuel'],
-      ['/stats', '/trends', '/integrations', '/research'],
+      ['/stats', '/trends', '/integrations', '/plan-inputs', '/research'],
       ['/profile', '/warning-signs', '/settings'],
     ])
   })

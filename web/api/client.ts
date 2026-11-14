@@ -167,6 +167,7 @@ export const keys = {
   zoneProposals: 'zoneProposals',
   predictions: 'predictions',
   paces: 'paces',
+  planInputs: 'planInputs',
   screenings: 'screenings',
   planNotice: 'planNotice',
   researchParams: 'researchParams',
