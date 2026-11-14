@@ -9,6 +9,7 @@ import { addDays, daysBetween, mondayOf } from '../dates.ts'
 import type { Weekday } from '../types.ts'
 import { afterBreak, breakRestart } from './adapt.ts'
 import { estimateState } from './athlete.ts'
+import { plannedRaces } from './enteredRaces.ts'
 import {
   dayRuleOn,
   disruptionPlan,
@@ -335,6 +336,13 @@ function recoveryCadence(
       run = 0
       lastLoad = null
       if (week.flags.includes('restart-floor')) first = false
+      continue
+    }
+    // a week an entered race cut down made its own cut [rule SR1]
+    if (week.flags.includes('race-recovery')) {
+      run = 0
+      lastLoad = null
+      first = false
       continue
     }
     if (week.isRecovery) {
@@ -788,12 +796,17 @@ function raceDay(draft: PlanDraft, input: EngineInput): ChecklistResult {
     return result('race-day', true, 'The goal date has passed; nothing to plan.', rules)
   }
   const failures: string[] = []
-  const races = draft.sessions.filter((s) => s.kind === 'race')
+  // the races the runner entered before the goal race are planned around, never in its place [SR1]
+  const entered = new Set(plannedRaces(input).map((r) => r.goal.date))
+  const races = draft.sessions.filter((s) => s.kind === 'race' && !entered.has(s.date))
   if (races.length !== 1 || races[0]!.date !== input.goal.date) {
     failures.push(`expected one race on ${input.goal.date}`)
   }
   const sameDay = draft.sessions.filter(
-    (s) => s.date === input.goal.date && s.kind !== 'race' && VOLUME_KINDS.has(s.kind),
+    (s) =>
+      (s.date === input.goal.date || entered.has(s.date)) &&
+      s.kind !== 'race' &&
+      VOLUME_KINDS.has(s.kind),
   )
   if (sameDay.length > 0)
     failures.push(

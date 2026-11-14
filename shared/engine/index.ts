@@ -53,6 +53,7 @@ import { isDuplicate } from './load.ts'
 import { rebuildZone, responseBasis } from './loadSetting.ts'
 import { macroPlanDraft, redsHold, startPath, strengthBlockPosition } from './macro.ts'
 import { resolveMethod } from './methods.ts'
+import { applyEnteredRaces } from './enteredRaces.ts'
 import { holdSessions, placeWeek, shakeOutFor, targetForNet } from './micro.ts'
 import { P, PARAMS_VERSION } from './params/index.ts'
 import { planWindows, postRaceWarnings } from './postRace.ts'
@@ -1437,15 +1438,26 @@ function generate(
     fixed: kept.filter((s) => keep.toRun.has(s) && s.date >= today),
   })
 
+  // The races the runner entered before the goal race: their race sessions, the easing before them
+  // and the recovery after them, placed over the plan above and never adding to it [rules K6, H12].
+  const entered = applyEnteredRaces({
+    input,
+    zones,
+    macro,
+    sessions: guarded.sessions,
+    keptDates,
+    raceSession: (race, week) => raceSession({ ...input, goal: race.goal }, zones, week),
+  })
+
   // Race day.
   const raceWeek = macro.find((w) => w.weekStart === mondayOf(goal.date))
-  const sessions: SessionSpec[] = [...guarded.sessions]
+  const sessions: SessionSpec[] = [...entered.sessions]
   if (raceWeek !== undefined && goal.date >= today) {
     sessions.push(raceSession(input, zones, raceWeek))
   }
   const all = [...kept, ...sessions].sort(bySlot)
 
-  const warnings: EngineWarning[] = [...feas.notes, ...guarded.warnings]
+  const warnings: EngineWarning[] = [...feas.notes, ...guarded.warnings, ...entered.warnings]
   if (shortOfDays.length > 0) {
     const first = shortOfDays[0]!
     warnings.push({
@@ -1504,7 +1516,7 @@ function generate(
   }
 
   return {
-    weeks: macro,
+    weeks: entered.weeks,
     sessions: all,
     feasibility: feas,
     warnings,

@@ -12,6 +12,7 @@ import {
   loadSettingSummary,
   overshootsSummary,
   overshootSummary,
+  raceChangeSummary,
   REVISION_TEMPLATES,
   targetsSummary,
   targetSummary,
@@ -359,5 +360,25 @@ describe('the sentence for a week the re-plan took as run', () => {
     expect(text.indexOf('Mon 26 Oct')).toBeGreaterThanOrEqual(0)
     expect(text.indexOf('Mon 26 Oct')).toBeLessThan(text.indexOf('Mon 2 Nov'))
     expect(overshootsSummary([])).toBe('')
+  })
+})
+
+describe('raceChangeSummary', () => {
+  const name = 'Synthetic tune-up'
+  it.each([
+    ['added', 'Plan drawn around the race Synthetic tune-up on Sat 5 Dec.'],
+    ['changed', 'Plan drawn again for the race Synthetic tune-up on Sat 5 Dec.'],
+    ['moved', 'Plan drawn around the race Synthetic tune-up, now on Sat 5 Dec.'],
+  ] as const)('words a race %s', (kind, expected) => {
+    const text = raceChangeSummary({ kind, name, date: '2026-12-05' })
+    expect(text).toBe(expected)
+    expect(lintText(text)).toEqual([])
+    expect(text).not.toMatch(/\b(you|your|we)\b/i)
+  })
+
+  it('words a removal without a date and never invites another race', () => {
+    const text = raceChangeSummary({ kind: 'removed', name })
+    expect(text).toBe('The race Synthetic tune-up is no longer in the plan.')
+    expect(text).not.toMatch(/\b(add|enter|another)\b/i)
   })
 })

@@ -909,6 +909,7 @@ export type PlanRevisionReason =
   | 'goal-switch'
   | 'method-change'
   | 'raise-to-match'
+  | 'races-changed'
 export interface PlanRevision {
   id: string
   planId: string

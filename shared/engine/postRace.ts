@@ -381,6 +381,28 @@ export function ownWindow(input: EngineInput): PostRaceWindow {
   )
 }
 
+/**
+ * The window after a race the runner entered besides the goal race [rule H12, task SR1], projected
+ * from its date. It is planned for a class of marathon distance or longer, as a past race's window
+ * is; a shorter race has none (`null`). The check-in gate is left out: no check-in can follow a race
+ * that has not been run.
+ */
+export function tuneUpWindow(input: EngineInput, race: GoalModel): PostRaceWindow | null {
+  if (!isMarathonOrLonger(race.distanceClass)) return null
+  return postRaceWindow(
+    {
+      date: race.date,
+      distanceM: race.distanceM,
+      lossM: lossOf(race.lossM),
+      distanceClass: race.distanceClass,
+    },
+    { age: ageOn(input, race.date) },
+    input.activities.filter(isCompletedRace),
+    [],
+    input.today,
+  )
+}
+
 export function postRaceWindows(input: EngineInput): PostRaceWindows {
   const { goal, today } = input
   const checkins = checkinsOf(input)

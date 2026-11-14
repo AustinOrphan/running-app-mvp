@@ -350,6 +350,16 @@ export interface GoalModel {
   crossesDarkness: boolean
   raceWbgtC: number | null
 }
+/**
+ * A race the runner entered besides the goal race, with priority B or C [rules K6, H12]. The plan
+ * gives it a race session, eases the days before it and plans the recovery after it. The server
+ * sends the goals with status `target`, dated after today and before the goal race; an A-priority
+ * goal other than the current one is not sent (one A goal).
+ */
+export interface EnteredRace {
+  priority: 'B' | 'C'
+  goal: GoalModel
+}
 export interface Feasibility {
   label: 'comfortable' | 'tight' | 'not-reachable'
   weeksNeeded: number
@@ -557,6 +567,11 @@ export interface EngineInput {
   wellness: Array<WellnessDay & Partial<Checkin>>
   reviews: WeeklyReview[]
   goal: GoalModel
+  /**
+   * The B and C races entered before the goal race [rules K6, H12, task SR1]; absent or empty means
+   * none, and the plan is the plan it always was.
+   */
+  races?: EnteredRace[]
   forecast: Array<{
     time: string
     tempC: number

@@ -109,6 +109,7 @@ export function attributionContext(diff: PlanDiff, facts: RevisionFacts): Attrib
       facts.reason === 'undo' ||
       facts.reason === 'method-change' ||
       facts.reason === 'raise-to-match' ||
+      facts.reason === 'races-changed' ||
       (facts.reason === 'owner' &&
         (facts.changeFields ?? []).some((field) => field.startsWith('session.'))),
     holds: diff.holds,
