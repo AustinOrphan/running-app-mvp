@@ -160,7 +160,7 @@ async function handOverLog(
 }
 
 /** The runner's own words about a session: what the copy has and the original lacks is copied. */
-async function copyEffort(
+export async function copyEffort(
   prisma: Pick<PrismaClient, 'activity'>,
   userId: string,
   copyId: string,

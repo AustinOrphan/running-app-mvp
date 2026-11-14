@@ -2050,6 +2050,22 @@ function verifyActivityRpeSource(db: DatabaseSync, before: Snapshot): void {
   ])
 }
 
+function verifyActivityWatchRpeV(db: DatabaseSync, before: Snapshot): void {
+  expectNothingLost(before, db)
+  expectConsistent(db)
+  // No activity of the previous release was asked about: the backfill job looks at them.
+  expect(rowsOf(db, 'SELECT id, "watchRpeV" FROM "Activity" ORDER BY id')).toEqual([
+    { id: 'a1', watchRpeV: null },
+    { id: 'a2', watchRpeV: null },
+    { id: 'a3', watchRpeV: null },
+    { id: 'a4', watchRpeV: null },
+  ])
+  db.prepare(`UPDATE "Activity" SET "watchRpeV" = 1 WHERE id = 'a1'`).run()
+  expect(rowsOf(db, `SELECT "watchRpeV" FROM "Activity" WHERE id = 'a1'`)).toEqual([
+    { watchRpeV: 1 },
+  ])
+}
+
 function verifyActivityHeatExposure(db: DatabaseSync, before: Snapshot): void {
   // Rows, including the sessions linked to activities, are all kept.
   expectNothingLost(before, db)
@@ -2372,6 +2388,11 @@ const CASES: FixtureCase[] = [
     migration: 'activity_rpe_source',
     seed: seedTerrainRelease,
     verify: verifyActivityRpeSource,
+  },
+  {
+    migration: 'activity_watch_rpe_v',
+    seed: seedTerrainRelease,
+    verify: verifyActivityWatchRpeV,
   },
 ]
 

@@ -31,6 +31,7 @@ import { backfillHrQuality } from '../services/hrQualityBackfill.ts'
 import { backfillSurfaceBins } from '../services/surfaceBackfill.ts'
 import { backfillTerrainBins } from '../services/terrainBackfill.ts'
 import { backfillTracks } from '../services/trackBackfill.ts'
+import { backfillWatchRatings } from '../services/watchRatingBackfill.ts'
 import { enrichWeather } from '../services/weather.ts'
 import { refreshWeatherCaches } from '../services/weatherCache.ts'
 import { REPLAN_SLOT, usersDueForWeeklyUpdate, type DailySlot } from './weeklyUpdate.ts'
@@ -53,6 +54,8 @@ export const TERRAIN_INTERVAL_MS = 5 * MINUTE_MS
 export const HR_QUALITY_INTERVAL_MS = 5 * MINUTE_MS
 /** How often the track backfill reads stored originals and asks intervals.icu for a few streams. */
 export const TRACK_INTERVAL_MS = 5 * MINUTE_MS
+/** How often the watch-rating backfill asks intervals.icu for a few activity records. */
+export const WATCH_RATING_INTERVAL_MS = 5 * MINUTE_MS
 /** How often the surface job matches a batch of tracks to the downloaded map area. */
 export const SURFACE_INTERVAL_MS = 5 * MINUTE_MS
 /** Activities that get weather per user per run. */
@@ -349,6 +352,47 @@ export async function runTrackJob(deps: Deps, log?: Log, opts: { now?: Date } = 
     } catch (error) {
       log?.warn({ reason: safeMessage(error), userId: user.id }, 'track backfill failed')
       await recordJob(deps, 'track', user.id, startedAt, { error })
+    }
+  }
+}
+
+/**
+ * Fills the watch rating of intervals.icu runs stored without one (WB1), a few `/activity/{id}`
+ * requests per user per tick (`backfillWatchRatings`). A tick that fills a rating, fails a
+ * request or meets a pause or a refused key records a `watch-rating` run: `accepted` the ratings
+ * written, `failed` the failed requests, `partial` when there are any, `paused` while intervals.icu is
+ * rate limiting and `error` when it refused the key. A tick that only marks runs (no rating held) is
+ * idle and not stored, like one with nothing to do. A user's failure is recorded as
+ * an error run and the job goes on. Idempotent and resumable: a run that was asked about is never
+ * selected again.
+ */
+export async function runWatchRatingJob(
+  deps: Deps,
+  log?: Log,
+  opts: { now?: Date } = {},
+): Promise<void> {
+  const users = await deps.prisma.user.findMany({ select: { id: true } })
+  for (const user of users) {
+    const startedAt = new Date()
+    try {
+      const result = await backfillWatchRatings(deps, user.id, opts)
+      const status = result.authRefused
+        ? 'error'
+        : result.pause && result.requests > 0
+          ? 'paused'
+          : result.failures.length > 0
+            ? 'partial'
+            : 'ok'
+      await recordJob(deps, 'watch-rating', user.id, startedAt, {
+        accepted: result.filled,
+        failed: result.failures.length,
+        status,
+        failures: result.failures,
+        skipIdle: true,
+      })
+    } catch (error) {
+      log?.warn({ reason: safeMessage(error), userId: user.id }, 'watch rating backfill failed')
+      await recordJob(deps, 'watch-rating', user.id, startedAt, { error })
     }
   }
 }
@@ -686,6 +730,7 @@ export function startScheduler(deps: Deps, opts: { fetch: typeof fetch }): () =>
   every('terrain', TERRAIN_INTERVAL_MS, () => runTerrainJob(deps, log))
   every('hr-quality', HR_QUALITY_INTERVAL_MS, () => runHrQualityJob(deps, log))
   every('track', TRACK_INTERVAL_MS, () => runTrackJob(deps, log))
+  every('watch-rating', WATCH_RATING_INTERVAL_MS, () => runWatchRatingJob(deps, log))
   every('surface', SURFACE_INTERVAL_MS, () => runSurfaceJob(deps, log))
   // The daily slot and the start-up catch-up share this flag, so two copies never run at once.
   let backingUp = false
