@@ -199,7 +199,7 @@ describe('Activities page', () => {
       await screen.findByText(text)
       // one link names the kind and the figures in reading order
       expect(
-        screen.getByRole('link', { name: `Strength, Mon 2 Mar${YEAR_2026}, ${text}, 40:00` }),
+        screen.getByRole('link', { name: `Strength ${text} 40:00, Mon 2 Mar${YEAR_2026}` }),
       ).toBeInTheDocument()
       // no distance and no dash stand in the cell, and a strength row has no pace
       expect(screen.queryByText('–')).not.toBeInTheDocument()
@@ -238,7 +238,7 @@ describe('Activities page', () => {
       activities: [makeActivity({ id: 'r9', durationSec: 2700, distanceM: 8047 })],
     })
     const link = await screen.findByRole('link', {
-      name: `Run, Mon 2 Mar${YEAR_2026}, 5.00 mi, 45:00, Pace 9:00 /mi`,
+      name: `Run 5.00 mi 45:00 9:00 /mi, Mon 2 Mar${YEAR_2026}`,
     })
     expect(link).toHaveAttribute('href', '/activities/r9')
     expect(screen.queryByRole('link', { name: /Details/ })).not.toBeInTheDocument()
@@ -250,7 +250,7 @@ describe('Activities page', () => {
   test('a row with no distance leaves the dash out of its name', async () => {
     renderPage({ activities: [makeActivity({ id: 'r8', durationSec: 2700, distanceM: null })] })
     expect(
-      await screen.findByRole('link', { name: `Run, Mon 2 Mar${YEAR_2026}, 45:00` }),
+      await screen.findByRole('link', { name: `Run 45:00, Mon 2 Mar${YEAR_2026}` }),
     ).toBeInTheDocument()
   })
 
@@ -277,7 +277,9 @@ describe('Activities page', () => {
 
   test('a row of another year carries the year in its name, as its date heading does', async () => {
     renderPage({ activities: [makeActivity({ id: 'old', date: '2020-03-02' })] })
-    expect(await screen.findByRole('link', { name: /^Run, Mon 2 Mar 2020, / })).toBeInTheDocument()
+    expect(
+      await screen.findByRole('link', { name: /^Run .*, Mon 2 Mar 2020$/ }),
+    ).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Mon 2 Mar 2020' })).toBeInTheDocument()
   })
 
@@ -319,22 +321,24 @@ describe('Activities page', () => {
     test('a moving time of zero is a missing reading: the row keeps "Pace" and the elapsed figure', async () => {
       renderPage({ activities: [run({ movingSec: 0 })] })
       await screen.findByText('9:00 /mi')
-      expect(screen.getByRole('link', { name: /, Pace 9:00 \/mi/ })).toBeInTheDocument()
-      expect(screen.queryByRole('link', { name: /Moving pace/ })).not.toBeInTheDocument()
+      expect(screen.getByRole('link', { name: /9:00 \/mi, Mon/ })).toBeInTheDocument()
+      expect(screen.queryByRole('link', { name: /moving pace/ })).not.toBeInTheDocument()
     })
 
     test('a row with no moving time keeps the label "Pace"', async () => {
       renderPage({ activities: [run()] })
       await screen.findByText('9:00 /mi')
-      expect(screen.getByRole('link', { name: /, Pace 9:00 \/mi/ })).toBeInTheDocument()
-      expect(screen.queryByRole('link', { name: /Moving pace/ })).not.toBeInTheDocument()
+      expect(screen.getByRole('link', { name: /9:00 \/mi, Mon/ })).toBeInTheDocument()
+      expect(screen.queryByRole('link', { name: /moving pace/ })).not.toBeInTheDocument()
     })
 
     test('a row whose moving time differs shows the moving pace, tells a screen reader so, and shows nothing more', async () => {
       renderPage({ activities: [run({ movingSec: 2600 })] })
       const pace = await screen.findByText('8:40 /mi')
       // the link's name says Moving pace before the figure; the line itself holds only the figure
-      expect(screen.getByRole('link', { name: /, Moving pace 8:40 \/mi/ })).toBeInTheDocument()
+      expect(
+        screen.getByRole('link', { name: /8:40 \/mi, Mon.*, moving pace$/ }),
+      ).toBeInTheDocument()
       expect(pace.textContent).toBe('8:40 /mi')
       expect(screen.queryByText('elapsed')).not.toBeInTheDocument()
       // the figure is the one from the moving time; the duration beside it stays elapsed
@@ -344,13 +348,15 @@ describe('Activities page', () => {
 
     test('the row is named for it: its link says Moving pace', async () => {
       renderPage({ activities: [run({ movingSec: 2600 })] })
-      expect(await screen.findByRole('link', { name: /Moving pace 8:40 \/mi/ })).toBeInTheDocument()
+      expect(
+        await screen.findByRole('link', { name: /8:40 \/mi, .*moving pace$/ }),
+      ).toBeInTheDocument()
     })
 
     test('a moving time within a second of the elapsed time is the same time, so the label stays "Pace"', async () => {
       renderPage({ activities: [run({ movingSec: 2700 })] })
       await screen.findByText('9:00 /mi')
-      expect(screen.getByRole('link', { name: /, Pace 9:00 \/mi/ })).toBeInTheDocument()
+      expect(screen.getByRole('link', { name: /9:00 \/mi, Mon/ })).toBeInTheDocument()
       expect(screen.queryByText(/Elapsed/)).not.toBeInTheDocument()
     })
 
@@ -368,7 +374,9 @@ describe('Activities page', () => {
     test('reads in kilometres too, and the row keeps its date, type, duration and distance', async () => {
       renderPage({ units: 'km', activities: [run({ movingSec: 2600 })] })
       await screen.findByText('5:23 /km')
-      expect(screen.getByRole('link', { name: /, Moving pace 5:23 \/km/ })).toBeInTheDocument()
+      expect(
+        screen.getByRole('link', { name: /5:23 \/km, Mon.*, moving pace$/ }),
+      ).toBeInTheDocument()
       expect(screen.getByText('45:00')).toBeInTheDocument()
       expect(screen.getByText('8.05 km')).toBeInTheDocument()
     })

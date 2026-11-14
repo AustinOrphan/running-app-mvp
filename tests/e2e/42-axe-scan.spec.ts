@@ -70,18 +70,6 @@ const KNOWN_VIOLATIONS: readonly KnownViolation[] = [
       'The preview is aria-hidden and meant to be faint, so this is a visual decision: ' +
       'a contrast PR either raises the preview colour or keeps it as a decorative placeholder.',
   },
-  {
-    rule: 'label-content-name-mismatch',
-    page: 'Log',
-    selector: '._row',
-    why:
-      'A log row is a link named "Run, Wed 4 Nov, 3.11 mi, 30:00, Pace 9:39 /mi" (aria-label in ' +
-      'ActivitiesPage); the visible text "Run 3.11 mi 30:00 9:39 /mi" is not a contiguous part of ' +
-      'it (the day and the word Pace sit between). No pixels change, but the name is pinned by ' +
-      'tests/web/activities.test.tsx and 02-activities.spec.ts as a design choice, so the fix ' +
-      '(visually hidden spans inside the link, or a name that starts with the visible text) ' +
-      'waits for an owner decision on the wording screen readers hear.',
-  },
 ]
 
 const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']
