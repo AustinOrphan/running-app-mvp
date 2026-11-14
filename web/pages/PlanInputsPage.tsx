@@ -5,6 +5,7 @@ import {
   planInputsLine as line,
   planInputsText as text,
 } from '../../shared/copy/planInputs.ts'
+import { plural } from '../../shared/copy/quantity.ts'
 import { PACES_TEMPLATES } from '../../shared/copy/myPaces.ts'
 import { render } from '../../shared/copy/template.ts'
 import type { PlanInputsView } from '../../shared/domain/planInputs.ts'
@@ -136,7 +137,9 @@ function Body({ view }: { view: PlanInputsView }) {
         ]}
         rows={[
           [
-            line('plan-inputs.sleep.nights', { window: count(sleep.windowNights) }),
+            line('plan-inputs.sleep.nights', {
+              window: plural(sleep.windowNights, 'night'),
+            }),
             number(sleep.nights),
           ],
         ]}

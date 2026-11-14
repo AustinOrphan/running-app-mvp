@@ -62,7 +62,7 @@ export interface PlanInputsView {
     /** Runs and races in the history, flagged duplicates left out. */
     count: number
     withStream: number
-    /** Runs whose stored terrain bins hold climb or descent (an altitude span of at least 2 m). */
+    /** Runs whose stored terrain bins hold metres: an altitude span of at least 2 m was read from the stream. */
     withAltitude: number
     /** Heart rate from an external sensor, a wrist sensor or a file with no device information. */
     strap: number

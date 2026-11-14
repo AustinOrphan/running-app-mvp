@@ -87,7 +87,7 @@ describe('PlanInputsPage', () => {
     expect(rowOf(rest, 'Days with a resting heart rate')).toHaveTextContent('40')
 
     const sleep = screen.getByRole('region', { name: 'Sleep' })
-    expect(rowOf(sleep, 'Nights recorded in the last 7')).toHaveTextContent('5')
+    expect(rowOf(sleep, 'Recorded in the last 7 nights')).toHaveTextContent('5')
 
     const runs = screen.getByRole('region', { name: 'Runs' })
     expect(rowOf(runs, 'Runs and races')).toHaveTextContent('120')
@@ -127,7 +127,7 @@ describe('PlanInputsPage', () => {
     ).toBeInTheDocument()
   })
 
-  test('rMSSD readings are described as used, and an empty log reads as zeros and type', async () => {
+  test('an empty log reads as zeros and type', async () => {
     const empty = view({
       hrv: {
         kind: 'none',
@@ -146,6 +146,84 @@ describe('PlanInputsPage', () => {
     expect(within(hrv).getByText('No heart-rate variability readings are stored.')).toBeVisible()
     const sources = screen.getByRole('region', { name: 'Sources' })
     expect(within(sources).getByText('No activities or wellness days yet.')).toBeVisible()
+    expectCleanCopy(document.body)
+  })
+
+  const HRV_BASE = {
+    rmssdDays: 20,
+    sdnnDays: 0,
+    baselineReadings: 10,
+    lookbackDays: 21,
+    baselineKeeps: 10,
+    minReadings: 10,
+  }
+
+  test('rMSSD readings are described as used, with the newest readings the baseline keeps', async () => {
+    mockApi({ 'GET /api/plan-inputs': () => view({ hrv: { ...HRV_BASE, kind: 'rmssd' } }) })
+    renderWithProviders(<PlanInputsPage />, { route: '/plan-inputs' })
+    const hrv = await screen.findByRole('region', { name: 'Heart-rate variability' })
+    expect(within(hrv).getByText(/uses rMSSD readings, on a log scale/)).toBeVisible()
+    expect(
+      within(hrv).getByText(
+        'The baseline takes the newest 10 rMSSD readings from the last 21 days and needs 10 of them.',
+      ),
+    ).toBeVisible()
+    expectCleanCopy(document.body)
+  })
+
+  test('the cycle baseline takes every reading of its wider window', async () => {
+    mockApi({
+      'GET /api/plan-inputs': () =>
+        view({ hrv: { ...HRV_BASE, kind: 'rmssd', lookbackDays: 35, baselineKeeps: null } }),
+    })
+    renderWithProviders(<PlanInputsPage />, { route: '/plan-inputs' })
+    const hrv = await screen.findByRole('region', { name: 'Heart-rate variability' })
+    expect(
+      within(hrv).getByText(
+        'The baseline takes every rMSSD reading from the last 35 days and needs 10 of them.',
+      ),
+    ).toBeVisible()
+  })
+
+  test('both kinds: rMSSD is used and SDNN is not mixed in', async () => {
+    mockApi({
+      'GET /api/plan-inputs': () => view({ hrv: { ...HRV_BASE, kind: 'both', sdnnDays: 20 } }),
+    })
+    renderWithProviders(<PlanInputsPage />, { route: '/plan-inputs' })
+    const hrv = await screen.findByRole('region', { name: 'Heart-rate variability' })
+    expect(
+      within(hrv).getByText(/It does not use the SDNN readings, which are not mixed with them\./),
+    ).toBeVisible()
+    expect(within(hrv).getByText(/The baseline takes the newest 10 rMSSD readings/)).toBeVisible()
+  })
+
+  test('a fitted heart-rate line is said to be fitted, and no run or zone reads as zeros and type', async () => {
+    const base = view()
+    mockApi({
+      'GET /api/plan-inputs': () =>
+        view({
+          runs: {
+            ...base.runs,
+            count: 0,
+            withStream: 0,
+            withAltitude: 0,
+            strap: 0,
+            wrist: 0,
+            unknown: 0,
+            passing: 0,
+            hrLine: { runs: 9, need: 8, windowWeeks: 8, fitted: true },
+          },
+          zones: base.zones.map(({ key }) => ({ key, boundary: null })),
+        }),
+    })
+    renderWithProviders(<PlanInputsPage />, { route: '/plan-inputs' })
+    const runs = await screen.findByRole('region', { name: 'Runs' })
+    expect(within(runs).getByText('The heart-rate line is fitted.')).toBeVisible()
+    expect(within(runs).queryByText(/is not fitted yet/)).not.toBeInTheDocument()
+    expect(rowOf(runs, 'On the heart-rate line, last 8 weeks')).toHaveTextContent('9 of 8')
+    expect(rowOf(runs, 'With climb or descent read from altitude')).toHaveTextContent('0')
+    const zones = screen.getByRole('region', { name: 'Zones' })
+    expect(within(zones).getAllByText('Not estimated yet.')).toHaveLength(6)
     expectCleanCopy(document.body)
   })
 

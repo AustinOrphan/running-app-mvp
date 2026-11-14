@@ -106,7 +106,7 @@ test('a runner whose watch reports SDNN is told the plan does not use it', async
   ).toContainText('0')
 
   const sleep = page.getByRole('region', { name: 'Sleep' })
-  await expect(sleep.getByText('Nights recorded in the last 7').locator('..')).toContainText('7')
+  await expect(sleep.getByText('Recorded in the last 7 nights').locator('..')).toContainText('7')
 
   const runs = page.getByRole('region', { name: 'Runs' })
   await expect(runs.getByText('Runs and races', { exact: true }).locator('..')).toContainText('3')

@@ -18,7 +18,7 @@ export const PLAN_INPUTS_TEMPLATES = {
   // Heart-rate variability
   'plan-inputs.hrv.heading': tpl('Heart-rate variability', {}, { shape: 'label' }),
   'plan-inputs.hrv.window': tpl(
-    'Counted over the last {days} days, the wellness window the plan reads.',
+    'Days with a reading are counted over the last {days} days, the wellness window the plan reads.',
     { days: 'count' },
   ),
   'plan-inputs.hrv.rmssd-days': tpl('Days with an rMSSD reading', {}, { shape: 'label' }),
@@ -59,8 +59,8 @@ export const PLAN_INPUTS_TEMPLATES = {
   // Sleep
   'plan-inputs.sleep.heading': tpl('Sleep', {}, { shape: 'label' }),
   'plan-inputs.sleep.nights': tpl(
-    'Nights recorded in the last {window}',
-    { window: 'count' },
+    'Recorded in the last {window}',
+    { window: 'text' },
     { shape: 'label' },
   ),
   'plan-inputs.sleep.reads': tpl(
@@ -76,7 +76,11 @@ export const PLAN_INPUTS_TEMPLATES = {
   ),
   'plan-inputs.runs.count': tpl('Runs and races', {}, { shape: 'label' }),
   'plan-inputs.runs.stream': tpl('With a stored stream', {}, { shape: 'label' }),
-  'plan-inputs.runs.altitude': tpl('With altitude in the stream', {}, { shape: 'label' }),
+  'plan-inputs.runs.altitude': tpl(
+    'With climb or descent read from altitude',
+    {},
+    { shape: 'label' },
+  ),
   'plan-inputs.runs.strap': tpl('Heart rate from a chest strap or armband', {}, { shape: 'label' }),
   'plan-inputs.runs.wrist': tpl('Heart rate from the wrist', {}, { shape: 'label' }),
   'plan-inputs.runs.unknown': tpl('Heart-rate source unknown', {}, { shape: 'label' }),
