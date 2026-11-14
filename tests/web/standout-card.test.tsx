@@ -66,7 +66,7 @@ describe('StandoutCard', () => {
     const card = await screen.findByRole('region', { name: 'What stood out' })
     const items = await within(card).findAllByRole('listitem')
     expect(items.map((item) => item.querySelector('p')?.textContent)).toEqual([
-      'Pain of 6 out of 10 was reported with this run. See the guidance on warning signs before the next run.',
+      'Pain of 6 out of 10 was reported with this run. See Warning signs before the next run.',
       'Average heart rate was 8 bpm higher than your usual at this pace.',
       'At 21 km, this is your longest run in the last 12 weeks.',
     ])

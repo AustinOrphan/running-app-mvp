@@ -3,7 +3,7 @@ import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
-import { targetsSummary } from '../../shared/copy/revision.ts'
+import { rulesChangedSummary, targetsSummary } from '../../shared/copy/revision.ts'
 import type {
   PlanPreview,
   PlanRevisionReason,
@@ -432,6 +432,22 @@ describe('RevisionDiff', () => {
     )
     expect(screen.getByText('No changes to the plan.')).toBeInTheDocument()
     expect(screen.queryByRole('list', { name: 'Changes in this update' })).not.toBeInTheDocument()
+  })
+})
+
+describe('RevisionDiff, when the plan rules changed', () => {
+  test('shows the line that says the revision was drawn under updated rules', () => {
+    mockApi({})
+    const line = rulesChangedSummary('2026-11-09.6')
+    renderWithProviders(
+      <RevisionDiff
+        revision={revisionWithDiff({ summary: `1 change across 1 week. ${line}` })}
+        units="km"
+      />,
+    )
+    expect(
+      screen.getByText(/Drawn under updated plan rules \(2026-11-09\.6\)\./),
+    ).toBeInTheDocument()
   })
 })
 

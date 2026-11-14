@@ -1,0 +1,34 @@
+{
+  "id": "armstrong-2007-exertional-heat-illness",
+  "title": "American College of Sports Medicine position stand. Exertional heat illness during training and competition",
+  "authors": "Armstrong LE, Casa DJ, Millard-Stafford M, Moran DS, Pyne SW, Roberts WO",
+  "year": 2007,
+  "journal": "Medicine & Science in Sports & Exercise",
+  "doi": "10.1249/mss.0b013e31802fa199",
+  "pmid": "17473783",
+  "url": "https://doi.org/10.1249/mss.0b013e31802fa199",
+  "design": "consensus-statement",
+  "population": "Athletes in high-intensity or long-duration exercise; position stand of the American College of Sports Medicine",
+  "sampleSize": null,
+  "evidenceLevel": "C",
+  "topics": ["heat-weather"],
+  "findings": [
+    "Exertional heat illness can affect athletes during high-intensity or long-duration exercise and result in withdrawal from activity or collapse during or soon after activity (abstract).",
+    "Exertional heatstroke (EHS) can affect seemingly healthy athletes even when the environment is relatively cool; it is defined as a rectal temperature above 40 C with symptoms or signs of organ system failure, most frequently central nervous system dysfunction (abstract).",
+    "Early recognition and rapid cooling can reduce both the morbidity and mortality associated with EHS; the clinical changes can be subtle and easy to miss unless coaches, medical personnel and athletes stay aware and monitor at-risk athletes closely (abstract).",
+    "Heat exhaustion generally resolves with symptomatic care and oral fluid support, and exercise-associated muscle cramping usually responds to rest and replacement of fluid and sodium (abstract)."
+  ],
+  "limitations": "Graded C, not A: README grades a consensus statement by content (rigour, base of studies) and not by its label, and only the abstract was read, which shows neither the method nor the base of studies. Expert position stand, not a systematic review. The abstract does not list the signs of heatstroke beyond central nervous system dysfunction and collapse, so nothing more than those two is taken from it.",
+  "implications": [
+    "Confusion, odd behaviour or collapse during or soon after a long or hot effort is a stop-and-call-emergency-services sign in the warning-signs list; the engine states the sign and does not diagnose.",
+    "Heatstroke can occur in cool conditions, so the sign is not tied to a temperature."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref confirms title, journal, year, authors and DOI, with no correction notice; Europe PMC abstract (PMID 17473783) read on 2026-11-13 and each finding is stated in it. Task WS1.",
+    "checkedAt": "2026-11-13"
+  }
+}

@@ -1115,6 +1115,19 @@ describe('ActivityDetailPage: against the plan', () => {
     expectCleanCopy(section)
   })
 
+  test('a pain sentence of the assessment links to the Warning signs page', async () => {
+    renderDetail({
+      plan: linkedPlan(
+        withLines([PLANNED, 'Pain 6 of 10 reported. See Warning signs before the next run.']),
+      ),
+    })
+    const section = await block()
+    expect(await within(section).findByRole('link', { name: 'Warning signs' })).toHaveAttribute(
+      'href',
+      '/warning-signs',
+    )
+  })
+
   test('the figures read in kilometres for a runner who chose them', async () => {
     renderDetail({ plan: linkedPlan(withLines([PLANNED])), units: 'km' })
     const section = await block()

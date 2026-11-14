@@ -2,6 +2,7 @@ import { useId, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { render } from '../../shared/copy/template.ts'
 import { TEMPLATES } from '../../shared/copy/templates.ts'
+import { WARNING_SIGNS_NAME, WARNING_SIGNS_PATH } from '../../shared/copy/warningSigns.ts'
 import { addDays, todayIso } from '../../shared/dates.ts'
 import type {
   AthleteProfile,
@@ -757,6 +758,10 @@ function ProfileForm({ initial, units, weightUnit }: { initial: AthleteProfile }
             {draft.injuries.some((injury) => injury.kind === 'bone-stress')
               ? 'Bone stress history: listed. The plan adds weekly load more slowly, and pain at one spot on a bone pauses progression until a clinician has seen it.'
               : 'Bone stress history: none listed. If one applies, add it above; it changes how fast the plan adds load.'}
+          </p>
+          <p className={styles.note}>
+            {render(TEMPLATES['warning-signs.note'], {}, 'km')}:{' '}
+            <Link to={WARNING_SIGNS_PATH}>{WARNING_SIGNS_NAME}</Link>
           </p>
           {errors['injuries'] !== undefined ? (
             <p className={styles.error}>{errors['injuries']}</p>

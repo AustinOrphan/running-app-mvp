@@ -31,6 +31,7 @@ import { WristSection } from './WristStatus.tsx'
 import { AdjustSection, isSettledForChange } from './disruption/AdjustSection.tsx'
 import { targetRows, type TargetRow } from './today/targetText.ts'
 import { assessmentLines, unratedEffortNote } from './engineText.ts'
+import { WarningSignsText } from './WarningSignsText.tsx'
 import {
   formatClimb,
   formatLongDate,
@@ -277,7 +278,9 @@ function Assessment({
       {lines.length > 0 ? (
         <div className={styles.lines}>
           {lines.map((line) => (
-            <p key={line}>{line}</p>
+            <p key={line}>
+              <WarningSignsText text={line} />
+            </p>
           ))}
         </div>
       ) : null}

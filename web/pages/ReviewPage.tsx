@@ -59,6 +59,7 @@ import { ReviewCountPrompt, ReviewLifts } from '../components/strength/ReviewStr
 import { useToast } from '../components/Toast.tsx'
 import { formatShortDate, formatWeekday, weekPhaseLabel } from '../components/format.ts'
 import { assessmentLines, localiseEngineText } from '../components/engineText.ts'
+import { WarningSignsText } from '../components/WarningSignsText.tsx'
 import { RevisionDiff } from '../components/revisions/RevisionDiff.tsx'
 import { WhyDrawer } from '../components/WhyDrawer.tsx'
 import { PROPOSAL_LABELS, proposalValueText } from '../components/zoneFormat.ts'
@@ -778,7 +779,7 @@ function SessionSummaries({
               : assessmentLines(session.execution, session.target.rpe)
             ).map((line, i) => (
               <p key={i} className={styles.sessionLine}>
-                {line}
+                <WarningSignsText text={line} />
               </p>
             ))}
             {session.execution ? (

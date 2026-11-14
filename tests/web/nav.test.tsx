@@ -85,7 +85,7 @@ describe('Nav', () => {
     ).toEqual([
       ['Weekly brief', 'Goals', 'My paces', 'Strength', 'Fuel lab'],
       ['Stats', 'Trends', 'Integrations', 'What the plan can see', 'Research'],
-      ['Profile', 'Settings'],
+      ['Profile', 'Warning signs', 'Settings'],
     ])
     expect(rail.getByRole('link', { name: 'Stats' })).toHaveAttribute('data-current', 'true')
     // On a phone the More tab is the current item, so the rail's link is styled and not announced.
@@ -218,7 +218,7 @@ describe('MorePage', () => {
     ).toEqual([
       ['/brief', '/goals', '/paces', '/strength', '/fuel'],
       ['/stats', '/trends', '/integrations', '/plan-inputs', '/research'],
-      ['/profile', '/settings'],
+      ['/profile', '/warning-signs', '/settings'],
     ])
   })
 

@@ -36,15 +36,15 @@ export const STANDOUT_TEMPLATES = {
   // where the report came from: the run's own rating, or the check-in of its day when that was the
   // higher figure. Only the check-in holds the focal bone flag, so that sentence always names it.
   'standout.pain': tpl(
-    'Pain of {pain} out of 10 was reported with this run. See the guidance on warning signs before the next run.',
+    'Pain of {pain} out of 10 was reported with this run. See Warning signs before the next run.',
     { pain: 'count' },
   ),
   'standout.pain-checkin': tpl(
-    'Pain of {pain} out of 10 was reported in the check-in on the day of this run. See the guidance on warning signs before the next run.',
+    'Pain of {pain} out of 10 was reported in the check-in on the day of this run. See Warning signs before the next run.',
     { pain: 'count' },
   ),
   'standout.pain-bone': tpl(
-    'Focal bone pain was reported in the check-in on the day of this run. Rest, and see the guidance on warning signs.',
+    'Focal bone pain was reported in the check-in on the day of this run. Rest, and see Warning signs.',
   ),
 
   // Effort: only the runner's own rating counts, so each sentence names the rating it rests on.

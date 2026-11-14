@@ -285,6 +285,16 @@ describe('GET /api/export', () => {
       expect(sessions[0]!['refusedActivityIds']).toEqual(['refused-1', 'refused-2'])
     })
 
+    test('a revision carries the version of the plan rules it was drawn under', () => {
+      const revisions = JSON.parse(text(entries, 'plan-revisions.json')) as Record<
+        string,
+        unknown
+      >[]
+      expect(revisions.length).toBeGreaterThan(0)
+      expect(revisions[0]!['paramsVersion']).toBe('2026-01-01.1')
+      expect(text(entries, 'README.txt')).toContain('paramsVersion')
+    })
+
     test('the whole stored track is there, untrimmed, and the settings say whether the map trims', () => {
       const [track] = JSON.parse(text(entries, 'activity-tracks.json')) as Record<string, unknown>[]
       expect(track).toMatchObject({

@@ -3,6 +3,7 @@
 import type { ReactNode } from 'react'
 import { render } from '../../shared/copy/template.ts'
 import { TEMPLATES } from '../../shared/copy/templates.ts'
+import { WARNING_SIGNS_PATH } from '../../shared/copy/warningSigns.ts'
 import styles from './destinations.module.css'
 
 /** A 24 px stroke icon in the tab bar's style; decorative, so hidden from assistive technology. */
@@ -205,6 +206,18 @@ const profile: Destination = {
   ),
 }
 
+const warningSigns: Destination = {
+  to: WARNING_SIGNS_PATH,
+  label: note('warning-signs.name'),
+  note: note('warning-signs.note'),
+  icon: (
+    <NavIcon>
+      <path d="M12 3 2.5 20h19z" />
+      <path d="M12 10v4.5M12 17.5v.01" />
+    </NavIcon>
+  ),
+}
+
 const settings: Destination = {
   to: '/settings',
   label: 'Settings',
@@ -235,7 +248,7 @@ export function destinationGroups(hasRacePlan: boolean): DestinationGroup[] {
       title: note('nav.group.data'),
       items: [stats, trends, integrations, planInputs, research],
     },
-    { id: 'you', title: note('nav.group.you'), items: [profile, settings] },
+    { id: 'you', title: note('nav.group.you'), items: [profile, warningSigns, settings] },
   ]
 }
 

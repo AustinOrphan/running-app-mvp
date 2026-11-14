@@ -23,6 +23,7 @@ import { HEAT_DAYS_TEMPLATES } from './heatDays.ts'
 import { LOAD_TEMPLATES } from './load.ts'
 import { METHOD_TEMPLATES } from './method.ts'
 import { NAV_TEMPLATES } from './navigation.ts'
+import { WARNING_SIGNS_TEMPLATES } from './warningSigns.ts'
 import { OVERSHOOT_TEMPLATES } from './overshoot.ts'
 import { PACES_TEMPLATES } from './myPaces.ts'
 import { PLAN_INPUTS_TEMPLATES } from './planInputs.ts'
@@ -56,6 +57,7 @@ import { TRENDS_TEMPLATES } from './trends.ts'
 
 export const TEMPLATES = {
   ...NAV_TEMPLATES,
+  ...WARNING_SIGNS_TEMPLATES,
   ...REVISION_TEMPLATES,
   ...REVISION_VIEW_TEMPLATES,
   ...TODAY_TEMPLATES,
