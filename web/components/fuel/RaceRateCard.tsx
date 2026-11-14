@@ -23,8 +23,10 @@ export function RaceRateCard({ hold }: RaceRateCardProps) {
       </h2>
       <p className={labStyles.note}>{labText.holdIntro(rateText(hold.rate))}</p>
       <ul className={labStyles.list}>
-        <li className={labStyles.lead}>{labText.holdLongest(hold.longest)}</li>
-        <li className={labStyles.lead}>{labText.holdDayTwo(hold.dayTwo)}</li>
+        <li className={`${labStyles.item} ${labStyles.lead}`}>
+          {labText.holdLongest(hold.longest)}
+        </li>
+        <li className={`${labStyles.item} ${labStyles.lead}`}>{labText.holdDayTwo(hold.dayTwo)}</li>
       </ul>
     </section>
   )

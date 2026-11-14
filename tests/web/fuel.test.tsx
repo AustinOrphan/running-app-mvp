@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { FUEL_UI_TEMPLATES } from '../../shared/copy/fuelUi.ts'
 import { gradeLegend } from '../../shared/copy/grades.ts'
 import { TEMPLATES } from '../../shared/copy/templates.ts'
-import { eahCard, fuelTargetFor, replayLadder } from '../../shared/engine/fuel.ts'
+import { eahCard, fuelTargetFor, raceRateHold, replayLadder } from '../../shared/engine/fuel.ts'
 import {
   advancedLockedMessage,
   describeFuelTarget,
@@ -1248,12 +1248,64 @@ describe('the Fuel lab page: sections and layout', () => {
     const card = await region('Race rate so far')
     expect(card).toHaveTextContent(/Measured at the race rate of 60 g\/h\./)
     expect(
-      within(card).getByText(/^Longest run with the race rate held: 5 h 10 min, 10 Mar\.$/),
+      within(card).getByText(
+        /^Longest run with the race rate held: 5 h 10 min, Tue 10 Mar 2026\.$/,
+      ),
     ).toBeVisible()
     expect(
-      within(card).getByText('Second day of a back-to-back at the race rate: 11 Mar.'),
+      within(card).getByText('Second day of a back-to-back at the race rate: Wed 11 Mar 2026.'),
     ).toBeVisible()
     expectCleanCopy(card)
+  })
+
+  test('marks a longest run and a second day on a hot day, and names the year of an older run', async () => {
+    const runs = [
+      { ...loggedRun(1, { servings: 6, gut: 0 }), date: '2025-11-03' },
+      { ...loggedRun(2, { servings: 8, gut: 0 }), date: '2025-11-10' },
+      {
+        ...loggedRun(3, { servings: 12, gut: 0 }),
+        date: '2025-12-05',
+        elapsedSec: 5 * 3600,
+        weather: HOT,
+      },
+      { ...loggedRun(4, { servings: 8, gut: 0 }), date: '2025-12-06', weather: HOT },
+    ]
+    renderLab(fullLab({ ...makeLab(runs), next: null, block: BLOCK }))
+    const card = await region('Race rate so far')
+    expect(
+      within(card).getByText(
+        'Longest run with the race rate held: 5 h, Fri 5 Dec 2025, on a hot day.',
+      ),
+    ).toBeVisible()
+    expect(
+      within(card).getByText(
+        'Second day of a back-to-back at the race rate: Sat 6 Dec 2025, on a hot day.',
+      ),
+    ).toBeVisible()
+    expectCleanCopy(card)
+  })
+
+  test('measures against the floor with a gut condition, and reads the same in miles', async () => {
+    const runs = [loggedRun(1, { servings: 6, gut: 0 })]
+    const engine: FuelSettingsInput = { optIn90: false, optInAdvanced: false, giDisease: true }
+    const ladder = replayLadder({ settings: engine, runs, gutTrainingWeeks: [] })
+    const raceRate = raceRateHold({ settings: engine, runs, gutTrainingWeeks: [] }, ladder)
+    renderLab(
+      fullLab({ ...makeLab(runs), raceRate, next: null, block: BLOCK }),
+      {},
+      {
+        ...settings,
+        units: 'mi',
+      },
+    )
+    const card = await region('Race rate so far')
+    expect(card).toHaveTextContent(/Measured at the race rate of 30 to 50 g\/h\./)
+    expect(
+      within(card).getByText('Longest run with the race rate held: 3 h, Sun 1 Mar 2026.'),
+    ).toBeVisible()
+    expect(
+      within(card).getByText('Second day of a back-to-back at the race rate: none logged yet.'),
+    ).toBeVisible()
   })
 
   test('says plainly that nothing qualifies yet', async () => {
@@ -1267,13 +1319,14 @@ describe('the Fuel lab page: sections and layout', () => {
     ).toBeVisible()
   })
 
-  test('stands in two columns from 900 px: the first four sections on the left, the rest on the right', async () => {
+  test('stands in two columns from 900 px: the first five sections on the left, the rest on the right', async () => {
     renderLab()
     const section = async (name: string | RegExp) => (await region(name)).parentElement
     const left = [
       await section(/^Fuel target:/),
       await section('Fuel log'),
       await section('Tier ladder'),
+      await section('Race rate so far'),
       await section('History'),
     ]
     const right = [
