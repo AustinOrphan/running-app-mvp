@@ -341,6 +341,36 @@ describe('GET /api/today: the coach payload', () => {
     })
   })
 
+  test('a quad report hides the downhill flags inside the pause with no re-plan, and not after it (rule H5)', async () => {
+    const lastPausedDay = addDays(today, P.h5.quadPauseDays.value)
+    const afterPause = addDays(lastPausedDay, 1)
+    const { u } = await planWith('quad-pause@example.com', [
+      { date: tomorrow, kind: 'hills', min: 60, flags: ['downhill'] },
+      { date: afterPause, kind: 'hills', min: 60, flags: ['downhill-first'] },
+    ])
+    const heroFlags = async () => (await view(u)).coach.hero!.session.flags
+    const planFlags = async (date: string) =>
+      ((await client(ctx, u).get('/api/plan')).body as PlanWithSessions).sessions.find(
+        (s) => s.date === date,
+      )!.flags
+    expect(await planFlags(tomorrow)).toEqual(['downhill'])
+
+    await checkin(u, today, { painScore: 4, painArea: 'left quad' })
+    expect(await planFlags(tomorrow)).toEqual([])
+    expect(await planFlags(afterPause)).toEqual(['downhill-first'])
+
+    // Today on the day the pause ends: the same stored session shows its flags again
+    vi.setSystemTime(new Date(2026, 9, 21 + P.h5.quadPauseDays.value + 1, 12))
+    expect(await heroFlags()).toEqual(['downhill-first'])
+    vi.setSystemTime(new Date(2026, 9, 22, 12))
+    expect(await heroFlags()).toEqual([])
+    vi.setSystemTime(NOON)
+
+    // the stored row is untouched: the pause is derived on read
+    const stored = await ctx.prisma.planSession.findFirstOrThrow({ where: { date: tomorrow } })
+    expect(JSON.parse(stored.flags)).toEqual(['downhill'])
+  })
+
   test('the hero targets are resolveTargets of the current zones, and the climb note follows the gain', async () => {
     const { u, rows } = await planWith('targets@example.com', [
       { date: today, kind: 'easy', min: 60, gainM: 600 },

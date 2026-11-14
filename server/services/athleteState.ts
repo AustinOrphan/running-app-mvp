@@ -6,6 +6,7 @@
 import { addDays, mondayOf, todayIso } from '../../shared/dates.ts'
 import { estimateState, INDOOR_OR_TRACK } from '../../shared/engine/athlete.ts'
 import { computeBestEfforts } from '../../shared/engine/bestEfforts.ts'
+import { pausedOnRead } from '../../shared/engine/downhill.ts'
 import { recentPaceSecPerKm, withDistanceEstimate } from '../../shared/engine/distanceEstimate.ts'
 import { fitHrModel, type HrModel } from '../../shared/engine/execution.ts'
 import { goalModel } from '../../shared/engine/goal.ts'
@@ -592,7 +593,13 @@ async function buildContext(
   // The estimate follows the paces as they are now; the stored sessions and `existing` do not.
   const recentPace = recentPaceSecPerKm({ activities, state, zones })
   const paces = { zones, recentPaceSecPerKm: recentPace }
-  const planSessions = storedSessions.map((session) => withDistanceEstimate(session, paces))
+  // What the pages show: a report of sore quads hides the downhill flags until the pause ends, with
+  // no re-plan (rule H5). `storedSessions` and `existing` stay as stored.
+  const planSessions = pausedOnRead(
+    storedSessions.map((session) => withDistanceEstimate(session, paces)),
+    wellness,
+    today,
+  )
 
   const counted = activities.filter((activity) => !isDuplicate(activity))
   const inputs: StateInputs = {

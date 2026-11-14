@@ -17,6 +17,7 @@ import { carryExternalIds, pairSessions } from '../../shared/domain/sessionIdent
 import { withRefusal } from '../../shared/domain/refusals.ts'
 import { type ExecutionRecord } from '../../shared/engine/adapt.ts'
 import { estimateState } from '../../shared/engine/athlete.ts'
+import { pausedOnRead } from '../../shared/engine/downhill.ts'
 import {
   recentPaceSecPerKm,
   weekDistanceEstimateM,
@@ -108,11 +109,14 @@ function present(
   paces: EstimatePaces,
   load: LoadPosition | null,
   method: MethodPosition | null,
+  pause?: { checkins: EngineInput['wellness']; today: string },
 ): PlanWithSessions {
   const { zones } = paces
   const engine = plan.generatorVersion >= 2 ? toPlanEngineFields(plan) : null
   const chosenCycle = engine === null ? undefined : parsePlanOptions(plan.options).recoveryCycle
-  const sessions = plan.sessions.map((row) => withDistanceEstimate(toPlanSession(row), paces))
+  const shown = plan.sessions.map((row) => withDistanceEstimate(toPlanSession(row), paces))
+  // a report of sore quads hides the downhill flags for the pause, with no re-plan (rule H5)
+  const sessions = pause === undefined ? shown : pausedOnRead(shown, pause.checkins, pause.today)
   const byWeek = new Map<string, typeof sessions>()
   for (const session of sessions) {
     byWeek.set(session.weekStart, [...(byWeek.get(session.weekStart) ?? []), session])
@@ -176,6 +180,7 @@ export async function loadPlanWithSessions(
     },
     load,
     method,
+    context === null ? undefined : { checkins: context.wellness, today },
   )
 }
 

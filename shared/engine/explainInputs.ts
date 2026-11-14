@@ -2822,6 +2822,26 @@ function climbingFacts(scope: Scope): InputFact[] {
   return facts
 }
 
+/**
+ * The ordering and the cue of rule H5, said only where the plan carries them: the race descends
+ * as much as the flags need (`h4.minStepGainM`), and the lead weeks are named only when the plan
+ * holds a week of first exposure.
+ */
+function orderFact(scope: Scope): InputFact[] {
+  const { race, input } = scope.ctx
+  if (race === null || race.lossM < P.h4.minStepGainM.value) return []
+  const days = count(P.h5.taperExclusionDays.value)
+  const lead = (input.existing?.weeks ?? []).some((w) => w.flags.includes('downhill-first'))
+  return [
+    lead
+      ? make('H5', 'order', 'explain.h5-order', {
+          lead: count(P.h5.repeatedBoutLeadWeeks.value),
+          days,
+        })
+      : make('H5', 'order', 'explain.h5-cue', { days }),
+  ]
+}
+
 function descentFacts(scope: Scope): InputFact[] {
   const { race } = scope.ctx
   if (race === null) return noGoal('H5')
@@ -2832,6 +2852,7 @@ function descentFacts(scope: Scope): InputFact[] {
         distance: distance(race.distanceM),
         weeks: count(P.h5.downhillStartWeeksBeforeRace.value),
       }),
+      ...orderFact(scope),
     ]
   }
   return race.gainM > 0 || race.surface === 'trail' || race.surface === 'mixed'

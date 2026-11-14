@@ -24,6 +24,7 @@ const FLAG_SET: Record<SessionFlag, true> = {
   'b2b-day1': true,
   'b2b-day2': true,
   downhill: true,
+  'downhill-first': true,
   'run-walk': true,
   'post-race': true,
   'injury-return': true,
@@ -42,7 +43,7 @@ function session(kind: SessionKind, minutes: number, over: Partial<SessionSpec> 
   return { ...prescribe(kind, minutes, zones, weekFixture()), date: '2026-07-10', ...over }
 }
 
-/** Every subset of the flags: 2^12 combinations. */
+/** Every subset of the flags: 2^13 combinations. */
 function* flagSubsets(): Generator<SessionFlag[]> {
   for (let mask = 0; mask < 1 << FLAGS.length; mask += 1) {
     yield FLAGS.filter((_, i) => (mask & (1 << i)) !== 0)
