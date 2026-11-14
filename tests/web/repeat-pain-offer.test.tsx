@@ -20,7 +20,7 @@ const REPEAT: DisruptionSlotData = {
   repeat: { area: 'left calf', reports: 3, days: 7, pain: 3 },
 }
 const ASK_REPEAT =
-  'The same spot was sore on 3 of the last 7 days. Set a rest window and a return plan?'
+  'The same area was sore on 3 of the last 7 days. Set a rest window and a return plan?'
 const CROSS = 'Easy cycling or pool work is an option while you are not running.'
 
 beforeEach(() => {
@@ -80,7 +80,7 @@ describe('the repeat offer on Today', () => {
     renderSlot({ windows: [], offer: true, offerReason: 'check-in', repeat: null })
     const offer = await screen.findByRole('region', { name: 'Rest window offer' })
     expect(within(offer).getByText('Set a rest window and a return plan?')).toBeInTheDocument()
-    expect(screen.queryByText(/The same spot/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/The same area/)).not.toBeInTheDocument()
   })
 
   test('"Not now" ends it for the visit and stores nothing', async () => {

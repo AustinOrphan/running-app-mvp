@@ -28,10 +28,12 @@ import { RevisionDiff } from '../revisions/RevisionDiff.tsx'
 import { PreviewPanel } from './PreviewPanel.tsx'
 import { newWarnings, windowCovers } from './previewFigures.ts'
 import {
+  AREA_MAX,
   EMPTY_DRAFT,
   REASON_CHOICES,
   RUN_CAP_CHOICES,
   dateBounds,
+  areaWithin,
   datesOf,
   draftErrors,
   inputOf,
@@ -98,7 +100,12 @@ export function NotFullSheet({ onClose, today: given, prefill = null }: NotFullS
   const [draft, setDraft] = useState<WindowDraft>(
     prefill === null
       ? EMPTY_DRAFT
-      : { ...EMPTY_DRAFT, reason: 'niggle', area: prefill.area.slice(0, 80), pain: prefill.pain },
+      : {
+          ...EMPTY_DRAFT,
+          reason: 'niggle',
+          area: areaWithin(prefill.area, AREA_MAX),
+          pain: prefill.pain,
+        },
   )
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [preview, setPreview] = useState<PlanPreview | null>(null)

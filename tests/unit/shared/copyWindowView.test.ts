@@ -257,7 +257,7 @@ describe('the offer on Today and the entry in the Not today sheet', () => {
 describe('the offer for a repeated area and the cross-training line (rule J11)', () => {
   it('words the question with the count of reports and the look-back', () => {
     expect(repeatPromptAsk({ reports: 3, days: 7 }, 'km')).toBe(
-      'The same spot was sore on 3 of the last 7 days. Set a rest window and a return plan?',
+      'The same area was sore on 3 of the last 7 days. Set a rest window and a return plan?',
     )
     expect(repeatPromptAsk({ reports: 4, days: 7 }, 'mi')).toBe(
       repeatPromptAsk({ reports: 4, days: 7 }, 'km'),

@@ -53,7 +53,7 @@ export const WINDOW_VIEW_TEMPLATES = {
   // The same offer when one area was reported on several check-ins (rule J11). It states a count
   // of days and no cause; the line under it points to the signs and adds none.
   'window-view.prompt.ask-repeat': tpl(
-    'The same spot was sore on {n} of the last {days} days. Set a rest window and a return plan?',
+    'The same area was sore on {n} of the last {days} days. Set a rest window and a return plan?',
     { n: 'count', days: 'count' },
   ),
   'window-view.prompt.signs': tpl(

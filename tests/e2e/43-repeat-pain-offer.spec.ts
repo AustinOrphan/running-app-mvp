@@ -48,7 +48,25 @@ async function seedPlan(api: Api): Promise<PlanWithSessions> {
 
 const windowsOf = async () => (await api.get('/plan/disruptions')) as DisruptionView[]
 
-const ASK = 'The same spot was sore on 3 of the last 7 days. Set a rest window and a return plan?'
+const ASK = 'The same area was sore on 3 of the last 7 days. Set a rest window and a return plan?'
+
+test('the repeat offer fits the 64 px slot budget at 360 x 740', async () => {
+  const { today } = relativeDates()
+  await api.put(`/checkins/${addDays(today, -5)}`, { painScore: 2, painArea: 'Left calf' })
+  await api.put(`/checkins/${addDays(today, -3)}`, { painScore: 3, painArea: 'calf (left)' })
+  await api.put(`/checkins/${today}`, { painScore: 2, painArea: 'my left calf is tight' })
+  await page.setViewportSize({ width: 360, height: 740 })
+  try {
+    await page.goto('/')
+    const slot = page.locator('[data-slot="disruption"]')
+    const offer = slot.getByRole('region', { name: 'Rest window offer' })
+    await expect(offer.getByText(ASK)).toBeVisible()
+    const box = (await slot.boundingBox())!
+    expect(box.height).toBeLessThanOrEqual(64.5)
+  } finally {
+    await page.setViewportSize({ width: 1280, height: 720 })
+  }
+})
 
 test('three check-ins on one calf: the offer, the filled-in sheet, the preview, the commit and the undo', async () => {
   const { today } = relativeDates()

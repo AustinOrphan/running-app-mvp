@@ -1,5 +1,6 @@
 import { describeIssue, describeWindow } from '../../../shared/copy/revision.ts'
 import { addDays } from '../../../shared/dates.ts'
+import { painAreaKey } from '../../../shared/domain/painArea.ts'
 import {
   disruptionPlan,
   validateDisruption,
@@ -69,6 +70,28 @@ export const EMPTY_DRAFT: WindowDraft = {
   area: '',
   pain: null,
   gaitChange: false,
+}
+
+/** The longest area text the sheet and the server take. */
+export const AREA_MAX = 80
+
+/**
+ * An area text cut to `max` characters at the last whole word, for a field with a length limit. A
+ * cut that would drop the word that names the region (so change the area the quiet days of rule
+ * J11 read) is replaced by the side and the region alone.
+ */
+export function areaWithin(text: string, max: number): string {
+  const full = text.trim().replace(/\s+/g, ' ')
+  if (full.length <= max) return full
+  const cut = full.slice(0, max + 1)
+  const atWord = cut.lastIndexOf(' ')
+  const candidate = (atWord > 0 ? cut.slice(0, atWord) : full.slice(0, max)).trim()
+  const whole = painAreaKey(full)
+  const kept = painAreaKey(candidate)
+  if (whole === null || (kept !== null && kept.key === whole.key && kept.side === whole.side)) {
+    return candidate
+  }
+  return `${whole.side ?? ''} ${whole.key}`.trim().slice(0, max)
 }
 
 /** Illness rests; a niggle rests unless short runs are chosen; availability windows allow short runs. */
