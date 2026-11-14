@@ -4,7 +4,7 @@ import type { Deps } from '../app.ts'
 import type { Activity as ActivityRow, PrismaClient } from '../db.ts'
 import { loadProfile } from '../serialize.ts'
 import { createLogger } from '../logger.ts'
-import { markDuplicates } from './duplicates.ts'
+import { copyEffort, markDuplicates } from './duplicates.ts'
 import { assessSessionById, runExecutionForActivity, runExecutionQuietly } from './execution.ts'
 import { assertLinkable, linkPlanSession } from './planEngine.ts'
 import { conflict, notFound } from '../errors.ts'
@@ -112,16 +112,21 @@ export const WATCH_RPE_VERSION = 1
  * `rpeSource: 'watch'` only while `rpe` is still null, so a rating the runner gave is never
  * overwritten; a run that gets no rating keeps its `updatedAt`, one that gets a rating moves it like
  * any rating write. A mark is written only while the row still has the `updatedAt` it was read with,
- * so an edit in between leaves the run unmarked for the next call. Returns the runs given a rating.
+ * so an edit in between leaves the run unmarked for the next call.
+ *
+ * A run flagged as a possible or confirmed duplicate of another is counted out, so a rating filled on
+ * it is handed to the original under the rule of the duplicate pass (`copyEffort`: an app rating on
+ * the original stays, a watch rating fills an empty one). Returns the ids whose rating changed (the
+ * runs filled and the originals that received one), for the caller to assess against the plan.
  */
 export async function settleWatchRatings(
   deps: Pick<Deps, 'prisma'>,
   userId: string,
   items: ReadonlyArray<{ id: string; updatedAt: Date; rating: number | null }>,
-): Promise<number> {
-  if (items.length === 0) return 0
-  const results = await deps.prisma.$transaction(async (tx) => {
-    let filled = 0
+): Promise<string[]> {
+  if (items.length === 0) return []
+  return deps.prisma.$transaction(async (tx) => {
+    const changed: string[] = []
     for (const item of items) {
       const rpe = validWatchRpe(item.rating)
       if (rpe !== null) {
@@ -130,7 +135,26 @@ export async function settleWatchRatings(
           data: { rpe, rpeSource: 'watch', watchRpeV: WATCH_RPE_VERSION },
         })
         if (written.count > 0) {
-          filled += 1
+          changed.push(item.id)
+          const row = await tx.activity.findUnique({
+            where: { id: item.id },
+            select: { duplicateOfId: true, duplicateStatus: true },
+          })
+          if (
+            row?.duplicateOfId &&
+            (row.duplicateStatus === 'possible' || row.duplicateStatus === 'confirmed')
+          ) {
+            const before = await tx.activity.findUnique({
+              where: { id: row.duplicateOfId },
+              select: { rpe: true },
+            })
+            await copyEffort(tx, userId, item.id, row.duplicateOfId)
+            const after = await tx.activity.findUnique({
+              where: { id: row.duplicateOfId },
+              select: { rpe: true },
+            })
+            if (after && after.rpe !== before?.rpe) changed.push(row.duplicateOfId)
+          }
           continue
         }
       }
@@ -139,9 +163,8 @@ export async function settleWatchRatings(
         data: { watchRpeV: WATCH_RPE_VERSION, updatedAt: item.updatedAt },
       })
     }
-    return filled
+    return changed
   })
-  return results
 }
 
 /**
@@ -208,6 +231,10 @@ export async function storeParsed(
     gapDistanceM: roundOrNull(summary.gapDistanceM),
   }
   const watchRpe = validWatchRpe(parsed.watchRpe)
+  // An intervals.icu pull read the activity record, so the rating was asked about, filled or not;
+  // the watch-rating backfill then leaves the run alone (a rating the runner clears stays cleared).
+  const askedWatchRating =
+    parsed.providerKey?.startsWith('intervals:') === true ? { watchRpeV: WATCH_RPE_VERSION } : {}
   const startLat = roundCoordinate(parsed.startLat)
   const startLng = roundCoordinate(parsed.startLng)
 
@@ -245,6 +272,7 @@ export async function storeParsed(
             ...(watchRpe !== null && (existing.rpe === null || existing.rpeSource === 'watch')
               ? { rpe: watchRpe, rpeSource: 'watch' }
               : {}),
+            ...askedWatchRating,
             startLat: startLat ?? existing.startLat,
             startLng: startLng ?? existing.startLng,
             importBatchId: existing.importBatchId ?? opts.importBatchId,
@@ -259,6 +287,7 @@ export async function storeParsed(
             type: parsed.type,
             subtype: parsed.subtype,
             ...(watchRpe === null ? {} : { rpe: watchRpe, rpeSource: 'watch' }),
+            ...askedWatchRating,
             source: opts.source,
             providerKey: parsed.providerKey,
             importBatchId: opts.importBatchId,

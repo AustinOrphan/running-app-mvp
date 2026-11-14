@@ -358,10 +358,11 @@ export async function runTrackJob(deps: Deps, log?: Log, opts: { now?: Date } = 
 
 /**
  * Fills the watch rating of intervals.icu runs stored without one (WB1), a few `/activity/{id}`
- * requests per user per tick (`backfillWatchRatings`). A tick that fills something, marks a run or
- * makes a request records a `watch-rating` run: `accepted` the ratings written, `failed` the failed
- * requests, `partial` when there are any, `paused` while intervals.icu is rate limiting and `error`
- * when it refused the key; a tick with nothing to do is not stored. A user's failure is recorded as
+ * requests per user per tick (`backfillWatchRatings`). A tick that fills a rating, fails a
+ * request or meets a pause or a refused key records a `watch-rating` run: `accepted` the ratings
+ * written, `failed` the failed requests, `partial` when there are any, `paused` while intervals.icu is
+ * rate limiting and `error` when it refused the key. A tick that only marks runs (no rating held) is
+ * idle and not stored, like one with nothing to do. A user's failure is recorded as
  * an error run and the job goes on. Idempotent and resumable: a run that was asked about is never
  * selected again.
  */

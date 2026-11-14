@@ -1,14 +1,20 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from 'vitest'
 import { runWatchRatingJob } from '../../server/jobs/scheduler.ts'
 import { dataVersionKey } from '../../server/dataVersion.ts'
-import { sealSecret } from '../../server/services/sync.ts'
+import { storeParsed } from '../../server/services/activityStore.ts'
+import { sealSecret, syncProvider } from '../../server/services/sync.ts'
+import { parseActivityFile } from '../../shared/importers/files/index.ts'
+import { buildFit } from '../fixtures/fit/buildFit.ts'
+import { syntheticRun } from '../fixtures/syntheticRoute.ts'
 import {
   WATCH_RATING_BATCH,
+  WATCH_RATING_DEFER_MS,
   backfillWatchRatings,
 } from '../../server/services/watchRatingBackfill.ts'
 import { P } from '../../shared/engine/params/index.ts'
 import { fakeFetch } from '../fakeFetch.ts'
 import {
+  client,
   createTestCtx,
   expectNoRefusedFetches,
   seedUser,
@@ -252,13 +258,17 @@ describe('backfillWatchRatings', () => {
     await connect()
     const row = await run('i1', '2026-01-05')
     ctx.fetch = fakeFetch({ [`GET ${BASE}/activity/`]: () => new Response('', { status: 500 }) })
-    for (let i = 0; i < 5; i += 1) {
+    for (let i = 0; i < 3; i += 1) {
       const result = await backfillWatchRatings(ctx, user.id, { now: NOW })
       expect(result.failures).toEqual([
         { ref: 'intervals:i1', reason: 'intervals.icu answered HTTP 500.' },
       ])
     }
+    // Not marked: the rating is asked for again once the run is no longer passed over.
     expect(await get(row.id)).toMatchObject({ watchRpeV: null })
+    expect(await backfillWatchRatings(ctx, user.id, { now: NOW })).toMatchObject({ requests: 0 })
+    const later = new Date(NOW.getTime() + WATCH_RATING_DEFER_MS + 1000)
+    expect(await backfillWatchRatings(ctx, user.id, { now: later })).toMatchObject({ requests: 1 })
 
     ctx.fetch = fakeFetch({ [`GET ${BASE}/activity/`]: () => new Response('', { status: 400 }) })
     await backfillWatchRatings(ctx, user.id, { now: NOW })
@@ -330,5 +340,138 @@ describe('runWatchRatingJob', () => {
     })
     await runWatchRatingJob(ctx, undefined, { now: NOW })
     expect((await jobRuns()).at(-1)).toMatchObject({ status: 'error', failed: 1 })
+  })
+})
+
+describe('what the backfill leaves alone or hands on', () => {
+  test('a rating cleared in the app after an import that read the record is not written back', async () => {
+    await connect()
+    const fixes = syntheticRun(900)
+    const bytes = buildFit({
+      serial: 77,
+      sessions: [
+        {
+          sport: 1,
+          startUnix: Date.UTC(2026, 0, 5, 7) / 1000,
+          durationSec: 900,
+          records: fixes.map((f) => ({ t: f.t, distanceM: f.distanceM })),
+        },
+      ],
+    })
+    const [parsed] = parseActivityFile('run-77.fit', bytes, { timezone: 'UTC' })
+    const { activityId } = await storeParsed(
+      ctx,
+      user.id,
+      { ...parsed!, providerKey: 'intervals:x77', watchRpe: 6 },
+      { source: 'intervals', importBatchId: null, channel: 'pull' },
+    )
+    expect(await get(activityId)).toMatchObject({ rpe: 6, rpeSource: 'watch', watchRpeV: 1 })
+    const cleared = await client(ctx, user)
+      .patch(`/api/activities/${activityId}/feedback`)
+      .send({ rpe: null })
+    expect(cleared.status).toBe(200)
+    const seen: string[] = []
+    ctx.fetch = icu({ x77: 8 }, seen)
+    const result = await backfillWatchRatings(ctx, user.id, { now: NOW })
+    expect(result.requests).toBe(0)
+    expect(seen).toEqual([])
+    expect(await get(activityId)).toMatchObject({ rpe: null, rpeSource: null })
+  })
+
+  test('a rating cleared in the app on a run never asked about is marked and not written back', async () => {
+    await connect()
+    const row = await run('i1', '2026-01-05', { rpe: 5, rpeSource: 'app' })
+    const cleared = await client(ctx, user)
+      .patch(`/api/activities/${row.id}/feedback`)
+      .send({ rpe: null })
+    expect(cleared.status).toBe(200)
+    ctx.fetch = icu({ i1: 8 })
+    expect(await backfillWatchRatings(ctx, user.id, { now: NOW })).toMatchObject({ requests: 0 })
+    expect(await get(row.id)).toMatchObject({ rpe: null, watchRpeV: 1 })
+  })
+
+  test('a rating filled on a flagged duplicate copy reaches the counted original', async () => {
+    await connect()
+    const original = await run('o1', '2026-01-05', { source: 'file', providerKey: 'file:o1' })
+    const copy = await run('c1', '2026-01-05')
+    await ctx.prisma.activity.update({
+      where: { id: copy.id },
+      data: { duplicateOfId: original.id, duplicateStatus: 'possible' },
+    })
+    ctx.fetch = icu({ c1: 7 })
+    await backfillWatchRatings(ctx, user.id, { now: NOW })
+    expect(await get(copy.id)).toMatchObject({ rpe: 7, rpeSource: 'watch' })
+    expect(await get(original.id)).toMatchObject({ rpe: 7, rpeSource: 'watch' })
+  })
+
+  test('an app rating on the original stays when the copy gets a watch rating', async () => {
+    await connect()
+    const original = await run('o1', '2026-01-05', {
+      source: 'file',
+      providerKey: 'file:o1',
+      rpe: 3,
+      rpeSource: 'app',
+    })
+    const copy = await run('c1', '2026-01-05')
+    await ctx.prisma.activity.update({
+      where: { id: copy.id },
+      data: { duplicateOfId: original.id, duplicateStatus: 'confirmed' },
+    })
+    ctx.fetch = icu({ c1: 7 })
+    await backfillWatchRatings(ctx, user.id, { now: NOW })
+    expect(await get(copy.id)).toMatchObject({ rpe: 7, rpeSource: 'watch' })
+    expect(await get(original.id)).toMatchObject({ rpe: 3, rpeSource: 'app' })
+  })
+
+  test('a 403 stops the job like a 401, and the run is passed over after repeated refusals', async () => {
+    await connect()
+    const first = await run('i2', '2026-01-06')
+    const second = await run('i1', '2026-01-05')
+    const seen: string[] = []
+    ctx.fetch = fakeFetch({
+      [`GET ${BASE}/activity/`]: (req) => {
+        seen.push(new URL(req.url).pathname.split('/').pop()!)
+        return new Response('', { status: 403 })
+      },
+    })
+    const result = await backfillWatchRatings(ctx, user.id, { now: NOW })
+    expect(result.authRefused).toBe(true)
+    expect(seen).toEqual(['i2'])
+    // Within the back-off nothing is asked.
+    await backfillWatchRatings(ctx, user.id, { now: new Date(NOW.getTime() + 60_000) })
+    expect(seen).toHaveLength(1)
+    // After the back-off the same newest run is tried until it is passed over; then the next one.
+    for (let i = 1; i <= 2; i += 1) {
+      await backfillWatchRatings(ctx, user.id, { now: new Date(NOW.getTime() + i * 61 * 60_000) })
+    }
+    expect(seen).toEqual(['i2', 'i2', 'i2'])
+    await backfillWatchRatings(ctx, user.id, { now: new Date(NOW.getTime() + 3 * 61 * 60_000) })
+    expect(seen.at(-1)).toBe('i1')
+    expect(await get(first.id)).toMatchObject({ rpe: null, watchRpeV: null })
+    expect(await get(second.id)).toMatchObject({ rpe: null, watchRpeV: null })
+  })
+
+  test('a sync in progress keeps the job from asking', async () => {
+    await connect()
+    await run('i1', '2026-01-05')
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    ctx.fetch = fakeFetch({
+      [`GET ${BASE}/athlete/`]: async () => {
+        await gate
+        return new Response('[]', { status: 200 })
+      },
+      [`GET ${BASE}/activity/`]: () => {
+        throw new Error('the backfill must not ask during a sync')
+      },
+    })
+    const syncing = syncProvider(ctx, user.id, 'intervals')
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    const result = await backfillWatchRatings(ctx, user.id, { now: NOW })
+    expect(result.requests).toBe(0)
+    release()
+    await syncing
   })
 })

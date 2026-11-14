@@ -3,6 +3,7 @@ import { SecretError } from '../crypto.ts'
 import { getProvider } from '../providers/registry.ts'
 import { ProviderAuthError, ProviderHttpError, RateLimitPause } from '../providers/types.ts'
 import { settleWatchRatings } from './activityStore.ts'
+import { runExecutionQuietly } from './execution.ts'
 import { isSyncing, openIntegration, providerContext } from './sync.ts'
 import { safeMessage, secretValues } from './syncLog.ts'
 import { addDays, todayIso } from '../../shared/dates.ts'
@@ -18,10 +19,21 @@ export const WATCH_RATING_MAX_ATTEMPTS = 3
 /** How long the job leaves an integration alone after intervals.icu refused its key. */
 export const WATCH_RATING_AUTH_BACKOFF_MS = 60 * 60_000
 
+/**
+ * How long a run is passed over after `WATCH_RATING_MAX_ATTEMPTS` failures that say nothing about
+ * the run (an outage, a body that is not JSON, a refused key). It is not marked, so the rating is
+ * asked for again later; the newest-first selection no longer meets it first every tick.
+ */
+export const WATCH_RATING_DEFER_MS = 6 * 60 * 60_000
+
 const PROVIDER = 'intervals'
+/** Runs passed over until the given time (ms) after repeated failures; a restart clears it. */
+const deferred = new Map<string, number>()
 const RUN_TYPES = ['run', 'race']
 /** Failed requests per activity since the process started; a restart starts the count again. */
 const attempts = new Map<string, number>()
+/** Failures that say nothing about the run, per activity since the process started. */
+const outages = new Map<string, number>()
 /** When the job may ask an integration again after an auth refusal, with its `updatedAt` then. */
 const authBlocked = new Map<string, { until: number; stamp: number }>()
 
@@ -43,8 +55,9 @@ export interface WatchRatingBackfillResult {
 }
 
 /** Pulled intervals.icu runs and races in the history window with no rating, not looked at yet. */
-function waiting(userId: string, from: string) {
+function waiting(userId: string, from: string, skip: string[] = []) {
   return {
+    ...(skip.length > 0 ? { id: { notIn: skip } } : {}),
     userId,
     rpe: null,
     watchRpeV: null,
@@ -94,7 +107,8 @@ export async function backfillWatchRatings(
   const pull = getProvider(PROVIDER).pull
   if (!integration || !pull?.fetchRating || integration.status !== 'connected') return result
 
-  const where = waiting(userId, from)
+  for (const [id, until] of deferred) if (until <= now.getTime()) deferred.delete(id)
+  const where = waiting(userId, from, [...deferred.keys()])
   const block = authBlocked.get(integration.id)
   if (integration.pausedUntil !== null && integration.pausedUntil > now) {
     result.pause = {
@@ -108,6 +122,17 @@ export async function backfillWatchRatings(
     // intervals.icu refused the key a moment ago; the sync's needs-auth handling takes it from here.
   } else if (!isSyncing(userId, PROVIDER)) {
     await askForRatings(integration)
+  }
+
+  /** Counts a failure that says nothing about the run; after the cap the run is passed over for a while. */
+  function countFailure(id: string): void {
+    const tries = (outages.get(id) ?? 0) + 1
+    if (tries < WATCH_RATING_MAX_ATTEMPTS) {
+      outages.set(id, tries)
+      return
+    }
+    outages.delete(id)
+    deferred.set(id, now.getTime() + WATCH_RATING_DEFER_MS)
   }
 
   async function askForRatings(row: NonNullable<typeof integration>): Promise<void> {
@@ -137,6 +162,7 @@ export async function backfillWatchRatings(
             ctx,
           )
           attempts.delete(run.id)
+          outages.delete(run.id)
           settled.push({ id: run.id, updatedAt: run.updatedAt, rating })
         } catch (error) {
           if (error instanceof RateLimitPause) {
@@ -155,14 +181,20 @@ export async function backfillWatchRatings(
             })
             result.authRefused = true
             result.failures.push({ ref: run.providerKey!, reason: safeMessage(error, secrets) })
+            countFailure(run.id)
             return
           }
           const reason = safeMessage(error, secrets)
           const runSpecific =
             error instanceof ProviderHttpError && error.status >= 400 && error.status < 500
           const tries = (attempts.get(run.id) ?? 0) + 1
-          if (!runSpecific || tries < WATCH_RATING_MAX_ATTEMPTS) {
-            if (runSpecific) attempts.set(run.id, tries)
+          if (!runSpecific) {
+            result.failures.push({ ref: run.providerKey!, reason })
+            countFailure(run.id)
+            return
+          }
+          if (tries < WATCH_RATING_MAX_ATTEMPTS) {
+            attempts.set(run.id, tries)
             result.failures.push({ ref: run.providerKey!, reason })
             return
           }
@@ -177,8 +209,12 @@ export async function backfillWatchRatings(
       }
     } finally {
       // Whatever was learned before a pause, a refused key or an outage is kept.
-      result.filled = await settleWatchRatings(deps, userId, settled)
-      result.unrated = settled.length - result.filled
+      const changed = await settleWatchRatings(deps, userId, settled)
+      const filled = settled.filter((item) => changed.includes(item.id)).length
+      result.filled = filled
+      result.unrated = settled.length - filled
+      // A new rating changes the assessment of the session the run fulfils, as saveFeedback does.
+      for (const id of changed) await runExecutionQuietly(deps, { userId, activityId: id })
     }
   }
 

@@ -10,6 +10,7 @@ import {
   ratingSourceAfterWrite,
   saveDoneActivity,
   toTrack,
+  WATCH_RPE_VERSION,
 } from '../services/activityStore.ts'
 import {
   moveConfirmedLogs,
@@ -317,8 +318,15 @@ export function activitiesRouter(deps: Deps): Router {
     const body = parse(feedbackSchema, req.body)
     // The clients send rpe here only when the runner changed it, so a rating present is the
     // runner own and wins over a watch rating, even at the same value (WR1); clearing clears the source.
+    // A cleared rating also marks the watch-rating lookup done, so the backfill does not write it back.
     const data =
-      body.rpe === undefined ? body : { ...body, rpeSource: body.rpe === null ? null : 'app' }
+      body.rpe === undefined
+        ? body
+        : {
+            ...body,
+            rpeSource: body.rpe === null ? null : 'app',
+            ...(body.rpe === null ? { watchRpeV: WATCH_RPE_VERSION } : {}),
+          }
     await prisma.activity.update({ where: { id, userId: req.userId }, data })
     // A new rating changes the assessment of the session this activity fulfils.
     await runExecutionQuietly(deps, { userId: req.userId, activityId: id })
@@ -354,6 +362,8 @@ export function activitiesRouter(deps: Deps): Router {
         ...body,
         // The form always sends the rating: an unchanged watch rating keeps the watch as its source (WR1).
         rpeSource: ratingSourceAfterWrite(existing, body.rpe),
+        // Clearing the rating marks the watch-rating lookup done, so the backfill does not write it back.
+        ...(body.rpe === null ? { watchRpeV: WATCH_RPE_VERSION } : {}),
         ...(matchChanged ? { duplicateStatus: 'none', duplicateOfId: null } : {}),
       },
     })
