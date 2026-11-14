@@ -54,7 +54,7 @@ async function importRun(page: Page): Promise<void> {
   await sheet.getByRole('button', { name: 'Import files' }).click()
   await expect(sheet.getByText(/1 added to your log\./)).toBeVisible()
   await sheet.getByRole('button', { name: 'Done' }).click()
-  await page.getByRole('link', { name: /^Run, / }).click()
+  await page.getByRole('link', { name: /^Run / }).click()
 }
 
 test('the heart-rate bands fit 320 px at 150% and 200% text with every time in view', async ({
