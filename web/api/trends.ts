@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import type { TrendsLoadView } from '../../shared/domain/trendsLoad.ts'
+import type { TrendsDurabilityView } from '../../shared/domain/durabilityByHour.ts'
 import type { TrendsRunsView } from '../../shared/domain/trendsRuns.ts'
 import type { TrendsView } from '../../shared/types.ts'
 import { api, keys } from './client.ts'
@@ -37,5 +38,18 @@ export function useTrendsRuns() {
   return useQuery({
     queryKey: [keys.trends, 'runs'],
     queryFn: () => api<TrendsRunsView>('GET', '/trends/runs'),
+  })
+}
+
+/**
+ * The runs of 180 minutes or more with their pace and heart rate by the hour, for the long-run
+ * panel (rule T1, DR1). The server computes them once per data version, so a run, a stream or a fuel
+ * log added or removed reads again through `ACTIVITY_DATA_KEYS`; the key sits under `keys.trends`
+ * for the same reason.
+ */
+export function useTrendsDurability() {
+  return useQuery({
+    queryKey: [keys.trends, 'durability'],
+    queryFn: () => api<TrendsDurabilityView>('GET', '/trends/durability'),
   })
 }

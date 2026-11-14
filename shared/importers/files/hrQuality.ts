@@ -54,13 +54,16 @@ const MAX_SPEED_MPS = 12
 const MAX_GRADE = 0.45
 const BAND_COUNT = TERRAIN_BAND_COUNT
 
-function binOf(gradePct: number): number {
+/** The terrain band of a grade in percent. */
+export function binOf(gradePct: number): number {
   let bin = 0
   while (bin < TERRAIN_EDGES_PCT.length && gradePct >= TERRAIN_EDGES_PCT[bin]!) bin++
   return bin
 }
 
-interface Step {
+export interface Step {
+  /** Stream time at the start of the step, seconds. */
+  t: number
   dt: number
   dd: number
   speed: number
@@ -78,7 +81,7 @@ const valid = (v: number | null | undefined): v is number =>
   typeof v === 'number' && Number.isFinite(v) && v > 0
 
 /** The steps of a stream: bucket to bucket, with what each needs for the checks. */
-function stepsOf(stream: ActivityStreamData): { steps: Step[]; hasGrade: boolean } {
+export function stepsOf(stream: ActivityStreamData): { steps: Step[]; hasGrade: boolean } {
   const { t, d, hr, alt, cad } = stream
   if (!d || t.length < 2) return { steps: [], hasGrade: false }
 
@@ -120,6 +123,7 @@ function stepsOf(stream: ActivityStreamData): { steps: Step[]; hasGrade: boolean
     const dt = t[k + 1]! - t[k]!
     if (typeof from !== 'number' || typeof to !== 'number' || !(dt > 0)) {
       steps.push({
+        t: t[k]!,
         dt: Math.max(dt, 0),
         dd: 0,
         speed: 0,
@@ -146,6 +150,7 @@ function stepsOf(stream: ActivityStreamData): { steps: Step[]; hasGrade: boolean
     const beat = hr?.[k]
     const cadence = cad?.[k]
     steps.push({
+      t: t[k]!,
       dt,
       dd,
       speed,
@@ -200,39 +205,16 @@ function markEqualRuns(steps: readonly Step[], minSec: number, flags: boolean[])
   close(steps.length)
 }
 
-const empty = (source: HrSource): HrQuality => ({
-  v: HR_QUALITY_VERSION,
-  th: HR_QUALITY_THRESHOLDS,
-  source,
-  movingSec: 0,
-  cleanSec: 0,
-  lockSec: 0,
-  spikeSec: 0,
-  dropSec: 0,
-  flatSec: 0,
-  mismatchSec: 0,
-  halves: null,
-  gapDecouplingPct: null,
-})
+/** The seconds each check marks as unclean, one flag per step (rule B2, HQ1). */
+export interface StepFlags {
+  lock: boolean[]
+  spike: boolean[]
+  flat: boolean[]
+  mismatch: boolean[]
+}
 
-const tenth = (v: number): number => Math.round(v * 10) / 10
-
-/**
- * The heart-rate quality of one run's stream. A stream with no distance gives all-zero counts (not
- * null), so a stored value always means "computed" and the backfill never revisits the run. A
- * stream with no heart rate counts every moving second as a dropout. `sampleSec` is the bucket
- * width of the stream. The halves are kept only for a run of `DECOUPLING_MIN_SEC` or longer with an
- * altitude profile.
- */
-export function computeHrQuality(
-  stream: ActivityStreamData,
-  sampleSec: number,
-  source: HrSource,
-): HrQuality {
-  const out = empty(source)
-  const { steps, hasGrade } = stepsOf(stream)
-  if (steps.length === 0 || !(sampleSec > 0)) return out
-
+/** Runs the five checks over the steps of a stream; `sampleSec` is the bucket width. */
+export function flagSteps(steps: readonly Step[], sampleSec: number): StepFlags {
   const n = steps.length
   const lock = new Array<boolean>(n).fill(false)
   const spike = new Array<boolean>(n).fill(false)
@@ -293,6 +275,57 @@ export function computeHrQuality(
       for (let j = k - win + 1; j <= k; j++) mismatch[j] = true
     }
   }
+  return { lock, spike, flat, mismatch }
+}
+
+/** Whether a step is clean moving time: moving, with a heart rate that no check flagged. */
+export function cleanSteps(steps: readonly Step[], flags: StepFlags): boolean[] {
+  return steps.map(
+    (step, k) =>
+      step.moving &&
+      step.hr !== null &&
+      !flags.lock[k] &&
+      !flags.spike[k] &&
+      !flags.flat[k] &&
+      !flags.mismatch[k],
+  )
+}
+
+const empty = (source: HrSource): HrQuality => ({
+  v: HR_QUALITY_VERSION,
+  th: HR_QUALITY_THRESHOLDS,
+  source,
+  movingSec: 0,
+  cleanSec: 0,
+  lockSec: 0,
+  spikeSec: 0,
+  dropSec: 0,
+  flatSec: 0,
+  mismatchSec: 0,
+  halves: null,
+  gapDecouplingPct: null,
+})
+
+const tenth = (v: number): number => Math.round(v * 10) / 10
+
+/**
+ * The heart-rate quality of one run's stream. A stream with no distance gives all-zero counts (not
+ * null), so a stored value always means "computed" and the backfill never revisits the run. A
+ * stream with no heart rate counts every moving second as a dropout. `sampleSec` is the bucket
+ * width of the stream. The halves are kept only for a run of `DECOUPLING_MIN_SEC` or longer with an
+ * altitude profile.
+ */
+export function computeHrQuality(
+  stream: ActivityStreamData,
+  sampleSec: number,
+  source: HrSource,
+): HrQuality {
+  const out = empty(source)
+  const { steps, hasGrade } = stepsOf(stream)
+  if (steps.length === 0 || !(sampleSec > 0)) return out
+
+  const n = steps.length
+  const { lock, spike, flat, mismatch } = flagSteps(steps, sampleSec)
 
   // Halves of a long run: the split is at the middle of the time, as the raw drift's.
   const first = stream.t[0]!

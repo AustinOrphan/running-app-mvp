@@ -43,6 +43,7 @@ import { stateRouter } from './routes/state.ts'
 import { statsRouter } from './routes/stats.ts'
 import { raceRouter } from './routes/race.ts'
 import { trendsRouter } from './routes/trends.ts'
+import { trendsDurabilityRouter } from './routes/trendsDurability.ts'
 import { trendsLoadRouter } from './routes/trendsLoad.ts'
 import { trendsRunsRouter } from './routes/trendsRuns.ts'
 import { strengthRouter } from './routes/strength.ts'
@@ -172,6 +173,7 @@ export function createApp(
   app.use('/api/state', stateRouter(deps))
   app.use('/api/stats', statsRouter(deps))
   app.use('/api/trends/runs', trendsRunsRouter(deps))
+  app.use('/api/trends/durability', trendsDurabilityRouter(deps))
   app.use('/api/trends/load', trendsLoadRouter(deps))
   app.use('/api/trends', trendsRouter(deps))
   app.use('/api/explain', explainRouter(deps))
