@@ -93,7 +93,7 @@ async function noteReplanPending(deps: Deps, userId: string): Promise<void> {
       rules: ['K6'],
     }
     await deps.prisma.plan.update({
-      where: { id: plan.id },
+      where: { id: plan.id, userId },
       data: { warnings: JSON.stringify([...stored, warning]) },
     })
   } catch (error) {
