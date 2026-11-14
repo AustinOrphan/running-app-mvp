@@ -22,11 +22,13 @@ import {
   methodChangeSummary,
   methodFlipSummary,
   overshootsSummary,
+  raceChangeSummary,
   raiseSummary,
   rulesChangedSummary,
   stalePreviewMessage,
   targetsSummary,
   type OvershootLine,
+  type RaceChangeLine,
 } from '../../shared/copy/revision.ts'
 import { runMinutesAhead } from '../../shared/domain/runMinutes.ts'
 import { estimateState } from '../../shared/engine/athlete.ts'
@@ -614,6 +616,12 @@ export interface ReplanArgs {
    * the scheduler.
    */
   raise?: boolean
+  /**
+   * Set by a write to a goal the runner entered before the goal race [rules K6, H12, task SR1]: the
+   * revision then takes the summary of that change as its lead. The engine input already carries
+   * the entered races as they are; the re-plan is an ordinary one.
+   */
+  race?: RaceChangeLine
 }
 
 /** A past session that a rest window skips, written before the re-plan's own rows. */
@@ -1028,17 +1036,19 @@ export async function computeReplan(deps: Deps, args: ReplanArgs): Promise<Repla
   const lead =
     args.raise && rise !== null
       ? raiseSummary(rise)
-      : args.method !== undefined
-        ? methodChangeSummary({
-            requested: args.method,
-            reason: position.reason,
-            weeks: shape?.weeks ?? 0,
-            from: shape?.from ?? currentMonday,
-            held: heldWeek !== null,
-          })
-        : args.loadAppetite === undefined
-          ? describeChanges(changes)
-          : loadSettingSummary(loadPosition(input, state))
+      : args.race !== undefined
+        ? raceChangeSummary(args.race)
+        : args.method !== undefined
+          ? methodChangeSummary({
+              requested: args.method,
+              reason: position.reason,
+              weeks: shape?.weeks ?? 0,
+              from: shape?.from ?? currentMonday,
+              held: heldWeek !== null,
+            })
+          : args.loadAppetite === undefined
+            ? describeChanges(changes)
+            : loadSettingSummary(loadPosition(input, state))
   const flip =
     args.method === undefined && shape !== null
       ? methodFlipSummary({
@@ -1258,7 +1268,7 @@ async function writeSettled(
  */
 export async function replanActivePlan(
   deps: Deps,
-  args: { userId: string; reason: PlanRevisionReason; today: string },
+  args: Pick<ReplanArgs, 'userId' | 'reason' | 'today' | 'race'>,
 ): Promise<PlanRevisionView> {
   for (let attempt = 1; ; attempt += 1) {
     try {

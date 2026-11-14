@@ -217,6 +217,15 @@ protection reads. The Docker image must still build (`docker build .`) after a c
   hold that starts applies at once: the resolver cannot draw a shape it reads as the default (ADR 0017,
   addendum). The change of the preset in place is `PUT /api/plan/method` (`commitMethod`, reason
   `method-change`).
+- Entered races (rules K6 and H12, SR1, owner decision D6, 2026-11-14): a goal with priority B or C, status
+  `target` and a distance, dated before the goal race, is a race the plan is drawn around, never one it
+  suggests. `enteredRacesFor` (`server/services/engineInput.ts`) puts them on `EngineInput.races`;
+  `applyEnteredRaces` (`shared/engine/enteredRaces.ts`) runs over the placed sessions in `generate`: the race
+  session, the K6 easing by priority and, from marathon distance, the H12 window, only ever cutting (a week
+  holds no more running than the plan without the race). A race in the goal's taper stays with no easing; an
+  A goal other than the plan's own is not read. A goal write that touches one re-plans through
+  `replanAfterGoalWrite` (`server/services/enteredRaces.ts`, reason `races-changed`); a failed re-plan is
+  logged and the weekly update draws it again. Words are `shared/copy/enteredRaces.ts` and `raceChangeSummary`.
 - Heat days (rule I8, HT1): `isHeatExposure` (`shared/engine/heat.ts`) is the one predicate for what
   counts toward the heat block: a run at `acclim.exposureTempC`, a run marked `warm-room`
   (`Activity.heatExposure`, a run indoors at that temperature), or a `passive` hot bath or sauna after

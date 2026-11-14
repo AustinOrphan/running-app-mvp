@@ -6,6 +6,7 @@ import { MAX_DURATION_SEC } from '../../shared/limits.ts'
 import type { Deps } from '../app.ts'
 import { conflict, notFound, parse, validationError } from '../errors.ts'
 import { toGoal } from '../serialize.ts'
+import { replanAfterGoalWrite } from '../services/enteredRaces.ts'
 import { activateGoal } from '../services/planSwitch.ts'
 import { deleteRaceResult, saveRaceResult } from '../services/raceResults.ts'
 import { warmWeatherCaches } from '../services/weatherCache.ts'
@@ -226,6 +227,13 @@ export function goalsRouter(deps: Deps): Router {
     })
     // The race climate is read after the response, never during it.
     warmWeatherCaches(deps, req.userId)
+    // A race entered before the goal race re-plans the active plan around it [rules K6, H12].
+    await replanAfterGoalWrite(deps, {
+      userId: req.userId,
+      today: todayIso(),
+      before: null,
+      after: toGoal(goal),
+    })
     res.status(201).json(toGoal(goal))
   })
 
@@ -288,11 +296,17 @@ export function goalsRouter(deps: Deps): Router {
     if (CLIMATE_FIELDS.some((field) => body[field] !== undefined)) {
       warmWeatherCaches(deps, req.userId)
     }
+    await replanAfterGoalWrite(deps, {
+      userId: req.userId,
+      today: todayIso(),
+      before: toGoal(existing),
+      after: toGoal(goal),
+    })
     res.json(toGoal(goal))
   })
 
   router.delete('/:id', async (req, res) => {
-    await ownedGoal(req.userId, req.params.id)
+    const existing = await ownedGoal(req.userId, req.params.id)
     const activePlans = await prisma.plan.count({
       where: { goalId: req.params.id, status: 'active' },
     })
@@ -300,6 +314,12 @@ export function goalsRouter(deps: Deps): Router {
       throw conflict('This goal has an active plan. Generate a plan for another goal first.')
     }
     await prisma.goal.delete({ where: { id: req.params.id, userId: req.userId } })
+    await replanAfterGoalWrite(deps, {
+      userId: req.userId,
+      today: todayIso(),
+      before: toGoal(existing),
+      after: null,
+    })
     res.status(204).end()
   })
 
