@@ -129,7 +129,7 @@ test('a FIT file imports once, opens its detail page and is rated from the Today
   await first.getByRole('button', { name: 'Done' }).click()
   await expect(first).toBeHidden()
   await expect(page.getByText('1 activity')).toBeVisible()
-  await expect(page.getByRole('link', { name: /^Run, .*30:00.*File import$/ })).toBeVisible()
+  await expect(page.getByRole('link', { name: /^Run .*30:00.* File import, / })).toBeVisible()
 
   const second = await importRun(page, file)
   await expect(
@@ -142,7 +142,7 @@ test('a FIT file imports once, opens its detail page and is rated from the Today
   const standoutRead = page.waitForResponse((response) =>
     /\/api\/activities\/[^/]+\/standout$/.test(new URL(response.url()).pathname),
   )
-  await page.getByRole('link', { name: /^Run, / }).click()
+  await page.getByRole('link', { name: /^Run / }).click()
   await expect(page.getByRole('heading', { name: 'Run', level: 1 })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Summary' })).toBeVisible()
   await expect(page.getByText('Synthetic Watch')).toBeVisible()
@@ -178,7 +178,7 @@ test('a FIT file imports once, opens its detail page and is rated from the Today
 
   // The detail page shows what was saved.
   await page.goto('/activities')
-  await page.getByRole('link', { name: /^Run, / }).click()
+  await page.getByRole('link', { name: /^Run / }).click()
   await expect(page.getByRole('button', { name: 'RPE 6', exact: true })).toHaveAttribute(
     'aria-pressed',
     'true',

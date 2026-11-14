@@ -313,7 +313,7 @@ describe('Activities list and form', () => {
 
   test('each row is a link to the detail page', async () => {
     renderList([makeActivity({ id: 'a9', date: '2026-03-17', type: 'run' })])
-    const link = await screen.findByRole('link', { name: /^Run, / })
+    const link = await screen.findByRole('link', { name: /^Run / })
     expect(link).toHaveAttribute('href', '/activities/a9')
   })
 
