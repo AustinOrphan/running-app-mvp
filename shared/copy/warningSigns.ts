@@ -62,7 +62,7 @@ export const WARNING_SIGNS_TEMPLATES = {
     { shape: 'label' },
   ),
   'warning-signs.severe-sodium.detail': tpl(
-    'A headache that keeps getting worse, repeated vomiting or unusual drowsiness late in or after a long effort, most of all after drinking a lot.',
+    'A headache that keeps getting worse, repeated vomiting or unusual drowsiness after a long effort. After drinking a lot, do not drink more while waiting.',
   ),
   'warning-signs.bone.title': tpl('Pain in one spot on a bone', {}, { shape: 'label' }),
   'warning-signs.bone.detail': tpl(
