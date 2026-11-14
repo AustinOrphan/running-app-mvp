@@ -1,0 +1,71 @@
+/* The health notice (FS1): plain type on the page, one muted lead, one link, one deliberate button.
+   No picture and no alarm colour (visual design, sections 8 and 18); the under-18 line borrows the
+   Profile's accent-edged callout. */
+.notice {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-width: var(--prose-max);
+  margin-top: var(--space-5);
+}
+
+.heading {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: var(--text-lg);
+  line-height: var(--lh-lg);
+  font-weight: 600;
+}
+
+.lead {
+  margin: 0;
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+  font-weight: 600;
+}
+
+.text {
+  margin: 0;
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+}
+
+.callout {
+  margin: 0;
+  padding: var(--space-3);
+  border-left: 3px solid var(--accent);
+  background: var(--accent-soft);
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+}
+
+.link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-h);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--control-h);
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+}
+
+.check input {
+  width: 1.25rem;
+  height: 1.25rem;
+  flex: none;
+  accent-color: var(--accent);
+}
+
+.error {
+  margin: 0;
+  color: var(--danger);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}

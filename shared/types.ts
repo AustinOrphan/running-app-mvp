@@ -2001,6 +2001,33 @@ export interface ImportBatch {
   errors: ImportReportRow[]
   createdAt: string
 }
+// ---- Health notice before a first plan (FS1) -----------------------------------------------------
+
+/**
+ * `GET /api/plan-notice`. `required` is the server's own gate: a runner with no plan yet and no
+ * stored confirmation of the current version, or one whose profile birth year makes them under 18
+ * (`age: 'under'`, no plan is generated). A runner who already has a plan is never `required`; the
+ * Profile shows the notice once, from `confirmedAt === null`.
+ */
+export interface PlanNoticeView {
+  /** `PLAN_NOTICE_VERSION` of the words the server holds now. */
+  version: number
+  /** The version the runner confirmed, or null. */
+  confirmedVersion: number | null
+  /** When the confirmation was stored (ISO instant), or null. */
+  confirmedAt: string | null
+  /** Whether plan generation is shut now: the notice is unconfirmed, or the runner is `under`. */
+  required: boolean
+  /** `ask`: the confirmation includes "I am 18 or older". */
+  age: 'under' | 'ask' | 'ok'
+}
+
+export interface PlanNoticeConfirm {
+  version: number
+  /** The runner's statement "I am 18 or older"; required when the view says `age: 'ask'`. */
+  ageConfirmed?: boolean
+}
+
 export type ApiErrorCode = 'validation' | 'unauthorized' | 'not_found' | 'conflict' | 'internal'
 /** Validation details are `{ issues: ValidationIssue[] }`. */
 export interface ValidationIssue {

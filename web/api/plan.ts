@@ -403,6 +403,9 @@ export function useGeneratePlan() {
   return useMutation({
     mutationFn: (request: GeneratePlanRequest) =>
       api<PlanWithSessions>('POST', '/plan/generate', request),
+    // The server's gate (FS1): a refused first plan reads the notice again, and the plan page turns
+    // into the notice.
+    onError: () => queryClient.invalidateQueries({ queryKey: [keys.planNotice] }),
     onSuccess: () => {
       const awaitedHere = (queryKey: readonly unknown[]) =>
         queryKey[0] === keys.plan || queryKey[0] === keys.reviews

@@ -24,6 +24,7 @@ import {
   linkPlanSession,
   loadPlanWithSessions,
 } from '../services/planEngine.ts'
+import { requirePlanNotice } from '../services/planNotice.ts'
 import { listArchivedPlans, restoreArchivedPlan } from '../services/planSwitch.ts'
 import { listRevisions, markRevisionSeen } from '../services/revisions.ts'
 import { sessionWorkoutFile, sessionWorkoutView, weekWorkoutZip } from '../services/workouts.ts'
@@ -233,6 +234,7 @@ export function planRouter(deps: Deps): Router {
 
   router.post('/generate', async (req, res) => {
     const body = parse(generateBody, req.body)
+    await requirePlanNotice(prisma, req.userId)
     const options = {
       ...(body.strengthPreference === undefined
         ? {}

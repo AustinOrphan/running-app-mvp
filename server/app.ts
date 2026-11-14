@@ -36,6 +36,7 @@ import { predictionsRouter } from './routes/predictions.ts'
 import { profileRouter } from './routes/profile.ts'
 import { researchRouter } from './routes/research.ts'
 import { reviewsRouter } from './routes/reviews.ts'
+import { planNoticeRouter } from './routes/planNotice.ts'
 import { screeningsRouter } from './routes/screenings.ts'
 import { settingsRouter } from './routes/settings.ts'
 import { stateRouter } from './routes/state.ts'
@@ -198,6 +199,7 @@ export function createApp(
   app.use('/api/zones', zonesRouter(deps))
   app.use('/api/paces', pacesRouter(deps))
   app.use('/api/predictions', predictionsRouter(deps))
+  app.use('/api/plan-notice', planNoticeRouter(deps))
   app.use('/api/screenings', screeningsRouter(deps))
   app.use('/api/research', researchRouter(deps))
 

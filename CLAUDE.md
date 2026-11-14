@@ -248,6 +248,16 @@ protection reads. The Docker image must still build (`docker build .`) after a c
   start of the loading sequence inside the usual step cap and holds. Not now is
   `WeeklyReview.raiseAnswer` on the finished week, so it holds across devices. No scheduler or weekly
   re-plan sets `raise`.
+- Health notice (FS1, beta checklist item 16): `POST /api/plan/generate` answers 409 (`details.code`
+  `plan-notice-required`, or `under-age`) until `User.planNoticeVersion` holds `PLAN_NOTICE_VERSION`
+  (`shared/domain/planNotice.ts`) and the profile birth year does not make the runner under 18
+  (`ageStanding`: no year or an age of exactly 18 asks for "I am 18 or older"). The gate shuts the
+  first plan only (`loadPlanNotice` in `server/services/planNotice.ts`: no `Plan` row of any status), so
+  an account with a plan is never blocked and sees the notice once on the Profile. The PAR-Q+ is
+  linked, never reproduced, paraphrased or asked in the app (its licence allows the whole form
+  without change); words are `shared/copy/planNotice.ts`. A change in the meaning of the words raises
+  the version. Test helpers confirm the notice by default (`seedUser`, `signedInApi`); pass
+  `planNotice: false` for an account that has not.
 - Targets are a sketch, not minimums: no red, no "behind" or "missed" copy, no streaks or badges.
 - UI changes follow the design rules in `docs/superpowers/specs/2026-10-21-visual-design.md` (sections 8 to
   19; the colour pairs are tested in `tests/unit/shared/tokensContrast.test.ts`). Each visual change lands as

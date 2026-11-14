@@ -1,6 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, test, vi } from 'vitest'
+import { PARQ_PLUS_URL, PLAN_NOTICE_VERSION } from '../../shared/domain/planNotice.ts'
 import type { ZoneSet } from '../../shared/engine/types.ts'
 import type { AthleteProfile, Availability, Screening, Units, Weekday } from '../../shared/types.ts'
 import { ToastProvider } from '../../web/components/Toast.tsx'
@@ -654,5 +655,42 @@ describe('ProfilePage', () => {
       )
       expectCleanCopy(dialog)
     })
+  })
+})
+
+describe('the health notice on the Profile (FS1)', () => {
+  const unconfirmed = {
+    version: PLAN_NOTICE_VERSION,
+    confirmedVersion: null,
+    confirmedAt: null,
+    required: false,
+    age: 'ask',
+  }
+
+  test('shows an account from before the notice the notice once, with its plan untouched', async () => {
+    setup(makeProfile(), { 'GET /api/plan-notice': () => unconfirmed })
+    expect(await screen.findByRole('heading', { name: 'Health notice' })).toBeVisible()
+    expect(
+      screen.queryByRole('heading', { name: 'Before your first plan' }),
+    ).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'I have read this' })).toBeDisabled()
+  })
+
+  test('shows the date and the link once confirmed', async () => {
+    setup(makeProfile())
+    expect(await screen.findByRole('heading', { name: 'Health notice' })).toBeVisible()
+    expect(screen.getByText(/^Confirmed on /)).toBeVisible()
+    expect(screen.getByRole('link', { name: 'Open the official PAR-Q+ page' })).toHaveAttribute(
+      'href',
+      PARQ_PLUS_URL,
+    )
+    expect(screen.queryByRole('button', { name: 'I have read this' })).not.toBeInTheDocument()
+  })
+
+  test('tells an under-18 birth year only the age rule, not that no plan is made', async () => {
+    setup(makeProfile(), { 'GET /api/plan-notice': () => ({ ...unconfirmed, age: 'under' }) })
+    expect(await screen.findByText(/younger than 18/)).toBeVisible()
+    expect(screen.queryByText(/does not make a plan/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'I have read this' })).not.toBeInTheDocument()
   })
 })
