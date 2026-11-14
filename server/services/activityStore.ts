@@ -103,6 +103,47 @@ function validWatchRpe(value: number | null | undefined): number | null {
     : null
 }
 
+/** Version of the watch-rating lookup, stored in `Activity.watchRpeV` once a run was asked about. */
+export const WATCH_RPE_VERSION = 1
+
+/**
+ * Settles the watch-rating lookup of runs already stored (the `watch-rating` backfill), in one
+ * transaction. Every run is marked looked at (`watchRpeV`). A rating (1 to 10, whole) is written with
+ * `rpeSource: 'watch'` only while `rpe` is still null, so a rating the runner gave is never
+ * overwritten; a run that gets no rating keeps its `updatedAt`, one that gets a rating moves it like
+ * any rating write. A mark is written only while the row still has the `updatedAt` it was read with,
+ * so an edit in between leaves the run unmarked for the next call. Returns the runs given a rating.
+ */
+export async function settleWatchRatings(
+  deps: Pick<Deps, 'prisma'>,
+  userId: string,
+  items: ReadonlyArray<{ id: string; updatedAt: Date; rating: number | null }>,
+): Promise<number> {
+  if (items.length === 0) return 0
+  const results = await deps.prisma.$transaction(async (tx) => {
+    let filled = 0
+    for (const item of items) {
+      const rpe = validWatchRpe(item.rating)
+      if (rpe !== null) {
+        const written = await tx.activity.updateMany({
+          where: { id: item.id, userId, rpe: null, updatedAt: item.updatedAt },
+          data: { rpe, rpeSource: 'watch', watchRpeV: WATCH_RPE_VERSION },
+        })
+        if (written.count > 0) {
+          filled += 1
+          continue
+        }
+      }
+      await tx.activity.updateMany({
+        where: { id: item.id, userId, watchRpeV: null, updatedAt: item.updatedAt },
+        data: { watchRpeV: WATCH_RPE_VERSION, updatedAt: item.updatedAt },
+      })
+    }
+    return filled
+  })
+  return results
+}
+
 /**
  * The only writer of imported activities: upserts by `(userId, providerKey)`. The activity, its
  * stream, the original file and the `ImportedFile` row are written in one transaction, then the
