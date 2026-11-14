@@ -14,6 +14,10 @@ import type { Activity, Units } from '../types.ts'
 import { render, tpl, type Template } from './template.ts'
 
 export const ACTIVITY_PAGE_TEMPLATES = {
+  // Under "How did it go?" when the stored effort rating came from the watch (WR1).
+  'activity-page.rpe-from-watch': tpl(
+    'The effort rating is from your watch. A rating you give here replaces it.',
+  ),
   'activity-page.against-heading': tpl('Against the plan', {}, { shape: 'label' }),
 
   // The labels of the paces in the summary. The pace the page leads with is the elapsed one, from

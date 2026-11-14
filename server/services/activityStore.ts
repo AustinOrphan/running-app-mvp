@@ -84,13 +84,21 @@ export function toTrack(row: {
   }
 }
 
+/** The watch's rating when it is a whole number from 1 to 10 (the scale of `Activity.rpe`), else null. */
+function validWatchRpe(value: number | null | undefined): number | null {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= 10
+    ? value
+    : null
+}
+
 /**
  * The only writer of imported activities: upserts by `(userId, providerKey)`. The activity, its
  * stream, the original file and the `ImportedFile` row are written in one transaction, then the
  * duplicate pass runs for the row. An update from the same key replaces the provider's fields and
  * the stream, but never the owner's own (`rpe`, `feel`, `pain`, `notes`, `type`, and a subtype
- * already set), nor the import batch, source or file of the first import unless the update
- * carries a file.
+ * already set; a watch rating (`ParsedActivity.watchRpe`) fills an empty `rpe` or refreshes an
+ * earlier watch rating, and never replaces one of the runner's or of unknown source), nor the
+ * import batch, source or file of the first import unless the update carries a file.
  */
 export async function storeParsed(
   deps: Deps,
@@ -146,6 +154,7 @@ export async function storeParsed(
     decouplingPct: summary.decouplingPct,
     gapDistanceM: roundOrNull(summary.gapDistanceM),
   }
+  const watchRpe = validWatchRpe(parsed.watchRpe)
   const startLat = roundCoordinate(parsed.startLat)
   const startLng = roundCoordinate(parsed.startLng)
 
@@ -178,6 +187,11 @@ export async function storeParsed(
           data: {
             ...fields,
             subtype: existing.subtype ?? parsed.subtype,
+            // A watch rating fills an empty rating or refreshes an earlier watch rating; one the
+            // runner gave (source 'app') or one of unknown source (null) is never replaced (WR1).
+            ...(watchRpe !== null && (existing.rpe === null || existing.rpeSource === 'watch')
+              ? { rpe: watchRpe, rpeSource: 'watch' }
+              : {}),
             startLat: startLat ?? existing.startLat,
             startLng: startLng ?? existing.startLng,
             importBatchId: existing.importBatchId ?? opts.importBatchId,
@@ -191,6 +205,7 @@ export async function storeParsed(
             userId,
             type: parsed.type,
             subtype: parsed.subtype,
+            ...(watchRpe === null ? {} : { rpe: watchRpe, rpeSource: 'watch' }),
             source: opts.source,
             providerKey: parsed.providerKey,
             importBatchId: opts.importBatchId,
@@ -332,6 +347,8 @@ export async function createManualActivity(
   const { prisma } = deps
   const data = {
     ...input,
+    // Entered by the runner, so the app's (WR1).
+    rpeSource: input.rpe === null ? null : 'app',
     ...(opts.id === undefined ? {} : { id: opts.id }),
     userId,
     source: 'manual',

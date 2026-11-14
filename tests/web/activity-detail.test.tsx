@@ -531,6 +531,28 @@ describe('ActivityDetailPage', () => {
     ).toBeTruthy()
   })
 
+  test('a rating that came from the watch says so, and an in-app rating does not', async () => {
+    const base = makeDetail()
+    renderDetail({
+      detail: { ...base, activity: { ...base.activity, rpe: 6, rpeSource: 'watch' } },
+    })
+    const feedback = await screen.findByRole('region', { name: 'How did it go?' })
+    expect(
+      within(feedback).getByText(
+        'The effort rating is from your watch. A rating you give here replaces it.',
+      ),
+    ).toBeVisible()
+  })
+
+  test('no watch note on an in-app rating or an unrated run', async () => {
+    const base = makeDetail()
+    renderDetail({
+      detail: { ...base, activity: { ...base.activity, rpe: 6, rpeSource: 'app' } },
+    })
+    const feedback = await screen.findByRole('region', { name: 'How did it go?' })
+    expect(within(feedback).queryByText(/from your watch/)).not.toBeInTheDocument()
+  })
+
   test('nothing unusual on a run leaves out What stood out, and nothing stands in while it loads', async () => {
     const api = renderDetail()
     await screen.findByRole('region', { name: 'How did it go?' })

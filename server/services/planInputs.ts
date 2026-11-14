@@ -33,6 +33,7 @@ export function loadPlanInputs(
       wellness: context.wellness,
       wellnessWindowDays: context.inputs.wellness.windowDays,
       activities: context.activities,
+      watchRatings: context.watchRatings,
       streamIds: new Set(streams.map((row) => row.activityId)),
       zones: context.zones,
       hrModel: await hrModelOf(deps, context),

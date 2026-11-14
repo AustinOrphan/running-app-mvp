@@ -4,6 +4,7 @@ import { describe, expect, test } from 'vitest'
 import { planInputs, type PlanInputsInput } from '../../../shared/domain/planInputs.ts'
 import { addDays } from '../../../shared/dates.ts'
 import { fitHrModel } from '../../../shared/engine/execution.ts'
+import { watchRatingCheck } from '../../../shared/engine/watchRatings.ts'
 import { P } from '../../../shared/engine/params/index.ts'
 import type { Boundary, EngineInput, ZoneSet } from '../../../shared/engine/types.ts'
 import type { HrQuality, HrSource } from '../../../shared/types.ts'
@@ -56,7 +57,8 @@ function input(over: Partial<PlanInputsInput> = {}): PlanInputsInput {
     profile: { sex: 'male' },
     wellness: [],
     wellnessWindowDays: 60,
-    activities: [],
+    activities: over.activities ?? [],
+    watchRatings: watchRatingCheck(over.activities ?? []),
     streamIds: new Set(),
     zones: ZONES,
     hrModel: null,
@@ -251,5 +253,29 @@ describe('planInputs: zones and sources', () => {
       { key: 'apple-health', label: 'Apple Health', activities: 0, wellnessDays: 1 },
     ])
     expect(sources.other).toEqual({ activities: 1, wellnessDays: 1 })
+  })
+})
+
+describe('watch ratings on the page', () => {
+  const rated = (i: number, rpe: number | null, rpeSource: 'app' | 'watch' | null) =>
+    run(i, 3, { rpe, rpeSource })
+
+  test('counts the stored watch ratings and says the plan does not read them below the check', () => {
+    const activities = [rated(1, 5, 'watch'), rated(2, 6, 'watch'), rated(3, 7, 'app')]
+    const { runs } = planInputs(input({ activities }))
+    expect(runs.watchRatings).toMatchObject({
+      count: 2,
+      distinct: 2,
+      used: false,
+      minCount: P.b1.watchRpeMinCount.value,
+    })
+  })
+
+  test('says the plan reads them once the check passes', () => {
+    const activities = Array.from({ length: 12 }, (_, i) => rated(i + 1, 3 + (i % 4), 'watch'))
+    expect(planInputs(input({ activities })).runs.watchRatings).toMatchObject({
+      count: 12,
+      used: true,
+    })
   })
 })

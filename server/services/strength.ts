@@ -224,7 +224,9 @@ function activityFields(input: StrengthLogInput, existing: ActivityRow) {
   return {
     date: input.date,
     ...(minutesChanged ? { durationSec: input.durationMin * 60 } : {}),
-    ...(input.rpe === undefined ? {} : { rpe: input.rpe }),
+    ...(input.rpe === undefined
+      ? {}
+      : { rpe: input.rpe, rpeSource: input.rpe === null ? null : 'app' }),
     ...(input.pain === undefined ? {} : { pain: input.pain }),
     ...(input.notes === undefined ? {} : { notes: input.notes }),
   }

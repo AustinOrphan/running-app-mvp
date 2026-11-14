@@ -85,6 +85,14 @@ export const PLAN_INPUTS_TEMPLATES = {
   'plan-inputs.runs.wrist': tpl('Heart rate from the wrist', {}, { shape: 'label' }),
   'plan-inputs.runs.unknown': tpl('Heart-rate source unknown', {}, { shape: 'label' }),
   'plan-inputs.runs.passing': tpl('Passing the heart-rate checks', {}, { shape: 'label' }),
+  'plan-inputs.runs.watch-ratings': tpl('Effort ratings from the watch', {}, { shape: 'label' }),
+  'plan-inputs.runs.watch-used': tpl(
+    'The plan reads the effort ratings from your watch like the ones you give in the app.',
+  ),
+  'plan-inputs.runs.watch-held': tpl(
+    'The plan does not read your watch ratings yet: it needs {min}, at least {distinct} different values, and no one value above {share}.',
+    { min: 'count', distinct: 'count', share: 'percent' },
+  ),
   'plan-inputs.runs.line': tpl(
     'On the heart-rate line, last {weeks} weeks',
     { weeks: 'count' },

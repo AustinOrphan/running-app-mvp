@@ -2034,6 +2034,22 @@ function verifyPlanRevisionParamsVersion(db: DatabaseSync, before: Snapshot): vo
   ])
 }
 
+function verifyActivityRpeSource(db: DatabaseSync, before: Snapshot): void {
+  expectNothingLost(before, db)
+  expectConsistent(db)
+  // Every activity of the previous release reads null: the source of a stored rating is unknown.
+  expect(rowsOf(db, 'SELECT id, "rpeSource" FROM "Activity" ORDER BY id')).toEqual([
+    { id: 'a1', rpeSource: null },
+    { id: 'a2', rpeSource: null },
+    { id: 'a3', rpeSource: null },
+    { id: 'a4', rpeSource: null },
+  ])
+  db.prepare(`UPDATE "Activity" SET rpe = 6, "rpeSource" = 'watch' WHERE id = 'a1'`).run()
+  expect(rowsOf(db, `SELECT rpe, "rpeSource" FROM "Activity" WHERE id = 'a1'`)).toEqual([
+    { rpe: 6, rpeSource: 'watch' },
+  ])
+}
+
 function verifyActivityHeatExposure(db: DatabaseSync, before: Snapshot): void {
   // Rows, including the sessions linked to activities, are all kept.
   expectNothingLost(before, db)
@@ -2351,6 +2367,11 @@ const CASES: FixtureCase[] = [
     migration: 'plan_revision_params_version',
     seed: seedRevisions,
     verify: verifyPlanRevisionParamsVersion,
+  },
+  {
+    migration: 'activity_rpe_source',
+    seed: seedTerrainRelease,
+    verify: verifyActivityRpeSource,
   },
 ]
 

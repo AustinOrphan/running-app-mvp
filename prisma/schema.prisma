@@ -66,6 +66,7 @@ model Activity {
   durationSec     Int
   distanceM       Int?
   rpe             Int?
+  rpeSource       String? // WR1: 'app' (the runner rated it) | 'watch' (filled from the watch rating); null = unknown, read as 'app'
   avgHr           Int?
   maxHr           Int?
   elevationGainM  Int?

@@ -7,6 +7,32 @@ export const bLoad = {
       unit: 'min',
       note: 'Default: ask for the session RPE about 30 min after the run; the rating stays editable.',
     }),
+    watchRpeMinCount: param('b1.watchRpeMinCount', 12, 'D', 'B1', ['foster-2001-session-rpe'], {
+      unit: 'watch ratings',
+      note: 'Default: the engine reads ratings the watch gave only from this many on runs and races in the history window; no study sizes it.',
+    }),
+    watchRpeMinDistinct: param(
+      'b1.watchRpeMinDistinct',
+      3,
+      'D',
+      'B1',
+      ['foster-2001-session-rpe'],
+      {
+        unit: 'different values',
+        note: 'Default: the watch ratings must take at least this many different values; a prompt answered with one or two taps tells nothing about effort.',
+      },
+    ),
+    watchRpeMaxModalShare: param(
+      'b1.watchRpeMaxModalShare',
+      0.6,
+      'D',
+      'B1',
+      ['foster-2001-session-rpe'],
+      {
+        unit: 'fraction of watch ratings',
+        note: 'Default: no one value may take more than this share of the watch ratings (a reflexive default tap would).',
+      },
+    ),
   },
   b2: {
     wristHrBiasBpm: param(

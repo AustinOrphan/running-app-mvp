@@ -44,6 +44,8 @@ interface RemoteActivity {
   max_heartrate?: number | null
   average_cadence?: number | null
   icu_average_watts?: number | null
+  /** The rating the watch gave, 1 to 10 (the same scale as `Activity.rpe`). */
+  icu_rpe?: number | null
   device_name?: string | null
   start_lat?: number | null
   start_lng?: number | null
@@ -317,6 +319,7 @@ async function fromStreams(
       maxHr: num(detail.max_heartrate),
       avgCadence: cadence === null ? null : Math.round(cadence * cadenceScale),
       avgPowerW: num(detail.icu_average_watts),
+      watchRpe: num(detail.icu_rpe),
       deviceName: detail.device_name ?? null,
       startLat: lat !== null && lng !== null ? round2(lat) : null,
       startLng: lat !== null && lng !== null ? round2(lng) : null,

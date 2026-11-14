@@ -43,6 +43,14 @@ function view(over: Partial<PlanInputsView> = {}): PlanInputsView {
       wrist: 90,
       unknown: 5,
       passing: 70,
+      watchRatings: {
+        count: 4,
+        distinct: 2,
+        used: false,
+        minCount: 12,
+        minDistinct: 3,
+        maxModalShare: 0.6,
+      },
       hrLine: { runs: 6, need: 8, windowWeeks: 8, fitted: false },
     },
     zones: [
@@ -96,6 +104,12 @@ describe('PlanInputsPage', () => {
     expect(rowOf(runs, 'Passing the heart-rate checks')).toHaveTextContent('70')
     expect(rowOf(runs, 'On the heart-rate line, last 8 weeks')).toHaveTextContent('6 of 8')
     expect(within(runs).getByText(/needs 8 runs and is not fitted yet/)).toBeInTheDocument()
+    expect(rowOf(runs, 'Effort ratings from the watch')).toHaveTextContent('4')
+    expect(
+      within(runs).getByText(
+        /does not read your watch ratings yet: it needs 12, at least 3 different values, and no one value above 60%/,
+      ),
+    ).toBeInTheDocument()
     expectCleanCopy(document.body)
   })
 

@@ -598,6 +598,9 @@ function Feedback({ activity, units }: { activity: Activity; units: Units }) {
           {unratedEffortNote(execution.effort.score, execution.completion)}
         </p>
       ) : null}
+      {activity.rpeSource === 'watch' && activity.rpe !== null ? (
+        <p className={styles.note}>{render(TEMPLATES['activity-page.rpe-from-watch'], {}, 'km')}</p>
+      ) : null}
       <FeedbackFields
         value={value}
         onChange={setValue}

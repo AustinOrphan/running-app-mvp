@@ -9,6 +9,7 @@ import { computeBestEfforts } from '../../shared/engine/bestEfforts.ts'
 import { recentPaceSecPerKm, withDistanceEstimate } from '../../shared/engine/distanceEstimate.ts'
 import { fitHrModel, type HrModel } from '../../shared/engine/execution.ts'
 import { goalModel } from '../../shared/engine/goal.ts'
+import { withUsableRatings, type WatchRatingCheck } from '../../shared/engine/watchRatings.ts'
 import { isDuplicate } from '../../shared/engine/load.ts'
 import { P, PARAMS_VERSION } from '../../shared/engine/params/index.ts'
 import { predictFromState } from '../../shared/engine/predict.ts'
@@ -119,6 +120,11 @@ export interface AthleteContext {
   readonly profile: AthleteProfile
   /** The history window (`P.a5.historyWindowDays`), flagged duplicates included. */
   readonly activities: Activity[]
+  /**
+   * The spread check over the watch ratings of the window (rule B1): `activities` carry a watch
+   * rating as empty unless `usable`.
+   */
+  readonly watchRatings: WatchRatingCheck
   readonly wellness: EngineInput['wellness']
   readonly reviews: WeeklyReview[]
   /** The REDs flag count of the latest screening, 0 without one. */
@@ -535,7 +541,11 @@ async function buildContext(
     }),
   ])
 
-  const activities = await withBestEfforts(prisma, newestFirst.reverse(), today)
+  // A watch rating is read as empty until the spread check passes (rule B1, WR1): every reader
+  // of the snapshot, the engine's included, sees the gated activities.
+  const { activities, check: watchRatings } = withUsableRatings(
+    await withBestEfforts(prisma, newestFirst.reverse(), today),
+  )
   const wellness: EngineInput['wellness'] = wellnessRows.map((row) => ({
     ...toWellnessDay(row),
     fatigue: row.fatigue,
@@ -611,6 +621,7 @@ async function buildContext(
     key: athleteKey(version, today),
     profile,
     activities,
+    watchRatings,
     wellness,
     reviews,
     screeningFlags,

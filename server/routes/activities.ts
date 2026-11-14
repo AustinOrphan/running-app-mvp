@@ -143,6 +143,15 @@ const feedbackSchema = z.strictObject({
   heatExposure: z.enum(['warm-room', 'passive']).nullable().optional(),
 })
 
+/** The source of the rating after a full edit: a value the form did not change keeps the watch as its source. */
+function ratingSourceAfterEdit(
+  existing: { rpe: number | null; rpeSource: string | null },
+  rpe: number | null,
+): 'app' | 'watch' | null {
+  if (rpe === null) return null
+  return rpe === existing.rpe && existing.rpeSource === 'watch' ? 'watch' : 'app'
+}
+
 /** The id the client chose for a Done: a UUID, as the outbox's route pattern reads it. */
 const doneIdParam = z.object({
   activityId: z.string().regex(/^[\w-]{8,64}$/, 'Use an id of 8 to 64 letters, digits, - or _.'),
@@ -310,7 +319,10 @@ export function activitiesRouter(deps: Deps): Router {
     const id = idParam(req.params.id)
     await findOwned(req.userId, id)
     const body = parse(feedbackSchema, req.body)
-    await prisma.activity.update({ where: { id, userId: req.userId }, data: body })
+    // A rating given here is the runner own and wins over a watch rating (WR1); clearing it clears the source.
+    const data =
+      body.rpe === undefined ? body : { ...body, rpeSource: body.rpe === null ? null : 'app' }
+    await prisma.activity.update({ where: { id, userId: req.userId }, data })
     // A new rating changes the assessment of the session this activity fulfils.
     await runExecutionQuietly(deps, { userId: req.userId, activityId: id })
     res.json(toActivity(await findOwned(req.userId, id)))
@@ -343,6 +355,8 @@ export function activitiesRouter(deps: Deps): Router {
       where: { id, userId: req.userId },
       data: {
         ...body,
+        // The form always sends the rating: an unchanged watch rating keeps the watch as its source (WR1).
+        rpeSource: ratingSourceAfterEdit(existing, body.rpe),
         ...(matchChanged ? { duplicateStatus: 'none', duplicateOfId: null } : {}),
       },
     })

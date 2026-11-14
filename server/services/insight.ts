@@ -16,6 +16,7 @@ import { rankStandouts, standoutFacts, STANDOUT_VERSION } from '../../shared/eng
 import type { StandoutSession } from '../../shared/engine/standout.ts'
 import { P } from '../../shared/engine/params/index.ts'
 import { checkinOn } from '../../shared/engine/readiness.ts'
+import { readableActivity } from '../../shared/engine/watchRatings.ts'
 import type {
   ExecutionFindings,
   ExplainGroup,
@@ -191,7 +192,7 @@ export async function activityInsight(
   })
   const hrModel = await hrModelOf(deps, context)
   const facts = standoutFacts({
-    activity: toActivity(row),
+    activity: readableActivity(toActivity(row), context.watchRatings),
     history: context.activities,
     asOf: context.asOf,
     historyFrom: addDays(context.asOf, -P.a5.historyWindowDays.value),

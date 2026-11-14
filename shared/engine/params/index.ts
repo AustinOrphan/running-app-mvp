@@ -21,7 +21,7 @@ import { oExplain } from './o-explain.ts'
 import { pMethods } from './p-methods.ts'
 
 /** Bump when any parameter value, grade or rule changes; stored with every generated plan. */
-export const PARAMS_VERSION = '2026-11-09.6'
+export const PARAMS_VERSION = '2026-11-14.1'
 
 /** The section files in order; a task adds parameters only to its own file(s). */
 export const PARAM_SECTIONS = {

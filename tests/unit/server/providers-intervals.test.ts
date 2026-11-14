@@ -275,6 +275,7 @@ describe('intervals.icu fetchActivity', () => {
       maxHr: 150,
       avgCadence: 168,
       avgPowerW: null,
+      watchRpe: null,
       deviceName: 'Test Watch',
       startLat: 0,
       startLng: -0.01,
