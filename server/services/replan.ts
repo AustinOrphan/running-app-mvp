@@ -23,6 +23,7 @@ import {
   methodFlipSummary,
   overshootsSummary,
   raiseSummary,
+  rulesChangedSummary,
   stalePreviewMessage,
   targetsSummary,
   type OvershootLine,
@@ -43,7 +44,7 @@ import {
 import { loadPosition, rebuildZone } from '../../shared/engine/loadSetting.ts'
 import { progressionHold } from '../../shared/engine/macro.ts'
 import { resolveMethod } from '../../shared/engine/methods.ts'
-import { P } from '../../shared/engine/params/index.ts'
+import { P, PARAMS_VERSION } from '../../shared/engine/params/index.ts'
 import {
   firstRise,
   raiseToMatchCheck,
@@ -514,11 +515,22 @@ export async function recordPlanWrite(
 ): Promise<PlanRevisionView> {
   const owned = await tx.plan.count({ where: { id: record.planId, userId: record.userId } })
   if (owned === 0) throw notFound('Plan not found.')
+  // RV1: the rules this revision was drawn under. Null on older rows means unknown, so only a
+  // revision that has a version to compare against can say the rules changed.
+  const previous = await tx.planRevision.findFirst({
+    where: { planId: record.planId, paramsVersion: { not: null } },
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    select: { paramsVersion: true },
+  })
+  const rulesChanged = previous !== null && previous.paramsVersion !== PARAMS_VERSION
   const row = await tx.planRevision.create({
     data: {
       planId: record.planId,
       reason: record.reason,
-      summary: record.summary,
+      summary: rulesChanged
+        ? `${record.summary} ${rulesChangedSummary(PARAMS_VERSION)}`
+        : record.summary,
+      paramsVersion: PARAMS_VERSION,
       changes: JSON.stringify(record.changes),
       auto: record.auto ?? false,
       // The one seen marker (ADR 0007): a revision the runner asked for is seen when it is written;

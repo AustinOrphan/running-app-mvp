@@ -2020,6 +2020,20 @@ function verifyUserPlanNotice(db: DatabaseSync, before: Snapshot): void {
   expect(rowsOf(db, `SELECT "planNoticeVersion" FROM "User"`)).toEqual([{ planNoticeVersion: 1 }])
 }
 
+function verifyPlanRevisionParamsVersion(db: DatabaseSync, before: Snapshot): void {
+  expectNothingLost(before, db)
+  expectConsistent(db)
+  // Revisions of the previous release read null: the rules they were drawn under are unknown, and
+  // nothing is backfilled.
+  const rows = rowsOf(db, `SELECT id, "paramsVersion" FROM "PlanRevision" ORDER BY id`)
+  expect(rows).toHaveLength(7)
+  for (const row of rows) expect(row.paramsVersion, String(row.id)).toBeNull()
+  db.prepare(`UPDATE "PlanRevision" SET "paramsVersion" = '2026-11-09.6' WHERE id = 'r01'`).run()
+  expect(rowsOf(db, `SELECT "paramsVersion" FROM "PlanRevision" WHERE id = 'r01'`)).toEqual([
+    { paramsVersion: '2026-11-09.6' },
+  ])
+}
+
 function verifyActivityHeatExposure(db: DatabaseSync, before: Snapshot): void {
   // Rows, including the sessions linked to activities, are all kept.
   expectNothingLost(before, db)
@@ -2332,6 +2346,11 @@ const CASES: FixtureCase[] = [
     migration: 'user_plan_notice',
     seed: seedTerrainRelease,
     verify: verifyUserPlanNotice,
+  },
+  {
+    migration: 'plan_revision_params_version',
+    seed: seedRevisions,
+    verify: verifyPlanRevisionParamsVersion,
   },
 ]
 

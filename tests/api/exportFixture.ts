@@ -184,7 +184,13 @@ export async function seedEverything(
     },
   })
   const revision = await prisma.planRevision.create({
-    data: { planId: plan.id, reason: 'generate', summary: `Revision ${tag}`, undo: '{"x":1}' },
+    data: {
+      planId: plan.id,
+      reason: 'generate',
+      summary: `Revision ${tag}`,
+      undo: '{"x":1}',
+      paramsVersion: '2026-01-01.1',
+    },
   })
   await prisma.planSession.create({
     data: {
