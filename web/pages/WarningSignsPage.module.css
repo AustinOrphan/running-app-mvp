@@ -1,0 +1,65 @@
+.intro {
+  max-width: var(--measure-read);
+  margin: 0 0 var(--space-5);
+}
+
+/* Attention is ochre and a leading bar, never red (visual design, section 11): the first level has
+   the heavier bar, and both levels say what to do in their heading. */
+.level {
+  max-width: var(--measure-read);
+  margin: 0 0 var(--space-6);
+  padding-left: var(--space-4);
+  border-left: 1px solid var(--border-strong);
+}
+
+.emergency {
+  border-left: 3px solid var(--warning);
+}
+
+.heading {
+  margin: 0 0 var(--space-2);
+}
+
+.lead {
+  margin: 0 0 var(--space-4);
+}
+
+.signs {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sign {
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--border);
+}
+
+.title {
+  margin: 0 0 var(--space-1);
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+}
+
+.detail {
+  margin: 0 0 var(--space-2);
+}
+
+.sources {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.sourcesLabel {
+  font-weight: 600;
+}
+
+.closing {
+  max-width: var(--measure-read);
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}

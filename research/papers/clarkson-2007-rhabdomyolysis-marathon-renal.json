@@ -1,0 +1,33 @@
+{
+  "id": "clarkson-2007-rhabdomyolysis-marathon-renal",
+  "title": "Exertional rhabdomyolysis and acute renal failure in marathon runners",
+  "authors": "Clarkson PM",
+  "year": 2007,
+  "journal": "Sports Medicine",
+  "doi": "10.2165/00007256-200737040-00022",
+  "pmid": "17465608",
+  "url": "https://doi.org/10.2165/00007256-200737040-00022",
+  "design": "narrative-review",
+  "population": "Review of case reports of exertional rhabdomyolysis and acute renal failure in marathon runners",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["injury-load"],
+  "findings": [
+    "Strenuous exercise, including marathon running, can damage skeletal muscle cells (exertional rhabdomyolysis); in most cases the damage resolves without consequence (abstract).",
+    "When the damage is profound, muscle proteins are released into the blood; myoglobin in high concentration, under conditions such as dehydration and heat stress, can precipitate in the kidneys and cause acute renal failure (abstract).",
+    "Acute renal failure in marathon runners is relatively infrequent; case reports show a high proportion had taken analgesics, had a viral or bacterial infection, or had a pre-existing condition (abstract).",
+    "The author describes the rare cases as a perfect storm of heat stress, dehydration, latent myopathy, non-steroidal anti-inflammatory or other analgesic use and infection coming together (abstract)."
+  ],
+  "limitations": "Narrative review resting on case reports, so it gives no frequency among runners. The abstract does not describe the signs a runner would notice (dark urine, severe muscle pain), so the warning-signs list takes from it the link between severe muscle damage after a hard effort and kidney injury; the signs themselves are common clinical description that this record does not quote.",
+  "implications": [
+    "Supports a clinician-level sign for very dark or scant urine with severe muscle pain after a hard or long effort, with a line telling the clinician about heat and any painkillers taken; the engine states no frequency."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref confirms title, journal, year, author and DOI, with no correction notice; Europe PMC abstract (PMID 17465608) read on 2026-11-13 and each finding is stated in it. Task WS1.",
+    "checkedAt": "2026-11-13"
+  }
+}
