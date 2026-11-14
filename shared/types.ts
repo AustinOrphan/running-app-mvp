@@ -24,6 +24,7 @@ import type {
   Grade,
   InputFact,
   LadderResult,
+  RaceRateHold,
   LadderStep,
   LoadAppetite,
   Param,
@@ -1960,6 +1961,8 @@ export interface FuelLabView {
   settings: FuelSettings
   /** The replayed ladder; `steps` holds the latest few. */
   ladder: LadderResult
+  /** How long the race rate has held, from every logged run (rule H7, FT1); display only. */
+  raceRate: RaceRateHold
   /** The target of the next planned run that can carry one; null when no such run is planned. */
   next: FuelTargetView | null
   block: FuelBlockView

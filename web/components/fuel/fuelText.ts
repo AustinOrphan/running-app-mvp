@@ -166,6 +166,23 @@ export const labText = {
 
   ladderHeading: () => say(T['fuel.lab.ladder-heading'], {}),
   ladderIntro: () => say(T['fuel.lab.ladder-intro'], {}),
+  holdHeading: () => say(T['fuel.lab.hold-heading'], {}),
+  holdIntro: (rate: string) => say(T['fuel.lab.hold-intro'], { rate }),
+  // The read-out spans every log, so a date carries its weekday and year ('long'): a run from an
+  // earlier year is never ambiguous, and no clock is needed to decide when to show the year.
+  holdLongest: (run: { date: string; elapsedSec: number; hot: boolean } | null) =>
+    run === null
+      ? say(T['fuel.lab.hold-longest-none'], {})
+      : say(run.hot ? T['fuel.lab.hold-longest-hot'] : T['fuel.lab.hold-longest'], {
+          duration: duration(run.elapsedSec),
+          date: date(run.date, 'long'),
+        }),
+  holdDayTwo: (run: { date: string; hot: boolean } | null) =>
+    run === null
+      ? say(T['fuel.lab.hold-day-two-none'], {})
+      : say(run.hot ? T['fuel.lab.hold-day-two-hot'] : T['fuel.lab.hold-day-two'], {
+          date: date(run.date, 'long'),
+        }),
   ladderLabel: () => say(T['fuel.lab.ladder-label'], {}),
   ladderCertainty: () => lowCertaintyLine(),
 

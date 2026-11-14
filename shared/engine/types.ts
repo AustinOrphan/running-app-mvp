@@ -967,6 +967,29 @@ export interface LadderResult {
   steps: LadderStep[]
 }
 
+/** One run on which the race rung was tolerated. */
+export interface RaceRateRun {
+  activityId: string
+  date: string
+  /** Elapsed seconds, as the count reads them. */
+  elapsedSec: number
+  /** The run was hot for fuel: the ladder moved nothing on it, and it is still listed. */
+  hot: boolean
+}
+
+/** Where the race rate has held, as plain facts; display only, and nothing in a plan reads it. */
+export interface RaceRateHold {
+  /** The rate of the race rung (`raceFuelFor`), which the facts below are measured against. */
+  rate: RungRate
+  /** The longest tolerated run at the race rung; the earliest of equal lengths. Null when none. */
+  longest: RaceRateRun | null
+  /**
+   * The latest run that was tolerated at the race rung on the day after another counted run at
+   * that rung (two runs on consecutive local days). Null when none.
+   */
+  dayTwo: RaceRateRun | null
+}
+
 /** A plan session as the fuel target reads it (`PlanSession` fits). */
 export interface FuelSessionInput {
   id: string

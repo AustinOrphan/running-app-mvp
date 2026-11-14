@@ -14,6 +14,7 @@ import {
   fuelRungs,
   fuelTargetFor,
   isBlockRun,
+  raceRateHold,
   replayLadder,
   type FuelContext,
   type LadderInput,
@@ -870,6 +871,7 @@ export async function fuelLabView(
   return {
     settings: state.settings,
     ladder: ladderView(state.ladder),
+    raceRate: raceRateHold(state.input, state.ladder),
     next,
     block: blockView(state.settings, state.input.gutTrainingWeeks),
     products,

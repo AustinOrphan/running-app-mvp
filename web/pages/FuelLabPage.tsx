@@ -8,6 +8,7 @@ import { FuelSettingsForm } from '../components/fuel/FuelSettingsForm.tsx'
 import { FuelTargetCard } from '../components/fuel/FuelTargetCard.tsx'
 import { labText } from '../components/fuel/fuelText.ts'
 import { GutBlockCard } from '../components/fuel/GutBlockCard.tsx'
+import { RaceRateCard } from '../components/fuel/RaceRateCard.tsx'
 import { ProductManager } from '../components/fuel/ProductManager.tsx'
 import { TierLadder } from '../components/fuel/TierLadder.tsx'
 import { PageHeader } from '../components/PageHeader.tsx'
@@ -15,10 +16,10 @@ import { Skeleton } from '../components/Skeleton.tsx'
 import styles from './FuelLabPage.module.css'
 
 /**
- * The sections in the order a phone shows them: the target, the runs waiting for a log, the ladder
- * and its history, then the products, the gut-training block, the settings, the safety card and
- * the general disclaimer. From 900 px the first four stand in the left column and the next four in
- * the right, so the DOM order is the reading order at every width.
+ * The sections in the order a phone shows them: the target, the runs waiting for a log, the ladder,
+ * how long the race rate has held and the history, then the products, the gut-training block, the
+ * settings, the safety card and the general disclaimer. From 900 px the first five stand in the
+ * left column and the next four in the right, so the DOM order is the reading order at every width.
  */
 function LabBody({ lab, units }: { lab: FuelLabView; units: Units | undefined }) {
   return (
@@ -28,6 +29,7 @@ function LabBody({ lab, units }: { lab: FuelLabView; units: Units | undefined })
           <FuelTargetCard next={lab.next} />
           {units === undefined ? null : <FuelPromptCard prompts={lab.prompts} units={units} />}
           <TierLadder ladder={lab.ladder} />
+          <RaceRateCard hold={lab.raceRate} />
           <FuelHistory history={lab.history} />
         </div>
         <div className={styles.column}>
