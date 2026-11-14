@@ -68,6 +68,18 @@ describe('the Warning signs list', () => {
     expect(severe.level).toBe('emergency')
   })
 
+  test('the in-race case is kept: the low-sodium and muscle signs read during or after, or late in', () => {
+    for (const id of ['severe-sodium', 'sodium', 'muscle']) {
+      const sign = WARNING_SIGNS.find((candidate) => candidate.id === id)!
+      const words =
+        render(TEMPLATES[sign.title], {}, 'km') + ' ' + render(TEMPLATES[sign.detail], {}, 'km')
+      expect(words, id).toMatch(/during or after|late in/)
+    }
+    const severe = WARNING_SIGNS.find((sign) => sign.id === 'severe-sodium')!
+    expect(render(TEMPLATES[severe.title], {}, 'km')).toMatch(/during or after a long effort/)
+    expect(render(TEMPLATES[severe.detail], {}, 'km')).toMatch(/during or after a long effort/)
+  })
+
   test('states no odds, no diagnosis and no blame', () => {
     for (const id of Object.keys(TEMPLATES).filter((key) => key.startsWith('warning-signs.'))) {
       const text = render(TEMPLATES[id as keyof typeof TEMPLATES], {}, 'km')

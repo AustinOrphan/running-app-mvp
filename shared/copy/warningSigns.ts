@@ -49,7 +49,7 @@ export const WARNING_SIGNS_TEMPLATES = {
     'Confusion, odd behaviour, a seizure or a collapse during or after a long or hot effort. Heat illness and low blood sodium can both look like this.',
   ),
   'warning-signs.sodium.title': tpl(
-    'Headache, nausea or swelling after a long effort',
+    'Headache, nausea or swelling during or after a long effort',
     {},
     { shape: 'label' },
   ),
@@ -57,12 +57,12 @@ export const WARNING_SIGNS_TEMPLATES = {
     'A headache, nausea, or swollen hands or feet late in a long effort or after it. After drinking a lot, do not drink more until a clinician has seen it.',
   ),
   'warning-signs.severe-sodium.title': tpl(
-    'Worsening headache, vomiting or drowsiness after a long effort',
+    'Worsening headache, vomiting or drowsiness during or after a long effort',
     {},
     { shape: 'label' },
   ),
   'warning-signs.severe-sodium.detail': tpl(
-    'A headache that keeps getting worse, repeated vomiting or unusual drowsiness after a long effort. After drinking a lot, do not drink more while waiting.',
+    'A worsening headache, repeated vomiting or unusual drowsiness during or after a long effort. After drinking a lot, drink nothing more while waiting.',
   ),
   'warning-signs.bone.title': tpl('Pain in one spot on a bone', {}, { shape: 'label' }),
   'warning-signs.bone.detail': tpl(
@@ -102,7 +102,7 @@ export const WARNING_SIGNS_TEMPLATES = {
     'The cited review links severe muscle damage to kidney injury but does not describe the urine or the pain. The same-day timing is a convention.',
   ),
   'warning-signs.muscle.detail': tpl(
-    'Very dark urine, or very little, with severe muscle pain or weakness after a hard or long effort. Say if it was hot and if painkillers were taken.',
+    'Very dark urine, or very little, with severe muscle pain or weakness during or after a hard or long effort. Say if it was hot and if painkillers were taken.',
   ),
 } as const
 
