@@ -40,10 +40,10 @@ beforeEach(async () => {
   await ctx.prisma.integration.deleteMany()
 })
 
-function json(body: unknown, status = 200): Response {
+function json(body: unknown, status = 200, headers: Record<string, string> = {}): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { 'content-type': 'application/json' },
+    headers: { 'content-type': 'application/json', ...headers },
   })
 }
 
@@ -93,7 +93,7 @@ function intervals(remote: Remote[]) {
       ])
     routes[`GET ${BASE}/activity/${r.id}`] = () =>
       r.detailStatus && r.detailStatus !== 200
-        ? json({}, r.detailStatus)
+        ? json({}, r.detailStatus, r.detailStatus === 429 ? { 'retry-after': '120' } : {})
         : json({
             id: r.id,
             type: 'Run',
@@ -216,6 +216,54 @@ describe('the intervals.icu pull', () => {
       expect(await ctx.prisma.activityFile.count()).toBe(1)
     })
 
+    test('a rate-limited record call pauses the pull: no row stored, the cursor held', async () => {
+      const cursor = '2026-03-01T00:00:00.000Z'
+      await ctx.prisma.integration.create({
+        data: {
+          userId: user.id,
+          provider: 'intervals',
+          status: 'connected',
+          secret: sealSecret({ apiKey: 'key-123' }, ctx.config.sessionSecret),
+          config: JSON.stringify({ athleteId: 'i1001' }),
+          cursor,
+        },
+      })
+      const remote = [
+        { id: 'i1', startUtc: '2026-03-02T07:00:00Z', icuRpe: 8, fit: fit(), detailStatus: 429 },
+      ]
+      const before = Date.now()
+      await syncProvider(deps(), user.id, 'intervals', { fetch: intervals(remote) })
+      expect(await ctx.prisma.activity.count()).toBe(0)
+      const row = await ctx.prisma.integration.findFirstOrThrow()
+      expect(row).toMatchObject({ lastSyncStatus: 'paused', status: 'connected', cursor })
+      expect((row.pausedUntil?.getTime() ?? 0) - before).toBeGreaterThan(110_000)
+    })
+
+    test('a rejected key on the record call fails that activity: no row stored, the cursor held', async () => {
+      const cursor = '2026-03-01T00:00:00.000Z'
+      await ctx.prisma.integration.create({
+        data: {
+          userId: user.id,
+          provider: 'intervals',
+          status: 'connected',
+          secret: sealSecret({ apiKey: 'key-123' }, ctx.config.sessionSecret),
+          config: JSON.stringify({ athleteId: 'i1001' }),
+          cursor,
+        },
+      })
+      const remote = [
+        { id: 'i1', startUtc: '2026-03-02T07:00:00Z', icuRpe: 8, fit: fit(), detailStatus: 401 },
+      ]
+      await syncProvider(deps(), user.id, 'intervals', { fetch: intervals(remote) })
+      expect(await ctx.prisma.activity.count()).toBe(0)
+      expect(await ctx.prisma.integration.findFirstOrThrow()).toMatchObject({
+        // A failed activity is reported as a partial run, as for any per-activity failure.
+        status: 'connected',
+        lastSyncStatus: 'partial',
+        cursor,
+      })
+    })
+
     test('a missing record (404) leaves the file import unrated', async () => {
       await pull([
         { id: 'i1', startUtc: '2026-03-02T07:00:00Z', icuRpe: 8, fit: fit(), detailStatus: 404 },
@@ -263,13 +311,23 @@ describe('who wins', () => {
     })
   })
 
-  test('the stored watch value sent back unchanged stays the watch rating', async () => {
+  test('a rating sent to the feedback route is the app’s, even at the watch value', async () => {
     const row = await stored(7)
     await client(ctx, user).patch(`/api/activities/${row.id}/feedback`).send({ rpe: 7, pain: 1 })
     expect(await ctx.prisma.activity.findFirstOrThrow()).toMatchObject({
       rpe: 7,
-      rpeSource: 'watch',
+      rpeSource: 'app',
       pain: 1,
+    })
+  })
+
+  test('a pain-only save leaves the watch rating and its source', async () => {
+    const row = await stored(7)
+    await client(ctx, user).patch(`/api/activities/${row.id}/feedback`).send({ pain: 2 })
+    expect(await ctx.prisma.activity.findFirstOrThrow()).toMatchObject({
+      rpe: 7,
+      rpeSource: 'watch',
+      pain: 2,
     })
   })
 
@@ -383,6 +441,28 @@ describe('who wins', () => {
       rpe: 6,
       rpeSource: 'app',
     })
+  })
+})
+
+describe("Today's rating card", () => {
+  test('offers a run with a held watch rating, and stops once the runner picks the watch value', async () => {
+    const date = new Date().toISOString().slice(0, 10)
+    const run = await ctx.prisma.activity.create({
+      data: { userId: user.id, date, type: 'run', durationSec: 1800, rpe: 6, rpeSource: 'watch' },
+    })
+    const unrated = async () =>
+      ((await client(ctx, user).get('/api/today')).body as { unrated: { id: string }[] }).unrated
+    expect((await unrated()).map((a) => a.id)).toContain(run.id)
+
+    // The card sends the picked rpe, here the watch value itself.
+    await client(ctx, user)
+      .put(`/api/activities/${run.id}/feedback`)
+      .send({ rpe: 6, feel: null, pain: null })
+    expect(await ctx.prisma.activity.findUniqueOrThrow({ where: { id: run.id } })).toMatchObject({
+      rpe: 6,
+      rpeSource: 'app',
+    })
+    expect((await unrated()).map((a) => a.id)).not.toContain(run.id)
   })
 })
 

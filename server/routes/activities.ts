@@ -313,14 +313,12 @@ export function activitiesRouter(deps: Deps): Router {
   // repeat changes nothing. The outbox queues the PUT.
   const saveFeedback: RequestHandler = async (req, res) => {
     const id = idParam(req.params.id)
-    const existing = await findOwned(req.userId, id)
+    await findOwned(req.userId, id)
     const body = parse(feedbackSchema, req.body)
-    // A rating given here is the runner own and wins over a watch rating (WR1); clearing it clears
-    // the source. The stored watch value sent back as it is stays the watch rating.
+    // The clients send rpe here only when the runner changed it, so a rating present is the
+    // runner own and wins over a watch rating, even at the same value (WR1); clearing clears the source.
     const data =
-      body.rpe === undefined
-        ? body
-        : { ...body, rpeSource: ratingSourceAfterWrite(existing, body.rpe) }
+      body.rpe === undefined ? body : { ...body, rpeSource: body.rpe === null ? null : 'app' }
     await prisma.activity.update({ where: { id, userId: req.userId }, data })
     // A new rating changes the assessment of the session this activity fulfils.
     await runExecutionQuietly(deps, { userId: req.userId, activityId: id })

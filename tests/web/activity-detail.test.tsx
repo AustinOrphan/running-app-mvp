@@ -605,6 +605,33 @@ describe('ActivityDetailPage', () => {
       expect(within(section).getByText(RATING_CAVEAT)).toBeVisible()
     })
 
+    test('while the answer is pending or failed the note makes no claim and the caveat stays', async () => {
+      renderDetail({
+        detail: watched(),
+        plan: plan(),
+        routes: {
+          'GET /api/plan-inputs': () => {
+            throw new Error('plan-inputs down')
+          },
+        },
+      })
+      const section = await screen.findByRole('region', { name: 'How did it go?' })
+      await settle()
+      expect(
+        within(section).getByText(
+          'The effort rating is from your watch. A rating you give here replaces it.',
+        ),
+      ).toBeVisible()
+      expect(within(section).queryByText(/does not read watch ratings/)).not.toBeInTheDocument()
+    })
+
+    test('a run with no watch rating makes no plan-inputs request', async () => {
+      const api = renderDetail({ plan: plan() })
+      await screen.findByRole('region', { name: 'How did it go?' })
+      await settle()
+      expect(api.calls.some((c) => c.url.includes('/plan-inputs'))).toBe(false)
+    })
+
     test('once the plan reads them the caveat goes and the note drops the clause', async () => {
       renderDetail({ detail: watched(), plan: plan(), routes: inputs(true) })
       const section = await screen.findByRole('region', { name: 'How did it go?' })

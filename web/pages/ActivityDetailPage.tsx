@@ -592,9 +592,10 @@ function Feedback({ activity, units }: { activity: Activity; units: Units }) {
     plan.data?.sessions.find((session) => session.activityId === activity.id)?.execution ?? null
   // Whether the plan reads watch ratings yet (the spread check of rule B1); until it does, a watch
   // rating does not count toward the effort verdict and the verdict keeps its caveat.
-  const planInputs = usePlanInputs()
-  const watchRead = planInputs.data?.runs.watchRatings.used === true
-  const watchHeld = activity.rpeSource === 'watch' && !watchRead
+  const isWatch = activity.rpeSource === 'watch'
+  const planInputs = usePlanInputs(isWatch)
+  // Held only once the answer is in and says no; while it is pending or failed nothing is claimed.
+  const watchHeld = isWatch && planInputs.isSuccess && !planInputs.data.runs.watchRatings.used
   const counted = watchHeld ? { rpe: null, feel: activity.feel } : activity
   const [value, setValue] = useState<FeedbackValues>({
     rpe: activity.rpe,
