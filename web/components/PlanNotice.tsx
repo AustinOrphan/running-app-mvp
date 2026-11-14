@@ -26,7 +26,14 @@ function ParqLink() {
  * the official PAR-Q+ and asks for one deliberate confirmation. A runner whose profile birth year
  * makes them under 18 gets the age sentence and no way to confirm.
  */
-export function PlanNotice({ notice }: { notice: PlanNoticeView }) {
+export function PlanNotice({
+  notice,
+  onProfile = false,
+}: {
+  notice: PlanNoticeView
+  /** On the Profile the heading is the section's and an under-18 runner is told only the age rule. */
+  onProfile?: boolean
+}) {
   const headingId = useId()
   const confirm = useConfirmPlanNotice()
   const [adult, setAdult] = useState(false)
@@ -35,10 +42,11 @@ export function PlanNotice({ notice }: { notice: PlanNoticeView }) {
     return (
       <section className={styles.notice} aria-labelledby={headingId}>
         <h2 id={headingId} className={styles.heading}>
-          {words('plannotice.title')}
+          {words(onProfile ? 'plannotice.profile-title' : 'plannotice.title')}
         </h2>
-        <p className={styles.callout}>{words('plannotice.under')}</p>
-        <p className={styles.text}>{words('plannotice.age')}</p>
+        <p className={styles.callout}>
+          {words(onProfile ? 'plannotice.under-profile' : 'plannotice.under')}
+        </p>
       </section>
     )
   }
@@ -47,7 +55,7 @@ export function PlanNotice({ notice }: { notice: PlanNoticeView }) {
   return (
     <section className={styles.notice} aria-labelledby={headingId}>
       <h2 id={headingId} className={styles.heading}>
-        {words('plannotice.title')}
+        {words(onProfile ? 'plannotice.profile-title' : 'plannotice.title')}
       </h2>
       <p className={styles.lead}>{words('plannotice.not-medical')}</p>
       <p className={styles.text}>{words('plannotice.parq')}</p>
@@ -97,7 +105,7 @@ export function PlanNotice({ notice }: { notice: PlanNoticeView }) {
 export function PlanNoticeStanding({ notice }: { notice: PlanNoticeView }) {
   const headingId = useId()
   if (notice.confirmedAt === null || notice.confirmedVersion === null || notice.age === 'under') {
-    return <PlanNotice notice={notice} />
+    return <PlanNotice notice={notice} onProfile />
   }
   return (
     <section className={styles.notice} aria-labelledby={headingId}>

@@ -669,7 +669,10 @@ describe('the health notice on the Profile (FS1)', () => {
 
   test('shows an account from before the notice the notice once, with its plan untouched', async () => {
     setup(makeProfile(), { 'GET /api/plan-notice': () => unconfirmed })
-    expect(await screen.findByRole('heading', { name: 'Before your first plan' })).toBeVisible()
+    expect(await screen.findByRole('heading', { name: 'Health notice' })).toBeVisible()
+    expect(
+      screen.queryByRole('heading', { name: 'Before your first plan' }),
+    ).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'I have read this' })).toBeDisabled()
   })
 
@@ -681,6 +684,13 @@ describe('the health notice on the Profile (FS1)', () => {
       'href',
       PARQ_PLUS_URL,
     )
+    expect(screen.queryByRole('button', { name: 'I have read this' })).not.toBeInTheDocument()
+  })
+
+  test('tells an under-18 birth year only the age rule, not that no plan is made', async () => {
+    setup(makeProfile(), { 'GET /api/plan-notice': () => ({ ...unconfirmed, age: 'under' }) })
+    expect(await screen.findByText(/younger than 18/)).toBeVisible()
+    expect(screen.queryByText(/does not make a plan/)).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'I have read this' })).not.toBeInTheDocument()
   })
 })

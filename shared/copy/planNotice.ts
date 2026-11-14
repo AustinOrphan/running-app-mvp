@@ -9,7 +9,7 @@ export const PLAN_NOTICE_TEMPLATES = {
     'This app is a training log and planner. It is not medical advice.',
   ),
   'plannotice.parq': tpl(
-    'Complete the official PAR-Q+ (version 01-11-2024, from the PAR-Q+ Collaboration) before you start.',
+    'Complete the official PAR-Q+ (from the PAR-Q+ Collaboration) before you start.',
   ),
   'plannotice.follow': tpl(
     'Follow its guidance, including its follow-up pages, and see a doctor or a qualified exercise professional where it says to.',
@@ -22,7 +22,9 @@ export const PLAN_NOTICE_TEMPLATES = {
   'plannotice.under': tpl(
     'The birth year on your profile makes you younger than 18, so the app does not make a plan for you.',
   ),
-  'plannotice.required': tpl('Read the notice before your first plan.'),
+  'plannotice.under-profile': tpl(
+    'The birth year on your profile makes you younger than 18. The app is for runners aged 18 or older.',
+  ),
   'plannotice.confirmed': tpl('Confirmed on {date}.', { date: 'text' }),
   'plannotice.profile-title': tpl('Health notice', {}, { shape: 'label' }),
 } as const

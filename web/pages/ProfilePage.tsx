@@ -964,7 +964,6 @@ function ScreeningSheet({ onClose }: { onClose: () => void }) {
   )
 }
 
-/** The REDs screen: when it was last done, when the next is due, and the entry point. */
 /** The health notice (FS1): an account from before it sees it here, once, with its plan untouched. */
 function NoticeSection() {
   const notice = usePlanNotice()
@@ -972,6 +971,7 @@ function NoticeSection() {
   return <PlanNoticeStanding notice={notice.data} />
 }
 
+/** The REDs screen: when it was last done, when the next is due, and the entry point. */
 function ScreeningSection() {
   const headingId = useId()
   const screenings = useScreenings()

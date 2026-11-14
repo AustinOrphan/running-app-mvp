@@ -71,7 +71,7 @@ describe('the health notice on the Plan page', () => {
     expect(await screen.findByRole('heading', { name: 'Before your first plan' })).toBeVisible()
     expect(screen.getByText(/not medical advice/)).toBeVisible()
     expect(screen.getByText(/PAR-Q\+ Collaboration/)).toBeVisible()
-    expect(screen.getByText(/version 01-11-2024/)).toBeVisible()
+    expect(screen.queryByText(/01-11-2024/)).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Generate plan' })).not.toBeInTheDocument()
 
     const link = screen.getByRole('link', { name: 'Open the official PAR-Q+ page' })

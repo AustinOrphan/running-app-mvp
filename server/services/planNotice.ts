@@ -1,3 +1,5 @@
+import { render } from '../../shared/copy/template.ts'
+import { TEMPLATES } from '../../shared/copy/templates.ts'
 import { todayIso } from '../../shared/dates.ts'
 import { ageStanding, PLAN_NOTICE_VERSION } from '../../shared/domain/planNotice.ts'
 import type { PlanNoticeView } from '../../shared/types.ts'
@@ -8,8 +10,7 @@ import { HttpError, conflict, notFound } from '../errors.ts'
 export const PLAN_NOTICE_REQUIRED = 'plan-notice-required'
 export const PLAN_UNDER_AGE = 'under-age'
 
-const UNDER_AGE_MESSAGE =
-  'The app is for runners aged 18 or older, so it does not make a plan for the birth year on the profile.'
+const UNDER_AGE_MESSAGE = render(TEMPLATES['plannotice.under'], {}, 'km')
 
 /**
  * The health notice and the minimum age (FS1). The gate shuts the first plan only: a runner who
