@@ -2393,8 +2393,9 @@ things stand" gives counts and percentages without a weekly total or a date.
     redraw, gets the line "Drawn under updated plan rules" although its rows are the restored ones
     (#717).
 32. The race fuel rate has no duration floor: a 2 h run counts like a 6 h one toward whether the
-    race rung held. Wave 3's
-    fuel tolerance by duration leaves a floor that can only lower the rate out of its read-out.
+    race rung held. The state-of-the-art review of 2026-11-12 (Soon, item 4) proposes a floor that
+    can only lower the rate; wave 3's fuel read-out leaves it out because it would change plan
+    output (a `PARAMS_VERSION` bump and a `plan:report` delta).
 33. The race plan models no late fade, so no end of an arrival range is ranked (#709); that waits
     for a pacing cohort in the corpus (Lambert 2004 and Hoffman 2010 are not in it).
 34. An invited account's forced password change is enforced by the client gate, not the server: a
