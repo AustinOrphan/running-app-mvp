@@ -363,7 +363,7 @@ describe('what the backfill leaves alone or hands on', () => {
       ctx,
       user.id,
       { ...parsed!, providerKey: 'intervals:x77', watchRpe: 6 },
-      { source: 'intervals', importBatchId: null, channel: 'pull' },
+      { source: 'intervals', importBatchId: null, channel: 'provider' },
     )
     expect(await get(activityId)).toMatchObject({ rpe: 6, rpeSource: 'watch', watchRpeV: 1 })
     const cleared = await client(ctx, user)
