@@ -1,0 +1,33 @@
+{
+  "id": "marijon-2016-sca-warning-symptoms",
+  "title": "Warning Symptoms Are Associated With Survival From Sudden Cardiac Arrest",
+  "authors": "Marijon E, Uy-Evanado A, Dumas F, Karam N, Reinier K, Teodorescu C, Narayanan K, Gunson K, Jui J, Jouven X, Chugh SS",
+  "year": 2016,
+  "journal": "Annals of Internal Medicine",
+  "doi": "10.7326/m14-2342",
+  "pmid": "26720493",
+  "url": "https://doi.org/10.7326/m14-2342",
+  "design": "prospective-cohort",
+  "population": "Residents aged 35 to 65 years with sudden cardiac arrest in the northwestern United States, 2002 to 2012 (general population, not athletes)",
+  "sampleSize": 839,
+  "evidenceLevel": "B",
+  "topics": ["injury-load"],
+  "findings": [
+    "Of 839 patients with sudden cardiac arrest (SCA) and a comprehensive symptom assessment (mean age 52.6 years, 75% men), 430 (51%) had warning symptoms in the 4 weeks before SCA, mainly chest pain and dyspnea (abstract).",
+    "In 93% of symptomatic patients the symptoms recurred within the 24 hours before SCA (abstract).",
+    "Only 81 patients (19%) called emergency medical services to report symptoms; survival was 32.1% (95% CI 21.8 to 42.4) when 911 was called against 6.0% (95% CI 3.5 to 8.5) when it was not (P < 0.001) (abstract).",
+    "The authors conclude that warning symptoms frequently occur before SCA but most are ignored, and that emergent medical care was associated with survival in patients with symptoms (abstract)."
+  ],
+  "limitations": "General-population cohort aged 35 to 65, not runners or exercise-related arrests; recall and response bias; symptom assessment missing for 24% of patients. The abstract names chest pain and dyspnea only.",
+  "implications": [
+    "Supports listing chest pain and unusual breathlessness as signs to stop and call emergency services rather than run on; the engine quotes no survival figure to the runner."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref confirms title, journal, year, authors and DOI, with no correction notice; Europe PMC abstract (PMID 26720493) read on 2026-11-13 and every number is stated in it. Task WS1.",
+    "checkedAt": "2026-11-13"
+  }
+}

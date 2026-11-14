@@ -271,6 +271,33 @@ describe('SessionSheet', () => {
     expect(dialog.textContent).not.toMatch(/behind|missed|streak/i)
   })
 
+  test('a pain sentence of the assessment links to the Warning signs page', async () => {
+    renderSheet(
+      makeSession({
+        status: 'completed',
+        activityId: 'act1',
+        linkSource: 'auto',
+        execution: {
+          completion: 'completed',
+          intensity: 'on',
+          effort: {
+            score: 1,
+            confidence: 'moderate',
+            parts: { rpeDelta: 1, feel: 1, hrResidualZ: null, paceResidualPct: null },
+          },
+          conditions: { wbgtC: null, heatAdjusted: false, gradeAdjusted: false },
+          flags: [],
+          lines: ['Pain 6 of 10 reported. See Warning signs before the next run.'],
+        },
+      }),
+    )
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByRole('link', { name: 'Warning signs' })).toHaveAttribute(
+      'href',
+      '/warning-signs',
+    )
+  })
+
   describe('an effort verdict without a rating', () => {
     const unrated = {
       completion: 'completed',

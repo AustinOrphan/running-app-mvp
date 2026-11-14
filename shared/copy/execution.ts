@@ -52,13 +52,10 @@ export const EXECUTION_TEMPLATES = {
   ),
 
   // Pain and the size of the run against the longest of the last days.
-  'execution.pain-bone': tpl(
-    'Focal bone pain reported. Rest and see the guidance on warning signs.',
-  ),
-  'execution.pain': tpl(
-    'Pain {score} of 10 reported. See the guidance on warning signs before the next run.',
-    { score: 'count' },
-  ),
+  'execution.pain-bone': tpl('Focal bone pain reported. Rest and see Warning signs.'),
+  'execution.pain': tpl('Pain {score} of 10 reported. See Warning signs before the next run.', {
+    score: 'count',
+  }),
   'execution.spike': tpl(
     'Longer or steeper than the longest run of the last {days} days by more than the usual step.',
     { days: 'count' },
