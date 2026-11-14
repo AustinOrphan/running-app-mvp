@@ -42,6 +42,9 @@ const researchPage = lazyPage(() => import('./pages/ResearchPage.tsx').then((m) 
 const fuelPage = lazyPage(() => import('./pages/FuelLabPage.tsx').then((m) => m.FuelLabPage))
 const strengthPage = lazyPage(() => import('./pages/StrengthPage.tsx').then((m) => m.StrengthPage))
 const racePage = lazyPage(() => import('./pages/RacePage.tsx').then((m) => m.RacePage))
+const warningSignsPage = lazyPage(() =>
+  import('./pages/WarningSignsPage.tsx').then((m) => m.WarningSignsPage),
+)
 const morePage = lazyPage(() => import('./pages/MorePage.tsx').then((m) => m.MorePage))
 
 /** The pages outside the sign-in gate. */
@@ -67,6 +70,7 @@ const APP_ROUTES: ReadonlyArray<readonly [path: string, page: Page]> = [
   ['/integrations', integrationsPage],
   ['/profile', profilePage],
   ['/research', researchPage],
+  ['/warning-signs', warningSignsPage],
   ['/fuel', fuelPage],
   ['/strength', strengthPage],
   ['/race', racePage],

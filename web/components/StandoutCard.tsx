@@ -5,6 +5,7 @@ import { TEMPLATES } from '../../shared/copy/templates.ts'
 import type { Units } from '../../shared/types.ts'
 import { useStandout } from '../api/activities.ts'
 import { ExplainButton } from './ExplainButton.tsx'
+import { WarningSignsText } from './WarningSignsText.tsx'
 import styles from './StandoutCard.module.css'
 
 export interface StandoutCardProps {
@@ -40,7 +41,9 @@ export function StandoutCard({ activityId, units }: StandoutCardProps) {
         <ul className={styles.list}>
           {renderStandouts(data, units).map((item) => (
             <li key={item.id} className={styles.item}>
-              <p className={styles.sentence}>{item.text}</p>
+              <p className={styles.sentence}>
+                <WarningSignsText text={item.text} />
+              </p>
               <ExplainButton
                 subject={item.subject}
                 rules={item.rules}

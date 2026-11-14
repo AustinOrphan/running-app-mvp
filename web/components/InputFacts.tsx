@@ -5,6 +5,7 @@ import { render } from '../../shared/copy/template.ts'
 import { renderFact, TEMPLATES } from '../../shared/copy/templates.ts'
 import type { InputFact, SourceRef } from '../../shared/engine/types.ts'
 import type { Units, WeightUnit } from '../../shared/types.ts'
+import { WarningSignsText } from './WarningSignsText.tsx'
 import styles from './InputFacts.module.css'
 
 export interface InputFactsProps {
@@ -117,7 +118,7 @@ export function InputFacts({ facts, units, weightUnit, onNavigate, action }: Inp
                 </span>{' '}
               </>
             ) : null}
-            {renderFact(fact, units, weightUnit)}
+            <WarningSignsText text={renderFact(fact, units, weightUnit)} onNavigate={onNavigate} />
           </p>
           <Sources fact={fact} units={units} onNavigate={onNavigate} />
           {action?.(fact)}

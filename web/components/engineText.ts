@@ -8,7 +8,8 @@ import { formatShortDate } from './format.ts'
 const FEET_PER_METRE = 3.28084
 const M_PER_MILE = 1609.344
 
-const ISO_DATE = /\b\d{4}-\d{2}-\d{2}\b/g
+// A date followed by `.<digit>` is a plan rules version (`2026-11-09.6`), not a day.
+const ISO_DATE = /\b\d{4}-\d{2}-\d{2}\b(?!\.\d)/g
 // A bare "N m" in engine text is climbing; the lookbehind leaves the distance in "D' 120 m" alone,
 // and the lookahead leaves "min", "m/s" and "m/h" alone.
 const METRES = /(?<!D' )(?<![\d.])(\d+(?:\.\d+)?) m(?![\w/])/g

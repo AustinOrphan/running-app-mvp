@@ -112,11 +112,11 @@ export const BRIEF_TEMPLATES = {
   // beside the fact. Safety comes first, and no sentence grades the week.
   'brief.noticed-empty': tpl('Nothing stood out this week.'),
   'brief.noticed-pain-bone': tpl(
-    'Focal bone pain was reported on {date}. Rest, and see the guidance on warning signs.',
+    'Focal bone pain was reported on {date}. Rest, and see Warning signs.',
     { date: 'date' },
   ),
   'brief.noticed-pain': tpl(
-    'Pain of {pain} out of 10 was reported on {date}. See the guidance on warning signs before the next run.',
+    'Pain of {pain} out of 10 was reported on {date}. See Warning signs before the next run.',
     { pain: 'count', date: 'date' },
   ),
   'brief.noticed-pain-mild': tpl(

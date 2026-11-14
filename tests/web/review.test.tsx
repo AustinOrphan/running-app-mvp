@@ -943,6 +943,37 @@ describe('ReviewPage', () => {
       expect(screen.getByText('The weekly decision is not ready yet.')).toBeInTheDocument()
     })
 
+    test('a pain sentence of a session links to the Warning signs page', async () => {
+      renderReview({
+        plan: v2Plan([
+          makeSession({
+            id: 's1',
+            status: 'completed',
+            activityId: 'a1',
+            execution: {
+              completion: 'completed',
+              intensity: 'on',
+              effort: {
+                score: 1,
+                confidence: 'low',
+                parts: { rpeDelta: null, feel: null, hrResidualZ: 1.4, paceResidualPct: null },
+              },
+              conditions: { wbgtC: null, heatAdjusted: false, gradeAdjusted: false },
+              flags: [],
+              lines: ['Pain 6 of 10 reported. See Warning signs before the next run.'],
+            },
+          }),
+        ]),
+        weeks: { [W]: fullWeek },
+      })
+      await ready()
+      const section = screen.getByRole('region', { name: 'Planned sessions' })
+      expect(within(section).getByRole('link', { name: 'Warning signs' })).toHaveAttribute(
+        'href',
+        '/warning-signs',
+      )
+    })
+
     test('leaves out an effort verdict that no rating of the runner supports', async () => {
       renderReview({
         plan: v2Plan([

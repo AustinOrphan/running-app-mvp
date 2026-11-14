@@ -329,7 +329,7 @@ describe('what the plan noticed', () => {
     const noticed = briefNoticed(facts, 'km')
     expect(noticed.map((n) => n.rule)).toEqual(['n-2', 'n-4'])
     expect(noticed[0]).toMatchObject({
-      text: 'Pain of 5 out of 10 was reported on Wed 14 Oct. See the guidance on warning signs before the next run.',
+      text: 'Pain of 5 out of 10 was reported on Wed 14 Oct. See Warning signs before the next run.',
       sources: [{ kind: 'check-in', date: '2026-10-14' }],
       moreSources: 0,
     })
