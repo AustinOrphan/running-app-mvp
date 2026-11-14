@@ -1,7 +1,8 @@
 import type { Boundary, ZoneSet } from '../../shared/engine/types.ts'
 import type { Units } from '../../shared/types.ts'
 import {
-  BOUNDARY_SOURCE_LABELS,
+  boundarySourceText,
+  ZONE_BOUNDARY_LABELS,
   bpmRangeText,
   bpmText,
   paceRangeText,
@@ -14,12 +15,24 @@ const ZONE_ROWS: Array<{
   pick: (zones: ZoneSet) => Boundary | null
   show: (value: number, units: Units) => string
 }> = [
-  { label: 'Maximum heart rate', pick: (z) => z.hrMax, show: (v) => bpmText(v) },
-  { label: 'Easy heart rate limit', pick: (z) => z.lt1Hr, show: (v) => bpmText(v) },
-  { label: 'Threshold heart rate', pick: (z) => z.lt2Hr, show: (v) => bpmText(v) },
-  { label: 'Critical speed', pick: (z) => z.csMps, show: (v, u) => paceText(1000 / v, u) },
-  { label: 'Easy pace limit', pick: (z) => z.lt1PaceSecPerKm, show: (v, u) => paceText(v, u) },
-  { label: 'Threshold pace', pick: (z) => z.thresholdPaceSecPerKm, show: (v, u) => paceText(v, u) },
+  { label: ZONE_BOUNDARY_LABELS.hrMax, pick: (z) => z.hrMax, show: (v) => bpmText(v) },
+  { label: ZONE_BOUNDARY_LABELS.lt1Hr, pick: (z) => z.lt1Hr, show: (v) => bpmText(v) },
+  { label: ZONE_BOUNDARY_LABELS.lt2Hr, pick: (z) => z.lt2Hr, show: (v) => bpmText(v) },
+  {
+    label: ZONE_BOUNDARY_LABELS.csMps,
+    pick: (z) => z.csMps,
+    show: (v, u) => paceText(1000 / v, u),
+  },
+  {
+    label: ZONE_BOUNDARY_LABELS.lt1PaceSecPerKm,
+    pick: (z) => z.lt1PaceSecPerKm,
+    show: (v, u) => paceText(v, u),
+  },
+  {
+    label: ZONE_BOUNDARY_LABELS.thresholdPaceSecPerKm,
+    pick: (z) => z.thresholdPaceSecPerKm,
+    show: (v, u) => paceText(v, u),
+  },
 ]
 
 const ZONE_NAMES = [
@@ -51,7 +64,7 @@ export function ZoneSummary({ set, units }: { set: ZoneSet; units: Units }) {
                     {`Range ${row.show(boundary.band[0], units)} to ${row.show(boundary.band[1], units)}`}
                   </span>
                   <span className={styles.note}>
-                    {`${BOUNDARY_SOURCE_LABELS[boundary.source]}${boundary.fromTraining === true ? (boundary.windowWidened === true ? ' (from training, some older than three months)' : ' (from training)') : ''}, as of ${boundary.asOf}`}
+                    {`${boundarySourceText(boundary)}, as of ${boundary.asOf}`}
                   </span>
                 </>
               )}

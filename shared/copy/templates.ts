@@ -25,6 +25,7 @@ import { METHOD_TEMPLATES } from './method.ts'
 import { NAV_TEMPLATES } from './navigation.ts'
 import { OVERSHOOT_TEMPLATES } from './overshoot.ts'
 import { PACES_TEMPLATES } from './myPaces.ts'
+import { PLAN_INPUTS_TEMPLATES } from './planInputs.ts'
 import { PAGE_TEMPLATES, PROVIDER_TEMPLATES } from './pageCopy.ts'
 import { PLAN_NOTICE_TEMPLATES } from './planNotice.ts'
 import { PLAN_STRIP_TEMPLATES } from './planStrip.ts'
@@ -80,6 +81,7 @@ export const TEMPLATES = {
   ...METHOD_TEMPLATES,
   ...OVERSHOOT_TEMPLATES,
   ...PACES_TEMPLATES,
+  ...PLAN_INPUTS_TEMPLATES,
   ...WORKOUT_TEMPLATES,
   ...STANDOUT_TEMPLATES,
   ...TRACK_RECORD_TEMPLATES,

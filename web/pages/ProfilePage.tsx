@@ -879,6 +879,11 @@ function ZonesSection({ units }: { units: Units }) {
         <Link to="/paces">{render(TEMPLATES['paces.link.from-profile'], {}, 'km')}</Link>
       </div>
       <div>
+        <Link to="/plan-inputs">
+          {render(TEMPLATES['plan-inputs.link.from-profile'], {}, 'km')}
+        </Link>
+      </div>
+      <div>
         <ExplainButton subject="zones" rules={['C1', 'C2']} explain={{ subject: 'zone' }} />
       </div>
     </section>
