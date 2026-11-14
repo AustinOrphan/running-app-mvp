@@ -5,6 +5,7 @@ import {
   durabilityEmptyBody,
   durabilityHrLeftLine,
   durabilityHrReason,
+  durabilityHrUncheckedLine,
   durabilityLeftOutLine,
   durabilityPartHourLine,
   trendsText,
@@ -49,30 +50,36 @@ interface CellProps {
   units: Units
 }
 
-/** One hour of one run: the pace, then the heart rate; a dash where an hour has no figure. */
+/** A dash that a screen reader names: the dash is hidden and the words are read instead. */
+function Gap({ words }: { words: string }) {
+  return (
+    <>
+      <span aria-hidden="true">{'–'}</span>
+      <span className="visually-hidden">{words}</span>
+    </>
+  )
+}
+
+/**
+ * One hour of one run: the pace, then the heart rate; a dash where the hour has no figure. An hour
+ * the run did not have is an empty cell, never a dash.
+ */
 function Cell({ hour, hrShown, units }: CellProps) {
-  const none = text('trends.durability.no-figure')
-  const pace = hour?.paceSecPerKm
-  const hr = hour?.hrBpm
+  if (hour === undefined) return <td className={styles.cell} />
+  const { paceSecPerKm: pace, hrBpm: hr } = hour
   return (
     <td className={styles.cell}>
       <span className={styles.figure}>
-        {pace === null || pace === undefined ? (
-          <span aria-label={none}>{'–'}</span>
+        {pace === null ? (
+          <Gap words={text('trends.durability.no-pace')} />
         ) : (
           formatPace(pace, 1000, units)
         )}
       </span>
-      {hour?.partial === true ? (
-        <span className={styles.length}>{`${String(hour.minutes)} min`}</span>
-      ) : null}
+      {hour.partial ? <span className={styles.length}>{`${String(hour.minutes)} min`}</span> : null}
       {hrShown ? (
         <span className={styles.figure}>
-          {hr === null || hr === undefined ? (
-            <span aria-label={none}>{'–'}</span>
-          ) : (
-            `${String(hr)} bpm`
-          )}
+          {hr === null ? <Gap words={text('trends.durability.no-hr')} /> : `${String(hr)} bpm`}
         </span>
       ) : null}
     </td>
@@ -105,7 +112,12 @@ function Group({ heading, runs, hours, units }: GroupProps) {
             {runs.map((run) => (
               <tr key={run.activityId}>
                 <th scope="row">
-                  <Link to={`/activities/${encodeURIComponent(run.activityId)}`}>{run.date}</Link>
+                  <Link
+                    className={styles.date}
+                    to={`/activities/${encodeURIComponent(run.activityId)}`}
+                  >
+                    {run.date}
+                  </Link>
                   <span className={styles.length}>
                     {formatDuration(run.durationSec)}
                     {run.type === 'race' ? ', race' : ''}
@@ -129,7 +141,10 @@ function Group({ heading, runs, hours, units }: GroupProps) {
 function body(view: TrendsDurabilityView, from: string, units: Units) {
   const runs = view.runs.filter((run) => run.date >= from)
   const limit = P.a7.driftInferenceLimitMin.value
-  const { noStream, noGrade } = view.leftOut
+  // Only the runs of the range shown are counted, as the rows are.
+  const left = view.leftOut.filter((run) => run.date >= from)
+  const noStream = left.filter((run) => run.reason === 'no-stream').length
+  const noGrade = left.length - noStream
   if (runs.length === 0) {
     return (
       <>
@@ -138,14 +153,15 @@ function body(view: TrendsDurabilityView, from: string, units: Units) {
           body={durabilityEmptyBody(limit)}
           preview={<EmptyPreview columns={['Run', 'Hour 1', 'Hour 2', 'Hour 3']} />}
         />
-        {noStream + noGrade > 0 ? (
+        {left.length > 0 ? (
           <p className={styles.caption}>{durabilityLeftOutLine(noStream, noGrade)}</p>
         ) : null}
       </>
     )
   }
   const hours = Math.max(...runs.map((run) => run.hours.length))
-  const withoutHr = runs.filter((run) => run.hrGap !== null).length
+  const unchecked = runs.filter((run) => run.hrGap === 'not-checked').length
+  const failed = runs.filter((run) => run.hrGap !== null).length - unchecked
   return (
     <>
       <p className={styles.caption}>{durabilityCaption(limit)}</p>
@@ -157,8 +173,11 @@ function body(view: TrendsDurabilityView, from: string, units: Units) {
       })}
       <p className={styles.caption}>{text('trends.durability.pace')}</p>
       <p className={styles.caption}>{durabilityPartHourLine(DURABILITY_PART_HOUR_MIN)}</p>
-      {withoutHr > 0 ? <p className={styles.caption}>{durabilityHrLeftLine(withoutHr)}</p> : null}
-      {noStream + noGrade > 0 ? (
+      {failed > 0 ? <p className={styles.caption}>{durabilityHrLeftLine(failed)}</p> : null}
+      {unchecked > 0 ? (
+        <p className={styles.caption}>{durabilityHrUncheckedLine(unchecked)}</p>
+      ) : null}
+      {left.length > 0 ? (
         <p className={styles.caption}>{durabilityLeftOutLine(noStream, noGrade)}</p>
       ) : null}
     </>

@@ -3,6 +3,7 @@ import { act, renderHook, waitFor } from '@testing-library/react'
 import { createElement, type ReactNode } from 'react'
 import { describe, expect, test } from 'vitest'
 import { fuelLogUrl, useFuelLab, useSaveFuelLog, type FuelLogBody } from '../../web/api/fuel.ts'
+import { useTrendsDurability } from '../../web/api/trends.ts'
 import { getOutbox, useOutboxReplay } from '../../web/pwa/outbox.ts'
 import { loggedRun, makeLab, saved } from './fuel-fixtures.ts'
 import { delayResponses, mockApi } from './helpers.tsx'
@@ -115,5 +116,37 @@ describe('a fuel log saved through the outbox', () => {
     })
     expect(answer).toEqual({ status: 'rejected', reason: 'Pick a gut score.' })
     expect(getOutbox().getState().entries).toEqual([])
+  })
+})
+
+describe('a fuel log and the Trends long-run hours', () => {
+  test('a saved log reads the hours again, so a run moves to the fuel-log group', async () => {
+    const runs = [loggedRun(9)]
+    const { calls } = mockApi({
+      'GET /api/fuel': () => makeLab(),
+      [`PUT ${fuelLogUrl(ACTIVITY)}`]: () => saved(runs, ACTIVITY),
+    })
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const { result } = renderHook(
+      () => {
+        useOutboxReplay('u1')
+        return { hours: useTrendsDurability(), save: useSaveFuelLog() }
+      },
+      {
+        wrapper: ({ children }: { children: ReactNode }) =>
+          createElement(QueryClientProvider, { client: queryClient }, children),
+      },
+    )
+    await waitFor(() => {
+      expect(result.current.hours.isSuccess).toBe(true)
+    })
+    const reads = () => calls.filter((call) => call.url === '/api/trends/durability').length
+    expect(reads()).toBe(1)
+    await act(async () => {
+      await result.current.save.mutateAsync({ activityId: ACTIVITY, body: BODY })
+    })
+    await waitFor(() => {
+      expect(reads()).toBeGreaterThanOrEqual(2)
+    })
   })
 })

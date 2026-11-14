@@ -1,6 +1,7 @@
 import { addDays } from '../../shared/dates.ts'
 import {
   durabilityByHour,
+  type DurabilityLeftOut,
   type DurabilityRun,
   type TrendsDurabilityView,
 } from '../../shared/domain/durabilityByHour.ts'
@@ -46,7 +47,7 @@ export async function loadDurability(
     select: { id: true, date: true, type: true, durationSec: true, hrQuality: true },
     orderBy: [{ date: 'asc' }, { id: 'asc' }],
   })
-  const leftOut = { noStream: 0, noGrade: 0 }
+  const leftOut: DurabilityLeftOut[] = []
   if (rows.length === 0) return { asOf: today, runs: [], leftOut }
 
   const ids = rows.map((row) => row.id)
@@ -71,7 +72,7 @@ export async function loadDurability(
     const stored = streamOf.get(row.id)
     const stream = stored === undefined ? null : parseJson<ActivityStreamData>(stored.data)
     if (stored === undefined || stream === null) {
-      leftOut.noStream += 1
+      leftOut.push({ date: row.date, reason: 'no-stream' })
       continue
     }
     const read = durabilityByHour(
@@ -81,7 +82,7 @@ export async function loadDurability(
       ratios,
     )
     if (read === null) {
-      leftOut.noGrade += 1
+      leftOut.push({ date: row.date, reason: 'no-grade' })
       continue
     }
     runs.push({

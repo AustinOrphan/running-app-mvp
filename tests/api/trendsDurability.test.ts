@@ -86,7 +86,7 @@ describe('GET /api/trends/durability', () => {
     expect(res.body).toEqual({
       asOf: TODAY,
       runs: [],
-      leftOut: { noStream: 0, noGrade: 0 },
+      leftOut: [],
     })
   })
 
@@ -148,7 +148,10 @@ describe('GET /api/trends/durability', () => {
     await seed({ daysAgo: 20, stream: { ...fourHours(), alt: null } })
     const view = (await getView()).body as TrendsDurabilityView
     expect(view.runs).toEqual([])
-    expect(view.leftOut).toEqual({ noStream: 1, noGrade: 1 })
+    expect(view.leftOut).toEqual([
+      { date: addDays(TODAY, -20), reason: 'no-grade' },
+      { date: addDays(TODAY, -10), reason: 'no-stream' },
+    ])
   })
 
   test('reads again after a fuel log is written', async () => {

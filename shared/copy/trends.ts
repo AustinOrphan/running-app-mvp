@@ -340,7 +340,8 @@ export const TRENDS_TEMPLATES = {
   'trends.durability.col-fuel': tpl('Fuel log', {}, { shape: 'label' }),
   'trends.durability.fuel-logged': tpl('With a fuel log', {}, { shape: 'label' }),
   'trends.durability.fuel-none': tpl('No fuel log', {}, { shape: 'label' }),
-  'trends.durability.no-figure': tpl('No figure', {}, { shape: 'label' }),
+  'trends.durability.no-pace': tpl('No pace', {}, { shape: 'label' }),
+  'trends.durability.no-hr': tpl('No heart rate', {}, { shape: 'label' }),
   'trends.durability.part-hour': tpl(
     'A last part-hour is shown when it holds at least {min} of the run. Its figures cover those minutes only.',
     { min: 'minutes' },
@@ -349,17 +350,21 @@ export const TRENDS_TEMPLATES = {
     'Runs with heart rate left out because it did not pass the checks: {count}.',
     { count: 'count' },
   ),
+  'trends.durability.hr-unchecked': tpl(
+    'Runs with heart rate left out because the checks have not run on them yet: {count}.',
+    { count: 'count' },
+  ),
   'trends.durability.pace': tpl(
     'Pace is grade-adjusted, as in the drift panel. Heart rate shows only for a run that passed the checks.',
   ),
   'trends.durability.hr-reason': tpl('Heart rate left out: {reason}.', { reason: 'text' }),
   'trends.durability.left-out': tpl(
-    'Of the runs of that length, not shown: {noStream} with no stored stream, {noGrade} with no altitude profile.',
+    'Of the runs of that length, not shown: {noStream} with no stored stream, {noGrade} with no usable altitude profile.',
     { noStream: 'count', noGrade: 'count' },
   ),
   'trends.durability.empty': tpl('No runs of that length to show yet.'),
   'trends.durability.empty-body': tpl(
-    'A run or race of {from} or longer, with a stored stream and an altitude profile, shows here as one row.',
+    'A run or race of {from} or longer, with a stored stream and a usable altitude profile, shows here as one row.',
     { from: 'minutes' },
   ),
   'trends.durability.description': tpl(
@@ -774,9 +779,14 @@ export function durabilityLeftOutLine(noStream: number, noGrade: number): string
   )
 }
 
-/** How many drawn runs have no heart rate. */
+/** How many drawn runs have no heart rate because it did not pass the checks. */
 export function durabilityHrLeftLine(runs: number): string {
   return render(TRENDS_TEMPLATES['trends.durability.hr-left'], { count: count(runs) }, 'km')
+}
+
+/** How many drawn runs have no heart rate because the checks have not run on them yet. */
+export function durabilityHrUncheckedLine(runs: number): string {
+  return render(TRENDS_TEMPLATES['trends.durability.hr-unchecked'], { count: count(runs) }, 'km')
 }
 
 /** The one line that says what the panel is and is not. */

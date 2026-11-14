@@ -58,7 +58,13 @@
 }
 
 .table tbody th {
+  max-width: 11rem;
   font-weight: 400;
+}
+
+/* The date stays on one line; the length and the reason under it wrap, so a long reason does not
+   widen the first column. */
+.date {
   white-space: nowrap;
 }
 

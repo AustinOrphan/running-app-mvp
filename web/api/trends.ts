@@ -43,9 +43,10 @@ export function useTrendsRuns() {
 
 /**
  * The runs of 180 minutes or more with their pace and heart rate by the hour, for the long-run
- * panel (rule T1, DR1). The server computes them once per data version, so a run, a stream or a fuel
- * log added or removed reads again through `ACTIVITY_DATA_KEYS`; the key sits under `keys.trends`
- * for the same reason.
+ * panel (rule T1, DR1). The server computes them once per data version, so a run or stream added or
+ * removed reads again through `ACTIVITY_DATA_KEYS`, and a fuel log saved, queued and sent, or
+ * skipped reads again through `keys.trends` (`invalidateAfterLog`, the `fuel log` entry of
+ * `OUTBOX_ROUTES`); the key sits under `keys.trends` for that reason.
  */
 export function useTrendsDurability() {
   return useQuery({

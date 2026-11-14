@@ -78,7 +78,8 @@ export const OUTBOX_ROUTES: readonly OutboxRoute[] = [
     label: 'fuel log',
     matches: (url) => /^\/api\/fuel\/logs\/[\w%-]+$/.test(url),
     combine: 'replace',
-    invalidates: [keys.fuel, keys.today],
+    // A long run's fuel-log group on Trends (rule T1, DR1) follows the log.
+    invalidates: [keys.fuel, keys.today, keys.trends],
   },
   {
     // `PUT /api/strength/logs/:logId` stores the whole session under the id the sheet chose, so a

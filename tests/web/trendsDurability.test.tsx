@@ -49,7 +49,7 @@ function run(id: string, daysAgo: number, over: Partial<DurabilityRun> = {}): Du
 }
 
 function view(over: Partial<TrendsDurabilityView> = {}): TrendsDurabilityView {
-  return { asOf: TODAY, runs: [], leftOut: { noStream: 0, noGrade: 0 }, ...over }
+  return { asOf: TODAY, runs: [], leftOut: [], ...over }
 }
 
 function mockPage(durability: TrendsDurabilityView | 'error', units: Units = 'km') {
@@ -127,9 +127,9 @@ describe('Trends, long runs by the hour', () => {
 
     const none = section.getByRole('region', { name: /^No fuel log: / })
     // The shorter run has no fourth hour: an empty cell, not a figure.
-    expect(
-      within(within(none).getByRole('row', { name: /2026-03-06/ })).getAllByRole('cell'),
-    ).toHaveLength(4)
+    const cells = within(within(none).getByRole('row', { name: /2026-03-06/ })).getAllByRole('cell')
+    expect(cells).toHaveLength(4)
+    expect(cells[3]).toBeEmptyDOMElement()
   })
 
   test('shows a gap where an hour has no figure, and no figure where the run has none', async () => {
@@ -145,7 +145,10 @@ describe('Trends, long runs by the hour', () => {
     renderWithProviders(<TrendsPage />)
     const section = await panel()
     const row = section.getByRole('row', { name: /2026-03-08/ })
-    expect(within(row).getAllByLabelText('No figure')).toHaveLength(2)
+    // The dash is hidden from a screen reader and the words are read in its place.
+    expect(within(row).getAllByText('–')).toHaveLength(2)
+    expect(within(row).getByText('No pace')).toBeInTheDocument()
+    expect(within(row).getByText('No heart rate')).toBeInTheDocument()
   })
 
   test('a run whose heart rate failed the checks keeps its pace and names the reason', async () => {
@@ -194,18 +197,64 @@ describe('Trends, long runs by the hour', () => {
   })
 
   test('counts the runs it leaves out and why', async () => {
-    mockPage(view({ runs: [run('a1', 10)], leftOut: { noStream: 2, noGrade: 1 } }))
+    mockPage(
+      view({
+        runs: [run('a1', 10)],
+        leftOut: [
+          { date: addDays(TODAY, -30), reason: 'no-stream' },
+          { date: addDays(TODAY, -40), reason: 'no-stream' },
+          { date: addDays(TODAY, -50), reason: 'no-grade' },
+        ],
+      }),
+    )
     renderWithProviders(<TrendsPage />)
     const section = await panel()
     expect(
       section.getByText(
-        'Of the runs of that length, not shown: 2 with no stored stream, 1 with no altitude profile.',
+        'Of the runs of that length, not shown: 2 with no stored stream, 1 with no usable altitude profile.',
+      ),
+    ).toBeVisible()
+  })
+
+  test('counts only the left-out runs of the range shown, as the rows are', async () => {
+    mockPage(
+      view({
+        runs: [run('a1', 10)],
+        leftOut: [
+          { date: addDays(TODAY, -30), reason: 'no-stream' },
+          { date: addDays(TODAY, -400), reason: 'no-stream' },
+          { date: addDays(TODAY, -500), reason: 'no-grade' },
+        ],
+      }),
+    )
+    renderWithProviders(<TrendsPage />)
+    const section = await panel()
+    // The default range is 12 months: the two runs of more than a year ago are not counted.
+    expect(
+      section.getByText(
+        'Of the runs of that length, not shown: 1 with no stored stream, 0 with no usable altitude profile.',
+      ),
+    ).toBeVisible()
+  })
+
+  test('says a run whose checks have not run is not one that failed them', async () => {
+    mockPage(
+      view({ runs: [run('a1', 10, { hrGap: 'not-checked' }), run('a2', 20, { hrGap: 'spikes' })] }),
+    )
+    renderWithProviders(<TrendsPage />)
+    const section = await panel()
+    expect(
+      section.getByText('Runs with heart rate left out because it did not pass the checks: 1.'),
+    ).toBeVisible()
+    expect(
+      section.getByText(
+        'Runs with heart rate left out because the checks have not run on them yet: 1.',
       ),
     ).toBeVisible()
   })
 
   test('is type only when no run qualifies, and still counts what was left out', async () => {
-    mockPage(view({ leftOut: { noStream: 1, noGrade: 0 } }))
+    mockPage(view({ leftOut: [{ date: addDays(TODAY, -30), reason: 'no-stream' }] }))
     renderWithProviders(<TrendsPage />)
     const section = await panel()
     expect(section.getByText('No runs of that length to show yet.')).toBeVisible()
@@ -235,7 +284,10 @@ describe('Trends, long runs by the hour', () => {
     mockPage(
       view({
         runs: [run('a1', 10, { fuel: 'logged' }), run('a2', 20, { hrGap: 'spikes' })],
-        leftOut: { noStream: 1, noGrade: 1 },
+        leftOut: [
+          { date: addDays(TODAY, -30), reason: 'no-stream' },
+          { date: addDays(TODAY, -50), reason: 'no-grade' },
+        ],
       }),
     )
     renderWithProviders(<TrendsPage />)

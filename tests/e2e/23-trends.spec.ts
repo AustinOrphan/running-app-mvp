@@ -784,6 +784,22 @@ async function seedLongRunHours(): Promise<void> {
     await prisma.fuelLog.create({
       data: { userId: user.id, activityId: ids[0]!, skipped: false, gut: 1, nausea: 0 },
     })
+    // A wrist run with no heart rate fails the checks: its row carries a reason under the date, and
+    // the page must still hold at 360 px.
+    const bare = { ...data, hr: null }
+    const failed = await prisma.activity.create({
+      data: {
+        userId: user.id,
+        date: addDays(today, -21),
+        type: 'run',
+        durationSec: 4 * 3600,
+        distanceM: 40_000,
+        hrQuality: JSON.stringify(computeHrQuality(bare, SAMPLE_SEC, 'wrist')),
+      },
+    })
+    await prisma.activityStream.create({
+      data: { activityId: failed.id, sampleSec: SAMPLE_SEC, data: JSON.stringify(bare) },
+    })
     await prisma.activity.create({
       data: {
         userId: user.id,
@@ -836,6 +852,7 @@ test.describe('long runs by the hour', () => {
     await expect(
       section.getByText(/^This describes the runs; the plan does not read it/),
     ).toBeVisible()
+    await expect(section.getByText('Heart rate left out: the heart rate has gaps.')).toBeVisible()
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
     )

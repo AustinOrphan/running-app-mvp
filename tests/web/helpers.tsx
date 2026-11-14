@@ -50,7 +50,7 @@ const defaultRoutes: MockRoutes = {
   'GET /api/trends/durability': () => ({
     asOf: '2026-03-18',
     runs: [],
-    leftOut: { noStream: 0, noGrade: 0 },
+    leftOut: [],
   }),
 }
 

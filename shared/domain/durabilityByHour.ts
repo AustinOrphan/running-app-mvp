@@ -132,12 +132,15 @@ export interface DurabilityRun {
   hrGap: DurabilityHrGap | null
 }
 
-/** The runs of that length that are not drawn, and why. */
+/**
+ * A run of that length that is not drawn: `no-stream` has no stored 10 s stream (a spreadsheet
+ * import, a manual entry); `no-grade` has a stream that gives no grade-adjusted pace (no distance,
+ * or no usable altitude profile: under 2 m of range, too few points, or a clock under 30 minutes).
+ * The date lets the page count only the runs of the range it shows.
+ */
 export interface DurabilityLeftOut {
-  /** No stored 10 s stream (a spreadsheet import, a manual entry). */
-  noStream: number
-  /** A stream with no distance or no altitude profile, so no grade-adjusted pace. */
-  noGrade: number
+  date: string
+  reason: 'no-stream' | 'no-grade'
 }
 
 /** The body of `GET /api/trends/durability`. */
@@ -145,5 +148,5 @@ export interface TrendsDurabilityView {
   asOf: string
   /** Oldest first. */
   runs: DurabilityRun[]
-  leftOut: DurabilityLeftOut
+  leftOut: DurabilityLeftOut[]
 }
