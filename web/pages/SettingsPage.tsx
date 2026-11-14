@@ -1,13 +1,21 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
+import { feedbackReport } from '../../shared/copy/feedback.ts'
 import { render } from '../../shared/copy/template.ts'
 import { TEMPLATES } from '../../shared/copy/templates.ts'
 import { trendsText } from '../../shared/copy/trends.ts'
 import { DEFAULT_WEIGHT_UNIT, isWeightUnit } from '../../shared/domain/weight.ts'
-import type { Units, UserSettings, WeightUnit } from '../../shared/types.ts'
+import type {
+  PlanRevisionView,
+  PlanWithSessions,
+  Units,
+  UserSettings,
+  WeightUnit,
+} from '../../shared/types.ts'
 import { useLogout } from '../api/auth.ts'
 import { useWaitingRecords } from '../api/activityOutbox.ts'
-import { fieldErrors } from '../api/client.ts'
+import { fieldErrors, keys } from '../api/client.ts'
 import { exportRefusal, useDownloadExport, type ExportRefusal } from '../api/export.ts'
 import { useSettings, useUpdateSettings, type SettingsPatch } from '../api/settings.ts'
 import { Button } from '../components/Button.tsx'
@@ -21,6 +29,8 @@ import { useMapTiles } from '../components/map/useMapTiles.ts'
 import { useTheme, type Theme } from '../components/Nav.tsx'
 import { PageHeader } from '../components/PageHeader.tsx'
 import { Segmented } from '../components/Segmented.tsx'
+import { pageBuildId } from '../pwa/buildId.ts'
+import { previousPagePath } from '../pwa/pageTrail.ts'
 import { useOfflineStatus, type OfflineStatus } from '../pwa/register.ts'
 import styles from './SettingsPage.module.css'
 
@@ -419,6 +429,8 @@ function SettingsForm({ initial }: { initial: UserSettings }) {
         <p className={styles.note}>{render(OFFLINE_USE[offline], {}, units)}</p>
       </section>
 
+      <FeedbackBlock units={units} />
+
       <section className={styles.section} aria-labelledby="password-heading">
         <h2 id="password-heading" className={styles.heading}>
           {render(TEMPLATES['account.password.heading'], {}, units)}
@@ -461,6 +473,95 @@ function SettingsForm({ initial }: { initial: UserSettings }) {
         </div>
       </section>
     </>
+  )
+}
+
+/**
+ * The "Send feedback" block (FB1): builds a short plain-text note and copies it. Plan facts come from
+ * what the page already holds in the query cache; nothing is requested for the note. When the
+ * clipboard is not available the note is shown selected, to copy by hand.
+ */
+function FeedbackBlock({ units }: { units: Units }) {
+  const queryClient = useQueryClient()
+  const [copied, setCopied] = useState(false)
+  const [manual, setManual] = useState<string | null>(null)
+  const copiedTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const field = useRef<HTMLTextAreaElement>(null)
+  useEffect(() => () => clearTimeout(copiedTimer.current), [])
+  useEffect(() => {
+    const area = field.current
+    if (manual === null || area === null) return
+    // `setSelectionRange` after `focus` selects on iOS, where `select()` alone may not.
+    area.focus()
+    area.setSelectionRange(0, area.value.length)
+  }, [manual])
+
+  function note(): string {
+    const plan = queryClient.getQueryData<PlanWithSessions | null>([keys.plan])
+    const revisions = queryClient.getQueryData<PlanRevisionView[]>([keys.planRevisions])
+    return feedbackReport({
+      fromPath: previousPagePath(),
+      buildId: pageBuildId(),
+      at: new Date().toISOString(),
+      userAgent: navigator.userAgent,
+      planId: plan?.id ?? null,
+      // newest first
+      planRevisedAt: revisions?.[0]?.createdAt ?? null,
+    })
+  }
+
+  async function onCopy() {
+    const text = note()
+    try {
+      await navigator.clipboard.writeText(text)
+    } catch {
+      setCopied(false)
+      setManual(text)
+      return
+    }
+    setManual(null)
+    setCopied(true)
+    clearTimeout(copiedTimer.current)
+    copiedTimer.current = setTimeout(() => {
+      setCopied(false)
+    }, SAVED_MS)
+  }
+
+  return (
+    <section className={styles.section} aria-labelledby="feedback-heading">
+      <h2 id="feedback-heading" className={styles.heading}>
+        {render(TEMPLATES['feedback.heading'], {}, units)}
+      </h2>
+      <p className={styles.note}>{render(TEMPLATES['feedback.what'], {}, units)}</p>
+      <div>
+        <Button
+          onClick={() => {
+            void onCopy()
+          }}
+          aria-describedby="feedback-status"
+        >
+          {render(TEMPLATES['feedback.button'], {}, units)}
+        </Button>
+      </div>
+      <div id="feedback-status" role="status" aria-live="polite">
+        {copied ? (
+          <p className={styles.note}>{render(TEMPLATES['feedback.copied'], {}, units)}</p>
+        ) : null}
+        {manual === null ? null : (
+          <p className={styles.note}>{render(TEMPLATES['feedback.fallback'], {}, units)}</p>
+        )}
+      </div>
+      {manual === null ? null : (
+        <textarea
+          ref={field}
+          className={styles.noteField}
+          readOnly
+          rows={12}
+          value={manual}
+          aria-label={render(TEMPLATES['feedback.fallback-label'], {}, units)}
+        />
+      )}
+    </section>
   )
 }
 

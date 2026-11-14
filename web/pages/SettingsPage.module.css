@@ -102,3 +102,23 @@
   flex-wrap: wrap;
   gap: var(--space-2);
 }
+
+/* The feedback note when the clipboard is unavailable: read-only text, selected, to copy by hand. */
+.noteField {
+  width: 100%;
+  min-height: 12rem;
+  padding: var(--space-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  color: var(--text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+  resize: vertical;
+}
+
+.noteField:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

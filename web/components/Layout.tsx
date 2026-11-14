@@ -1,6 +1,7 @@
 import { Suspense, useEffect } from 'react'
-import { Outlet } from 'react-router-dom'
+import { Outlet, useLocation } from 'react-router-dom'
 import { useQueuedSentToasts } from '../api/activityOutbox.ts'
+import { notePagePath } from '../pwa/pageTrail.ts'
 import { PageBoundary } from './ErrorBoundary.tsx'
 import styles from './Layout.module.css'
 import { Nav, restoreTheme } from './Nav.tsx'
@@ -17,6 +18,11 @@ function QueuedSentToasts() {
 
 /** Tab bar below 720px, side rail from 720px, one `<main>`, a skip link and the toast host. */
 export function Layout() {
+  const { pathname } = useLocation()
+  // Kept for the feedback note in Settings: the page the runner came from.
+  useEffect(() => {
+    notePagePath(pathname)
+  }, [pathname])
   useEffect(() => {
     restoreTheme()
   }, [])
