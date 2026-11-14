@@ -1117,6 +1117,24 @@ describe('the race plan block (rule H14)', () => {
     expect(within(sheet).queryByRole('link', { name: 'Open the race plan' })).toBeNull()
   })
 
+  test('a race the runner entered besides the goal race has no race plan block', async () => {
+    renderSheet(
+      makeSession({
+        id: 'race2',
+        kind: 'race',
+        title: 'Race: Synthetic tune-up',
+        date: '2027-01-13',
+        durationMin: 600,
+        target: { zone: 'z1', rpe: [3, 4], hr: null, paceSecPerKm: null, heatNote: null },
+        flags: ['entered-race'],
+      }),
+      noTargets,
+    )
+    const sheet = await screen.findByRole('dialog', { name: 'Race: Synthetic tune-up' })
+    expect(await within(sheet).findByText('A race you entered')).toBeVisible()
+    expect(within(sheet).queryByRole('link', { name: 'Open the race plan' })).toBeNull()
+  })
+
   test('a run has no race plan block', async () => {
     renderSheet(makeSession())
     const sheet = await screen.findByRole('dialog', { name: 'Threshold intervals' })

@@ -1,6 +1,7 @@
 import { afterAll, afterEach, beforeAll, describe, expect, test } from 'vitest'
 import { assertCleanCopy } from '../../shared/copy/lint.ts'
 import { addDays, mondayOf, todayIso } from '../../shared/dates.ts'
+import { PARAMS_VERSION } from '../../shared/engine/params/index.ts'
 import type { PlanRevisionView, PlanWithSessions } from '../../shared/types.ts'
 import {
   client,
@@ -115,6 +116,9 @@ describe('a B goal entered before the goal race', () => {
     expect(added.auto).toBe(false)
     expect(added.summary).toMatch(/^Plan drawn around the race Synthetic Tune-up on .+\./)
     assertCleanCopy(added.summary)
+    // RV1: the write redrew the plan through the engine, so it records the rules it was drawn under
+    const row = await ctx.prisma.planRevision.findUniqueOrThrow({ where: { id: added.id } })
+    expect(row.paramsVersion).toBe(PARAMS_VERSION)
     // the day after the race is the rest of its recovery
     expect(
       withRace.sessions.filter((s) => s.date === addDays(TUNE_UP, 1)).map((s) => s.kind),
@@ -157,19 +161,17 @@ describe('a B goal entered before the goal race', () => {
     expect(shape(restored)).toEqual(shape(before))
   })
 
-  test('the revision is not undone while the race stays entered: the plan checks refuse it', async () => {
+  test('the revision can be undone; the next re-plan draws the entered race again', async () => {
     const user = await seedPlan('races-undo@example.com')
+    const before = await readPlan(user)
     await addGoal(user).expect(201)
-    const withRace = await readPlan(user)
     const [added] = await revisions(user)
     const undone = await client(ctx, user).post(`/api/plan/revisions/${added!.id}/undo`).send({})
-    expect(undone.status).toBe(422)
-    const { checklist } = (
-      undone.body as { error: { details: { checklist: Array<{ id: string; ok: boolean }> } } }
-    ).error.details
-    expect(checklist.filter((item) => !item.ok).map((item) => item.id)).toEqual(['race-day'])
-    // nothing was written
-    expect(shape(await readPlan(user))).toEqual(shape(withRace))
+    expect(undone.status, JSON.stringify(undone.body)).toBe(200)
+    expect(shape(await readPlan(user))).toEqual(shape(before))
+    // the goal is still entered, so any later re-plan draws it again
+    expect((await client(ctx, user).post('/api/plan/replan').send({})).status).toBe(200)
+    expect(raceDays(await readPlan(user))).toEqual([TUNE_UP, GOAL_DATE])
   })
 })
 

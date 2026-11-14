@@ -607,6 +607,11 @@ export const REVISION_TEMPLATES = {
     { name: 'text', date: 'date' },
     { fallback: 'Plan drawn again for an entered race.' },
   ),
+  'revision.races.skipped': tpl(
+    'The race {name} on {date} is not drawn into the plan.',
+    { name: 'text', date: 'date' },
+    { fallback: 'An entered race is not drawn into the plan.' },
+  ),
   'revision.races.removed': tpl(
     'The race {name} is no longer in the plan.',
     { name: 'text' },
@@ -1051,7 +1056,7 @@ export function goalSwitchSummary(goal: string, weeks: number, sessions: number)
 
 /** A change to a race entered before the goal race, as the runner made it [rules K6, H12]. */
 export interface RaceChangeLine {
-  kind: 'added' | 'moved' | 'changed' | 'removed'
+  kind: 'added' | 'moved' | 'changed' | 'removed' | 'skipped'
   name: string
   /** The race's date after the change; absent for a removal. */
   date?: string

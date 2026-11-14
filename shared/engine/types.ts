@@ -95,6 +95,7 @@ export type SessionFlag =
   | 'post-race'
   | 'injury-return'
   | 'rest-window'
+  | 'entered-race'
 export interface SessionSpec {
   date: string
   order: number

@@ -16,13 +16,16 @@ import {
   enteredRacePurpose,
   raceInTaperWarning,
   racesCloseWarning,
+  raceOnKeptDayWarning,
+  CLIPPED_HOLD_PURPOSE,
 } from '../copy/enteredRaces.ts'
 import { runningMinutes, VOLUME_KINDS } from './limits.ts'
-import { holdSessions } from './micro.ts'
+import { holdSessions, intensityMinutes } from './micro.ts'
 import { P } from './params/index.ts'
 import { afterRaceTitle, lastWindowDay, tuneUpWindow, windowDay } from './postRace.ts'
 import type { PostRaceWindow } from './postRace.ts'
 import { prescribe } from './sessions.ts'
+import { startKind } from './startWeeks.ts'
 import type {
   EngineInput,
   EngineWarning,
@@ -123,12 +126,27 @@ export function applyEnteredRaces(args: EnteredRacesArgs): EnteredRacesResult {
   const warnings: EngineWarning[] = []
   const spans: Array<{ window: PostRaceWindow; end: string }> = []
   const isEditable = (s: SessionSpec, from: string, to: string) =>
-    s.date >= from && s.date <= to && s.date >= today && !raceDays.has(s.date) && s.kind !== 'race'
+    s.date >= from &&
+    s.date <= to &&
+    s.date >= today &&
+    !raceDays.has(s.date) &&
+    s.kind !== 'race' &&
+    // the sessions of a start path are fixed by its programme, never eased or cut here [rules E6]
+    startKind(weekOf(s.date)?.flags ?? []) === null
 
   for (const [i, race] of races.entries()) {
     const date = race.goal.date
     const week = weekOf(date)
-    if (week === undefined || keptDates.has(date)) continue
+    if (week === undefined) continue
+    if (keptDates.has(date)) {
+      warnings.push({
+        code: 'entered-race-on-kept-day',
+        severity: 'info',
+        message: raceOnKeptDayWarning(race.goal.name, date),
+        rules: ['K6'],
+      })
+      continue
+    }
     const inTaper = date >= taperStart
     const window = inTaper ? null : tuneUpWindow(input, race.goal)
     // The window ends the day before the next entered race, and before the goal race's taper.
@@ -139,13 +157,19 @@ export function applyEnteredRaces(args: EnteredRacesArgs): EnteredRacesResult {
       addDays(taperStart, -1),
     ].reduce((a, b) => (a < b ? a : b))
 
+    const clipped = window !== null && windowEnd < lastWindowDay(window)
     // the race day holds the race and nothing else the plan placed
     out = out.filter((s) => s.date !== date || s.kind === 'race')
     const base = args.raceSession(race, week)
     out.push({
       ...base,
-      purpose: enteredRacePurpose({ priority: race.priority, inTaper, recovery: window !== null }),
+      purpose: enteredRacePurpose({
+        priority: race.priority,
+        inTaper,
+        recovery: window === null ? 'none' : clipped ? 'clipped' : 'full',
+      }),
       rules: [...new Set([...base.rules, ...(window === null ? [] : ['H12'])])],
+      flags: [...new Set<SessionFlag>([...base.flags, 'entered-race'])],
     })
     raceDays.add(date)
 
@@ -209,8 +233,11 @@ export function applyEnteredRaces(args: EnteredRacesArgs): EnteredRacesResult {
     // hold days: rest, with the hold's words, in place of anything the plan placed there
     const holds: SessionSpec[] = []
     for (const w of macro) {
+      if (startKind(w.flags) !== null) continue
       for (const s of holdSessions(w, zones, [window], today)) {
-        if (s.date <= windowEnd && !raceDays.has(s.date)) holds.push(s)
+        if (s.date > windowEnd || raceDays.has(s.date)) continue
+        // a window that ends early promises no day it does not hold
+        holds.push(windowEnd < lastWindowDay(window) ? { ...s, purpose: CLIPPED_HOLD_PURPOSE } : s)
       }
     }
     const holdDates = new Set(holds.map((s) => s.date))
@@ -302,7 +329,63 @@ export function applyEnteredRaces(args: EnteredRacesArgs): EnteredRacesResult {
     return rest
   }
 
-  return { sessions: out, weeks: recoveryWeeks(macro, args.sessions, out, spans), warnings }
+  // Quality stays in step with the volume the races removed, and a back-to-back pair is eased as a
+  // unit: a pair that lost a day, or whose second day outgrew the first, becomes two easy runs
+  // [rules F2, H3]. Only the weeks a race touched are read; the plan without the race met both.
+  const touched = (week: WeekDraft) => {
+    const end = addDays(week.weekStart, 6)
+    const within = (s: SessionSpec) => s.date >= week.weekStart && s.date <= end
+    const was = args.sessions.filter(within)
+    const now = out.filter(within)
+    return was.length !== now.length || was.some((s) => !now.includes(s))
+  }
+  const plain = (s: SessionSpec) =>
+    easyRun(s, s.durationMin, zones, weekOf(s.date) ?? macro[0]!, { title: 'Easy run', rule: 'F2' })
+  const easeIf = (test: (s: SessionSpec) => boolean) => {
+    out = out.map((s) => (test(s) && s.kind !== 'race' ? plain(s) : s))
+  }
+  const pairBroken = (s: SessionSpec): boolean => {
+    if (s.date < today) return false
+    if (s.flags.includes('b2b-day1')) {
+      const second = out.find((x) => x.date === addDays(s.date, 1) && x.flags.includes('b2b-day2'))
+      return second === undefined || second.durationMin > s.durationMin
+    }
+    if (s.flags.includes('b2b-day2')) {
+      const first = out.find((x) => x.date === addDays(s.date, -1) && x.flags.includes('b2b-day1'))
+      return first === undefined || s.durationMin > first.durationMin
+    }
+    return false
+  }
+  const broken = new Set(out.filter(pairBroken))
+  for (const s of [...broken]) {
+    const partner = out.find(
+      (x) =>
+        x.date === addDays(s.date, s.flags.includes('b2b-day1') ? 1 : -1) &&
+        (x.flags.includes('b2b-day1') || x.flags.includes('b2b-day2')),
+    )
+    if (partner !== undefined) broken.add(partner)
+  }
+  easeIf((s) => broken.has(s))
+  for (const week of macro) {
+    if (!touched(week)) continue
+    const end = addDays(week.weekStart, 6)
+    for (;;) {
+      const runs = out.filter(
+        (s) =>
+          s.date >= week.weekStart &&
+          s.date <= end &&
+          VOLUME_KINDS.has(s.kind) &&
+          !s.flags.includes('rest-window'),
+      )
+      const total = runs.reduce((sum, s) => sum + s.durationMin, 0)
+      const hard = runs.reduce((sum, s) => sum + intensityMinutes(s), 0)
+      if (total === 0 || (hard / total) * 100 <= P.f2.z2z3ShareMax.value) break
+      const worst = runs.reduce((a, b) => (intensityMinutes(b) > intensityMinutes(a) ? b : a))
+      if (intensityMinutes(worst) === 0 || worst.date < today) break
+      easeIf((s) => s === worst)
+    }
+  }
+  return { sessions: out, weeks: markWeeks(macro, args.sessions, out, spans), warnings }
 }
 
 function daysIn(from: string, to: string): number {
@@ -314,21 +397,35 @@ function daysIn(from: string, to: string): number {
 /** Days of a week inside a window that make it a recovery week. */
 const RECOVERY_WEEK_DAYS = 4
 
+/** The flag a week an entered race cut carries: the minutes it held before, for the ramp's baseline. */
+export const RACE_CUT_FLAG = 'race-cut-'
+
+/** The minutes a week held before an entered race cut it, from its flag; null for any other week. */
+export function raceCutMinutes(flags: readonly string[]): number | null {
+  for (const flag of flags) {
+    if (!flag.startsWith(RACE_CUT_FLAG)) continue
+    const n = Number(flag.slice(RACE_CUT_FLAG.length))
+    if (Number.isInteger(n) && n >= 0) return n
+  }
+  return null
+}
+
 /**
- * A week an entered race cut down is drawn as a recovery week, at the minutes placed in it: when
- * most of its days (4 or more) lie inside the recovery window of an entered race, or when the race,
- * its easing and its window left it at no more than the E3 cut under the minutes it had. Such a week
- * sets no baseline for the weeks after it, so the ramp measures those against the loading weeks
- * before it, and the recovery-cadence check does not hold it to a cut of its own: the race and the
- * window made the cut [rules E3, G-2, H12]. Other weeks are returned as they were.
+ * The weeks an entered race changed. A week the race, its easing or its window cut carries
+ * `race-cut-<minutes>`: the ramp counts it at the minutes it held before as the baseline of the
+ * weeks after it, which are the weeks of the plan without the race, so they stay inside the limits
+ * that plan met. A week keeps its recovery or loading role from the plan without the race [rules
+ * E3, G-2, H12]. A week with most of its days (4 or more) inside the recovery window of an entered
+ * race is flagged `race-recovery` (the cadence check does not hold it to a cut of its own). Every
+ * week keeps the figure of K2 in its row, as with the K6 shake-out, so the taper is read from the
+ * weeks of the plan without the race.
  */
-function recoveryWeeks(
+function markWeeks(
   macro: readonly WeekDraft[],
   before: readonly SessionSpec[],
   after: readonly SessionSpec[],
   spans: ReadonlyArray<{ window: PostRaceWindow; end: string }>,
 ): WeekDraft[] {
-  const keep = 1 - P.e3.recoveryWeekCutPct.range![0] / 100
   return macro.map((week) => {
     if (week.isTaper) return week
     const days = [0, 1, 2, 3, 4, 5, 6].map((i) => addDays(week.weekStart, i))
@@ -339,30 +436,20 @@ function recoveryWeeks(
     ).length
     const within = (sessions: readonly SessionSpec[]) =>
       sessions.filter((s) => s.date >= week.weekStart && s.date <= days[6]!)
-    const runs = within(after).filter((s) => VOLUME_KINDS.has(s.kind))
-    const minutes = runs.reduce((sum, s) => sum + s.durationMin, 0)
-    const was = runningMinutes(within(before))
-    const windowWeek = inWindow >= RECOVERY_WEEK_DAYS
-    if (!windowWeek && !(was > 0 && minutes <= was * keep)) return week
-    const flags = [...new Set([...week.flags, 'recovery', 'race-recovery'])]
-    const cut = {
-      ...week,
-      isRecovery: true,
-      targetRunMin: Math.min(week.targetRunMin, minutes),
-      flags,
+    const was = within(before)
+    const now = within(after)
+    const changed = was.length !== now.length || was.some((s) => !now.includes(s))
+    const windowWeek = inWindow >= RECOVERY_WEEK_DAYS && startKind(week.flags) === null
+    if (!windowWeek) {
+      return changed
+        ? { ...week, flags: [...week.flags, `${RACE_CUT_FLAG}${runningMinutes(was)}`] }
+        : week
     }
-    if (!windowWeek) return cut
     return {
-      ...cut,
-      longRunMin: Math.min(
-        week.longRunMin,
-        runs.reduce((m, s) => Math.max(m, s.durationMin), 0),
-      ),
-      longRunM: null,
-      gainTargetM: null,
-      runDays: Math.min(week.runDays, runs.length),
-      qualitySessions: 0,
-      strengthSessions: 0,
+      ...week,
+      flags: [
+        ...new Set([...week.flags, `${RACE_CUT_FLAG}${runningMinutes(was)}`, 'race-recovery']),
+      ],
       focus: 'After the race: easy running',
     }
   })

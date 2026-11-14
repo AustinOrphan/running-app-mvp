@@ -4,7 +4,9 @@
 // `races-changed`, so the plan holds the race session, the easing and the recovery, or gives them
 // back. The goal write stands whether or not the re-plan does: a plan that cannot be re-planned now
 // (a checklist it fails, a goal that has passed) stays as it is and the weekly update draws it again.
+import { RACE_REPLAN_PENDING_WARNING } from '../../shared/copy/enteredRaces.ts'
 import type { RaceChangeLine } from '../../shared/copy/revision.ts'
+import type { EngineWarning } from '../../shared/engine/types.ts'
 import type { Goal } from '../../shared/types.ts'
 import type { Deps } from '../app.ts'
 import { createLogger } from '../logger.ts'
@@ -70,6 +72,36 @@ export function raceChange(
 }
 
 /**
+ * Tells the runner on the Plan page that the plan does not hold the change yet: a warning on the
+ * stored plan, replaced by the warnings of the next re-plan that is written. A failure here is
+ * logged and goes no further.
+ */
+async function noteReplanPending(deps: Deps, userId: string): Promise<void> {
+  try {
+    const plan = await deps.prisma.plan.findFirst({
+      where: { userId, status: 'active' },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true, warnings: true },
+    })
+    if (plan === null) return
+    const stored = JSON.parse(plan.warnings) as EngineWarning[]
+    if (stored.some((warning) => warning.code === 'races-replan-pending')) return
+    const warning: EngineWarning = {
+      code: 'races-replan-pending',
+      severity: 'info',
+      message: RACE_REPLAN_PENDING_WARNING,
+      rules: ['K6'],
+    }
+    await deps.prisma.plan.update({
+      where: { id: plan.id },
+      data: { warnings: JSON.stringify([...stored, warning]) },
+    })
+  } catch (error) {
+    createLogger(deps.config).warn({ reason: safeMessage(error), userId }, 'the plan note failed')
+  }
+}
+
+/**
  * Re-plans the user's active plan after a goal write, when the write changed a race the plan is
  * drawn around. `before` is the goal as it was (null for a new goal) and `after` as it is (null for
  * a deleted one). Does nothing without an active plan or when the change does not touch an entered
@@ -96,6 +128,7 @@ export async function replanAfterGoalWrite(
       { reason: safeMessage(error), userId },
       'the re-plan after a change to an entered race failed',
     )
+    await noteReplanPending(deps, userId)
     return false
   }
 }

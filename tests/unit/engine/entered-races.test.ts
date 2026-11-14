@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { addDays, mondayOf } from '../../../shared/dates.ts'
 import { enteredRacePurpose } from '../../../shared/copy/enteredRaces.ts'
 import { assertCleanCopy } from '../../../shared/copy/lint.ts'
-import { buildPlan } from '../../../shared/engine/index.ts'
+import { buildPlan, replan } from '../../../shared/engine/index.ts'
 import { plannedRaces } from '../../../shared/engine/enteredRaces.ts'
 import { runningMinutes } from '../../../shared/engine/limits.ts'
 import { P } from '../../../shared/engine/params/index.ts'
@@ -52,6 +52,8 @@ const without = buildPlan(base)
 
 const on = (sessions: readonly SessionSpec[], from: string, to = from) =>
   sessions.filter((s) => s.date >= from && s.date <= to)
+const failing = (checklist: ReadonlyArray<{ id: string; ok: boolean }>) =>
+  checklist.filter((c) => !c.ok).map((c) => c.id)
 const isRun = (s: SessionSpec) => runningMinutes([s]) > 0
 const QUALITY = new Set([
   'threshold',
@@ -131,7 +133,13 @@ describe('a B race six weeks before the goal race', () => {
     expect(plan.checklist.filter((item) => !item.ok)).toEqual([])
     const recovery = plan.weeks.filter((w) => w.flags.includes('race-recovery'))
     expect(recovery.map((w) => w.weekStart)).toContain(mondayOf(addDays(TUNE_UP_DATE, 8)))
-    for (const week of recovery) expect(week.isRecovery).toBe(true)
+    // a week keeps its role from the plan without the race and records the minutes it held
+    for (const week of recovery) {
+      expect(week.flags.some((flag) => flag.startsWith('race-cut-'))).toBe(true)
+      expect(week.isRecovery).toBe(
+        without.weeks.find((w) => w.weekStart === week.weekStart)!.isRecovery,
+      )
+    }
   })
 
   it('is deterministic and stamps the Params version', () => {
@@ -253,7 +261,7 @@ describe('the words', () => {
   it('pass the copy lint and never suggest entering a race', () => {
     for (const priority of ['B', 'C'] as const) {
       for (const inTaper of [false, true]) {
-        for (const recovery of [false, true]) {
+        for (const recovery of ['none', 'full', 'clipped'] as const) {
           const text = enteredRacePurpose({ priority, inTaper, recovery })
           assertCleanCopy(text)
           expect(text).not.toMatch(/\b(add|enter|sign up|consider|another race|tune-up)\b/i)
@@ -263,6 +271,91 @@ describe('the words', () => {
     for (const w of planWith([race('B', TUNE_UP_DATE), race('C', addDays(TUNE_UP_DATE, 5))])
       .warnings) {
       assertCleanCopy(w.message)
+    }
+  })
+})
+
+describe('a window that ends early', () => {
+  it('promises no day it does not hold', () => {
+    const first = race('B', TUNE_UP_DATE)
+    const second = race('C', addDays(TUNE_UP_DATE, 2), {
+      distanceM: 10_000,
+      distanceClass: '10k',
+      expectedDurationSec: 3000,
+    })
+    const plan = planWith([first, second])
+    const raceSession = on(plan.sessions, TUNE_UP_DATE)[0]!
+    expect(raceSession.purpose).toContain('until the next race or the taper')
+    expect(raceSession.purpose).not.toContain('in steps')
+    const [hold] = on(plan.sessions, addDays(TUNE_UP_DATE, 1))
+    expect(hold!.kind).toBe('rest')
+    expect(hold!.purpose).not.toMatch(/until \d{4}/)
+  })
+})
+
+describe('a race on a day holding a kept session', () => {
+  it('is left out with a note, and the re-plan passes the checks', () => {
+    const existing = {
+      weeks: without.weeks,
+      sessions: without.sessions.map((s, i) => ({
+        ...s,
+        id: `s${String(i)}`,
+        status: 'planned',
+        activityId: null,
+      })),
+    }
+    const run = existing.sessions.find((s) => s.date > addDays(base.today, 5) && s.kind === 'easy')!
+    run.status = 'moved'
+    const entered = race('C', run.date)
+    const draft = replan({ ...base, races: [entered], existing }).draft
+    expect(failing(draft.checklist)).toEqual([])
+    expect(draft.warnings.map((w) => w.code)).toContain('entered-race-on-kept-day')
+    expect(on(draft.sessions, run.date).map((s) => s.kind)).not.toContain('race')
+  })
+})
+
+describe('a re-plan after an entered race', () => {
+  it('passes the checks on the days after it, the race session kept', () => {
+    const plan = planWith([race('B', TUNE_UP_DATE)])
+    const existing = {
+      weeks: plan.weeks,
+      sessions: plan.sessions.map((s, i) => ({
+        ...s,
+        id: `s${String(i)}`,
+        status: 'planned',
+        activityId: null,
+      })),
+    }
+    for (const after of [1, 2, 7]) {
+      const draft = replan({
+        ...base,
+        today: addDays(TUNE_UP_DATE, after),
+        races: [],
+        existing,
+      }).draft
+      expect(failing(draft.checklist), `${String(after)} days after`).toEqual([])
+    }
+  })
+})
+
+describe('a method preset with an entered race', () => {
+  it('is held, week by week, to the default plan of the same input', () => {
+    const input = { ...base, races: [race('B', TUNE_UP_DATE)] }
+    const standard = buildPlan(input)
+    const byWeek = (sessions: readonly SessionSpec[]) => {
+      const out = new Map<string, number>()
+      for (const s of sessions) {
+        out.set(mondayOf(s.date), (out.get(mondayOf(s.date)) ?? 0) + runningMinutes([s]))
+      }
+      return out
+    }
+    const limit = byWeek(standard.sessions)
+    for (const method of ['three-run-days', 'longer-base'] as const) {
+      const preset = buildPlan({ ...input, options: { method } })
+      for (const [week, minutes] of byWeek(preset.sessions)) {
+        expect(minutes, `${method} ${week}`).toBeLessThanOrEqual(limit.get(week) ?? 0)
+      }
+      expect(failing(preset.checklist), method).toEqual([])
     }
   })
 })

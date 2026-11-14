@@ -369,6 +369,7 @@ describe('raceChangeSummary', () => {
     ['added', 'Plan drawn around the race Synthetic tune-up on Sat 5 Dec.'],
     ['changed', 'Plan drawn again for the race Synthetic tune-up on Sat 5 Dec.'],
     ['moved', 'Plan drawn around the race Synthetic tune-up, now on Sat 5 Dec.'],
+    ['skipped', 'The race Synthetic tune-up on Sat 5 Dec is not drawn into the plan.'],
   ] as const)('words a race %s', (kind, expected) => {
     const text = raceChangeSummary({ kind, name, date: '2026-12-05' })
     expect(text).toBe(expected)

@@ -5,7 +5,8 @@
 export function enteredRacePurpose(args: {
   priority: 'B' | 'C'
   inTaper: boolean
-  recovery: boolean
+  /** `clipped`: the recovery window ends early, at the next race or the taper of the goal race. */
+  recovery: 'none' | 'full' | 'clipped'
 }): string {
   if (args.inTaper) {
     return 'A race you entered, inside the taper of the goal race. Run it by effort.'
@@ -14,7 +15,11 @@ export function enteredRacePurpose(args: {
     args.priority === 'B'
       ? 'A race you entered. Run it by effort; the days before it are easy.'
       : 'A race you entered, kept light. Run it by effort; the day before it is easy.'
-  return args.recovery ? `${lead} The days after it return to training in steps.` : lead
+  if (args.recovery === 'full') return `${lead} The days after it return to training in steps.`
+  if (args.recovery === 'clipped') {
+    return `${lead} The days after it are eased until the next race or the taper.`
+  }
+  return lead
 }
 
 /** The title of an easy run the days before an entered race cut or eased. */
@@ -34,3 +39,15 @@ export function racesCloseWarning(args: {
 }): string {
   return `The race ${args.second} on ${args.secondDate} falls inside the recovery after the race ${args.first} on ${args.firstDate}. Both stay as entered, and the recovery from the first ends at the second.`
 }
+
+/** The hold days of a window that ends early promise no date. */
+export const CLIPPED_HOLD_PURPOSE = 'Rest. Walking and easy movement are fine.'
+
+/** An entered race whose day holds a session the runner kept: the race is not drawn into the plan. */
+export function raceOnKeptDayWarning(name: string, date: string): string {
+  return `The race ${name} on ${date} is not drawn into the plan: the day holds a session kept earlier.`
+}
+
+/** A change to an entered race that the plan could not take yet; the Plan page shows it as a warning. */
+export const RACE_REPLAN_PENDING_WARNING =
+  'A change to a race you entered is not in the plan yet: the plan with it did not pass the plan checks. The weekly update draws the plan again.'

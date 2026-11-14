@@ -624,6 +624,19 @@ export interface ReplanArgs {
   race?: RaceChangeLine
 }
 
+/**
+ * The change as the engine drew it: an added, moved or changed race the draft holds no race session
+ * for (its day holds a kept session) is worded as not drawn into the plan, never as placed.
+ */
+function raceLine(
+  race: RaceChangeLine,
+  sessions: ReadonlyArray<{ kind: string; date: string }>,
+): RaceChangeLine {
+  if (race.kind === 'removed' || race.date === undefined) return race
+  const placed = sessions.some((s) => s.kind === 'race' && s.date === race.date)
+  return placed ? race : { ...race, kind: 'skipped' }
+}
+
 /** A past session that a rest window skips, written before the re-plan's own rows. */
 export interface SettleWrite {
   before: PlanSessionRow
@@ -1037,7 +1050,7 @@ export async function computeReplan(deps: Deps, args: ReplanArgs): Promise<Repla
     args.raise && rise !== null
       ? raiseSummary(rise)
       : args.race !== undefined
-        ? raceChangeSummary(args.race)
+        ? raceChangeSummary(raceLine(args.race, draft.sessions))
         : args.method !== undefined
           ? methodChangeSummary({
               requested: args.method,
