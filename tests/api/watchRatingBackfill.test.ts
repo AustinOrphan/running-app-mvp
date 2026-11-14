@@ -365,7 +365,7 @@ describe('what the backfill leaves alone or hands on', () => {
       { ...parsed!, providerKey: 'intervals:x77', watchRpe: 6 },
       { source: 'intervals', importBatchId: null, channel: 'provider' },
     )
-    expect(await get(activityId)).toMatchObject({ rpe: 6, rpeSource: 'watch', watchRpeV: 1 })
+    expect(await get(activityId)).toMatchObject({ rpe: 6, rpeSource: 'watch', watchRpeV: null })
     const cleared = await client(ctx, user)
       .patch(`/api/activities/${activityId}/feedback`)
       .send({ rpe: null })
@@ -375,7 +375,71 @@ describe('what the backfill leaves alone or hands on', () => {
     const result = await backfillWatchRatings(ctx, user.id, { now: NOW })
     expect(result.requests).toBe(0)
     expect(seen).toEqual([])
-    expect(await get(activityId)).toMatchObject({ rpe: null, rpeSource: null })
+    expect(await get(activityId)).toMatchObject({ rpe: null, rpeSource: null, watchRpeV: 1 })
+  })
+
+  test('a run imported without a rating (a failed or empty record) is asked by the next tick', async () => {
+    await connect()
+    const fixes = syntheticRun(900)
+    const bytes = buildFit({
+      serial: 78,
+      sessions: [
+        {
+          sport: 1,
+          startUnix: Date.UTC(2026, 0, 6, 7) / 1000,
+          durationSec: 900,
+          records: fixes.map((f) => ({ t: f.t, distanceM: f.distanceM })),
+        },
+      ],
+    })
+    const [parsed] = parseActivityFile('run-78.fit', bytes, { timezone: 'UTC' })
+    const { activityId } = await storeParsed(
+      ctx,
+      user.id,
+      { ...parsed!, providerKey: 'intervals:x78', watchRpe: null },
+      { source: 'intervals', importBatchId: null, channel: 'provider' },
+    )
+    expect(await get(activityId)).toMatchObject({ rpe: null, watchRpeV: null })
+    ctx.fetch = icu({ x78: 7 })
+    expect(await backfillWatchRatings(ctx, user.id, { now: NOW })).toMatchObject({ filled: 1 })
+    expect(await get(activityId)).toMatchObject({ rpe: 7, rpeSource: 'watch', watchRpeV: 1 })
+  })
+
+  test('an edit that sends no rating for an unrated run does not mark it asked', async () => {
+    await connect()
+    const row = await run('i1', '2026-01-05')
+    const edited = await client(ctx, user)
+      .put(`/api/activities/${row.id}`)
+      .send({ date: '2026-01-05', type: 'run', durationSec: 900, rpe: null, notes: 'easy' })
+    expect(edited.status).toBe(200)
+    expect(await get(row.id)).toMatchObject({ rpe: null, watchRpeV: null, notes: 'easy' })
+    ctx.fetch = icu({ i1: 6 })
+    expect(await backfillWatchRatings(ctx, user.id, { now: NOW })).toMatchObject({ filled: 1 })
+  })
+
+  test('clearing a rating through the full edit marks the run', async () => {
+    await connect()
+    const row = await run('i1', '2026-01-05', { rpe: 5, rpeSource: 'app' })
+    const edited = await client(ctx, user)
+      .put(`/api/activities/${row.id}`)
+      .send({ date: '2026-01-05', type: 'run', durationSec: 900, rpe: null })
+    expect(edited.status).toBe(200)
+    expect(await get(row.id)).toMatchObject({ rpe: null, watchRpeV: 1 })
+  })
+
+  test('a reconnect lifts the passing over of failed runs', async () => {
+    const integration = await connect()
+    const row = await run('i1', '2026-01-05')
+    ctx.fetch = fakeFetch({ [`GET ${BASE}/activity/`]: () => new Response('', { status: 500 }) })
+    for (let i = 0; i < 3; i += 1) await backfillWatchRatings(ctx, user.id, { now: NOW })
+    expect(await backfillWatchRatings(ctx, user.id, { now: NOW })).toMatchObject({ requests: 0 })
+    await ctx.prisma.integration.update({
+      where: { id: integration.id },
+      data: { config: JSON.stringify({ athleteId: 'i1002' }) },
+    })
+    ctx.fetch = icu({ i1: 5 })
+    expect(await backfillWatchRatings(ctx, user.id, { now: NOW })).toMatchObject({ filled: 1 })
+    expect(await get(row.id)).toMatchObject({ rpe: 5, rpeSource: 'watch' })
   })
 
   test('a rating cleared in the app on a run never asked about is marked and not written back', async () => {

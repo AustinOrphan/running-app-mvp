@@ -231,10 +231,6 @@ export async function storeParsed(
     gapDistanceM: roundOrNull(summary.gapDistanceM),
   }
   const watchRpe = validWatchRpe(parsed.watchRpe)
-  // An intervals.icu pull read the activity record, so the rating was asked about, filled or not;
-  // the watch-rating backfill then leaves the run alone (a rating the runner clears stays cleared).
-  const askedWatchRating =
-    parsed.providerKey?.startsWith('intervals:') === true ? { watchRpeV: WATCH_RPE_VERSION } : {}
   const startLat = roundCoordinate(parsed.startLat)
   const startLng = roundCoordinate(parsed.startLng)
 
@@ -272,7 +268,6 @@ export async function storeParsed(
             ...(watchRpe !== null && (existing.rpe === null || existing.rpeSource === 'watch')
               ? { rpe: watchRpe, rpeSource: 'watch' }
               : {}),
-            ...askedWatchRating,
             startLat: startLat ?? existing.startLat,
             startLng: startLng ?? existing.startLng,
             importBatchId: existing.importBatchId ?? opts.importBatchId,
@@ -287,7 +282,6 @@ export async function storeParsed(
             type: parsed.type,
             subtype: parsed.subtype,
             ...(watchRpe === null ? {} : { rpe: watchRpe, rpeSource: 'watch' }),
-            ...askedWatchRating,
             source: opts.source,
             providerKey: parsed.providerKey,
             importBatchId: opts.importBatchId,

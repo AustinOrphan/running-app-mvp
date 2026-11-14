@@ -29,6 +29,8 @@ export const WATCH_RATING_DEFER_MS = 6 * 60 * 60_000
 const PROVIDER = 'intervals'
 /** Runs passed over until the given time (ms) after repeated failures; a restart clears it. */
 const deferred = new Map<string, number>()
+/** The integration's `updatedAt` at the last call, to notice a reconnect. */
+const integrationStamp = new Map<string, number>()
 const RUN_TYPES = ['run', 'race']
 /** Failed requests per activity since the process started; a restart starts the count again. */
 const attempts = new Map<string, number>()
@@ -107,6 +109,14 @@ export async function backfillWatchRatings(
   const pull = getProvider(PROVIDER).pull
   if (!integration || !pull?.fetchRating || integration.status !== 'connected') return result
 
+  // A reconnect (or any rewrite of the integration row) lifts the passing over and the failure counts,
+  // so a refused key does not leave runs deferred after the runner fixed it.
+  const seenStamp = integrationStamp.get(integration.id)
+  integrationStamp.set(integration.id, integration.updatedAt.getTime())
+  if (seenStamp !== undefined && seenStamp !== integration.updatedAt.getTime()) {
+    deferred.clear()
+    outages.clear()
+  }
   for (const [id, until] of deferred) if (until <= now.getTime()) deferred.delete(id)
   const where = waiting(userId, from, [...deferred.keys()])
   const block = authBlocked.get(integration.id)
