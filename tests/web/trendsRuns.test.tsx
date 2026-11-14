@@ -85,12 +85,13 @@ describe('Trends, heart-rate drift on long runs', () => {
     renderWithProviders(<TrendsPage />)
     await screen.findByRole('heading', { level: 2, name: 'Heart-rate drift on long runs' })
     const headings = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent)
-    expect(headings.slice(0, 6)).toEqual([
+    expect(headings.slice(0, 7)).toEqual([
       'Running per week',
       'Climbing per week',
       'Intensity per week',
       'Heart-rate drift on long runs',
       'Heart rate at one speed',
+      'Long runs by the hour',
       'Recovery readings',
     ])
   })

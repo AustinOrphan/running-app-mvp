@@ -71,10 +71,15 @@ export function useFuelTargets(from: string, to: string, options: { enabled?: bo
   })
 }
 
-/** A log changes the ladder, the targets of the runs ahead and the prompts on Today. */
+/**
+ * A log changes the ladder, the targets of the runs ahead and the prompts on Today, and the fuel-log
+ * group of a long run on Trends (rule T1, DR1).
+ */
 function invalidateAfterLog(queryClient: QueryClient): Promise<unknown> {
   return Promise.all(
-    [keys.fuel, keys.today].map((key) => queryClient.invalidateQueries({ queryKey: [key] })),
+    [keys.fuel, keys.today, keys.trends].map((key) =>
+      queryClient.invalidateQueries({ queryKey: [key] }),
+    ),
   )
 }
 

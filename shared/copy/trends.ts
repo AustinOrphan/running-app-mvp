@@ -324,6 +324,53 @@ export const TRENDS_TEMPLATES = {
     { span: 'text' },
     { fallback: 'Intensity per week by zone.' },
   ),
+  // Long runs by the hour (rule T1, amendment of batch DR1): a description of each long run, hour by
+  // hour. No hour is compared with another and none is called better or worse; no line, no target.
+  'trends.durability.heading': tpl('Long runs by the hour', {}, { shape: 'label' }),
+  'trends.durability.caption': tpl(
+    'One row for each run or race of {from} or longer, with pace and mean heart rate for each hour. A dash is an hour with no figure.',
+    { from: 'minutes' },
+  ),
+  'trends.durability.table': tpl(
+    'Long runs, pace and heart rate by the hour',
+    {},
+    { shape: 'label' },
+  ),
+  'trends.durability.col-run': tpl('Run', {}, { shape: 'label' }),
+  'trends.durability.col-fuel': tpl('Fuel log', {}, { shape: 'label' }),
+  'trends.durability.fuel-logged': tpl('With a fuel log', {}, { shape: 'label' }),
+  'trends.durability.fuel-none': tpl('No fuel log', {}, { shape: 'label' }),
+  'trends.durability.no-pace': tpl('No pace', {}, { shape: 'label' }),
+  'trends.durability.no-hr': tpl('No heart rate', {}, { shape: 'label' }),
+  'trends.durability.part-hour': tpl(
+    'A last part-hour is shown when it holds at least {min} of the run. Its figures cover those minutes only.',
+    { min: 'minutes' },
+  ),
+  'trends.durability.hr-left': tpl(
+    'Runs with heart rate left out because it did not pass the checks: {count}.',
+    { count: 'count' },
+  ),
+  'trends.durability.hr-unchecked': tpl(
+    'Runs with heart rate left out because the checks have not run on them yet: {count}.',
+    { count: 'count' },
+  ),
+  'trends.durability.pace': tpl(
+    'Pace is grade-adjusted, as in the drift panel. Heart rate shows only for a run that passed the checks.',
+  ),
+  'trends.durability.hr-reason': tpl('Heart rate left out: {reason}.', { reason: 'text' }),
+  'trends.durability.left-out': tpl(
+    'Of the runs of that length, not shown: {noStream} with no stored stream, {noGrade} with no usable altitude profile.',
+    { noStream: 'count', noGrade: 'count' },
+  ),
+  'trends.durability.empty': tpl('No runs of that length to show yet.'),
+  'trends.durability.empty-body': tpl(
+    'A run or race of {from} or longer, with a stored stream and a usable altitude profile, shows here as one row.',
+    { from: 'minutes' },
+  ),
+  'trends.durability.description': tpl(
+    'This describes the runs; the plan does not read it. Rule A7 makes no fitness inference beyond {limit}.',
+    { limit: 'minutes' },
+  ),
 } as const
 
 /** The ids of the templates that take no slot. */
@@ -691,4 +738,62 @@ export function intensityAria(
         },
         'km',
       )
+}
+
+const hrReasons = {
+  short: 'the run has too little moving time',
+  'cadence-lock': 'the heart rate followed the step rate',
+  spikes: 'the heart rate jumped',
+  dropouts: 'the heart rate has gaps',
+  'flat-lines': 'the heart rate held one value',
+  mismatch: 'the heart rate fell while effort rose',
+  'not-checked': 'the checks have not run on this run yet',
+} as const
+
+/** The words for why one run's heart rate is not shown, from `DurabilityRun.hrGap`. */
+export function durabilityHrReason(gap: keyof typeof hrReasons): string {
+  return render(TRENDS_TEMPLATES['trends.durability.hr-reason'], { reason: hrReasons[gap] }, 'km')
+}
+
+/** The caption: the length a run needs to have a row. */
+export function durabilityCaption(fromMin: number): string {
+  return render(TRENDS_TEMPLATES['trends.durability.caption'], { from: minutes(fromMin) }, 'km')
+}
+
+/** The empty state's second line. */
+export function durabilityEmptyBody(fromMin: number): string {
+  return render(TRENDS_TEMPLATES['trends.durability.empty-body'], { from: minutes(fromMin) }, 'km')
+}
+
+/** The part-hour rule, in the runner's words. */
+export function durabilityPartHourLine(min: number): string {
+  return render(TRENDS_TEMPLATES['trends.durability.part-hour'], { min: minutes(min) }, 'km')
+}
+
+/** The runs left out of the table, by reason. */
+export function durabilityLeftOutLine(noStream: number, noGrade: number): string {
+  return render(
+    TRENDS_TEMPLATES['trends.durability.left-out'],
+    { noStream: count(noStream), noGrade: count(noGrade) },
+    'km',
+  )
+}
+
+/** How many drawn runs have no heart rate because it did not pass the checks. */
+export function durabilityHrLeftLine(runs: number): string {
+  return render(TRENDS_TEMPLATES['trends.durability.hr-left'], { count: count(runs) }, 'km')
+}
+
+/** How many drawn runs have no heart rate because the checks have not run on them yet. */
+export function durabilityHrUncheckedLine(runs: number): string {
+  return render(TRENDS_TEMPLATES['trends.durability.hr-unchecked'], { count: count(runs) }, 'km')
+}
+
+/** The one line that says what the panel is and is not. */
+export function durabilityDescriptionLine(limitMin: number): string {
+  return render(
+    TRENDS_TEMPLATES['trends.durability.description'],
+    { limit: minutes(limitMin) },
+    'km',
+  )
 }

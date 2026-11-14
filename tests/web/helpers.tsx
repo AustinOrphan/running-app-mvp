@@ -46,6 +46,12 @@ const defaultRoutes: MockRoutes = {
     required: false,
     age: 'ok',
   }),
+  // The Trends page's long-run hours panel (DR1) has no rows unless a test plans them.
+  'GET /api/trends/durability': () => ({
+    asOf: '2026-03-18',
+    runs: [],
+    leftOut: [],
+  }),
 }
 
 /**

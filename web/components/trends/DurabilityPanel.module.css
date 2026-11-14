@@ -1,0 +1,90 @@
+/* The long-run hours panel shares the rhythm of the other Trends sections: the same rule above,
+   heading size and muted captions as `RunPanels.module.css`. Neutral ink only: no value colour. */
+.section {
+  padding: var(--space-6) 0;
+  border-top: 1px solid var(--border);
+}
+
+.heading {
+  margin-bottom: var(--space-3);
+  font-size: var(--text-lg);
+  line-height: var(--lh-lg);
+}
+
+.subheading {
+  margin: var(--space-4) 0 var(--space-2);
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+}
+
+.caption {
+  margin: var(--space-2) 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.pending {
+  height: 12rem;
+}
+
+.group {
+  margin-top: var(--space-2);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.table th,
+.table td {
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.table thead th {
+  background: var(--surface-sunken);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.table tbody th {
+  max-width: 11rem;
+  font-weight: 400;
+}
+
+/* The date stays on one line; the length and the reason under it wrap, so a long reason does not
+   widen the first column. */
+.date {
+  white-space: nowrap;
+}
+
+.table tbody tr:last-child th,
+.table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.length {
+  display: block;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+}
+
+.cell {
+  min-width: 6rem;
+  color: var(--text);
+}
+
+.figure {
+  display: block;
+}

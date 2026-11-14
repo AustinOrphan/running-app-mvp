@@ -1,6 +1,8 @@
 import { expect, test, type Page } from '@playwright/test'
 import { addDays, daysBetween, mondayOf } from '../../shared/dates.ts'
 import { createPrisma, initSqlite } from '../../server/db.ts'
+import { computeHrQuality } from '../../shared/importers/files/hrQuality.ts'
+import { SAMPLE_SEC, stream } from '../fixtures/durabilityStream.ts'
 import { E2E_DATABASE_URL } from './env.ts'
 import { relativeDates, resetData, RUNNER, signedInApi } from './helpers.ts'
 
@@ -744,5 +746,116 @@ test.describe('the run panels', () => {
     await expect(page.getByRole('button', { name: 'Try again' })).toBeVisible()
     await expect(page.getByRole('img', { name: /^Run hours per week, / })).toBeVisible()
     expect(await overflow(page)).toBeLessThanOrEqual(0)
+  })
+})
+
+/**
+ * Two four-hour runs with a stored stream and a heart-rate summary, one with a fuel log, and a
+ * third long run with no stream (counted, not drawn).
+ */
+async function seedLongRunHours(): Promise<void> {
+  const { today } = relativeDates()
+  const prisma = createPrisma(E2E_DATABASE_URL)
+  try {
+    await initSqlite(prisma)
+    const user = await prisma.user.findUniqueOrThrow({ where: { email: RUNNER.email } })
+    const data = stream([
+      { minutes: 120, speed: 3, grade: 0.01, hr: 140 },
+      { minutes: 120, speed: 2.7, grade: 0.01, hr: 146 },
+    ])
+    const quality = JSON.stringify(computeHrQuality(data, SAMPLE_SEC, 'strap'))
+    const ids: string[] = []
+    for (const daysAgo of [14, 28]) {
+      const row = await prisma.activity.create({
+        data: {
+          userId: user.id,
+          date: addDays(today, -daysAgo),
+          type: 'run',
+          durationSec: 4 * 3600,
+          distanceM: 40_000,
+          hrQuality: quality,
+        },
+      })
+      await prisma.activityStream.create({
+        data: { activityId: row.id, sampleSec: SAMPLE_SEC, data: JSON.stringify(data) },
+      })
+      ids.push(row.id)
+    }
+    await prisma.fuelLog.create({
+      data: { userId: user.id, activityId: ids[0]!, skipped: false, gut: 1, nausea: 0 },
+    })
+    // A wrist run with no heart rate fails the checks: its row carries a reason under the date, and
+    // the page must still hold at 360 px.
+    const bare = { ...data, hr: null }
+    const failed = await prisma.activity.create({
+      data: {
+        userId: user.id,
+        date: addDays(today, -21),
+        type: 'run',
+        durationSec: 4 * 3600,
+        distanceM: 40_000,
+        hrQuality: JSON.stringify(computeHrQuality(bare, SAMPLE_SEC, 'wrist')),
+      },
+    })
+    await prisma.activityStream.create({
+      data: { activityId: failed.id, sampleSec: SAMPLE_SEC, data: JSON.stringify(bare) },
+    })
+    await prisma.activity.create({
+      data: {
+        userId: user.id,
+        date: addDays(today, -35),
+        type: 'run',
+        durationSec: 3 * 3600,
+        distanceM: 30_000,
+      },
+    })
+  } finally {
+    await prisma.$disconnect()
+  }
+}
+
+test.describe('long runs by the hour', () => {
+  test.beforeAll(async ({ browser, baseURL }) => {
+    const context = await browser.newContext({ baseURL })
+    const page = await context.newPage()
+    await signedInApi(page, baseURL ?? '')
+    await resetData()
+    await seedLongRunHours()
+    await context.close()
+  })
+
+  test('lists the runs by fuel-log group, hour by hour, and counts the one left out', async ({
+    page,
+    baseURL,
+  }) => {
+    await signedInApi(page, baseURL ?? '')
+    await page.goto('/trends')
+
+    const section = page.getByRole('region', { name: 'Long runs by the hour' })
+    await expect(section.getByRole('heading', { level: 3, name: 'With a fuel log' })).toBeVisible()
+    await expect(section.getByRole('heading', { level: 3, name: 'No fuel log' })).toBeVisible()
+    const logged = section.getByRole('region', { name: /^With a fuel log: / })
+    await expect(logged.getByRole('columnheader')).toHaveText([
+      'Run',
+      'Hour 1',
+      'Hour 2',
+      'Hour 3',
+      'Hour 4',
+    ])
+    // The exact pace is the unit tests' business; only the shape of a cell is read here.
+    const first = logged.getByRole('row').nth(1).getByRole('cell').first()
+    await expect(first).toContainText(/\/(km|mi)/)
+    await expect(first).toContainText('140 bpm')
+    await expect(
+      section.getByText(/^Of the runs of that length, not shown: 1 with no stored stream/),
+    ).toBeVisible()
+    await expect(
+      section.getByText(/^This describes the runs; the plan does not read it/),
+    ).toBeVisible()
+    await expect(section.getByText('Heart rate left out: the heart rate has gaps.')).toBeVisible()
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    )
+    expect(overflow).toBeLessThanOrEqual(0)
   })
 })
