@@ -1,0 +1,33 @@
+{
+  "id": "eyestone-1993-water-running-cycling",
+  "title": "Effect of water running and cycling on maximum oxygen consumption and 2-mile run performance",
+  "authors": "Eyestone ED, Fellingham G, George J, Fisher AG",
+  "year": 1993,
+  "journal": "The American Journal of Sports Medicine",
+  "doi": "10.1177/036354659302100107",
+  "pmid": "8427367",
+  "url": "https://doi.org/10.1177/036354659302100107",
+  "design": "rct",
+  "population": "32 trained subjects aged 18 to 26 (the abstract gives no sex split), not described as injured, stratified by 2-mile run pretest into high, medium and low performance levels",
+  "sampleSize": 32,
+  "evidenceLevel": "C",
+  "topics": ["injury-load"],
+  "findings": [
+    "Thirty-two trained subjects aged 18 to 26 were stratified by a 2-mile run pretest and randomly assigned to water running, cycling or running training, with similar frequency, duration and intensity over 6 weeks (abstract).",
+    "After 6 weeks all groups made a small but statistically significant decrease in VO2max but no change in 2-mile run time, with no difference by training modality or pretraining performance level (abstract).",
+    "The authors conclude that over 6 weeks, runners who cannot run because of soft tissue injury can maintain VO2max and 2-mile run performance similar to running training with either cycling or water running (abstract)."
+  ],
+  "limitations": "Abstract only (closed access). Trained subjects aged 18 to 26, not described as injured, and not injured runners: the conclusion about injured runners is the authors' extrapolation. Small groups, 6 weeks, a 2-mile run, nobody over 26 and no distance beyond 2 miles, no injury or return-to-running outcome. All groups lost a little VO2max, so the result is of maintenance with a small loss, not of no change.",
+  "implications": [
+    "Supports a statement that, over about 6 weeks in young trained adults, cycling or water running at the same frequency, duration and intensity kept 2-mile run time as running did, with a small fall in VO2max in every group.",
+    "Does not support any rate at which cycling or pool work counts toward run load, the effect of a niggle or of cross-training on tissue capacity, or a benefit for older or less trained runners or for runs of a half marathon or longer."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref 2026-11-14: title, Am J Sports Med 21(1):41-44, 1993-01, four authors and DOI match; no updated-by or update-to notice. Europe PMC abstract (PMID 8427367) read; the numbers in the findings are all in it. Task PA1a.",
+    "checkedAt": "2026-11-14"
+  }
+}
