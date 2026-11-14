@@ -31,6 +31,9 @@ const reviewPage = lazyPage(() => import('./pages/ReviewPage.tsx').then((m) => m
 const briefPage = lazyPage(() => import('./pages/BriefPage.tsx').then((m) => m.BriefPage))
 const goalsPage = lazyPage(() => import('./pages/GoalsPage.tsx').then((m) => m.GoalsPage))
 const pacesPage = lazyPage(() => import('./pages/MyPacesPage.tsx').then((m) => m.MyPacesPage))
+const planInputsPage = lazyPage(() =>
+  import('./pages/PlanInputsPage.tsx').then((m) => m.PlanInputsPage),
+)
 const statsPage = lazyPage(() => import('./pages/StatsPage.tsx').then((m) => m.StatsPage))
 const trendsPage = lazyPage(() => import('./pages/TrendsPage.tsx').then((m) => m.TrendsPage))
 const settingsPage = lazyPage(() => import('./pages/SettingsPage.tsx').then((m) => m.SettingsPage))
@@ -64,6 +67,7 @@ const APP_ROUTES: ReadonlyArray<readonly [path: string, page: Page]> = [
   ['/brief/:weekStart', briefPage],
   ['/goals', goalsPage],
   ['/paces', pacesPage],
+  ['/plan-inputs', planInputsPage],
   ['/stats', statsPage],
   ['/trends', trendsPage],
   ['/settings', settingsPage],

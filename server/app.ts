@@ -31,6 +31,7 @@ import { integrationsRouter } from './routes/integrations.ts'
 import { jobsRouter } from './routes/jobs.ts'
 import { mapAreaRouter } from './routes/mapArea.ts'
 import { pacesRouter } from './routes/paces.ts'
+import { planInputsRouter } from './routes/planInputs.ts'
 import { planRouter } from './routes/plan.ts'
 import { predictionsRouter } from './routes/predictions.ts'
 import { profileRouter } from './routes/profile.ts'
@@ -198,6 +199,7 @@ export function createApp(
   app.use('/api/checkins', checkinsRouter(deps))
   app.use('/api/zones', zonesRouter(deps))
   app.use('/api/paces', pacesRouter(deps))
+  app.use('/api/plan-inputs', planInputsRouter(deps))
   app.use('/api/predictions', predictionsRouter(deps))
   app.use('/api/plan-notice', planNoticeRouter(deps))
   app.use('/api/screenings', screeningsRouter(deps))

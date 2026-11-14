@@ -1,4 +1,5 @@
 import type { Boundary, ZoneProposal } from '../../shared/engine/types.ts'
+import type { ZoneBoundaryKey } from '../../shared/domain/planInputs.ts'
 import type { Units } from '../../shared/types.ts'
 import { formatDuration, formatPace, milesToM } from '../../shared/units.ts'
 
@@ -12,6 +13,32 @@ export const BOUNDARY_SOURCE_LABELS: Record<Boundary['source'], string> = {
   'hrmax-age': 'Estimated from age',
   hrr: 'From heart rate reserve',
   profile: 'From the profile',
+}
+
+/**
+ * How a boundary was found, in words, with the training note of rule A6: the one wording the zone
+ * summary and the page that says what the plan can see both use.
+ */
+export function boundarySourceText(
+  boundary: Pick<Boundary, 'source' | 'fromTraining' | 'windowWidened'>,
+): string {
+  const training =
+    boundary.fromTraining === true
+      ? boundary.windowWidened === true
+        ? ' (from training, some older than three months)'
+        : ' (from training)'
+      : ''
+  return `${BOUNDARY_SOURCE_LABELS[boundary.source]}${training}`
+}
+
+/** The names of the six zone boundaries, by their key in the zone set. */
+export const ZONE_BOUNDARY_LABELS: Record<ZoneBoundaryKey, string> = {
+  hrMax: 'Maximum heart rate',
+  lt1Hr: 'Easy heart rate limit',
+  lt2Hr: 'Threshold heart rate',
+  csMps: 'Critical speed',
+  lt1PaceSecPerKm: 'Easy pace limit',
+  thresholdPaceSecPerKm: 'Threshold pace',
 }
 
 /** Pace from seconds per kilometre, in the runner's unit: `5:30 /km`. */

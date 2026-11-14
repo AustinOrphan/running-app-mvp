@@ -102,6 +102,18 @@ const racePlan: Destination = {
   ),
 }
 
+const planInputs: Destination = {
+  to: '/plan-inputs',
+  label: 'What the plan can see',
+  note: note('plan-inputs.more-note'),
+  icon: (
+    <NavIcon>
+      <path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z" />
+      <circle cx="12" cy="12" r="3" />
+    </NavIcon>
+  ),
+}
+
 const paces: Destination = {
   to: '/paces',
   label: 'My paces',
@@ -234,7 +246,7 @@ export function destinationGroups(hasRacePlan: boolean): DestinationGroup[] {
     {
       id: 'data',
       title: note('nav.group.data'),
-      items: [stats, trends, integrations, research],
+      items: [stats, trends, integrations, planInputs, research],
     },
     { id: 'you', title: note('nav.group.you'), items: [profile, warningSigns, settings] },
   ]
