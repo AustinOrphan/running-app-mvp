@@ -34,7 +34,9 @@ import type {
   Symptoms,
   WeekRow,
   WeeklyReview,
+  Units,
 } from '../../shared/types.ts'
+import type { OwnCeilingEvidence } from '../../shared/engine/types.ts'
 import { minutesToHours1 } from '../../shared/units.ts'
 import { ApiError, fieldErrors } from '../api/client.ts'
 import { ruleTarget, type WhyTarget } from '../api/explain.ts'
@@ -62,7 +64,7 @@ import { assessmentLines, localiseEngineText } from '../components/engineText.ts
 import { WarningSignsText } from '../components/WarningSignsText.tsx'
 import { RevisionDiff } from '../components/revisions/RevisionDiff.tsx'
 import { WhyDrawer } from '../components/WhyDrawer.tsx'
-import { PROPOSAL_LABELS, proposalValueText } from '../components/zoneFormat.ts'
+import { bpmText, paceText, PROPOSAL_LABELS, proposalValueText } from '../components/zoneFormat.ts'
 import styles from './ReviewPage.module.css'
 
 /** The picker covers this many finished weeks plus the current one. */
@@ -932,6 +934,30 @@ function RaiseOfferCard({ offer }: { offer: RaiseOffer | null }) {
   )
 }
 
+/**
+ * The runs and readings behind an offer of the own easy ceiling (rules C4, C8): the three readings of
+ * the line and the cool runs it stands on, so the runner can judge them. Plain figures, no verdict.
+ */
+function CeilingEvidence({ evidence, units }: { evidence: OwnCeilingEvidence; units: Units }) {
+  return (
+    <>
+      <p className={styles.sessionLine}>
+        {`Read at the easy pace limit, ${paceText(1000 / evidence.lt1SpeedMps, units)}, the line gave ${evidence.estimates.map(bpmText).join(', ')} over the last three cool runs. Only runs at or below ${String(evidence.maxWbgtC)} C wet-bulb globe temperature, with heart-rate data that passed the checks, are used.`}
+      </p>
+      <details>
+        <summary>{`The ${String(evidence.runs.length)} runs`}</summary>
+        <ul className={styles.sessions}>
+          {evidence.runs.map((run) => (
+            <li key={run.date} className={styles.sessionLine}>
+              {`${formatShortDate(run.date)}: ${paceText(1000 / run.speedMps, units)}, ${bpmText(run.avgHr)} average`}
+            </li>
+          ))}
+        </ul>
+      </details>
+    </>
+  )
+}
+
 function ZoneProposals() {
   const headingId = useId()
   const proposals = useZoneProposals()
@@ -980,9 +1006,13 @@ function ZoneProposals() {
                 {`${proposalValueText(proposal.boundary, proposal.from, units)} to ${proposalValueText(proposal.boundary, proposal.to, units)}`}
               </span>
               <p className={styles.sessionLine}>{proposal.reason}</p>
-              <p className={styles.sessionLine}>
-                {`Based on ${String(proposal.observations)} ${proposal.observations === 1 ? 'session' : 'sessions'}.`}
-              </p>
+              {proposal.evidence !== undefined ? (
+                <CeilingEvidence evidence={proposal.evidence} units={units} />
+              ) : (
+                <p className={styles.sessionLine}>
+                  {`Based on ${String(proposal.observations)} ${proposal.observations === 1 ? 'session' : 'sessions'}.`}
+                </p>
+              )}
               <div className={styles.actions}>
                 <Button
                   variant="primary"

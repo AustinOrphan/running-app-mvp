@@ -458,6 +458,53 @@ export function hrModelSample(
   return { runs: points.length, first, hillyKeys: points.filter((p) => p.hilly).map((p) => p.key) }
 }
 
+/** One run on the cool-run line of the own easy ceiling (rule C8): its day, speed and average heart rate. */
+export interface CoolRunPoint {
+  date: string
+  speedMps: number
+  avgHr: number
+  wbgtC: number
+}
+
+/**
+ * The runs the own easy ceiling is read from [rules C4, C8]: the points the HR-at-pace model fits
+ * (steady, flat, sampled) of the last `hrModel.windowWeeks` weeks that also pass the heart-rate
+ * checks of B2 (`hrQualityPasses`, a run with no summary does not) and were run at or below
+ * `maxWbgtC` of recorded weather (no weather reading is not a cool run), oldest first, so that
+ * heat drift cannot lift the line. Pure.
+ */
+export function coolRunPoints(
+  activities: readonly HrFitRun[],
+  today: string,
+  maxWbgtC: number,
+): CoolRunPoint[] {
+  const windowDays = P.hrModel.windowWeeks.value * 7
+  const points: CoolRunPoint[] = []
+  for (const a of activities) {
+    const age = daysBetween(a.date, today)
+    if (age < 0 || age >= windowDays) continue
+    if (!hrQualityPasses(a.hrQuality ?? null)) continue
+    const wbgtC = wbgtOf(a)
+    if (wbgtC === null || wbgtC > maxWbgtC) continue
+    const point = modelPoint(a)
+    if (point !== null) {
+      points.push({ date: a.date, speedMps: point.v, avgHr: point.hr, wbgtC })
+    }
+  }
+  return points.sort((x, y) => (x.date < y.date ? -1 : x.date > y.date ? 1 : 0))
+}
+
+/** The line `avgHr = intercept + slope x speed` through points, or null when it is not determined. */
+export function fitLine(
+  points: ReadonlyArray<{ speedMps: number; avgHr: number }>,
+): { interceptBpm: number; slopeBpmPerMps: number } | null {
+  const beta = leastSquares(
+    points.map((p) => [1, p.speedMps]),
+    points.map((p) => p.avgHr),
+  )
+  return beta === null ? null : { interceptBpm: beta[0]!, slopeBpmPerMps: beta[1]! }
+}
+
 /**
  * Fits HR against grade-adjusted speed on the steady flat runs of the last
  * `hrModel.windowWeeks` weeks, with a heat term that starts at the prior and moves towards the

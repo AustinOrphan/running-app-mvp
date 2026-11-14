@@ -124,6 +124,12 @@ export function profileRouter(deps: Deps): Router {
       hrMaxSource: merged.hrMaxSource,
       hrRest: merged.hrRest,
       lthr: merged.lthr,
+      // An own ceiling was read against the anchors that stood then: a new maximum or threshold
+      // heart rate from the runner makes it stale, so it goes (rules C2, C8).
+      ownLt1Hr:
+        merged.lthr !== saved.lthr || merged.hrMax !== saved.hrMax
+          ? null
+          : (merged.ownLt1Hr ?? null),
       thresholdPaceSecPerKm: merged.thresholdPaceSecPerKm,
       runningSinceYear: merged.runningSinceYear,
       injuries: JSON.stringify(merged.injuries),

@@ -32,6 +32,7 @@ import {
   weeklyRamp,
   zoneProposals,
 } from '../../shared/engine/index.ts'
+import { ownCeilingProposal } from '../../shared/engine/ownCeiling.ts'
 import { loadPosition, rebuildZone, type LoadPosition } from '../../shared/engine/loadSetting.ts'
 import { resolveMethod, type MethodPosition } from '../../shared/engine/methods.ts'
 import { P } from '../../shared/engine/params/index.ts'
@@ -711,6 +712,11 @@ export async function listZoneProposals(
     return { date: session.date, kind: session.kind, assessment: session.execution! }
   })
   const proposals = zoneProposals(input, executions)
+  // The own easy ceiling goes through the same list, so it is declined, accepted and recorded like
+  // every other proposal (rules C4, C8, owner decision D4, 2026-11-14).
+  const context = await loadAthleteContext(deps, { userId: args.userId, today: args.today })
+  const ceiling = ownCeilingProposal(context.activities, args.today, context.zones)
+  if (ceiling !== null) proposals.push(ceiling)
   if (proposals.length === 0) return []
 
   // A decline is found by its stored change (`zones.<boundary>.declined`, the proposed values in
@@ -770,6 +776,12 @@ export async function decideZoneProposal(
     await prisma.athleteProfile.update({
       where: { userId: args.userId },
       data: { thresholdPaceSecPerKm: proposal.to },
+    })
+  } else if (proposal.boundary === 'lt1Hr') {
+    // The accepted ceiling is the profile's own; the zones read it ahead of the other anchors.
+    await prisma.athleteProfile.update({
+      where: { userId: args.userId },
+      data: { ownLt1Hr: proposal.to },
     })
   } else if (proposal.boundary === 'hrMax') {
     await prisma.athleteProfile.update({

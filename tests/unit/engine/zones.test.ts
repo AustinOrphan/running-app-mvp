@@ -289,3 +289,30 @@ describe('buildZones pace (rules C4, C5, C7)', () => {
     expect(JSON.stringify([p, s])).toBe(before)
   })
 })
+
+describe('the own easy ceiling (rules C4, C8)', () => {
+  const measured = { hrMax: 185, hrMaxSource: 'measured' as const }
+
+  it('stands ahead of the other anchors of the first threshold and sets the Z1 ceiling', () => {
+    const without = buildZones(profile(measured), state(), TODAY)
+    expect(without.lt1Hr).toMatchObject({ value: 144, source: 'hrmax-observed' })
+    const own = buildZones(profile({ ...measured, ownLt1Hr: 131 }), state(), TODAY)
+    expect(own.lt1Hr).toMatchObject({ value: 131, source: 'own-line', asOf: TODAY })
+    expect(own.lt1Hr!.band).toEqual([126, 136])
+    expect(own.hr!.z1[1]).toBe(131)
+    expect(own.hr!.z2[0]).toBe(131)
+    // The threshold heart rate and the maximum are untouched.
+    expect(own.lt2Hr).toEqual(without.lt2Hr)
+    expect(own.hrMax).toEqual(without.hrMax)
+    const tested = buildZones(profile({ ...measured, lthr: 165, ownLt1Hr: 131 }), state(), TODAY)
+    expect(tested.lt1Hr!.source).toBe('own-line')
+  })
+
+  it('is ignored when it is not under the threshold heart rate, or empty', () => {
+    const high = buildZones(profile({ ...measured, ownLt1Hr: 163 }), state(), TODAY)
+    expect(high.lt1Hr!.source).toBe('hrmax-observed')
+    expect(buildZones(profile({ ...measured, ownLt1Hr: null }), state(), TODAY).lt1Hr!.source).toBe(
+      'hrmax-observed',
+    )
+  })
+})

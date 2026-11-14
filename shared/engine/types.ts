@@ -150,7 +150,16 @@ export interface ResolvedTargets {
 export interface Boundary {
   value: number
   band: [number, number]
-  source: 'tested' | 'cs' | 'dfa' | 'rpe' | 'hrmax-observed' | 'hrmax-age' | 'hrr' | 'profile'
+  source:
+    | 'tested'
+    | 'cs'
+    | 'dfa'
+    | 'rpe'
+    | 'hrmax-observed'
+    | 'hrmax-age'
+    | 'hrr'
+    | 'profile'
+    | 'own-line'
   asOf: string
   /**
    * True on a boundary found from a critical speed that uses the stretches of training runs (rule
@@ -515,6 +524,24 @@ export interface WeeklyDecision {
     extensionDays: number
   }
 }
+/** One cool run on the line behind an offer of the own easy ceiling (rule C8), oldest first. */
+export interface OwnCeilingRun {
+  date: string
+  speedMps: number
+  avgHr: number
+}
+/** The reading behind an offer of the own easy ceiling, shown beside it (rules C4, C8). */
+export interface OwnCeilingEvidence {
+  direction: 'lower' | 'higher'
+  /** The speed of the first threshold, m/s: where the line was read. */
+  lt1SpeedMps: number
+  /** The three estimates, bpm, from the line as each of the last three cool runs arrived. */
+  estimates: number[]
+  /** The cool runs the latest line stands on, oldest first. */
+  runs: OwnCeilingRun[]
+  /** The warmest weather a run could have been read at, C WBGT. */
+  maxWbgtC: number
+}
 export interface ZoneProposal {
   boundary: 'cs' | 'lt1Pace' | 'thresholdPace' | 'lt1Hr' | 'hrMax'
   from: number
@@ -522,6 +549,8 @@ export interface ZoneProposal {
   observations: number
   reason: string
   rules: string[]
+  /** The runs and readings behind the offer; present on an offer of the own easy ceiling. */
+  evidence?: OwnCeilingEvidence
 }
 export interface PlanChange {
   weekStart: string

@@ -288,6 +288,49 @@ export const cZones = {
         note: 'MAPE of watch-reported LT pace; it is never an anchor. Watch LT HR is advisory.',
       },
     ),
+    ownLt1MaxWbgtC: param('c8.ownLt1MaxWbgtC', 15, 'D', 'C8', ['mantzios-2022-weather-endurance'], {
+      unit: 'C WBGT',
+      note: 'Default: the own easy ceiling reads only runs at or below this WBGT (the top of the optimum band, conditions.heatAdjustAboveWbgtC), so heat drift cannot lift the line; a run with no recorded weather is not read.',
+    }),
+    ownLt1MinRunsLower: param('c8.ownLt1MinRunsLower', 8, 'D', 'C8', [], {
+      unit: 'runs',
+      note: 'Default: a lower easy ceiling is offered from at least this many cool runs that pass B2 on the A8 line; the number matches hrModel.minQualifyingRuns.',
+    }),
+    ownLt1MinRunsRaise: param('c8.ownLt1MinRunsRaise', 12, 'D', 'C8', [], {
+      unit: 'runs',
+      note: 'Default: a higher easy ceiling needs more runs than a lower one (G6: a change toward more load needs stronger evidence).',
+    }),
+    ownLt1MinDeltaLowerBpm: param('c8.ownLt1MinDeltaLowerBpm', 3, 'D', 'C8', [], {
+      unit: 'bpm',
+      note: 'Default: a lower ceiling is offered when all three estimates sit at least this far under the current one.',
+    }),
+    ownLt1MinDeltaRaiseBpm: param('c8.ownLt1MinDeltaRaiseBpm', 5, 'D', 'C8', [], {
+      unit: 'bpm',
+      note: 'Default: a higher ceiling is offered only when all three estimates sit at least this far over the current one, the width of a default band (c7.bandDefaultBpm), so a rise has to clear the noise of the line.',
+    }),
+    ownLt1MaxSpreadLowerBpm: param('c8.ownLt1MaxSpreadLowerBpm', 4, 'D', 'C8', [], {
+      unit: 'bpm',
+      note: 'Default: the three estimates agree for a lower ceiling when the highest and the lowest are within this many beats.',
+    }),
+    ownLt1MaxSpreadRaiseBpm: param('c8.ownLt1MaxSpreadRaiseBpm', 3, 'D', 'C8', [], {
+      unit: 'bpm',
+      note: 'Default: the tighter agreement a higher ceiling needs (G6).',
+    }),
+    ownLt1MaxRaiseBpm: param('c8.ownLt1MaxRaiseBpm', 5, 'D', 'C8', [], {
+      unit: 'bpm',
+      note: 'Default: one offer never raises the ceiling by more than this; a further rise needs a new offer on later runs. A lower ceiling moves to the estimate in one step.',
+    }),
+    ownLt1MaxFractionOfHrMax: param(
+      'c8.ownLt1MaxFractionOfHrMax',
+      0.82,
+      'D',
+      'C8',
+      ['fornasiero-2018-ultra-intensity'],
+      {
+        unit: 'fraction of HRmax',
+        note: 'Default: an easy ceiling is never offered above this share of the maximum heart rate (the runners of the race study spent most of their time below VT1 at a mean 77% of maximum); no study sets the cap.',
+      },
+    ),
   },
   c9: {
     lineSpeedMargin: param('c9.lineSpeedMargin', 0.1, 'D', 'C9', [], {

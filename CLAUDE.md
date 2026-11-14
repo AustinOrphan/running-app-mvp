@@ -224,6 +224,13 @@ protection reads. The Docker image must still build (`docker build .`) after a c
   mild weather is not counted (stevens-2018). The mark is set only through the rating write; a day counts once. `suggestsHeatDays`
   (the same file) is the one test for Today's `heat.heatDays` and the Explain facts: an option with
   safety lines (`shared/copy/heatDays.ts`), never a target or a count of missing days.
+- The own easy ceiling (EC1, rules C4, C8, owner decision D4 2026-11-14) is an offer in both directions, never
+  applied silently: `ownCeilingProposal` (`shared/engine/ownCeiling.ts`) reads the A8 line of cool runs that
+  pass B2 at the first-threshold pace and `listZoneProposals` lists it beside the other zone proposals (the same
+  accept and decline routes and revision kind). A higher ceiling clears a stricter bar than a lower one (G6, the
+  `c8.ownLt1*` Params). Accepting writes `AthleteProfile.ownLt1Hr`, which `buildZones` reads ahead of the other
+  anchors of that boundary (source `own-line`); the watch, H11 and My paces follow through the zones. The profile
+  route clears it when the maximum or threshold heart rate changes. No observed maximum is proposed (C8).
 - My paces (ADR 0020, rule C9) is derived on read and stored nowhere: `myPaces` and `eventRow`
   (`shared/engine/myPaces.ts`) over the snapshot and `hrModelOf`, the memo `paces.view` behind
   `GET /api/paces`, and the zones shown through `ZoneSummary`, the one rendering the Profile shares. A
