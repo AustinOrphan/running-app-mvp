@@ -313,7 +313,7 @@ async function attemptSave(
   const matchChanged = fields.date !== activity.date || 'durationSec' in fields
   await prisma.$transaction(async (tx) => {
     await tx.activity.update({
-      where: { id: activityId },
+      where: { id: activityId, userId },
       data: {
         ...fields,
         ...(matchChanged ? { duplicateStatus: 'none', duplicateOfId: null } : {}),
@@ -321,10 +321,10 @@ async function attemptSave(
     })
     if (existing) {
       await tx.strengthLog.update({
-        where: { id: logId },
+        where: { id: logId, userId },
         data: { prescribed: JSON.stringify(input.prescribed) },
       })
-      await tx.strengthSet.deleteMany({ where: { logId } })
+      await tx.strengthSet.deleteMany({ where: { logId, userId } })
       await writeSets(tx, userId, logId, input.sets)
     } else {
       await createLogRows(tx, { userId, logId, activityId, input })

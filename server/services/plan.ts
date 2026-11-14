@@ -93,7 +93,7 @@ export async function generatePlanForGoal(
     })
     // The plan's goal drives the Dashboard countdown, so exactly that goal is active.
     await tx.goal.updateMany({ where: { userId: input.userId }, data: { isActive: false } })
-    await tx.goal.update({ where: { id: goal.id }, data: { isActive: true } })
+    await tx.goal.update({ where: { id: goal.id, userId: input.userId }, data: { isActive: true } })
     return tx.plan.create({
       data: {
         userId: input.userId,

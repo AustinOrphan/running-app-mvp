@@ -35,7 +35,7 @@ export async function clearSurfaceBins(
   })
   for (const row of rows) {
     await tx.activity.updateMany({
-      where: { id: row.id, updatedAt: row.updatedAt },
+      where: { id: row.id, userId, updatedAt: row.updatedAt },
       data: { surfaceBins: null, updatedAt: row.updatedAt },
     })
   }
@@ -137,7 +137,7 @@ export async function backfillSurfaceBins(
     let count = 0
     for (const [i, row] of rows.entries()) {
       const written = await tx.activity.updateMany({
-        where: { id: row.id, surfaceBins: null, updatedAt: row.updatedAt },
+        where: { id: row.id, userId, surfaceBins: null, updatedAt: row.updatedAt },
         data: { surfaceBins: JSON.stringify(bins[i]), updatedAt: row.updatedAt },
       })
       count += written.count

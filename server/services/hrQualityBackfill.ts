@@ -83,7 +83,7 @@ export async function backfillHrQuality(
       )
     }
     return prisma.activity.updateMany({
-      where: { id: row.id, OR: STALE },
+      where: { id: row.id, userId, OR: STALE },
       data: { hrQuality: JSON.stringify(quality) },
     })
   })

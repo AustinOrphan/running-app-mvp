@@ -372,7 +372,7 @@ async function refreshProvisional(
     return row
   }
   await deps.prisma.weeklyBrief.updateMany({
-    where: { id: row.id, provisional: true },
+    where: { id: row.id, userId: row.userId, provisional: true },
     data: rowData(composed, provisional),
   })
   return (await deps.prisma.weeklyBrief.findUnique({ where: { id: row.id } })) ?? row
@@ -623,7 +623,11 @@ export async function markBriefSeen(
   if (unseen.length === 0) return
   // The filter keeps the first stamp when two calls race.
   await prisma.planRevision.updateMany({
-    where: { id: { in: unseen.map((revision) => revision.id) }, seenAt: null },
+    where: {
+      id: { in: unseen.map((revision) => revision.id) },
+      plan: { userId: args.userId },
+      seenAt: null,
+    },
     data: { seenAt: new Date() },
   })
 }

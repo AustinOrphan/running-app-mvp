@@ -362,7 +362,7 @@ async function runOnce(deps: Deps, userId: string, opts: PublishOptions): Promis
   } catch (error) {
     if (!(error instanceof SecretError)) throw error
     await prisma.integration.updateMany({
-      where: { id: integration.id },
+      where: { id: integration.id, userId },
       data: { status: 'needs_auth', lastSyncStatus: 'error', lastError: SECRET_CHANGED },
     })
     await recordSyncRun(deps, {
@@ -503,7 +503,7 @@ async function runOnce(deps: Deps, userId: string, opts: PublishOptions): Promis
 
   if (stop?.kind === 'auth') {
     await prisma.integration.updateMany({
-      where: { id: integration.id },
+      where: { id: integration.id, userId },
       data: { status: 'needs_auth', lastError: safeMessage(stop.message, secrets) },
     })
   }
