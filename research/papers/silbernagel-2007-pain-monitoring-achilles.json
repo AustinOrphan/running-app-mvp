@@ -8,7 +8,7 @@
   "pmid": "17307888",
   "url": "https://doi.org/10.1177/0363546506298279",
   "design": "rct",
-  "population": "38 patients with Achilles tendinopathy, randomly allocated to two groups of 19 (Swedish sports-medicine setting)",
+  "population": "38 patients with Achilles tendinopathy, randomly allocated to two groups of 19",
   "sampleSize": 38,
   "evidenceLevel": "B",
   "topics": ["injury-load"],
