@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest'
+import { assertCleanCopy } from '../../../shared/copy/lint.ts'
 import { descentCue } from '../../../shared/copy/downhill.ts'
 import { addDays, mondayOf } from '../../../shared/dates.ts'
-import { downhillHeld, holdDownhill, quadPauseThrough } from '../../../shared/engine/downhill.ts'
+import {
+  downhillHeld,
+  holdDownhill,
+  pausedOnRead,
+  quadPauseThrough,
+} from '../../../shared/engine/downhill.ts'
 import { buildPlan } from '../../../shared/engine/index.ts'
 import { P } from '../../../shared/engine/params/index.ts'
 import type { EngineInput, SessionSpec } from '../../../shared/engine/types.ts'
@@ -65,14 +71,15 @@ describe('the taper cut-off (rule H5)', () => {
     const cut = addDays(RACE, -P.h5.taperExclusionDays.value)
     const flagged = downhillRuns(trail.input)
     expect(flagged.length).toBeGreaterThan(0)
-    expect(flagged.every((s) => s.date <= cut)).toBe(true)
+    expect(flagged.every((s) => s.date < cut)).toBe(true)
   })
 
-  it('holds a session on the first cut-off day and keeps the one before it', () => {
+  it('holds a session 10 days out and keeps the one 11 days out', () => {
     const hold = { raceDate: RACE, pausedThrough: null, today: addDays(RACE, -60) }
     const cut = addDays(RACE, -P.h5.taperExclusionDays.value)
-    expect(downhillHeld(cut, hold)).toBe(false)
-    expect(downhillHeld(addDays(cut, 1), hold)).toBe(true)
+    expect(downhillHeld(addDays(cut, -1), hold)).toBe(false)
+    expect(downhillHeld(cut, hold)).toBe(true)
+    expect(downhillHeld(addDays(RACE, -1), hold)).toBe(true)
   })
 })
 
@@ -142,6 +149,29 @@ describe('the quad soreness pause (rule H5)', () => {
   })
 })
 
+describe('the pause on read (rule H5)', () => {
+  const wednesday = '2026-12-02'
+  const thursday = '2026-12-03'
+  const stored = (date: string) =>
+    ({ date, flags: ['downhill'], rules: ['H5'] }) as unknown as SessionSpec
+
+  it('hides the flags of a stored session without a re-plan, and shows them again after the pause', () => {
+    const report = [checkin(wednesday, 'left quad', 4)]
+    const [during] = pausedOnRead([stored(thursday)], report, wednesday)
+    expect(during!.flags).toEqual([])
+    expect(descentCue(during!)).toBeNull()
+    const last = addDays(wednesday, P.h5.quadPauseDays.value)
+    expect(pausedOnRead([stored(last)], report, last)[0]!.flags).toEqual([])
+    const after = addDays(last, 1)
+    expect(pausedOnRead([stored(after)], report, after)[0]!.flags).toEqual(['downhill'])
+  })
+
+  it('leaves the sessions as they are without a quad report', () => {
+    const [kept] = pausedOnRead([stored(thursday)], [checkin(wednesday, 'left knee', 6)], wednesday)
+    expect(kept!.flags).toEqual(['downhill'])
+  })
+})
+
 describe('the descent cue (rule H5, G5)', () => {
   it('reads from the downhill flag and names the grades of the Param', () => {
     const cue = descentCue({ flags: ['downhill'] })
@@ -149,5 +179,10 @@ describe('the descent cue (rule H5, G5)', () => {
     expect(cue).toContain(String(P.h5.cueGradePct.value[1]))
     expect(descentCue({ flags: ['downhill-first'] })).toContain('gentle')
     expect(descentCue({ flags: ['night'] })).toBeNull()
+  })
+
+  it('reads clean in both variants', () => {
+    assertCleanCopy(descentCue({ flags: ['downhill'] })!)
+    assertCleanCopy(descentCue({ flags: ['downhill-first'] })!)
   })
 })

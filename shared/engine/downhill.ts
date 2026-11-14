@@ -36,8 +36,8 @@ export function quadPauseThrough(checkins: readonly PauseCheckin[], today: strin
 }
 
 export interface DownhillHold {
-  /** The race day. */
-  raceDate: string
+  /** The race day, or null on a read that applies the pause alone. */
+  raceDate: string | null
   /** The last day of the quad pause (`quadPauseThrough`), or null. */
   pausedThrough: string | null
   today: string
@@ -45,12 +45,19 @@ export interface DownhillHold {
 
 /** Whether the downhill emphasis is held on `date`: the last days before the race, or the pause. */
 export function downhillHeld(date: string, hold: DownhillHold): boolean {
-  if (date > addDays(hold.raceDate, -P.h5.taperExclusionDays.value)) return true
+  // The last `h5.taperExclusionDays` days before the race are the days from that many days out to
+  // the day before: with 10, a session 10 days out is held and one 11 days out keeps the emphasis.
+  if (hold.raceDate !== null && date >= addDays(hold.raceDate, -P.h5.taperExclusionDays.value)) {
+    return true
+  }
   return hold.pausedThrough !== null && date >= hold.today && date <= hold.pausedThrough
 }
 
 /** The sessions with a downhill flag and its rule taken off where `downhillHeld` says so. */
-export function holdDownhill(sessions: SessionSpec[], hold: DownhillHold): SessionSpec[] {
+export function holdDownhill<T extends Pick<SessionSpec, 'date' | 'flags' | 'rules'>>(
+  sessions: readonly T[],
+  hold: DownhillHold,
+): T[] {
   return sessions.map((s) =>
     DOWNHILL_FLAGS.some((f) => s.flags.includes(f)) && downhillHeld(s.date, hold)
       ? {
@@ -60,4 +67,20 @@ export function holdDownhill(sessions: SessionSpec[], hold: DownhillHold): Sessi
         }
       : s,
   )
+}
+
+/**
+ * The stored sessions as a page shows them: the downhill flags and the cue are hidden inside the
+ * quad pause of the latest check-ins. A check-in does not re-plan, so the pause is derived on every
+ * read as well as when a plan is drawn (`holdDownhill` in `generate`); nothing is stored.
+ */
+export function pausedOnRead<T extends Pick<SessionSpec, 'date' | 'flags' | 'rules'>>(
+  sessions: readonly T[],
+  checkins: readonly PauseCheckin[],
+  today: string,
+): T[] {
+  const pausedThrough = quadPauseThrough(checkins, today)
+  return pausedThrough === null
+    ? [...sessions]
+    : holdDownhill(sessions, { raceDate: null, pausedThrough, today })
 }
