@@ -70,16 +70,18 @@ export interface Deps {
   folderRoot?: string
 }
 
+/** The liveness and deep health probes, left out of the request log. */
+const PROBE_PATHS = new Set(['/api/health', '/api/health/deep'])
 const REQUEST_ID = /^[\w.-]{1,64}$/
 
 /**
  * `userLimit` overrides the per-user API request budget per 15 minutes (1000 in production, 20000
  * in any other `NODE_ENV`, see `apiLimitFor`) and `addressLimit` the per-address one (ten times
- * that); tests use them.
+ * that); tests use them. `healthCacheMs` overrides how long the deep health body is reused.
  */
 export function createApp(
   deps: Deps,
-  opts: { userLimit?: number; addressLimit?: number } = {},
+  opts: { userLimit?: number; addressLimit?: number; healthCacheMs?: number } = {},
 ): Express {
   const logger = createLogger(deps.config)
   const app = express()
@@ -102,6 +104,8 @@ export function createApp(
   app.use(
     pinoHttp({
       logger,
+      // The probes poll all day and say nothing the log needs.
+      autoLogging: { ignore: (req) => PROBE_PATHS.has((req.url ?? '').split('?')[0] ?? '') },
       // The private calendar feed carries its token in the path; the log names the route instead.
       serializers: { req: redactedRequest },
       genReqId: (req, res) => {
@@ -144,7 +148,7 @@ export function createApp(
   app.use('/api', sameOriginGuard())
 
   app.use(['/api/setup', '/api/auth'], express.json({ limit: '16kb' }))
-  app.use('/api', healthRouter(deps))
+  app.use('/api', healthRouter(deps, { cacheMs: opts.healthCacheMs }))
   app.use('/api', authRouter(deps))
   app.use('/api', requireAuth(deps))
   app.use('/api', createUserLimiter({ max: opts.userLimit, nodeEnv: deps.config.nodeEnv }))

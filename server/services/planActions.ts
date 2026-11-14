@@ -592,14 +592,17 @@ async function applyUndo(
       const sessions = writes.sessions
       if (sessions.deleted.length > 0) {
         await tx.planSession.deleteMany({
-          where: { id: { in: sessions.deleted.map((r) => r.id) } },
+          where: { id: { in: sessions.deleted.map((r) => r.id) }, plan: { userId } },
         })
       }
       const sessionsUpdated: Array<{ before: PlanSessionRow; after: PlanSessionRow }> = []
       for (const { before, data } of sessions.updated) {
         sessionsUpdated.push({
           before,
-          after: await tx.planSession.update({ where: { id: before.id }, data }),
+          after: await tx.planSession.update({
+            where: { id: before.id, plan: { userId } },
+            data,
+          }),
         })
       }
       // A run linked to a session that came back may have been deleted since; the link is dropped
@@ -636,13 +639,18 @@ async function applyUndo(
 
       const weeks = writes.weeks
       if (weeks.deleted.length > 0) {
-        await tx.planWeek.deleteMany({ where: { id: { in: weeks.deleted.map((r) => r.id) } } })
+        await tx.planWeek.deleteMany({
+          where: { id: { in: weeks.deleted.map((r) => r.id) }, plan: { userId } },
+        })
       }
       const weeksUpdated: Array<{ before: PlanWeekRow; after: PlanWeekRow }> = []
       for (const { before, data } of weeks.updated) {
         weeksUpdated.push({
           before,
-          after: await tx.planWeek.update({ where: { id: before.id }, data }),
+          after: await tx.planWeek.update({
+            where: { id: before.id, plan: { userId } },
+            data,
+          }),
         })
       }
       const weeksCreated =
@@ -658,7 +666,7 @@ async function applyUndo(
       // The load setting and the method preset go back with the rows, from the options as they stand
       // in this transaction.
       await tx.plan.update({
-        where: { id: planId },
+        where: { id: planId, userId },
         data: {
           ...restore.plan,
           ...(scoped.payload.setting === undefined
@@ -686,7 +694,7 @@ async function applyUndo(
       // The runner chose to undo this revision from a surface that showed it, so it counts as seen.
       const now = new Date()
       await tx.planRevision.update({
-        where: { id: target.id },
+        where: { id: target.id, plan: { userId } },
         data: { undoneAt: now, undoneById: revision.id, seenAt: target.seenAt ?? now },
       })
       return revision.id

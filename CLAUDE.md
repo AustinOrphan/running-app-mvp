@@ -23,12 +23,18 @@ Self-hosted training log and planner for one runner. Specs, the task plan and AD
 - `npm run grade:report`: report-only leave-one-run-out backtest of the personal grade curve (rule I13,
   `shared/engine/gradeCurve.ts`) against Minetti on synthetic runners (`tests/reports/`). Not part of
   `check`; display only, nothing in the plan or the predictions reads the curve.
-- `npm run dev`, `npm run db:migrate`, `npm run format`, `npm run reset-password -- <email>`.
+- `npm run dev`, `npm run db:migrate`, `npm run format`, `npm run reset-password -- <email>`,
+  `npm run delete-user -- <email> [--yes]` (dry run without `--yes`; install owner refused; see Accounts).
 - `npm run backup` and `npm run restore -- <file>` (`scripts/`; the logic is in
   `server/services/backup.ts` and `restore.ts`). Copies go to `backups/` beside the database file.
   `db:migrate` and the Docker `CMD` run `backup --before-migrate` first, which copies only when a
   migration is pending and none is recorded as failed; the daily job (`runBackupJob`, 02:00)
-  records a `backup` job run. The two scripts import nothing that loads the generated Prisma client
+  records a `backup` job run, and 30 s after start `runBackupCatchUp` makes one more when the newest
+  backup (the later of the last ok `backup` run and the newest `app-*.db`) predates the latest 02:00
+  slot (trigger `catchup`, never beside the daily copy). `GET /api/health/deep` (`deepHealth`,
+  `server/routes/health.ts`) is the anonymous monitor probe: `SELECT 1`, the age of the newest backup
+  against `MAX_BACKUP_AGE_HOURS` (26) and each job's last run, 503 when the database or the backup
+  fails; coarse fields only. Both probes stay out of the request log. The two scripts import nothing that loads the generated Prisma client
   (they run before `prisma generate` on a fresh clone; the file location is in `server/dbPath.ts`,
   and `scriptImports.test.ts` walks their imports). The README section "Backup, restore and
   update" is the operator's guide.
@@ -181,6 +187,13 @@ protection reads. The Docker image must still build (`docker build .`) after a c
   retry, never the outbox, dropped offline). The route (`server/routes/clientErrors.ts`) sits below
   `requireAuth` with its own 16 KB parser and 5 reports per minute per user, logs one `client error`
   warn with the body's six fields and stores nothing.
+  Errors outside rendering (handlers, timers, rejected promises) arrive through the `window` `error` and
+  `unhandledrejection` listeners (`installWindowErrorReporting`, `web/pwa/windowErrors.ts`, installed in
+  `web/main.tsx` in a production build only) into the same `reportClientError`; they skip a
+  `ChunkLoadError`, a failed dynamic import, "Script error." with no stack and browser-extension scripts.
+  Settings "Send feedback" (`FeedbackBlock`, words in `shared/copy/feedback.ts`) copies a plain-text note
+  (previous page path, build id, time, user agent, plan id and last revision time when the query cache
+  holds them) and sends nothing; the client keeps no request id, so none is in it.
 - Server errors are thrown as `HttpError` (`server/errors.ts`) and reach the client as
   `{ error: { code, message, details? } }`. Zod parses every body and query.
 - Server data hooks live in `web/api/<resource>.ts`; pages only consume them. Domain rules go in
@@ -256,7 +269,11 @@ protection reads. The Docker image must still build (`docker build .`) after a c
   `POST /api/settings/browser-defaults`). Sessions are signed cookies with no server-side record, so ending
   every session is `User.sessionVersion`: the cookie carries it (none reads as 0), `requireAuth` refuses any other value, and
   `PUT /api/auth/password` and `setPasswordByEmail` set it. `ALLOW_REGISTRATION` stays the only way to open
-  sign-up.
+  sign-up. The owner removes one with `npm run delete-user` (`deleteUser`, `server/auth/deleteUser.ts`):
+  one `user.delete` in a transaction, every table cascading from `User` (a new model holding a runner's
+  rows takes `onDelete: Cascade` and an entry in `OWNED` there, or in `UNOWNED_MODELS` with a reason; a test
+  compares both lists with the schema), the install owner refused, and the daily and `pre-migrate` backups
+  keep the rows until they age out. The deleted user's cookie gets 401 because `requireAuth` finds no user.
 - Env vars are exactly `DATABASE_URL`, `SESSION_SECRET`, `PORT`, `NODE_ENV`, `ALLOW_REGISTRATION`
   and `LOG_LEVEL` (plus `TZ` as an OS setting in Docker).
 - Migrations under `prisma/migrations` are committed; never ignore them.

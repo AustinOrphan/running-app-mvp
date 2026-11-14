@@ -55,7 +55,7 @@ export async function backfillTerrainBins(
       bins = computeTerrainBins({ t: [], d: null, hr: null, alt: null, cad: null, pwr: null }, 10)
     }
     return prisma.activity.updateMany({
-      where: { id: row.id, terrainBins: null },
+      where: { id: row.id, userId, terrainBins: null },
       data: { terrainBins: JSON.stringify(bins) },
     })
   })

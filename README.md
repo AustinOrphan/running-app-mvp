@@ -59,6 +59,7 @@ only the address budgets are shared.
 | `npm run restore -- <file>`         | replace the database with a backup (server stopped)      |
 | `npm run reset-password -- <email>` | set a new password from the command line                 |
 | `npm run create-user -- <email>`    | add an account with a temporary password (see Accounts)  |
+| `npm run delete-user -- <email>`    | show, or with `--yes` delete, an account and its data    |
 | `npm run icons`                     | render the PNG app icons in `web/public` from `icon.svg` |
 
 The e2e suite needs a build first and a Chromium install once: `npx playwright install chromium`.
@@ -471,7 +472,7 @@ Without Compose:
 
 ```sh
 docker build -t running-log .
-docker run -d -p 3001:3001 -v running-log-data:/data \
+docker run -d --restart unless-stopped -p 3001:3001 -v running-log-data:/data \
   -e SESSION_SECRET="$(openssl rand -base64 48)" -e TZ=Europe/London running-log
 ```
 
@@ -482,8 +483,24 @@ docker run -d -p 3001:3001 -v running-log-data:/data \
 The server copies the database every day at 02:00 (its local time; in Docker, set `TZ`). The copy is
 made with SQLite's online backup, so it is consistent while the app runs, and `PRAGMA
 integrity_check` must say `ok` on the copy before the file is kept. The job is recorded as a
-`backup` run in the job log (`GET /api/jobs`). A restart after 02:00 skips that day's run;
-`npm run backup` takes one at any time.
+`backup` run in the job log (`GET /api/jobs`). A restart after 02:00 skips the slot itself, so 30
+seconds after every start the server looks at its newest backup (the later of the last successful
+`backup` run and the newest `app-*.db` file) and, when that is older than the latest 02:00, makes one
+catch-up copy, recorded as a `backup` run with trigger `catchup`; it never runs beside the daily copy,
+and a failure is recorded and logged. `npm run backup` takes one at any time.
+
+### Monitoring
+
+`GET /api/health` is the liveness probe (it touches nothing). `GET /api/health/deep` is for an
+uptime monitor: no cookie, same address limit, and neither probe is written to the request log. It
+runs `SELECT 1` and answers 200 when the database answers and the newest `app-*.db` is at most 26
+hours old (the daily copy plus 2 hours of slack), else 503 (a fresh install answers 503 until its
+first copy). The body is `status`, `database`, `backup` (`ageSeconds`, `maxAgeSeconds`, `fresh`) and
+`jobs`, the age and status of each job's last run; it carries no account data. Alert on a non-200
+answer. A fatal process error (an uncaught exception or unhandled rejection) is logged at `fatal`
+level and the process exits with code 1, so Docker's restart policy restarts it (`restart: unless-stopped`
+in `docker-compose.yml`, `--restart unless-stopped` in the `docker run` example). The deep answer is
+reused for 10 seconds, so a burst of polls costs one read.
 
 The files are in `backups/`, next to the database file: `/data/backups/` in Docker, and
 `prisma/data/backups/` for the default `DATABASE_URL` in a checkout. The folder follows
@@ -626,6 +643,29 @@ on the first load after sign-in: the zone is saved if the account still has the 
 a browser set to `en-US` gives miles and pounds, any other locale kilometres and kilograms. Both
 stay changeable in Settings and on the Profile page. Giving either of `--units` and `--weight`
 settles both (`km` with `kg`, `mi` with `lb`, unless the other is also given).
+
+## Removing an account
+
+```sh
+npm run delete-user -- friend@example.com          # lists what would be removed, deletes nothing
+npm run delete-user -- friend@example.com --yes    # deletes the account and all its data
+docker compose exec app node dist/scripts/delete-user.js friend@example.com --yes
+```
+
+Without `--yes` the script prints the number of rows per table that the account holds and exits
+without deleting. With `--yes` it deletes the account and every row that belongs to it (activities
+and their stored files, plans, logs, integrations and their encrypted secrets, the calendar feed
+token, wellness and the rest) in one transaction. The install owner (the oldest account) is
+refused, and so is an email with no account; both exit 1.
+
+The account's sessions end with it: a signed cookie of a deleted account finds no user, so every
+request answers 401. Two things stay behind by design. The copies in `backups/` still hold the
+account: the daily copies are pruned to the newest of each of the last 7 days and of the last 4 ISO
+weeks, so the last one holding it goes within about 5 weeks, while `pre-migrate` and `pre-restore`
+copies are never pruned and must be deleted by hand if they must not keep it. The live database file can
+still hold the deleted bytes (SQLite free pages and the WAL) until they are overwritten; `VACUUM` with
+the server stopped clears them, and the command does not run it. Events that the
+intervals.icu publisher wrote stay in that person's own intervals.icu calendar.
 
 ## Resetting the password
 

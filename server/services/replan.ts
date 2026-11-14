@@ -208,6 +208,7 @@ export function planWeekWrites(
 export async function writeReplannedWeeks(
   tx: Pick<PrismaClient, 'planWeek'>,
   args: {
+    userId: string
     planId: string
     today: string
     weeks: readonly WeekDraft[]
@@ -226,11 +227,16 @@ export async function writeReplannedWeeks(
     written.created.push(await tx.planWeek.create({ data: { ...data, planId: args.planId } }))
   }
   for (const { before, data } of planned.updated) {
-    const after = await tx.planWeek.update({ where: { id: before.id }, data })
+    const after = await tx.planWeek.update({
+      where: { id: before.id, plan: { userId: args.userId } },
+      data,
+    })
     written.updated.push({ id: before.id, before, after })
   }
   if (planned.deleted.length > 0) {
-    await tx.planWeek.deleteMany({ where: { id: { in: planned.deleted.map((row) => row.id) } } })
+    await tx.planWeek.deleteMany({
+      where: { id: { in: planned.deleted.map((row) => row.id) }, plan: { userId: args.userId } },
+    })
   }
   return written
 }
@@ -1125,6 +1131,7 @@ export async function applyReplan(
       const windowWrite = options.window ? await options.window(tx) : null
       const sessions = await writeSettled(tx, result)
       const replanned = await writeReplannedSessions(tx, {
+        userId: result.userId,
         planId,
         today,
         sessions: draft.sessions,
@@ -1134,13 +1141,14 @@ export async function applyReplan(
       sessions.deleted.push(...replanned.deleted)
       sessions.updated.push(...replanned.updated)
       const weeks = await writeReplannedWeeks(tx, {
+        userId: result.userId,
         planId,
         today,
         weeks: draft.weeks,
         limits: result.targetLimits,
       })
       await tx.plan.update({
-        where: { id: planId },
+        where: { id: planId, userId: result.userId },
         data: {
           raceWeekStart: result.raceWeekStart,
           paramsVersion: draft.paramsVersion,
@@ -1208,7 +1216,10 @@ async function writeSettled(
     ) {
       throw new StaleWrite()
     }
-    const after = await tx.planSession.update({ where: { id: before.id }, data })
+    const after = await tx.planSession.update({
+      where: { id: before.id, plan: { userId: result.userId } },
+      data,
+    })
     written.updated.push({ id: before.id, before: now, after })
   }
   return written

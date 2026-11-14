@@ -120,7 +120,7 @@ export function ingestRouter(deps: Deps): Router {
             }
           }
           await prisma.importBatch.update({
-            where: { id: batchId },
+            where: { id: batchId, userId: row.userId },
             data: { accepted, ...counts, errors: JSON.stringify(report) },
           })
         }
@@ -133,7 +133,7 @@ export function ingestRouter(deps: Deps): Router {
           })
         }
         await prisma.integration.update({
-          where: { id: row.id },
+          where: { id: row.id, userId: row.userId },
           data:
             allFailedMessage !== null
               ? {

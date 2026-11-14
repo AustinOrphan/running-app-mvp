@@ -470,7 +470,7 @@ async function scan(deps: Deps, userId: string, path: string, opts: ScanOptions)
   if (tally.batchId !== null || tally.invalid > 0) {
     const batchId = tally.batchId ?? (await ensureBatch(deps, userId, tally, path))
     await deps.prisma.importBatch.update({
-      where: { id: batchId },
+      where: { id: batchId, userId },
       data: {
         rowCount: tally.stored + tally.duplicate + tally.invalid,
         accepted: tally.stored,
@@ -543,7 +543,7 @@ export async function scanFolderIntegration(
   }
 
   await prisma.integration.updateMany({
-    where: { id: row.id },
+    where: { id: row.id, userId },
     data:
       failure === null
         ? { status: 'connected', lastSyncAt: new Date(), lastSyncStatus: 'ok', lastError: null }

@@ -515,7 +515,7 @@ export function planRouter(deps: Deps): Router {
     }
 
     const updated = await prisma.planWeek.update({
-      where: { id: week.id },
+      where: { id: week.id, plan: { userId: req.userId } },
       data: {
         targetRunMin,
         targetSource,

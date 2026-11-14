@@ -42,6 +42,7 @@ import { STRENGTH_TEMPLATES } from './strengthTemplates.ts'
 import { WINDOW_VIEW_TEMPLATES } from './windowView.ts'
 import { EXPLAIN_TEMPLATES } from './explainTemplates.ts'
 import { EXPORT_TEMPLATES } from './exportData.ts'
+import { FEEDBACK_TEMPLATES } from './feedback.ts'
 import { PUBLISH_TEMPLATES } from './publish.ts'
 import { STANDOUT_TEMPLATES } from './standoutTemplates.ts'
 import { CopyError, isCopyStrict, render, tpl, type Template } from './template.ts'
@@ -90,6 +91,7 @@ export const TEMPLATES = {
   ...ACCOUNT_TEMPLATES,
   ...EXPORT_TEMPLATES,
   ...SURFACE_TEMPLATES,
+  ...FEEDBACK_TEMPLATES,
   ...ERROR_TEMPLATES,
   ...REVIEW_PREFILL_TEMPLATES,
   ...RAISE_TEMPLATES,

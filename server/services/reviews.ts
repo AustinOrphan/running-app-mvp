@@ -327,13 +327,13 @@ export async function saveReview(
       if (qualifies && fields.finalNextMin !== null) {
         if (next.targetSource !== 'override') {
           await tx.planWeek.update({
-            where: { id: next.id },
+            where: { id: next.id, plan: { userId } },
             data: { targetRunMin: fields.finalNextMin, targetSource: 'review' },
           })
         }
       } else if (next.targetSource === 'review') {
         await tx.planWeek.update({
-          where: { id: next.id },
+          where: { id: next.id, plan: { userId } },
           data: { targetRunMin: next.baselineRunMin, targetSource: 'baseline' },
         })
       }

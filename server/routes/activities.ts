@@ -310,7 +310,7 @@ export function activitiesRouter(deps: Deps): Router {
     const id = idParam(req.params.id)
     await findOwned(req.userId, id)
     const body = parse(feedbackSchema, req.body)
-    await prisma.activity.update({ where: { id }, data: body })
+    await prisma.activity.update({ where: { id, userId: req.userId }, data: body })
     // A new rating changes the assessment of the session this activity fulfils.
     await runExecutionQuietly(deps, { userId: req.userId, activityId: id })
     res.json(toActivity(await findOwned(req.userId, id)))
@@ -340,7 +340,7 @@ export function activitiesRouter(deps: Deps): Router {
       body.type !== existing.type ||
       (body.type === 'strength' && body.durationSec !== existing.durationSec)
     await prisma.activity.update({
-      where: { id },
+      where: { id, userId: req.userId },
       data: {
         ...body,
         ...(matchChanged ? { duplicateStatus: 'none', duplicateOfId: null } : {}),
@@ -363,7 +363,7 @@ export function activitiesRouter(deps: Deps): Router {
     const id = idParam(req.params.id)
     await findOwned(req.userId, id)
     await releaseDuplicatesOf(prisma, req.userId, id)
-    await prisma.activity.delete({ where: { id } })
+    await prisma.activity.delete({ where: { id, userId: req.userId } })
     res.status(204).end()
   })
 
@@ -375,7 +375,7 @@ export function activitiesRouter(deps: Deps): Router {
       throw conflict('This activity is not flagged as a possible duplicate.')
     }
     const updated = await prisma.activity.update({
-      where: { id },
+      where: { id, userId: req.userId },
       data: { duplicateStatus: status },
     })
     if (status === 'confirmed') {

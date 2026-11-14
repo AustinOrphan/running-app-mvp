@@ -257,6 +257,20 @@ describe('the scheduler runs the backup', () => {
       toFake: ['Date', 'setTimeout', 'setInterval', 'clearTimeout', 'clearInterval'],
     })
     vi.setSystemTime(start)
+    // Yesterday's copy exists, so the start-up catch-up (backupCatchUp.test.ts) has nothing to make.
+    const yesterday = new Date(2026, 5, 16, BACKUP_SLOT.hour, BACKUP_SLOT.minute)
+    await ctx.prisma.syncRun.create({
+      data: {
+        userId: user.id,
+        provider: 'backup',
+        channel: 'job',
+        trigger: 'schedule',
+        startedAt: yesterday,
+        finishedAt: yesterday,
+        status: 'ok',
+        accepted: 1,
+      },
+    })
     stop = startScheduler(
       { prisma: ctx.prisma, config: ctx.config },
       { fetch: noNetwork(ctx.refusedFetches) },
@@ -264,25 +278,26 @@ describe('the scheduler runs the backup', () => {
 
     await vi.advanceTimersByTimeAsync(SLOT_CHECK_MS - MINUTE)
     expect(copies()).toHaveLength(0)
-    expect(await backupRuns()).toBe(0)
+    expect(await backupRuns()).toBe(1)
 
     await vi.advanceTimersByTimeAsync(2 * MINUTE)
     // The copy is on disk before the run is recorded, so the run is what the test waits for.
     await vi.waitFor(
       async () => {
-        expect(await backupRuns()).toBe(1)
+        expect(await backupRuns()).toBe(2)
       },
       { timeout: 10_000 },
     )
     expect(copies()).toHaveLength(1)
-    const [run] = await ctx.prisma.syncRun.findMany({
+    const run = await ctx.prisma.syncRun.findFirst({
       where: { userId: user.id, channel: 'job', provider: 'backup' },
+      orderBy: { startedAt: 'desc' },
     })
     expect(run).toMatchObject({ status: 'ok', trigger: 'schedule', accepted: 1 })
 
     // not again the same day
     await vi.advanceTimersByTimeAsync(3 * 60 * MINUTE)
-    expect(await backupRuns()).toBe(1)
+    expect(await backupRuns()).toBe(2)
     expect(copies()).toHaveLength(1)
 
     stop()

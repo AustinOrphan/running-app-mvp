@@ -74,6 +74,7 @@ function statusOf(assessment: ExecutionFindings): 'completed' | 'partial' {
  */
 async function trimNextQuality(
   deps: Deps,
+  userId: string,
   row: PlanSessionRow,
   assessment: ExecutionFindings,
 ): Promise<void> {
@@ -118,7 +119,7 @@ async function trimNextQuality(
     'The last quality session felt harder than expected, so this one is shorter.',
   )
   await prisma.planSession.update({
-    where: { id: next.id },
+    where: { id: next.id, plan: { userId } },
     data: {
       status: 'downgraded',
       durationMin: trimmed.durationMin,
@@ -153,6 +154,7 @@ function trimLevel(assessment: ExecutionFindings | null): number {
 /** Assesses a linked session and stores the result; a rating that calls for it trims the next session. */
 async function assessRow(
   deps: Deps,
+  userId: string,
   row: PlanSessionRow,
   activity: Activity,
   ctx: Context,
@@ -172,13 +174,14 @@ async function assessRow(
   })
   const previous = row.execution === null ? null : (JSON.parse(row.execution) as ExecutionFindings)
   const updated = await deps.prisma.planSession.update({
-    where: { id: row.id },
+    where: { id: row.id, plan: { userId } },
     data: { execution: JSON.stringify(assessment), status: statusOf(assessment) },
   })
   // A rating that arrives after the first assessment counts as well, but an assessment that
   // already called for a trim does not trim again when it is repeated.
   const level = trimLevel(assessment)
-  if (level > 0 && level > trimLevel(previous)) await trimNextQuality(deps, updated, assessment)
+  if (level > 0 && level > trimLevel(previous))
+    await trimNextQuality(deps, userId, updated, assessment)
   return updated
 }
 
@@ -197,7 +200,7 @@ async function assessLinked(
   const ctx = await buildContext(deps, { userId: args.userId, goalId: row.plan.goalId, today })
   const activity = ctx.input.activities.find((a) => a.id === row.activityId)
   if (!activity) return toPlanSession(row)
-  return toPlanSession(await assessRow(deps, row, activity, ctx))
+  return toPlanSession(await assessRow(deps, args.userId, row, activity, ctx))
 }
 
 /**
@@ -279,7 +282,7 @@ async function matchAndAssess(
     linked.set(
       row.id,
       await prisma.planSession.update({
-        where: { id: row.id },
+        where: { id: row.id, plan: { userId: args.userId } },
         data: { activityId: match.activityId, linkSource: 'auto' },
       }),
     )
@@ -289,7 +292,7 @@ async function matchAndAssess(
   for (const row of linked.values()) {
     const activity = row.activityId === null ? undefined : byId.get(row.activityId)
     if (!activity) continue
-    await assessRow(deps, row, activity, ctx)
+    await assessRow(deps, args.userId, row, activity, ctx)
     assessed.push(activity.id)
   }
   return assessed
@@ -313,9 +316,9 @@ function stillFits(row: PlanSessionRow, activity: Activity): boolean {
 }
 
 /** Clears a link and the assessment resting on it; a finished session goes back to planned. */
-async function unlink(deps: Deps, row: PlanSessionRow): Promise<void> {
+async function unlink(deps: Deps, userId: string, row: PlanSessionRow): Promise<void> {
   await deps.prisma.planSession.update({
-    where: { id: row.id },
+    where: { id: row.id, plan: { userId } },
     data: {
       activityId: null,
       linkSource: null,
@@ -355,7 +358,7 @@ async function matchActivity(
       await assessLinked(deps, { userId: args.userId, sessionId: linked.id })
       return []
     }
-    await unlink(deps, linked)
+    await unlink(deps, args.userId, linked)
     freed = linked.date
   }
   const plan = await activePlan(deps, args.userId)
