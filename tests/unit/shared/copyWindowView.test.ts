@@ -4,17 +4,22 @@ import { TEMPLATES } from '../../../shared/copy/templates.ts'
 import {
   WINDOW_VIEW_TEMPLATES,
   betterWords,
+  crossTrainingLine,
   isHealthWindow,
   notFullEntryWords,
   offlineLine,
+  prefillHint,
   raceDayLine,
   removeInsteadLabel,
+  repeatPromptAsk,
+  repeatSignsLine,
   restPromptWords,
   runningTimeLine,
   stalePreviewLine,
   windowBannerLine,
   type BannerWindow,
 } from '../../../shared/copy/windowView.ts'
+import { WARNING_SIGNS_NAME } from '../../../shared/copy/warningSigns.ts'
 import { P } from '../../../shared/engine/params/index.ts'
 import type { DisruptionPhase, DisruptionReason, Units } from '../../../shared/types.ts'
 
@@ -246,5 +251,60 @@ describe('the offer on Today and the entry in the Not today sheet', () => {
     expect(words.hint).toBe('Tell the plan if you are ill, hurt, short on time or travelling.')
     expect(notFullEntryWords('mi')).toEqual(words)
     for (const text of Object.values(words)) expect(lintText(text), text).toEqual([])
+  })
+})
+
+describe('the offer for a repeated area and the cross-training line (rule J11)', () => {
+  it('words the question with the count of reports and the look-back', () => {
+    expect(repeatPromptAsk({ reports: 3, days: 7 }, 'km')).toBe(
+      'The same area was sore on 3 of the last 7 days. Set a rest window and a return plan?',
+    )
+    expect(repeatPromptAsk({ reports: 4, days: 7 }, 'mi')).toBe(
+      repeatPromptAsk({ reports: 4, days: 7 }, 'km'),
+    )
+  })
+
+  it('points to the Warning signs page by its name and adds no sign of its own', () => {
+    const line = repeatSignsLine('km')
+    expect(line).toBe(
+      'If the pain is in one small spot on a bone, or starts when a run begins or is there the next day, see Warning signs.',
+    )
+    expect(line).toContain(WARNING_SIGNS_NAME)
+  })
+
+  it('says the sheet was filled in and that anything can change', () => {
+    expect(prefillHint('km')).toBe('Filled in from your check-ins. Change anything.')
+  })
+
+  it('offers cycling or pool work as an option, with no promise of fitness or healing', () => {
+    const line = crossTrainingLine('km')
+    expect(line).toBe(
+      'Easy cycling or pool work is an option while you are not running. It does not count toward run load.',
+    )
+    expect(line).not.toMatch(/fitness|heal|recover|maintain|keep/i)
+  })
+
+  it('passes the G5 lint and avoids again, still, you keep, blame and diagnosis', () => {
+    const lines = [
+      repeatPromptAsk({ reports: 3, days: 7 }, 'km'),
+      repeatSignsLine('km'),
+      prefillHint('km'),
+      crossTrainingLine('km'),
+    ]
+    for (const text of lines) {
+      expect(lintText(text), text).toEqual([])
+      expect(text, text).not.toMatch(/\bagain\b|\bstill\b|you keep|overuse|ignor|injur|diagnos/i)
+    }
+  })
+
+  it('registers its templates, so the shared lint test renders each one', () => {
+    for (const id of [
+      'window-view.prompt.ask-repeat',
+      'window-view.prompt.signs',
+      'window-view.prefill',
+      'window-view.cross-training',
+    ] as const) {
+      expect(TEMPLATES[id], id).toBe(WINDOW_VIEW_TEMPLATES[id])
+    }
   })
 })

@@ -697,7 +697,13 @@ export function estimateState(input: EngineInput): AthleteState {
 
   const ctx: LoadContext = { profile, zones: hrAnchors(profile, age) }
   const metric = chooseMetric(runs, ctx, today)
-  const sparse = dailyLoad(acts, ctx, metric)
+  // Cross-training is not run load: the acute and chronic figures stay what the runs and the
+  // strength sessions made them, so an easy ride or swim in place of a run moves neither (PA1b).
+  const sparse = dailyLoad(
+    acts.filter((a) => a.type !== 'cross'),
+    ctx,
+    metric,
+  )
   const series =
     sparse.length > 0 && sparse[sparse.length - 1]!.date === today
       ? sparse
