@@ -1138,15 +1138,146 @@ describe('GET /api/today', () => {
       .put(`/api/checkins/${THURSDAY}`)
       .send({ painScore: P.pain.flagScore.value })
       .expect(200)
-    expect(await slot()).toEqual({ windows: [], offer: true })
+    expect(await slot()).toEqual({
+      windows: [],
+      offer: true,
+      offerReason: 'check-in',
+      repeat: null,
+    })
     await api(f).put(`/api/checkins/${THURSDAY}`).send({ painScore: 0, illness: true }).expect(200)
-    expect(await slot()).toEqual({ windows: [], offer: true })
+    expect(await slot()).toEqual({
+      windows: [],
+      offer: true,
+      offerReason: 'check-in',
+      repeat: null,
+    })
     // a day ahead is read-only: no offer
     expect(await slot(FRIDAY)).toBeNull()
     expect(await ctx.prisma.disruption.count({ where: { userId: f.u.id } })).toBe(0)
     // with a window in effect the slot is the window, not the offer
     await createWindow(f, cold({ startDate: THURSDAY, endDate: THURSDAY }))
-    expect(await slot()).toMatchObject({ windows: [{ phase: 'resting' }], offer: false })
+    expect(await slot()).toMatchObject({
+      windows: [{ phase: 'resting' }],
+      offer: false,
+      offerReason: null,
+      repeat: null,
+    })
+  })
+
+  describe('the offer for one area reported on several check-ins (rule J11)', () => {
+    const report = (
+      f: Awaited<ReturnType<typeof fixture>>,
+      back: number,
+      area: string,
+      score = 2,
+    ) =>
+      api(f)
+        .put(`/api/checkins/${addDays(THURSDAY, -back)}`)
+        .send({ painScore: score, painArea: area })
+        .expect(200)
+    const slot = async (f: Awaited<ReturnType<typeof fixture>>, date?: string) =>
+      ((await api(f).get(`/api/today${date ? `?date=${date}` : ''}`)).body as TodayView).coach.slots
+        .disruption
+
+    test('is made on the Param count of reports, with the area and the highest pain to fill in', async () => {
+      const f = await fixture('today-repeat@example.com')
+      await report(f, 4, 'Left calf', 2)
+      await report(f, 2, 'calf, left', 3)
+      expect(await slot(f)).toBeNull()
+      await report(f, 0, 'my left calf is sore', 2)
+      expect(await slot(f)).toEqual({
+        windows: [],
+        offer: true,
+        offerReason: 'pain-repeat',
+        repeat: {
+          area: 'my left calf is sore',
+          reports: P.pain.repeatReports.value,
+          days: P.pain.repeatDays.value,
+          pain: 3,
+        },
+      })
+      // asking creates nothing
+      expect(await ctx.prisma.disruption.count({ where: { userId: f.u.id } })).toBe(0)
+      // a day ahead has none
+      expect(await slot(f, FRIDAY)).toBeNull()
+    })
+
+    test('does not count a low score, another area or the other side', async () => {
+      const f = await fixture('today-repeat-other@example.com')
+      await report(f, 4, 'left calf', P.pain.repeatMinScore.value - 1)
+      await report(f, 2, 'right calf', 3)
+      await report(f, 0, 'left calf', 3)
+      expect(await slot(f)).toBeNull()
+    })
+
+    test('a report today at the flag score keeps the check-in reason', async () => {
+      const f = await fixture('today-repeat-now@example.com')
+      await report(f, 4, 'left calf', 2)
+      await report(f, 2, 'left calf', 2)
+      await report(f, 0, 'left calf', P.pain.flagScore.value)
+      expect(await slot(f)).toMatchObject({ offer: true, offerReason: 'check-in', repeat: null })
+    })
+
+    test('is not made while a window is in the band, nor in the quiet days after one for the area', async () => {
+      const f = await fixture('today-repeat-quiet@example.com')
+      await createWindow(f, {
+        reason: 'niggle',
+        mode: 'rest',
+        area: 'Left calf',
+        startDate: addDays(THURSDAY, -2),
+        endDate: addDays(THURSDAY, -1),
+      })
+      await report(f, 4, 'left calf')
+      await report(f, 2, 'left calf')
+      await report(f, 0, 'left calf')
+      // the window is still in the band (easy days follow it): the slot is the band, no offer
+      expect(await slot(f)).toMatchObject({ offer: false, offerReason: null })
+      const endedDaysAgo = (days: number, area: string | null = 'Left calf') =>
+        ctx.prisma.disruption.updateMany({
+          where: { userId: f.u.id },
+          data: {
+            startDate: addDays(THURSDAY, -days - 1),
+            endDate: addDays(THURSDAY, -days),
+            area,
+          },
+        })
+      // over, but inside the quiet days: no offer
+      await endedDaysAgo(P.pain.repeatQuietDays.value - 1)
+      expect(await slot(f)).toBeNull()
+      // over for longer than the quiet days: the offer returns
+      await endedDaysAgo(P.pain.repeatQuietDays.value + 1)
+      expect(await slot(f)).toMatchObject({ offer: true, offerReason: 'pain-repeat' })
+      // a window for another area does not quiet it
+      await endedDaysAgo(P.pain.repeatQuietDays.value - 1, 'right knee')
+      expect(await slot(f)).toMatchObject({ offer: true, offerReason: 'pain-repeat' })
+    })
+  })
+
+  test('a niggle window carries the cross-training flag unless the latest check-in reports a bone', async () => {
+    const f = await fixture('today-cross@example.com')
+    const made = await createWindow(f, {
+      reason: 'niggle',
+      mode: 'rest',
+      area: 'shin',
+      startDate: THURSDAY,
+      endDate: FRIDAY,
+    })
+    const windowsOf = async () =>
+      ((await api(f).get('/api/today')).body as TodayView).coach.slots.disruption?.windows
+    expect(await windowsOf()).toMatchObject([{ id: made.disruption.id, crossTraining: true }])
+    await api(f).put(`/api/checkins/${THURSDAY}`).send({ painFocalBone: true }).expect(200)
+    expect(await windowsOf()).toMatchObject([{ id: made.disruption.id, crossTraining: false }])
+    const list = (await api(f).get('/api/plan/disruptions')).body as Array<{
+      crossTraining: boolean
+    }>
+    expect(list.map((window) => window.crossTraining)).toEqual([false])
+  })
+
+  test('an illness window never carries it', async () => {
+    const f = await fixture('today-cross-ill@example.com')
+    await createWindow(f, cold({ startDate: THURSDAY, endDate: FRIDAY }))
+    const view = (await api(f).get('/api/today')).body as TodayView
+    expect(view.coach.slots.disruption?.windows[0]).toMatchObject({ crossTraining: false })
   })
 })
 

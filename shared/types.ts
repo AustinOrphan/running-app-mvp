@@ -1398,6 +1398,12 @@ export interface DisruptionView extends Disruption {
    * null when the window holds running for under `j7.tier1Days` days or no week before is known.
    */
   returnWeekMin: number | null
+  /**
+   * True while a niggle window is open and the latest check-in does not report focal bone pain: the
+   * page then says that easy cycling or pool work is an option (rule J11). Never for illness,
+   * short-on-time or travel windows.
+   */
+  crossTraining: boolean
 }
 export type TodayAdvice = 'as-planned' | 'downgrade-easy' | 'rest'
 /**
@@ -1597,10 +1603,24 @@ export interface DisruptionSlot {
    */
   windows: DisruptionView[]
   /**
-   * True when no window is open and today's check-in reports illness or pain at or above
-   * `pain.flagScore`: the page offers a rest window and creates nothing by itself.
+   * True when no window is open and either today's check-in reports illness or pain at or above
+   * `pain.flagScore`, or the check-ins of the last `pain.repeatDays` days report one area on
+   * `pain.repeatReports` days (rule J11): the page offers a rest window and creates nothing by
+   * itself.
    */
   offer: boolean
+  /** Why the offer is made: today's check-in, or a repeated area. Null without an offer. */
+  offerReason?: 'check-in' | 'pain-repeat' | null
+  /**
+   * The repeated area behind a `pain-repeat` offer, which the sheet fills in: the area in the
+   * runner's words, the days with a report, the look-back and the highest pain. Null otherwise.
+   */
+  repeat?: {
+    area: string
+    reports: number
+    days: number
+    pain: number
+  } | null
 }
 /**
  * The `watch` slot: the run sessions of the viewed day as `GET /api/wrist/status` lists them, so

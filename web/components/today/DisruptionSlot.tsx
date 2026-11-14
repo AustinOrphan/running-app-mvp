@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { restPromptWords } from '../../../shared/copy/windowView.ts'
+import { repeatPromptAsk, restPromptWords } from '../../../shared/copy/windowView.ts'
 import type { TodayView, Units } from '../../../shared/types.ts'
 import { DisruptionBanners } from '../disruption/DisruptionBanner.tsx'
 import { RestWindowPrompt } from '../disruption/RestWindowPrompt.tsx'
@@ -21,7 +21,10 @@ import { SlotFrame } from './SlotFrame.tsx'
  * "Done". So `DisruptionBanners` is always mounted, with an empty list when there is no window, and
  * the frame wraps only what they draw; the "Not 100%" sheet of the offer is kept here for the same
  * reason. "Not now" lasts until the page is left: it is not stored, so no health detail is written
- * to the device.
+ * to the device (owner decision, 2026-11-14, for the repeat offer too). The offer for a repeated
+ * area (rule J11) words the question with its count and opens the sheet with the niggle, the area
+ * and the pain filled in; its pointer to the Warning signs page and the cross-training line are in
+ * the sheet, because the slot is one 64 px line.
  *
  * The offer arrives after a check-in, above the readiness read, with nothing moving focus to it. A
  * polite status region that is always in the page says the question when the offer appears, which a
@@ -40,9 +43,11 @@ export function DisruptionSlot({ view, units }: { view: TodayView; units: Units 
   }, [later])
 
   const offered = slot?.offer === true && !later
+  const repeat = slot?.offerReason === 'pain-repeat' ? (slot.repeat ?? null) : null
   const prompt = offered ? (
     <RestWindowPrompt
       units={units}
+      repeat={repeat}
       onSetUp={() => {
         setSheet(true)
       }}
@@ -67,11 +72,12 @@ export function DisruptionSlot({ view, units }: { view: TodayView; units: Units 
         )}
       />
       <div role="status" className="visually-hidden">
-        {offered ? restPromptWords(units).ask : null}
+        {offered ? (repeat ? repeatPromptAsk(repeat, units) : restPromptWords(units).ask) : null}
       </div>
       {sheet ? (
         <NotFullSheet
           today={view.date}
+          prefill={repeat}
           onClose={() => {
             setSheet(false)
           }}

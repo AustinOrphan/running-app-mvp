@@ -11,6 +11,12 @@ const SUBJECTIVE_EVIDENCE = [
   'saw-2016-subjective-vs-objective-monitoring',
   'bok-2022-subjective-intensity',
 ]
+const REPEAT_PAIN_EVIDENCE = [
+  'silbernagel-2007-pain-monitoring-achilles',
+  'smith-2017-painful-exercise-meta',
+  'warden-2021-bsi-optimal-workload',
+  'sanford-2024-return-to-running',
+]
 const CR10_NOTE =
   'Default: expected RPE on the CR-10 scale for this session kind. The perceived-effort anchors in the corpus are on the Borg 6-20 scale (VT1 10-11, RCP 13-15); the CR-10 mapping is an engine default, not a published conversion.'
 
@@ -268,6 +274,22 @@ export const mExecution = {
     flagScore: param('pain.flagScore', 4, 'D', 'design-4.2', [], {
       unit: 'pain score 0-10',
       note: 'Default: a pain score at or above this raises the pain warning sign at once; focal bone pain raises it at any score.',
+    }),
+    repeatDays: param('pain.repeatDays', 7, 'D', 'J11', REPEAT_PAIN_EVIDENCE, {
+      unit: 'days',
+      note: 'Default: the look-back, in days ending on the viewed day, in which reports of one sore area are counted. No cited paper gives a count, a window or a score for reports; they support only the direction (watch pain over days, not on one report) and that an offer moves toward less running.',
+    }),
+    repeatReports: param('pain.repeatReports', 3, 'D', 'J11', REPEAT_PAIN_EVIDENCE, {
+      unit: 'check-ins',
+      note: 'Default: this many check-ins naming one area, within the look-back, make Today ask whether to set a rest window. No cited paper gives a count, a window or a score.',
+    }),
+    repeatMinScore: param('pain.repeatMinScore', 2, 'D', 'J11', REPEAT_PAIN_EVIDENCE, {
+      unit: 'pain score 0-10',
+      note: 'Default: a check-in counts as a report of an area at or above this score (1 of 10 is noticing, not a report). A taste call; no cited paper gives a count, a window or a score.',
+    }),
+    repeatQuietDays: param('pain.repeatQuietDays', 7, 'D', 'J11', REPEAT_PAIN_EVIDENCE, {
+      unit: 'days',
+      note: 'Default: no repeat offer for this many days after the last day of a niggle window for the same area, so a window just made or just over is not asked about again. No cited paper gives a count, a window or a score.',
     }),
   },
   conditions: {

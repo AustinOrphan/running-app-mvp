@@ -132,9 +132,10 @@ export const EXPLAIN_TEMPLATES = {
       metric: 'text',
     },
   ),
-  'explain.a2-gap': tpl('No activity in the last {days} days, so there is no load to describe.', {
-    days: 'count',
-  }),
+  'explain.a2-gap': tpl(
+    'No runs, races or strength sessions in the last {days} days, so there is no load to describe.',
+    { days: 'count' },
+  ),
 
   // A5 and J7: the last run
   'explain.last-run': tpl('Your last run was on {date}. Days since then: {days}.', {
