@@ -88,6 +88,32 @@ describe('the Warning signs list', () => {
   })
 })
 
+describe('the pain-monitoring background sentence', () => {
+  const text = render(TEMPLATES['warning-signs.background'], {}, 'km')
+
+  test('says physiotherapists sometimes use a model, with limits set per person, and that the app does not', () => {
+    expect(text).toBe(
+      'Physiotherapists sometimes use a pain-monitoring model in tendon rehabilitation, with limits they set for each person; the app does not apply it.',
+    )
+    assertCleanCopy(text, 'warning-signs.background')
+  })
+
+  test('gives no pain level, no settling time and no permission, and is not a sign', () => {
+    expect(text).not.toMatch(/\d|morning|next day|safe|okay|allowed|may run|can run/i)
+    expect(WARNING_SIGNS.map((sign) => sign.id)).not.toContain('background')
+  })
+
+  test('the rule record that governs the page cites the two papers it rests on', () => {
+    const rules = readFileSync(join(root, 'research', 'engine-rules.md'), 'utf8')
+    const item = rules
+      .split('\n')
+      .find((line) => line.startsWith('12. **Where the signs are shown.**'))
+    expect(item).toBeDefined()
+    expect(item).toContain('[silbernagel-2007-pain-monitoring-achilles]')
+    expect(item).toContain('[smith-2017-painful-exercise-meta]')
+  })
+})
+
 describe('the templates that point to the list', () => {
   const pointing = Object.entries(TEMPLATES).filter(([, template]) =>
     /warning signs/i.test(template.text),

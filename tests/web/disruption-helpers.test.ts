@@ -3,6 +3,7 @@ import { P } from '../../shared/engine/params/index.ts'
 import { newWarnings, windowCovers } from '../../web/components/disruption/previewFigures.ts'
 import {
   EMPTY_DRAFT,
+  areaWithin,
   RUN_CAP_CHOICES,
   dateBounds,
   datesOf,
@@ -200,5 +201,24 @@ describe('the warnings and windows of a preview', () => {
     expect(windowCovers(window, '2026-10-22')).toBe(true)
     expect(windowCovers(window, '2026-10-24')).toBe(true)
     expect(windowCovers(window, '2026-10-25')).toBe(false)
+  })
+})
+
+describe('areaWithin', () => {
+  test('leaves a short text alone and trims it', () => {
+    expect(areaWithin('  left   calf ', 80)).toBe('left calf')
+  })
+
+  test('cuts a long text at the last whole word', () => {
+    const text = `left calf ${'tight '.repeat(20)}end`
+    const cut = areaWithin(text, 80)
+    expect(cut.length).toBeLessThanOrEqual(80)
+    expect(cut.startsWith('left calf tight')).toBe(true)
+    expect(cut.endsWith('tight')).toBe(true)
+  })
+
+  test('keeps the region and side when the cut would drop the region word', () => {
+    const text = `my ${'very '.repeat(20)}sore left calf`
+    expect(areaWithin(text, 80)).toBe('left calf')
   })
 })

@@ -3,8 +3,11 @@ import { Link } from 'react-router-dom'
 import { windowRuleFact } from '../../../shared/copy/revision.ts'
 import { renderFact } from '../../../shared/copy/templates.ts'
 import {
+  crossTrainingLine,
   offlineLine,
+  prefillHint,
   raceDayLine,
+  repeatSignsLine,
   runningTimeLine,
   stalePreviewLine,
   untilHint,
@@ -20,14 +23,17 @@ import { ScalePicker } from '../ScalePicker.tsx'
 import { Segmented } from '../Segmented.tsx'
 import { Sheet } from '../Sheet.tsx'
 import { Skeleton } from '../Skeleton.tsx'
+import { WarningSignsText } from '../WarningSignsText.tsx'
 import { RevisionDiff } from '../revisions/RevisionDiff.tsx'
 import { PreviewPanel } from './PreviewPanel.tsx'
 import { newWarnings, windowCovers } from './previewFigures.ts'
 import {
+  AREA_MAX,
   EMPTY_DRAFT,
   REASON_CHOICES,
   RUN_CAP_CHOICES,
   dateBounds,
+  areaWithin,
   datesOf,
   draftErrors,
   inputOf,
@@ -46,6 +52,12 @@ export interface NotFullSheetProps {
    * bounded by. Omitted, the sheet reads it from `GET /api/today`; the device clock is never used.
    */
   today?: string
+  /**
+   * An area reported on several check-ins (rule J11), from Today's offer: the sheet opens on step 2
+   * with a niggle chosen and the area and the highest pain filled in, for the runner to change. It
+   * creates nothing; the window is made only after the preview.
+   */
+  prefill?: { area: string; pain: number } | null
 }
 
 type Step = 'reason' | 'when' | 'review' | 'done'
@@ -74,7 +86,7 @@ const FIELD_ORDER = ['startDate', 'endDate', 'mode', 'maxRunMin', 'area', 'pain'
  * below 900 px; focus moves to the heading of each step, and back to whatever opened the sheet when
  * it closes.
  */
-export function NotFullSheet({ onClose, today: given }: NotFullSheetProps) {
+export function NotFullSheet({ onClose, today: given, prefill = null }: NotFullSheetProps) {
   const settings = useSettings()
   const todayView = useToday()
   const plan = usePlan()
@@ -84,8 +96,17 @@ export function NotFullSheet({ onClose, today: given }: NotFullSheetProps) {
   const markSeen = useMarkRevisionsSeen()
   const radioName = useId()
 
-  const [step, setStep] = useState<Step>('reason')
-  const [draft, setDraft] = useState<WindowDraft>(EMPTY_DRAFT)
+  const [step, setStep] = useState<Step>(prefill === null ? 'reason' : 'when')
+  const [draft, setDraft] = useState<WindowDraft>(
+    prefill === null
+      ? EMPTY_DRAFT
+      : {
+          ...EMPTY_DRAFT,
+          reason: 'niggle',
+          area: areaWithin(prefill.area, AREA_MAX),
+          pain: prefill.pain,
+        },
+  )
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [preview, setPreview] = useState<PlanPreview | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
@@ -118,6 +139,10 @@ export function NotFullSheet({ onClose, today: given }: NotFullSheetProps) {
     plan.data?.sessions.find((session) => session.kind === 'race')?.date ??
     null
   const input = today === undefined ? null : inputOf(draft, today)
+  // A bone sign in the latest check-in takes the place of the cross-training line (rule J11).
+  const boneSign =
+    todayView.data?.readiness.redFlags.some((flag) => flag.code === 'focal-bone-pain') ?? false
+  const showCrossTraining = input?.reason === 'niggle' && !boneSign
 
   function change(patch: Partial<WindowDraft>) {
     setDraft((current) => ({ ...current, ...patch }))
@@ -239,7 +264,10 @@ export function NotFullSheet({ onClose, today: given }: NotFullSheetProps) {
           notice={notice}
           lead={windowSentences(input, windows.data ?? [], units)}
           facts={preview.runMin === null ? [] : [runningTimeLine(preview.runMin, units)]}
-          notes={raceDate !== null && windowCovers(input, raceDate) ? [raceDayLine(units)] : []}
+          notes={[
+            ...(raceDate !== null && windowCovers(input, raceDate) ? [raceDayLine(units)] : []),
+            ...(showCrossTraining ? [crossTrainingLine(units)] : []),
+          ]}
           warnings={newWarnings(preview.warnings, plan.data?.warnings ?? [])}
         />
         {failure !== null ? (
@@ -357,6 +385,14 @@ export function NotFullSheet({ onClose, today: given }: NotFullSheetProps) {
                 />
                 It changes how I walk or run
               </label>
+              {prefill !== null ? (
+                <>
+                  <p className={styles.text}>{prefillHint(units)}</p>
+                  <p role="note" className={styles.rule}>
+                    <WarningSignsText text={repeatSignsLine(units)} />
+                  </p>
+                </>
+              ) : null}
               <p role="note" className={styles.rule}>
                 {NIGGLE_BONE_NOTICE} <Link to="/">{"Open today's check-in"}</Link>
               </p>

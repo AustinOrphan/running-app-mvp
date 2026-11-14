@@ -23,6 +23,9 @@ export const WARNING_SIGNS_TEMPLATES = {
   'warning-signs.escalation.sodium': tpl(
     'If confusion, repeated vomiting, a worsening headache or drowsiness appear, call emergency services.',
   ),
+  'warning-signs.background': tpl(
+    'Physiotherapists sometimes use a pain-monitoring model in tendon rehabilitation, with limits they set for each person; the app does not apply it.',
+  ),
   'warning-signs.closing': tpl(
     'The list names signs and makes no diagnosis. If something feels wrong and is not here, stop anyway.',
   ),
