@@ -36,6 +36,7 @@ import {
 } from '../api/activities.ts'
 import { ApiError, keys } from '../api/client.ts'
 import { usePlan } from '../api/plan.ts'
+import { usePlanInputs } from '../api/planInputs.ts'
 import { useToday } from '../api/today.ts'
 import { useSettings } from '../api/settings.ts'
 import { useZones } from '../api/zones.ts'
@@ -44,7 +45,12 @@ import { ConfirmSheet } from '../components/ConfirmSheet.tsx'
 import { TrashGlyph } from '../components/Glyphs.tsx'
 import { StreamChart } from '../components/charts/lazyCharts.tsx'
 import { buildSeries, type StreamChannel } from '../components/charts/streamSeries.ts'
-import { FeedbackFields, showHeatMark, type FeedbackValues } from '../components/FeelPicker.tsx'
+import {
+  FeedbackFields,
+  feedbackPatch,
+  showHeatMark,
+  type FeedbackValues,
+} from '../components/FeelPicker.tsx'
 import { ErrorState } from '../components/ErrorState.tsx'
 import { useLoadView } from '../components/loadView.ts'
 import { Figure } from '../components/Figure.tsx'
@@ -584,6 +590,12 @@ function Feedback({ activity, units }: { activity: Activity; units: Units }) {
   const plan = usePlan()
   const execution =
     plan.data?.sessions.find((session) => session.activityId === activity.id)?.execution ?? null
+  // Whether the plan reads watch ratings yet (the spread check of rule B1); until it does, a watch
+  // rating does not count toward the effort verdict and the verdict keeps its caveat.
+  const planInputs = usePlanInputs()
+  const watchRead = planInputs.data?.runs.watchRatings.used === true
+  const watchHeld = activity.rpeSource === 'watch' && !watchRead
+  const counted = watchHeld ? { rpe: null, feel: activity.feel } : activity
   const [value, setValue] = useState<FeedbackValues>({
     rpe: activity.rpe,
     feel: activity.feel,
@@ -593,13 +605,21 @@ function Feedback({ activity, units }: { activity: Activity; units: Units }) {
 
   return (
     <Section title="How did it go?">
-      {execution !== null && !ratingCounts(execution.completion, activity) ? (
+      {execution !== null && !ratingCounts(execution.completion, counted) ? (
         <p className={styles.note}>
           {unratedEffortNote(execution.effort.score, execution.completion)}
         </p>
       ) : null}
       {activity.rpeSource === 'watch' && activity.rpe !== null ? (
-        <p className={styles.note}>{render(TEMPLATES['activity-page.rpe-from-watch'], {}, 'km')}</p>
+        <p className={styles.note}>
+          {render(
+            TEMPLATES[
+              watchHeld ? 'activity-page.rpe-from-watch-held' : 'activity-page.rpe-from-watch'
+            ],
+            {},
+            'km',
+          )}
+        </p>
       ) : null}
       <FeedbackFields
         value={value}
@@ -614,7 +634,7 @@ function Feedback({ activity, units }: { activity: Activity; units: Units }) {
           onClick={() => {
             // The section starts again from the stored values once they refetch, which unmounts
             // this component before a per-call callback of `mutate` would run; the promise does not.
-            save.mutateAsync(value).then(
+            save.mutateAsync(feedbackPatch(value, activity.rpe)).then(
               () => {
                 toast.show(
                   value.rpe === activity.rpe &&

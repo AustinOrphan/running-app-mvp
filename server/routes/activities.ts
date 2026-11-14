@@ -5,7 +5,12 @@ import type { Deps } from '../app.ts'
 import { conflict, notFound, parse, validationError } from '../errors.ts'
 import { loadActivities, loadActivityPage, toActivity } from '../serialize.ts'
 import { activityCsvHeader, activityCsvLine } from '../services/activitiesCsv.ts'
-import { createManualActivity, saveDoneActivity, toTrack } from '../services/activityStore.ts'
+import {
+  createManualActivity,
+  ratingSourceAfterWrite,
+  saveDoneActivity,
+  toTrack,
+} from '../services/activityStore.ts'
 import {
   moveConfirmedLogs,
   rematchDuplicates,
@@ -142,15 +147,6 @@ const feedbackSchema = z.strictObject({
   /** Absent leaves the mark alone; null clears it (rule I8). */
   heatExposure: z.enum(['warm-room', 'passive']).nullable().optional(),
 })
-
-/** The source of the rating after a full edit: a value the form did not change keeps the watch as its source. */
-function ratingSourceAfterEdit(
-  existing: { rpe: number | null; rpeSource: string | null },
-  rpe: number | null,
-): 'app' | 'watch' | null {
-  if (rpe === null) return null
-  return rpe === existing.rpe && existing.rpeSource === 'watch' ? 'watch' : 'app'
-}
 
 /** The id the client chose for a Done: a UUID, as the outbox's route pattern reads it. */
 const doneIdParam = z.object({
@@ -317,11 +313,14 @@ export function activitiesRouter(deps: Deps): Router {
   // repeat changes nothing. The outbox queues the PUT.
   const saveFeedback: RequestHandler = async (req, res) => {
     const id = idParam(req.params.id)
-    await findOwned(req.userId, id)
+    const existing = await findOwned(req.userId, id)
     const body = parse(feedbackSchema, req.body)
-    // A rating given here is the runner own and wins over a watch rating (WR1); clearing it clears the source.
+    // A rating given here is the runner own and wins over a watch rating (WR1); clearing it clears
+    // the source. The stored watch value sent back as it is stays the watch rating.
     const data =
-      body.rpe === undefined ? body : { ...body, rpeSource: body.rpe === null ? null : 'app' }
+      body.rpe === undefined
+        ? body
+        : { ...body, rpeSource: ratingSourceAfterWrite(existing, body.rpe) }
     await prisma.activity.update({ where: { id, userId: req.userId }, data })
     // A new rating changes the assessment of the session this activity fulfils.
     await runExecutionQuietly(deps, { userId: req.userId, activityId: id })
@@ -356,7 +355,7 @@ export function activitiesRouter(deps: Deps): Router {
       data: {
         ...body,
         // The form always sends the rating: an unchanged watch rating keeps the watch as its source (WR1).
-        rpeSource: ratingSourceAfterEdit(existing, body.rpe),
+        rpeSource: ratingSourceAfterWrite(existing, body.rpe),
         ...(matchChanged ? { duplicateStatus: 'none', duplicateOfId: null } : {}),
       },
     })

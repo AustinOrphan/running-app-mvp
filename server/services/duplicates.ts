@@ -172,10 +172,12 @@ async function copyEffort(
     prisma.activity.findUnique({ where: { id: originalId }, select: fields }),
   ])
   if (!copy || !original) return
+  // An in-app rating on the copy wins over a watch rating on the original; rating and source go together.
+  const copyWins =
+    copy.rpe !== null &&
+    (original.rpe === null || (original.rpeSource === 'watch' && copy.rpeSource !== 'watch'))
   const data = {
-    ...(original.rpe === null && copy.rpe !== null
-      ? { rpe: copy.rpe, rpeSource: copy.rpeSource }
-      : {}),
+    ...(copyWins ? { rpe: copy.rpe, rpeSource: copy.rpeSource } : {}),
     ...(original.pain === null && copy.pain !== null ? { pain: copy.pain } : {}),
     ...(original.notes === null && copy.notes !== null ? { notes: copy.notes } : {}),
   }

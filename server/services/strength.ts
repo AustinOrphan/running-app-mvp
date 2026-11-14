@@ -63,7 +63,11 @@ import {
   toStrengthSettings,
   toWeightUnit,
 } from '../serialize.ts'
-import { createManualActivity, type ManualActivityDb } from './activityStore.ts'
+import {
+  createManualActivity,
+  ratingSourceAfterWrite,
+  type ManualActivityDb,
+} from './activityStore.ts'
 import {
   goalModelFor,
   loadAthleteContext,
@@ -224,9 +228,10 @@ function activityFields(input: StrengthLogInput, existing: ActivityRow) {
   return {
     date: input.date,
     ...(minutesChanged ? { durationSec: input.durationMin * 60 } : {}),
+    // The stored watch value sent back as it is stays the watch rating (WR1).
     ...(input.rpe === undefined
       ? {}
-      : { rpe: input.rpe, rpeSource: input.rpe === null ? null : 'app' }),
+      : { rpe: input.rpe, rpeSource: ratingSourceAfterWrite(existing, input.rpe) }),
     ...(input.pain === undefined ? {} : { pain: input.pain }),
     ...(input.notes === undefined ? {} : { notes: input.notes }),
   }

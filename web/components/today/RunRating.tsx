@@ -12,7 +12,7 @@ import {
 } from '../../api/activityOutbox.ts'
 import { ApiError } from '../../api/client.ts'
 import { Button } from '../Button.tsx'
-import { FeedbackFields, showHeatMark, type FeedbackValues } from '../FeelPicker.tsx'
+import { FeedbackFields, feedbackPatch, showHeatMark, type FeedbackValues } from '../FeelPicker.tsx'
 import { useToast } from '../Toast.tsx'
 import styles from './RunRating.module.css'
 
@@ -103,7 +103,7 @@ export function RunRating({
           disabled={!touched}
           loading={save.isPending}
           onClick={() => {
-            save.mutate(value, {
+            save.mutate(feedbackPatch(value, null), {
               onSuccess: (landed) => {
                 setHeatOnly(value.rpe === null && value.feel === null && value.pain === run.pain)
                 setSaved(landed)

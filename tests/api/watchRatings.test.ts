@@ -4,9 +4,11 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'vitest'
 import { runSyncJob } from '../../server/jobs/scheduler.ts'
 import { loadAthleteContext } from '../../server/services/athleteState.ts'
+import { moveConfirmedLogs } from '../../server/services/duplicates.ts'
 import { storeParsed } from '../../server/services/activityStore.ts'
 import { sealSecret, syncProvider } from '../../server/services/sync.ts'
 import type { ParsedActivity } from '../../shared/types.ts'
+import { buildFit } from '../fixtures/fit/buildFit.ts'
 import { fakeFetch, type FakeRoute } from '../fakeFetch.ts'
 import {
   client,
@@ -62,6 +64,10 @@ interface Remote {
   startUtc: string
   icuRpe?: unknown
   feel?: number
+  /** The original file intervals.icu serves; absent answers 404 and the streams are used. */
+  fit?: Uint8Array
+  /** The status of the activity record call; 200 by default. */
+  detailStatus?: number
 }
 
 /** intervals.icu as the provider reads it, each activity carrying the watch's `icu_rpe` and `feel`. */
@@ -72,7 +78,13 @@ function intervals(remote: Remote[]) {
     [`GET ${BASE}/athlete/i1001/wellness.json`]: () => json([]),
   }
   for (const r of remote) {
-    routes[`GET ${BASE}/activity/${r.id}/file`] = () => json({}, 404)
+    routes[`GET ${BASE}/activity/${r.id}/file`] = () =>
+      r.fit
+        ? new Response(Buffer.from(r.fit), {
+            status: 200,
+            headers: { 'content-disposition': `attachment; filename="${r.id}.fit"` },
+          })
+        : json({}, 404)
     routes[`GET ${BASE}/activity/${r.id}/streams.json`] = () =>
       json([
         { type: 'time', data: [0, 10, 20, 30, 40, 50, 60] },
@@ -80,18 +92,20 @@ function intervals(remote: Remote[]) {
         { type: 'heartrate', data: [120, 125, 130, 130, 132, 135, 136] },
       ])
     routes[`GET ${BASE}/activity/${r.id}`] = () =>
-      json({
-        id: r.id,
-        type: 'Run',
-        start_date: r.startUtc,
-        start_date_local: r.startUtc.replace('Z', ''),
-        distance: 180,
-        moving_time: 60,
-        elapsed_time: 60,
-        average_heartrate: 130,
-        ...(r.icuRpe === undefined ? {} : { icu_rpe: r.icuRpe }),
-        ...(r.feel === undefined ? {} : { feel: r.feel }),
-      })
+      r.detailStatus && r.detailStatus !== 200
+        ? json({}, r.detailStatus)
+        : json({
+            id: r.id,
+            type: 'Run',
+            start_date: r.startUtc,
+            start_date_local: r.startUtc.replace('Z', ''),
+            distance: 180,
+            moving_time: 60,
+            elapsed_time: 60,
+            average_heartrate: 130,
+            ...(r.icuRpe === undefined ? {} : { icu_rpe: r.icuRpe }),
+            ...(r.feel === undefined ? {} : { feel: r.feel }),
+          })
   }
   return fakeFetch(routes)
 }
@@ -168,6 +182,48 @@ describe('the intervals.icu pull', () => {
     })
   })
 
+  describe('with an original FIT file', () => {
+    const fit = () =>
+      buildFit({
+        serial: 7,
+        sessions: [
+          {
+            sport: 1,
+            startUnix: Date.UTC(2026, 2, 2, 7) / 1000,
+            durationSec: 900,
+            records: [0, 30, 60, 90].map((t) => ({ t, distanceM: t * 3 })),
+          },
+        ],
+      })
+
+    test('the rating from the activity record is merged into the file import', async () => {
+      await pull([{ id: 'i1', startUtc: '2026-03-02T07:00:00Z', icuRpe: 8, fit: fit() }])
+      const row = await ctx.prisma.activity.findFirstOrThrow()
+      expect(row).toMatchObject({ rpe: 8, rpeSource: 'watch', providerKey: 'intervals:i1' })
+      // The file itself was stored, so this is the file path and not the streams one.
+      expect(await ctx.prisma.activityFile.count()).toBe(1)
+      expectNoRefusedFetches(ctx)
+    })
+
+    test('a failed record call does not fail the import', async () => {
+      await pull([
+        { id: 'i1', startUtc: '2026-03-02T07:00:00Z', icuRpe: 8, fit: fit(), detailStatus: 500 },
+      ])
+      expect(await ctx.prisma.activity.findFirstOrThrow()).toMatchObject({
+        rpe: null,
+        rpeSource: null,
+      })
+      expect(await ctx.prisma.activityFile.count()).toBe(1)
+    })
+
+    test('a missing record (404) leaves the file import unrated', async () => {
+      await pull([
+        { id: 'i1', startUtc: '2026-03-02T07:00:00Z', icuRpe: 8, fit: fit(), detailStatus: 404 },
+      ])
+      expect(await ctx.prisma.activity.findFirstOrThrow()).toMatchObject({ rpe: null })
+    })
+  })
+
   test('an activity with no icu_rpe stays unrated', async () => {
     await pull([{ id: 'i1', startUtc: '2026-03-02T07:00:00Z' }])
     expect(await ctx.prisma.activity.findFirstOrThrow()).toMatchObject({
@@ -207,22 +263,55 @@ describe('who wins', () => {
     })
   })
 
-  test('the same rating given in the app counts as the app’s', async () => {
+  test('the stored watch value sent back unchanged stays the watch rating', async () => {
     const row = await stored(7)
-    await client(ctx, user).patch(`/api/activities/${row.id}/feedback`).send({ rpe: 7 })
+    await client(ctx, user).patch(`/api/activities/${row.id}/feedback`).send({ rpe: 7, pain: 1 })
     expect(await ctx.prisma.activity.findFirstOrThrow()).toMatchObject({
       rpe: 7,
+      rpeSource: 'watch',
+      pain: 1,
+    })
+  })
+
+  test('a feel-only save keeps the watch rating and its source', async () => {
+    const row = await stored(7)
+    const res = await client(ctx, user).put(`/api/activities/${row.id}/feedback`).send({ feel: 1 })
+    expect(res.body).toMatchObject({ rpe: 7, rpeSource: 'watch', feel: 1 })
+  })
+
+  test('an explicit new rating sets the source app', async () => {
+    const row = await stored(7)
+    await client(ctx, user).patch(`/api/activities/${row.id}/feedback`).send({ rpe: 4 })
+    expect(await ctx.prisma.activity.findFirstOrThrow()).toMatchObject({
+      rpe: 4,
       rpeSource: 'app',
     })
   })
 
-  test('a feedback without rpe leaves the watch rating and its source', async () => {
-    const row = await stored(7)
-    await client(ctx, user).put(`/api/activities/${row.id}/feedback`).send({ pain: 2 })
-    expect(await ctx.prisma.activity.findFirstOrThrow()).toMatchObject({
-      rpe: 7,
-      rpeSource: 'watch',
-      pain: 2,
+  test('a strength copy rated in the app wins over a watch rating on the original when its log moves', async () => {
+    const base = { userId: user.id, date: '2026-03-02', type: 'strength', durationSec: 2400 }
+    const original = await ctx.prisma.activity.create({
+      data: { ...base, rpe: 7, rpeSource: 'watch', source: 'intervals' },
+    })
+    const copy = await ctx.prisma.activity.create({
+      data: {
+        ...base,
+        rpe: 3,
+        rpeSource: 'app',
+        source: 'manual',
+        duplicateOfId: original.id,
+        duplicateStatus: 'confirmed',
+      },
+    })
+    await ctx.prisma.strengthLog.create({
+      data: { id: 'log-wr1', userId: user.id, activityId: copy.id, prescribed: '{}' },
+    })
+    await moveConfirmedLogs(ctx.prisma, user.id, original.id)
+    expect(
+      await ctx.prisma.activity.findUniqueOrThrow({ where: { id: original.id } }),
+    ).toMatchObject({
+      rpe: 3,
+      rpeSource: 'app',
     })
   })
 

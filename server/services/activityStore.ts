@@ -84,6 +84,18 @@ export function toTrack(row: {
   }
 }
 
+/**
+ * The source of a rating the runner writes: null when cleared, `watch` when the value sent is the
+ * stored watch rating unchanged (a form or a save that resends what it was shown), else `app`.
+ */
+export function ratingSourceAfterWrite(
+  existing: { rpe: number | null; rpeSource: string | null },
+  rpe: number | null,
+): 'app' | 'watch' | null {
+  if (rpe === null) return null
+  return rpe === existing.rpe && existing.rpeSource === 'watch' ? 'watch' : 'app'
+}
+
 /** The watch's rating when it is a whole number from 1 to 10 (the scale of `Activity.rpe`), else null. */
 function validWatchRpe(value: number | null | undefined): number | null {
   return typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= 10

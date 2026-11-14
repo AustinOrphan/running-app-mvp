@@ -176,6 +176,23 @@ describe('Today: How did it go?', () => {
     })
   })
 
+  test('a feel-only save sends no rpe, so a watch rating on the run is left alone (WR1)', async () => {
+    const user = userEvent.setup()
+    const api = renderDashboard(
+      [makeActivity({ id: 'r1', date: '2026-03-17', type: 'run', rpeSource: 'watch' })],
+      { 'PUT /api/activities/r1/feedback': () => ({}) },
+    )
+    const card = await screen.findByRole('region', { name: 'How did it go?' })
+    await user.click(within(card).getByRole('button', { name: 'Harder' }))
+    await user.click(within(card).getByRole('button', { name: 'Save' }))
+    await waitFor(() => {
+      expect(api.calls.some((c) => c.method === 'PUT')).toBe(true)
+    })
+    const body = api.calls.find((c) => c.method === 'PUT')?.body
+    expect(body).toEqual({ feel: 1, pain: null, heatExposure: null })
+    expect(body).not.toHaveProperty('rpe')
+  })
+
   test('refreshes today after a save, since the server re-assesses the session', async () => {
     const user = userEvent.setup()
     const api = renderDashboard([makeActivity({ id: 'r1', date: '2026-03-17', type: 'run' })], {

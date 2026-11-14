@@ -186,6 +186,24 @@ function formatOf(name: string, bytes: Uint8Array): FileFormat | null {
   return null
 }
 
+/**
+ * The rating the watch gave, from the activity record (`icu_rpe`). Null when there is none or the
+ * record cannot be read: a failed detail call never fails the import. A rate limit or a rejected
+ * key still stops the pull, as for every other call.
+ */
+async function watchRatingOf(ref: RemoteActivityRef, ctx: ProviderCtx): Promise<number | null> {
+  try {
+    const detail = (await pullJson(
+      ctx,
+      `/activity/${encodeURIComponent(ref.id)}`,
+    )) as RemoteActivity | null
+    return num(detail?.icu_rpe)
+  } catch (error) {
+    if (error instanceof RateLimitPause || error instanceof ProviderAuthError) throw error
+    return null
+  }
+}
+
 /** Downloads the original file; null when intervals.icu has none or it does not parse. */
 async function fromOriginalFile(
   ref: RemoteActivityRef,
@@ -382,7 +400,11 @@ export const intervalsProvider: PullProvider = {
   },
 
   async fetchActivity(ref, ctx) {
-    return (await fromOriginalFile(ref, ctx)) ?? (await fromStreams(ref, ctx))
+    const fromFile = await fromOriginalFile(ref, ctx)
+    if (!fromFile) return fromStreams(ref, ctx)
+    // The original file carries no rating from the watch; the activity record does (WR1).
+    const watchRpe = await watchRatingOf(ref, ctx)
+    return watchRpe === null ? fromFile : { ...fromFile, parsed: { ...fromFile.parsed, watchRpe } }
   },
 
   async fetchRoute(ref, ctx) {

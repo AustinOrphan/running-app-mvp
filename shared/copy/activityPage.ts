@@ -18,6 +18,9 @@ export const ACTIVITY_PAGE_TEMPLATES = {
   'activity-page.rpe-from-watch': tpl(
     'The effort rating is from your watch. A rating you give here replaces it.',
   ),
+  'activity-page.rpe-from-watch-held': tpl(
+    'The effort rating is from your watch. The plan does not read watch ratings yet. A rating you give here replaces it.',
+  ),
   'activity-page.against-heading': tpl('Against the plan', {}, { shape: 'label' }),
 
   // The labels of the paces in the summary. The pace the page leads with is the elapsed one, from

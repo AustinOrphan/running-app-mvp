@@ -3,6 +3,7 @@ import { TEMPLATES } from '../../shared/copy/templates.ts'
 import { HEAT_MARK_OPTIONS } from '../../shared/copy/heatDays.ts'
 import { P } from '../../shared/engine/params/index.ts'
 import type { Feel, HeatExposure, Units } from '../../shared/types.ts'
+import type { FeedbackPatch } from '../api/activities.ts'
 import { HeatSafely } from './HeatSafely.tsx'
 import styles from './FeelPicker.module.css'
 import { ScalePicker } from './ScalePicker.tsx'
@@ -100,6 +101,16 @@ export interface FeedbackValues {
   feel: Feel | null
   pain: number | null
   heatExposure: HeatExposure | null
+}
+
+/**
+ * The body of a feedback save: the effort rating goes only when the runner changed it from
+ * `stored`, so a save of the feel, the pain or the heat mark never rewrites (or clears) a rating
+ * it did not touch, a rating from the watch included (WR1). A card that starts empty passes null.
+ */
+export function feedbackPatch(value: FeedbackValues, stored: number | null): FeedbackPatch {
+  const { rpe, ...rest } = value
+  return rpe === stored ? rest : { ...rest, rpe }
 }
 
 export interface FeedbackFieldsProps {

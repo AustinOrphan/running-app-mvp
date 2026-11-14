@@ -119,6 +119,7 @@ function renderPage(
     'GET /api/activities/a1/standout': () => ({ items: [], more: 0 }),
     'GET /api/plan': () => null,
     'GET /api/zones': () => ({ hr: null }),
+    'GET /api/plan-inputs': () => ({ runs: { watchRatings: { used: false } } }),
     'GET /api/today': () => makeToday(),
     ...(track === null ? noTrackRoute : { 'GET /api/activities/a1/track': () => track }),
     ...routes,
