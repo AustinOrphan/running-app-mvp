@@ -99,8 +99,10 @@ describe('who reads the race plan', () => {
           readFileSync(join(ROOT, file), 'utf8'),
         ),
     )
-    // The full-data export hands the runner their own checkpoints; it reads the table and nothing else does.
+    // The full-data export hands the runner their own checkpoints and the account deletion counts
+    // them before the cascade removes them; those two read the table and nothing else does.
     expect(touching).toEqual([
+      'server/auth/deleteUser.ts',
       'server/services/exportArchive.ts',
       'server/services/raceCheckpoints.ts',
     ])

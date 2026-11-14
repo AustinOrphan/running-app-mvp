@@ -124,7 +124,7 @@ export async function enrichWeather(
       const hour = byTime.get(item.hourKey)
       if (!hour || hour.tempC === null) continue
       await prisma.activity.update({
-        where: { id: item.id },
+        where: { id: item.id, userId },
         data: {
           tempC: hour.tempC,
           dewPointC: hour.dewPointC,

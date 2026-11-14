@@ -8,7 +8,8 @@ test('create a goal, activate it, generate a plan and edit one week with a note'
   baseURL,
 }) => {
   const { thisMonday, raceDate } = relativeDates()
-  const api = await signedInApi(page, baseURL ?? '')
+  // This account has not read the health notice (FS1): the first plan goes through its screen.
+  const api = await signedInApi(page, baseURL ?? '', { planNotice: false })
   await resetData()
 
   // Goal
@@ -31,6 +32,14 @@ test('create a goal, activate it, generate a plan and edit one week with a note'
   // Plan
   await page.goto('/plan')
   await expect(page.getByText('No plan yet.').first()).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Generate plan' })).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: 'Before your first plan' })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Open the official PAR-Q+ page' })).toHaveAttribute(
+    'href',
+    'https://eparmedx.com/print-versions-of-par-q/',
+  )
+  await page.getByRole('checkbox', { name: 'I am 18 or older' }).check()
+  await page.getByRole('button', { name: 'I have read this' }).click()
   await page.getByRole('button', { name: 'Generate plan' }).click()
   await expect(toast(page, 'Plan generated')).toBeVisible()
 

@@ -85,7 +85,7 @@ export function integrationsRouter(deps: Deps): Router {
     } catch (error) {
       if (!(error instanceof SecretError)) throw error
       return prisma.integration.update({
-        where: { id: row.id },
+        where: { id: row.id, userId: row.userId },
         data: { status: 'needs_auth', lastSyncStatus: 'error', lastError: SECRET_CHANGED },
       })
     }
@@ -241,7 +241,7 @@ export function integrationsRouter(deps: Deps): Router {
       const ctx = await providerContext(deps, req.userId, provider, opened)
       const secret = await exchangeCode(code, redirectUri(req, provider, opened.config), ctx)
       await prisma.integration.update({
-        where: { id: row.id },
+        where: { id: row.id, userId: req.userId },
         data: {
           secret: sealSecret(secret, config.sessionSecret),
           status: 'connected',

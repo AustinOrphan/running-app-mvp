@@ -10,10 +10,14 @@ import { App, preloadRoute, warmTabRoutes } from './App.tsx'
 import { createQueryClient } from './api/client.ts'
 import { warmSheets } from './components/lazySheets.tsx'
 import { registerServiceWorker, reloadOnPreloadError } from './pwa/register.ts'
+import { installWindowErrorReporting } from './pwa/windowErrors.ts'
 
 // A release replaces the hashed files; a page that is still open on the old build asks for one that
 // is gone, and reloads once to get the new build (the worker keeps the old build's files too).
 reloadOnPreloadError()
+
+// Errors outside rendering (handlers, timers, rejected promises) reach the server too (E1, FB1).
+if (import.meta.env.PROD) installWindowErrorReporting()
 
 // The page's code downloads while the app asks the server who is signed in.
 preloadRoute(window.location.pathname)

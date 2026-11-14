@@ -38,6 +38,14 @@ const defaultRoutes: MockRoutes = {
   'GET /api/activities/glyphs': () => ({ glyphs: {} }),
   // The Settings page's "Trail and road" block reads the downloaded map area (M1d).
   'GET /api/map-area': () => ({ area: null, busy: false }),
+  // The health notice (FS1) stands confirmed unless a test plans it otherwise.
+  'GET /api/plan-notice': () => ({
+    version: 1,
+    confirmedVersion: 1,
+    confirmedAt: '2026-11-01T12:00:00.000Z',
+    required: false,
+    age: 'ok',
+  }),
 }
 
 /**

@@ -174,7 +174,7 @@ export async function storeParsed(
         outcome = 'updated'
         activityId = existing.id
         await tx.activity.update({
-          where: { id: existing.id },
+          where: { id: existing.id, userId },
           data: {
             ...fields,
             subtype: existing.subtype ?? parsed.subtype,
@@ -202,7 +202,7 @@ export async function storeParsed(
       }
 
       await tx.activityStream.upsert({
-        where: { activityId },
+        where: { activityId, activity: { userId } },
         create: { activityId, ...streamRow },
         update: streamRow,
       })
@@ -210,7 +210,7 @@ export async function storeParsed(
       if (track) {
         const row = trackRow(track)
         await tx.activityTrack.upsert({
-          where: { activityId },
+          where: { activityId, activity: { userId } },
           create: { activityId, ...row },
           update: row,
         })
@@ -225,7 +225,7 @@ export async function storeParsed(
           gz: new Uint8Array(gz),
         }
         await tx.activityFile.upsert({
-          where: { activityId },
+          where: { activityId, activity: { userId } },
           create: { activityId, ...fileRow },
           update: fileRow,
         })
@@ -441,7 +441,7 @@ export async function saveDoneActivity(
             sessionId: linkTo,
             within: async (tx, row) => {
               const { count } = await tx.planSession.updateMany({
-                where: { id: linkTo, activityId: null },
+                where: { id: linkTo, activityId: null, plan: { userId } },
                 data: { activityId: row.id, linkSource: 'owner', refusedActivityIds: null },
               })
               if (count === 0) {
@@ -528,7 +528,7 @@ export async function storeWellness(
         }
         if (Object.keys(data).length === 0) continue
         await tx.wellnessDay.update({
-          where: { id: existing.id },
+          where: { id: existing.id, userId },
           data: manual ? data : { ...data, source },
         })
         written += 1

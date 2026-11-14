@@ -43,14 +43,14 @@ export async function moveConfirmedLogs(
     select: { id: true, heatExposure: true },
     orderBy: { id: 'asc' },
   })
-  await carryHeatMark(prisma, originalId, copies)
+  await carryHeatMark(prisma, userId, originalId, copies)
   const moved = await carrySessionLink(prisma, userId, originalId, copies)
   if (moved !== null) movedSessions.push(moved)
   const fuel = await handOverLog(
     copies,
     originalId,
     (activityId) => prisma.fuelLog.findUnique({ where: { activityId }, select: { id: true } }),
-    (id) => prisma.fuelLog.update({ where: { id }, data: { activityId: originalId } }),
+    (id) => prisma.fuelLog.update({ where: { id, userId }, data: { activityId: originalId } }),
   )
   const original = await prisma.activity.findFirst({
     where: { id: originalId, userId },
@@ -64,8 +64,11 @@ export async function moveConfirmedLogs(
           (activityId) =>
             prisma.strengthLog.findUnique({ where: { activityId }, select: { id: true } }),
           async (id, copyId) => {
-            await prisma.strengthLog.update({ where: { id }, data: { activityId: originalId } })
-            await copyEffort(prisma, copyId, originalId)
+            await prisma.strengthLog.update({
+              where: { id, userId },
+              data: { activityId: originalId },
+            })
+            await copyEffort(prisma, userId, copyId, originalId)
           },
         )
       : false
@@ -79,13 +82,14 @@ export async function moveConfirmedLogs(
  */
 async function carryHeatMark(
   prisma: Pick<PrismaClient, 'activity'>,
+  userId: string,
   originalId: string,
   copies: ReadonlyArray<{ heatExposure: string | null }>,
 ): Promise<void> {
   const mark = copies.find((copy) => copy.heatExposure !== null)?.heatExposure ?? null
   if (mark === null) return
   await prisma.activity.updateMany({
-    where: { id: originalId, heatExposure: null },
+    where: { id: originalId, userId, heatExposure: null },
     data: { heatExposure: mark },
   })
 }
@@ -125,7 +129,10 @@ async function carrySessionLink(
     })
     if (!session) continue
     if (!compatible(session.kind as SessionKind, original)) return null
-    await prisma.planSession.update({ where: { id: session.id }, data: { activityId: originalId } })
+    await prisma.planSession.update({
+      where: { id: session.id, plan: { userId } },
+      data: { activityId: originalId },
+    })
     return session.id
   }
   return null
@@ -155,6 +162,7 @@ async function handOverLog(
 /** The runner's own words about a session: what the copy has and the original lacks is copied. */
 async function copyEffort(
   prisma: Pick<PrismaClient, 'activity'>,
+  userId: string,
   copyId: string,
   originalId: string,
 ): Promise<void> {
@@ -170,7 +178,7 @@ async function copyEffort(
     ...(original.notes === null && copy.notes !== null ? { notes: copy.notes } : {}),
   }
   if (Object.keys(data).length > 0) {
-    await prisma.activity.update({ where: { id: originalId }, data })
+    await prisma.activity.update({ where: { id: originalId, userId }, data })
   }
 }
 
@@ -235,7 +243,7 @@ export async function markDuplicates(
         continue
       }
       await prisma.activity.update({
-        where: { id: duplicate.id },
+        where: { id: duplicate.id, userId },
         data: { duplicateStatus: status, duplicateOfId: original.id },
       })
       await prisma.activity.updateMany({
@@ -305,7 +313,7 @@ export async function releaseStaleConfirmed(
     .map((copy) => copy.id)
   if (stale.length === 0) return []
   await prisma.activity.updateMany({
-    where: { id: { in: stale } },
+    where: { id: { in: stale }, userId },
     data: { duplicateStatus: 'none', duplicateOfId: null },
   })
   return stale

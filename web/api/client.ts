@@ -168,6 +168,7 @@ export const keys = {
   predictions: 'predictions',
   paces: 'paces',
   screenings: 'screenings',
+  planNotice: 'planNotice',
   researchParams: 'researchParams',
   explain: 'explain',
   state: 'state',

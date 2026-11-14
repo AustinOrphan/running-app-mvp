@@ -1,3 +1,4 @@
+import { PLAN_NOTICE_VERSION } from '../../shared/domain/planNotice.ts'
 import { randomBytes } from 'node:crypto'
 import { request as httpRequest, type IncomingMessage } from 'node:http'
 import type { AddressInfo } from 'node:net'
@@ -294,7 +295,9 @@ describe('GET /api/export', () => {
         minLat: 38.5,
         maxLng: -120.2,
       })
-      expect(JSON.parse(text(entries, 'settings.json'))).toMatchObject({ hideMapEnds: true })
+      const settings = JSON.parse(text(entries, 'settings.json')) as Record<string, unknown>
+      expect(settings).toMatchObject({ hideMapEnds: true, planNoticeVersion: PLAN_NOTICE_VERSION })
+      expect(typeof settings['planNoticeAt']).toBe('string')
       expect(text(entries, 'README.txt')).toMatch(/Google encoded polyline, precision 5/)
       expect(text(entries, 'README.txt')).toMatch(/does not\.?/)
     })

@@ -388,7 +388,7 @@ export async function updateProduct(
     if (others.some((product) => sameName(product.name, data.name))) {
       throw conflict(productNameTakenMessage(data.name), { code: 'name-taken' })
     }
-    return tx.fuelProduct.update({ where: { id }, data })
+    return tx.fuelProduct.update({ where: { id, userId }, data })
   })
   return toFuelProduct(row)
 }
@@ -402,7 +402,7 @@ export async function archiveProduct(
   const existing = await prisma.fuelProduct.findFirst({ where: { id, userId } })
   if (!existing) throw notFound(productNotFoundMessage())
   if (!existing.archived) {
-    await prisma.fuelProduct.update({ where: { id }, data: { archived: true } })
+    await prisma.fuelProduct.update({ where: { id, userId }, data: { archived: true } })
   }
 }
 
@@ -544,7 +544,7 @@ export async function saveLog(
     notes: input.notes,
   }
   await prisma.fuelLog.upsert({
-    where: { activityId: holder },
+    where: { activityId: holder, userId },
     create: { userId, activityId: holder, ...data },
     update: data,
   })
@@ -568,7 +568,7 @@ export async function skipLog(
   }
   if (!existing) {
     await prisma.fuelLog.upsert({
-      where: { activityId: holder },
+      where: { activityId: holder, userId },
       create: { userId, activityId: holder, skipped: true, items: '[]' },
       update: {},
     })

@@ -195,7 +195,10 @@ export async function applyAdjust(
       }
       const updated: SessionWriteSet['updated'] = []
       for (const { before, data } of writes) {
-        const after = await tx.planSession.update({ where: { id: before.id }, data })
+        const after = await tx.planSession.update({
+          where: { id: before.id, plan: { userId } },
+          data,
+        })
         updated.push({ id: after.id, before, after })
       }
       const { diff, undo } = revisionParts({ sessions: { created: [], deleted: [], updated } })

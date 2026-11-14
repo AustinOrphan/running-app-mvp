@@ -70,7 +70,7 @@ export async function activateGoal(
   } else {
     await prisma.$transaction(async (tx) => {
       await tx.goal.updateMany({ where: { userId }, data: { isActive: false } })
-      await tx.goal.update({ where: { id: goal.id }, data: { isActive: true } })
+      await tx.goal.update({ where: { id: goal.id, userId }, data: { isActive: true } })
     })
   }
   return toGoal(await prisma.goal.findUniqueOrThrow({ where: { id: goal.id } }))
@@ -143,10 +143,10 @@ export async function restoreArchivedPlan(
 
   await prisma.$transaction(async (tx) => {
     await tx.plan.updateMany({ where: { userId, status: 'active' }, data: { status: 'archived' } })
-    await tx.plan.update({ where: { id: plan.id }, data: { status: 'active' } })
+    await tx.plan.update({ where: { id: plan.id, userId }, data: { status: 'active' } })
     // The restored plan's goal drives the countdown, so exactly that goal is active.
     await tx.goal.updateMany({ where: { userId }, data: { isActive: false } })
-    await tx.goal.update({ where: { id: plan.goalId }, data: { isActive: true } })
+    await tx.goal.update({ where: { id: plan.goalId, userId }, data: { isActive: true } })
     await recordPlanWrite(tx, {
       planId: plan.id,
       userId,

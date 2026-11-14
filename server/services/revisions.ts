@@ -764,7 +764,7 @@ export async function markRevisionSeen(
   if (row.seenAt !== null) return
   // The filter keeps the first stamp when two calls race.
   await prisma.planRevision.updateMany({
-    where: { id: row.id, seenAt: null },
+    where: { id: row.id, plan: { userId: args.userId }, seenAt: null },
     data: { seenAt: new Date() },
   })
 }

@@ -65,7 +65,7 @@ export async function syncActuals(
     .map((row) => row.id)
   if (ids.length === 0) return
   await db.predictionLog.updateMany({
-    where: { id: { in: ids } },
+    where: { id: { in: ids }, userId },
     data: { actualSec: result.timeSec },
   })
 }
@@ -157,7 +157,7 @@ export async function saveRaceResult(
       activityId: body.activityId,
     }
     const row = await tx.raceResult.upsert({
-      where: { goalId: goal.id },
+      where: { goalId: goal.id, userId },
       create: { userId, goalId: goal.id, ...data },
       update: data,
     })
