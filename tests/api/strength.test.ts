@@ -615,6 +615,16 @@ describe('PUT /api/strength/logs/:logId, a new session', () => {
 })
 
 describe('PUT /api/strength/logs/:logId, an activity that exists', () => {
+  test('a save that resends the stored watch rating keeps its source; a new value is the app’s (WR1)', async () => {
+    const user = await newUser()
+    const imported = await importedStrength(user, { rpe: 7, rpeSource: 'watch' })
+    const same = await putLog(user, uuid(9121), logBody({ activityId: imported.id, rpe: 7 }))
+    expect(same.status, JSON.stringify(same.body)).toBe(201)
+    expect(await reloadActivity(imported.id)).toMatchObject({ rpe: 7, rpeSource: 'watch' })
+    await putLog(user, uuid(9121), logBody({ activityId: imported.id, rpe: 4 }))
+    expect(await reloadActivity(imported.id)).toMatchObject({ rpe: 4, rpeSource: 'app' })
+  })
+
   test('attaches to an imported strength activity and keeps the numbers the body leaves out', async () => {
     const user = await newUser()
     const imported = await importedStrength(user)

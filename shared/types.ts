@@ -61,6 +61,8 @@ export interface Activity {
   durationSec: number
   distanceM: number | null
   rpe: number | null
+  /** Who gave `rpe` (WR1): the runner in the app, or the watch via a provider; null or absent when unknown (read as the app). */
+  rpeSource?: RpeSource | null
   avgHr: number | null
   maxHr: number | null
   elevationGainM: number | null
@@ -356,6 +358,8 @@ export interface Terrain {
   treadmill: boolean
   track: boolean
 }
+/** Where a stored rating came from (WR1). */
+export type RpeSource = 'app' | 'watch'
 /** One activity as read from a file or a provider, before it is stored. */
 export interface ParsedActivity {
   providerKey: string
@@ -373,6 +377,8 @@ export interface ParsedActivity {
   avgCadence: number | null
   avgPowerW: number | null
   deviceName: string | null
+  /** The rating the watch gave (1 to 10), when the provider carries one; absent or null when none. */
+  watchRpe?: number | null
   /** Where the heart rate came from, when the file says (FIT `device_info`); absent reads as `unknown`. */
   hrSource?: HrSource
   startLat: number | null

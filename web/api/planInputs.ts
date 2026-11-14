@@ -9,8 +9,9 @@ import { api, keys } from './client.ts'
  * `staleTime: 0`, which reads it again whenever the page opens. It is not one of the reads the
  * service worker keeps (ADR 0012), so offline the page says it needs a connection.
  */
-export function usePlanInputs() {
+export function usePlanInputs(enabled = true) {
   return useQuery({
+    enabled,
     queryKey: [keys.planInputs],
     queryFn: () => api<PlanInputsView>('GET', '/plan-inputs'),
     staleTime: 0,

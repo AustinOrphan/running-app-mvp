@@ -150,6 +150,13 @@ function Body({ view }: { view: PlanInputsView }) {
           line('plan-inputs.runs.window', { days: count(runs.windowDays) }),
           text('plan-inputs.runs.note-stream'),
           text('plan-inputs.runs.note-checks'),
+          runs.watchRatings.used
+            ? text('plan-inputs.runs.watch-used')
+            : line('plan-inputs.runs.watch-held', {
+                min: count(runs.watchRatings.minCount),
+                distinct: count(runs.watchRatings.minDistinct),
+                share: { kind: 'percent', pct: runs.watchRatings.maxModalShare * 100 },
+              }),
           runs.hrLine.fitted
             ? text('plan-inputs.runs.line-fitted')
             : line('plan-inputs.runs.line-open', { need: count(runs.hrLine.need) }),
@@ -162,6 +169,7 @@ function Body({ view }: { view: PlanInputsView }) {
           [text('plan-inputs.runs.wrist'), number(runs.wrist)],
           [text('plan-inputs.runs.unknown'), number(runs.unknown)],
           [text('plan-inputs.runs.passing'), number(runs.passing)],
+          [text('plan-inputs.runs.watch-ratings'), number(runs.watchRatings.count)],
           [
             line('plan-inputs.runs.line', { weeks: count(runs.hrLine.windowWeeks) }),
             line('plan-inputs.of', { n: count(runs.hrLine.runs), need: count(runs.hrLine.need) }),

@@ -40,6 +40,7 @@ export async function seedEverything(
       durationSec: 1805,
       distanceM: 5000,
       rpe: 5,
+      rpeSource: 'watch',
       feel: 1,
       pain: 2,
       notes: ownMarker,

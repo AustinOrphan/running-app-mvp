@@ -67,7 +67,6 @@ describe('Today: the heat mark on the rating card', () => {
       expect(api.calls.some((c) => c.method === 'PUT')).toBe(true)
     })
     expect(api.calls.find((c) => c.method === 'PUT')?.body).toEqual({
-      rpe: null,
       feel: null,
       pain: null,
       heatExposure: 'warm-room',
@@ -215,7 +214,7 @@ describe('Today: the hero rating with the heat mark', () => {
     expect(puts).toHaveLength(1)
     expect(puts[0]).toMatchObject({
       url: '/api/activities/h1/feedback',
-      body: { rpe: null, feel: null, heatExposure: 'passive' },
+      body: { feel: null, heatExposure: 'passive' },
     })
   })
 

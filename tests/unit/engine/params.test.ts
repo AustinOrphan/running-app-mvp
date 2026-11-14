@@ -41,7 +41,7 @@ function isDocumentedRule(rule: string): boolean {
 
 describe('parameter registry', () => {
   it('has a dated version', () => {
-    expect(PARAMS_VERSION).toBe('2026-11-14.1')
+    expect(PARAMS_VERSION).toBe('2026-11-14.2')
   })
 
   it('holds the adaptive critical-speed window as grade D defaults with a note (A6)', () => {

@@ -13,7 +13,7 @@ import { render } from '../../../shared/copy/template.ts'
 import { TEMPLATES } from '../../../shared/copy/templates.ts'
 import { TYPE_LABELS } from '../../pages/ActivityForm.tsx'
 import { Button } from '../Button.tsx'
-import { FeedbackFields, showHeatMark, type FeedbackValues } from '../FeelPicker.tsx'
+import { FeedbackFields, feedbackPatch, showHeatMark, type FeedbackValues } from '../FeelPicker.tsx'
 import { formatShortDate, formatWeekday } from '../format.ts'
 import styles from './FeedbackCard.module.css'
 
@@ -111,7 +111,7 @@ function FeedbackItem({
               saved.current = true
               const heatOnly =
                 value.rpe === null && value.feel === null && value.pain === activity.pain
-              save.mutateAsync(value).then(
+              save.mutateAsync(feedbackPatch(value, null)).then(
                 (landed) => {
                   if (landed === 'sent') saved.current = false
                   onSaved(landed, heatOnly)

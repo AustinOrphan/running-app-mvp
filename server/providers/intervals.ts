@@ -44,6 +44,8 @@ interface RemoteActivity {
   max_heartrate?: number | null
   average_cadence?: number | null
   icu_average_watts?: number | null
+  /** The rating the watch gave, 1 to 10 (the same scale as `Activity.rpe`). */
+  icu_rpe?: number | null
   device_name?: string | null
   start_lat?: number | null
   start_lng?: number | null
@@ -184,6 +186,24 @@ function formatOf(name: string, bytes: Uint8Array): FileFormat | null {
   return null
 }
 
+/**
+ * The rating the watch gave, from the activity record (`icu_rpe`). Null when there is none or the
+ * record cannot be read: a failed detail call never fails the import. A rate limit or a rejected
+ * key still stops the pull, as for every other call.
+ */
+async function watchRatingOf(ref: RemoteActivityRef, ctx: ProviderCtx): Promise<number | null> {
+  try {
+    const detail = (await pullJson(
+      ctx,
+      `/activity/${encodeURIComponent(ref.id)}`,
+    )) as RemoteActivity | null
+    return num(detail?.icu_rpe)
+  } catch (error) {
+    if (error instanceof RateLimitPause || error instanceof ProviderAuthError) throw error
+    return null
+  }
+}
+
 /** Downloads the original file; null when intervals.icu has none or it does not parse. */
 async function fromOriginalFile(
   ref: RemoteActivityRef,
@@ -317,6 +337,7 @@ async function fromStreams(
       maxHr: num(detail.max_heartrate),
       avgCadence: cadence === null ? null : Math.round(cadence * cadenceScale),
       avgPowerW: num(detail.icu_average_watts),
+      watchRpe: num(detail.icu_rpe),
       deviceName: detail.device_name ?? null,
       startLat: lat !== null && lng !== null ? round2(lat) : null,
       startLng: lat !== null && lng !== null ? round2(lng) : null,
@@ -379,7 +400,11 @@ export const intervalsProvider: PullProvider = {
   },
 
   async fetchActivity(ref, ctx) {
-    return (await fromOriginalFile(ref, ctx)) ?? (await fromStreams(ref, ctx))
+    const fromFile = await fromOriginalFile(ref, ctx)
+    if (!fromFile) return fromStreams(ref, ctx)
+    // The original file carries no rating from the watch; the activity record does (WR1).
+    const watchRpe = await watchRatingOf(ref, ctx)
+    return watchRpe === null ? fromFile : { ...fromFile, parsed: { ...fromFile.parsed, watchRpe } }
   },
 
   async fetchRoute(ref, ctx) {

@@ -166,14 +166,18 @@ async function copyEffort(
   copyId: string,
   originalId: string,
 ): Promise<void> {
-  const fields = { rpe: true, pain: true, notes: true } as const
+  const fields = { rpe: true, rpeSource: true, pain: true, notes: true } as const
   const [copy, original] = await Promise.all([
     prisma.activity.findUnique({ where: { id: copyId }, select: fields }),
     prisma.activity.findUnique({ where: { id: originalId }, select: fields }),
   ])
   if (!copy || !original) return
+  // An in-app rating on the copy wins over a watch rating on the original; rating and source go together.
+  const copyWins =
+    copy.rpe !== null &&
+    (original.rpe === null || (original.rpeSource === 'watch' && copy.rpeSource !== 'watch'))
   const data = {
-    ...(original.rpe === null && copy.rpe !== null ? { rpe: copy.rpe } : {}),
+    ...(copyWins ? { rpe: copy.rpe, rpeSource: copy.rpeSource } : {}),
     ...(original.pain === null && copy.pain !== null ? { pain: copy.pain } : {}),
     ...(original.notes === null && copy.notes !== null ? { notes: copy.notes } : {}),
   }

@@ -168,6 +168,7 @@ function renderDetail(
     'GET /api/plan': () => opts.plan ?? null,
     'GET /api/zones': () => ({ hr: null }),
     'GET /api/today': () => opts.today ?? makeToday(),
+    'GET /api/plan-inputs': () => ({ runs: { watchRatings: { used: false } } }),
     'GET /api/strength': () => makeView(),
     'GET /api/strength/logs': () => [],
     ...opts.routes,
@@ -531,6 +532,127 @@ describe('ActivityDetailPage', () => {
     ).toBeTruthy()
   })
 
+  test('a rating that came from the watch says so, and an in-app rating does not', async () => {
+    const base = makeDetail()
+    renderDetail({
+      detail: { ...base, activity: { ...base.activity, rpe: 6, rpeSource: 'watch' } },
+      routes: { 'GET /api/plan-inputs': () => ({ runs: { watchRatings: { used: true } } }) },
+    })
+    const feedback = await screen.findByRole('region', { name: 'How did it go?' })
+    expect(
+      await within(feedback).findByText(
+        'The effort rating is from your watch. A rating you give here replaces it.',
+      ),
+    ).toBeVisible()
+  })
+
+  test('a save that leaves the rating alone sends no rpe, a new rating sends it, a clear sends null (WR1)', async () => {
+    const user = userEvent.setup()
+    const base = makeDetail()
+    const watched = {
+      ...base,
+      activity: { ...base.activity, rpe: 6, rpeSource: 'watch' as const, pain: 0 },
+    }
+    const api = renderDetail({
+      detail: watched,
+      routes: { 'PATCH /api/activities/a1/feedback': () => ({}) },
+    })
+    const section = await screen.findByRole('region', { name: 'How did it go?' })
+    const sent = () => api.calls.filter((c) => c.method === 'PATCH').map((c) => c.body)
+
+    await user.click(within(section).getByRole('button', { name: 'Pain 2' }))
+    await user.click(within(section).getByRole('button', { name: 'Save' }))
+    await waitFor(() => {
+      expect(sent()).toHaveLength(1)
+    })
+    expect(sent()[0]).toEqual({ feel: null, pain: 2, heatExposure: null })
+
+    await user.click(within(section).getByRole('button', { name: 'RPE 8' }))
+    await user.click(within(section).getByRole('button', { name: 'Save' }))
+    await waitFor(() => {
+      expect(sent()).toHaveLength(2)
+    })
+    expect(sent()[1]).toMatchObject({ rpe: 8 })
+
+    await user.click(within(section).getByRole('button', { name: 'RPE 8' }))
+    await user.click(within(section).getByRole('button', { name: 'RPE 6' }))
+    await user.click(within(section).getByRole('button', { name: 'RPE 6' }))
+    await user.click(within(section).getByRole('button', { name: 'Save' }))
+    await waitFor(() => {
+      expect(sent()).toHaveLength(3)
+    })
+    expect(sent()[2]).toMatchObject({ rpe: null })
+  })
+
+  describe('while the plan does not read watch ratings yet', () => {
+    const inputs = (used: boolean) => ({
+      'GET /api/plan-inputs': () => ({ runs: { watchRatings: { used } } }),
+    })
+    const watched = () => {
+      const base = makeDetail()
+      return { ...base, activity: { ...base.activity, rpe: 6, rpeSource: 'watch' as const } }
+    }
+    const plan = () => planWith(makeExecution(1))
+
+    test('the note says so and the unrated caveat stays', async () => {
+      renderDetail({ detail: watched(), plan: plan(), routes: inputs(false) })
+      const section = await screen.findByRole('region', { name: 'How did it go?' })
+      expect(
+        await within(section).findByText(
+          'The effort rating is from your watch. The plan does not read watch ratings yet. A rating you give here replaces it.',
+        ),
+      ).toBeVisible()
+      expect(within(section).getByText(RATING_CAVEAT)).toBeVisible()
+    })
+
+    test('while the answer is pending or failed the note makes no claim and the caveat stays', async () => {
+      renderDetail({
+        detail: watched(),
+        plan: plan(),
+        routes: {
+          'GET /api/plan-inputs': () => {
+            throw new Error('plan-inputs down')
+          },
+        },
+      })
+      const section = await screen.findByRole('region', { name: 'How did it go?' })
+      await settle()
+      expect(
+        within(section).getByText(
+          'The effort rating is from your watch. A rating you give here replaces it.',
+        ),
+      ).toBeVisible()
+      expect(within(section).queryByText(/does not read watch ratings/)).not.toBeInTheDocument()
+    })
+
+    test('a run with no watch rating makes no plan-inputs request', async () => {
+      const api = renderDetail({ plan: plan() })
+      await screen.findByRole('region', { name: 'How did it go?' })
+      await settle()
+      expect(api.calls.some((c) => c.url.includes('/plan-inputs'))).toBe(false)
+    })
+
+    test('once the plan reads them the caveat goes and the note drops the clause', async () => {
+      renderDetail({ detail: watched(), plan: plan(), routes: inputs(true) })
+      const section = await screen.findByRole('region', { name: 'How did it go?' })
+      expect(
+        await within(section).findByText(
+          'The effort rating is from your watch. A rating you give here replaces it.',
+        ),
+      ).toBeVisible()
+      expect(within(section).queryByText(RATING_CAVEAT)).not.toBeInTheDocument()
+    })
+  })
+
+  test('no watch note on an in-app rating or an unrated run', async () => {
+    const base = makeDetail()
+    renderDetail({
+      detail: { ...base, activity: { ...base.activity, rpe: 6, rpeSource: 'app' } },
+    })
+    const feedback = await screen.findByRole('region', { name: 'How did it go?' })
+    expect(within(feedback).queryByText(/from your watch/)).not.toBeInTheDocument()
+  })
+
   test('nothing unusual on a run leaves out What stood out, and nothing stands in while it loads', async () => {
     const api = renderDetail()
     await screen.findByRole('region', { name: 'How did it go?' })
@@ -706,7 +828,6 @@ describe('ActivityDetailPage', () => {
       expect(api.calls.some((c) => c.method === 'PATCH')).toBe(true)
     })
     expect(api.calls.find((c) => c.method === 'PATCH')?.body).toMatchObject({
-      rpe: 3,
       heatExposure: 'warm-room',
     })
   })
@@ -730,6 +851,7 @@ describe('ActivityDetailPage', () => {
       ...noTrackRoute,
       'GET /api/plan': () => null,
       'GET /api/zones': () => ({ hr: null }),
+      'GET /api/plan-inputs': () => ({ runs: { watchRatings: { used: false } } }),
       'GET /api/today': () => makeToday(),
       'PATCH /api/activities/a1/feedback': () => {
         stored = { rpe: 8, feel: 1, pain: 0 }
@@ -908,6 +1030,7 @@ describe('ActivityDetailPage', () => {
         ...noTrackRoute,
         'GET /api/plan': () => planWith(makeExecution(-1)),
         'GET /api/zones': () => ({ hr: null }),
+        'GET /api/plan-inputs': () => ({ runs: { watchRatings: { used: false } } }),
         'GET /api/today': () => makeToday(),
         'PATCH /api/activities/a1/feedback': (req) => {
           const body = req.body as { rpe: number | null; feel: number | null }

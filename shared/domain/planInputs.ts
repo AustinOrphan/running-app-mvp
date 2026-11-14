@@ -9,6 +9,7 @@ import { hrQualityPasses } from '../engine/hrQuality.ts'
 import { isDuplicate } from '../engine/load.ts'
 import { P } from '../engine/params/index.ts'
 import { baselineReadings, sleepNightsRecorded } from '../engine/readiness.ts'
+import type { WatchRatingCheck } from '../engine/watchRatings.ts'
 import type { Boundary, EngineInput, ZoneSet } from '../engine/types.ts'
 import type { Activity } from '../types.ts'
 
@@ -70,6 +71,15 @@ export interface PlanInputsView {
     unknown: number
     /** Runs that pass the heart-rate checks of rule B2; only the Trends panels read the result. */
     passing: number
+    /** Effort ratings the watch gave (WR1), and whether the engine reads them yet (rule B1). */
+    watchRatings: {
+      count: number
+      distinct: number
+      used: boolean
+      minCount: number
+      minDistinct: number
+      maxModalShare: number
+    }
     /** The runs on the heart-rate line of rule A8, the number it needs and its window. */
     hrLine: { runs: number; need: number; windowWeeks: number; fitted: boolean }
   }
@@ -93,6 +103,8 @@ export interface PlanInputsInput {
   /** Days the snapshot's wellness window reaches back (`StateInputs.wellness.windowDays`). */
   wellnessWindowDays: number
   activities: readonly Activity[]
+  /** The spread check over the watch ratings (`AthleteContext.watchRatings`). */
+  watchRatings: WatchRatingCheck
   /** Ids of the activities that have a stored stream. */
   streamIds: ReadonlySet<string>
   zones: ZoneSet
@@ -181,6 +193,14 @@ export function planInputs(input: PlanInputsInput): PlanInputsView {
       wrist: runs.filter((a) => a.hrQuality?.source === 'wrist').length,
       unknown: runs.filter((a) => a.hrQuality?.source === 'unknown').length,
       passing: runs.filter((a) => hrQualityPasses(a.hrQuality)).length,
+      watchRatings: {
+        count: input.watchRatings.count,
+        distinct: input.watchRatings.distinct,
+        used: input.watchRatings.usable,
+        minCount: P.b1.watchRpeMinCount.value,
+        minDistinct: P.b1.watchRpeMinDistinct.value,
+        maxModalShare: P.b1.watchRpeMaxModalShare.value,
+      },
       hrLine: {
         runs: sample.runs,
         need: P.hrModel.minQualifyingRuns.value,

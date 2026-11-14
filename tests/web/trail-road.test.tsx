@@ -271,6 +271,7 @@ describe('the run page line', () => {
       'GET /api/activities/a1/standout': () => ({ items: [], more: 0 }),
       'GET /api/plan': () => null,
       'GET /api/zones': () => ({ hr: null }),
+      'GET /api/plan-inputs': () => ({ runs: { watchRatings: { used: false } } }),
       'GET /api/today': () => makeToday(),
       'GET /api/strength': () => makeView(),
       'GET /api/strength/logs': () => [],

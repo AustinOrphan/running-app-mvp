@@ -5,7 +5,12 @@ import type { Deps } from '../app.ts'
 import { conflict, notFound, parse, validationError } from '../errors.ts'
 import { loadActivities, loadActivityPage, toActivity } from '../serialize.ts'
 import { activityCsvHeader, activityCsvLine } from '../services/activitiesCsv.ts'
-import { createManualActivity, saveDoneActivity, toTrack } from '../services/activityStore.ts'
+import {
+  createManualActivity,
+  ratingSourceAfterWrite,
+  saveDoneActivity,
+  toTrack,
+} from '../services/activityStore.ts'
 import {
   moveConfirmedLogs,
   rematchDuplicates,
@@ -310,7 +315,11 @@ export function activitiesRouter(deps: Deps): Router {
     const id = idParam(req.params.id)
     await findOwned(req.userId, id)
     const body = parse(feedbackSchema, req.body)
-    await prisma.activity.update({ where: { id, userId: req.userId }, data: body })
+    // The clients send rpe here only when the runner changed it, so a rating present is the
+    // runner own and wins over a watch rating, even at the same value (WR1); clearing clears the source.
+    const data =
+      body.rpe === undefined ? body : { ...body, rpeSource: body.rpe === null ? null : 'app' }
+    await prisma.activity.update({ where: { id, userId: req.userId }, data })
     // A new rating changes the assessment of the session this activity fulfils.
     await runExecutionQuietly(deps, { userId: req.userId, activityId: id })
     res.json(toActivity(await findOwned(req.userId, id)))
@@ -343,6 +352,8 @@ export function activitiesRouter(deps: Deps): Router {
       where: { id, userId: req.userId },
       data: {
         ...body,
+        // The form always sends the rating: an unchanged watch rating keeps the watch as its source (WR1).
+        rpeSource: ratingSourceAfterWrite(existing, body.rpe),
         ...(matchChanged ? { duplicateStatus: 'none', duplicateOfId: null } : {}),
       },
     })
