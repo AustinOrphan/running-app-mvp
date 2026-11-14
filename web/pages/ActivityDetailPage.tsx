@@ -60,6 +60,7 @@ import {
   unratedEffortNote,
   withoutMinutesShare,
 } from '../components/engineText.ts'
+import { WarningSignsText } from '../components/WarningSignsText.tsx'
 import { formatLongDate } from '../components/format.ts'
 import { PageHeader } from '../components/PageHeader.tsx'
 import { Skeleton } from '../components/Skeleton.tsx'
@@ -409,7 +410,7 @@ function AgainstThePlan({ activity, units }: { activity: Activity; units: Units 
       <p className={styles.line}>{plannedAgainstRan(session, activity, units)}</p>
       {lines.map((line) => (
         <p key={line} className={styles.line}>
-          {line}
+          <WarningSignsText text={line} />
         </p>
       ))}
       <PlanBars session={session} activity={activity} units={units} />

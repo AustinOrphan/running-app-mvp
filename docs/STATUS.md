@@ -3,9 +3,9 @@
 Current state only; rewritten at every boundary. History lives in `git log`, the specs and
 plans under `docs/superpowers/`, the research corpus under `research/` and `docs/adr/`.
 
-Last update: 2026-11-09.
+Last update: 2026-11-13.
 
-## Waiting on the owner (2026-11-09)
+## Waiting on the owner (2026-11-13)
 
 Each item names the default that holds until the owner answers.
 
@@ -27,9 +27,63 @@ Each item names the default that holds until the owner answers.
    deploy and set the secret, copy the backup in, restore and start, verify, re-add the phone
    clients, retire the laptop copy. Default: the live copy stays on the laptop, and its scheduled
    jobs stop whenever the laptop sleeps.
-3. **The home server's nightly backup of the app's volume.** The runbook leaves out the volume's
-   `backups/` folder from the homelab's own nightly backup until its key's reach is decided. Default:
-   the app's own daily copies only, on the same disk.
+
+Open decisions from the review of 2026-11-12 (D1 to D11), each with its recommendation:
+
+- **D1. Off-host backups and who holds the key.** An off-host copy of `backups/` is prepared in
+  the owner's private homelab repository as a proposed ADR, switched off, waiting on this answer.
+  Options: a nightly encrypted job (restic) with the key in a password manager and an offline copy;
+  continuous replication to object storage; copies stay on the host. Recommended: the first.
+  Against: up to a day of entries can be lost, one more key whose loss voids every copy, and the
+  off-host copies hold every tester's data, which the data notice must then say. Default: the app's
+  own daily copies only, on the same disk.
+- **D2. The beta gate.** Invite now, after the Next tier and the move (item 2), or after the Soon
+  tier. Recommended: after Next and the move, with invites limited to the server's time zone.
+  Against: weeks of delay to the feedback the beta exists for. Default: no invitations.
+- **D3. Trust in watch ratings.** Fill empty ratings with a source marker (a column and a
+  migration), without a marker, or store them for display only. Recommended: the marker, and J5 and
+  sRPE load use watch ratings only after their spread shows they are not a tapped-through default.
+  Against: a migration for one column, and in-app ratings are too rare to compare with. Default:
+  watch ratings are not used.
+- **D4. An own easy ceiling above the age default.** Offer changes in both directions through C8,
+  only lower, or keep the age formula and a typed LTHR. Recommended: both directions, offered,
+  never applied silently. Against: G6 moves nothing toward more load on weak evidence, and heat
+  drifts the heart-rate line, so a summer proposal can overshoot. Default: the age formula or the
+  typed LTHR.
+- **D5. How far to take downhill work.** Ordering and cues only (mild first, 5-10% grades, none in
+  the last 10 days, a pause on soreness), a descent target in metres, or keep the label.
+  Recommended: ordering and cues. Against: still grade D defaults dressed as structure, and the
+  plan digests move. Default: the label stays.
+- **D6. Races before the goal race.** Whether a spring race is entered at all; if so, the plan
+  honours it (slot, easing, a recovery window) or leaves it to hand edits. Recommended: honour it.
+  Against: grade D easing, more engine surface seven months out, and copy that must not slide into
+  suggesting tune-ups. Default: not planned for.
+- **D7. J5's two dead signals.** Heat: build the hold or strike it. Sleep efficiency: retire,
+  repoint at the total-sleep trend, or collect time in bed. Recommended: build the heat hold and
+  retire sleep efficiency. Against: daily heat easing (I9) exists and a hold can cost a loading week
+  before a June race; retiring leaves two reduce signals. Default: neither signal fires.
+- **D8. Release cadence for testers.** A weekly tag with a hotfix path, or a tag per tester-facing
+  update after the image builds and `plan:report` is read. Recommended: a tag per update. Against:
+  without a calendar it drifts back to "main is live". Default: main is live.
+- **D9. `@axe-core/playwright`** as a devDependency (a new kind of check, not a second runner).
+  Recommended: yes. Against: a backlog of findings to triage, and scans find only part of the real
+  problems. Default: not added.
+- **D10. Time zones.** An ADR 0003 addendum and invites only in the server's zone, or per-runner
+  days now. Recommended: the addendum now, and the day resolved per request from the profile's zone
+  about 4 weeks before a race in another zone. Against: a tester elsewhere is a flat no, and a trip
+  shifts Today by hours for days. Default: the server's day.
+- **D11. Road races** (ADR 0018, question 4). Keep the race plan ultra-only and fix its purpose
+  text, add a read-only race-morning card, or build a full road plan. Recommended: the text now, the
+  card when a tester has a road goal of 90 minutes or more. Against: until then a marathon morning
+  offers a pace band of +-5% and nothing on fuel or heat. Default: ultra-only, text unchanged.
+
+Also waiting:
+
+- **A shared Strava registration.** Recommended: build only when a tester needs Strava. Default:
+  none.
+- **The Apple Watch companion, phase 0 spike** (design #701, plan
+  `docs/superpowers/plans/2026-11-10-companion-phase0-spike.md`, #702): waiting on the owner's
+  Task 1 steps in Xcode. Default: nothing is built.
 
 Answered on 2026-11-09, one item at a time with options:
 
@@ -49,8 +103,45 @@ Answered on 2026-11-09, one item at a time with options:
 - **Running more than planned:** the weekly review offers to raise the plan, never automatically
   (#694).
 - **Edit from the activity list:** as is.
+- **Watched folder:** the install owner only, on one fixed root (#699).
 
 ## Where things stand
+
+- **The beta-readiness round (2026-11-09 to 2026-11-13, #697 to #705 and #707 to #717).** Each
+  reviewed before merge; `PARAMS_VERSION` stays `2026-11-09.6` (no Param changed). #706 was closed
+  unmerged: pinning the runner image did not fix the Ubuntu mirror outage, and #707 runs e2e in
+  Microsoft's Playwright image instead.
+  - Accounts and access: rate limits keyed on account, user and token behind a proxy (#697: sign-in
+    counts failures per account, then 100 per address; the API limiter keys on the user id; the
+    calendar feed on the token hash); invited accounts (#698: `npm run create-user` with a
+    temporary password printed once, a forced and ordinary password change that ends other
+    sessions through `User.sessionVersion`, and a first load in the browser's units and zone); the
+    Watched folder confined to the install owner and one fixed root, with caps on unpacked archives
+    (#699); `npm run delete-user` for a tester's account and rows (#711); every write on a
+    runner-owned model keyed by the runner in its own `where`, with a scan that guards it (#712).
+  - Data integrity: a confirmed duplicate's planned session moves to the original (#700); an
+    unlink refuses the activity and its duplicate family, not the whole session, with the set
+    exported (#704); a dumbbell or kettlebell load says "Each" for a pair and "One" for a single
+    implement, the stored load unchanged (#703); each plan revision records the rules version it
+    was drawn under, and the history says when it changed (#717).
+  - Safety and notices: a health notice and a link to the official PAR-Q+ before a first plan, with
+    an under-18 refusal (#715); a Warning signs page, sourced from four new papers (438 to 442),
+    linked from every pain sentence (#716); the race plan stops ranking the ends of an arrival
+    range, ADR 0018 addendum (#709); a crash in a screen is caught and reported to the server
+    (#705), then errors outside rendering (#713), and a Send feedback note in Settings (#714).
+  - Release and operations: e2e runs in the Playwright image (#707); the Docker image builds in a
+    `docker` job that the `ci` check requires (#708); a missed backup is taken 30 s after start,
+    `GET /api/health/deep` answers 503 when the database or the newest backup fails, and a fatal
+    error is logged before the exit (#710).
+  - The state-of-the-art review's Next tier (2026-11-12): items 2 (#716), 4 (#715), 5 (#712),
+    6 (#710), 7 (#709), 8 (#713, #714) and 9 (#708, #717) are merged, with the catch-up half of
+    item 1 (#710) and the `delete-user` half of item 10 (#711). Still open in the tier: the off-host
+    half of item 1 (D1), the long-run half of item 2, item 3 (watch ratings, D3) and the data notice
+    of item 10.
+  - Companion design (#701, draft: an Apple Watch companion through WorkoutKit and HealthKit,
+    proposed ADR 0021) and its phase 0 spike plan (#702); nothing is built.
+  - In flight, not merged: wave 3 (durability by hour on long runs, fuel tolerance by duration, a
+    "What the plan can see" screen).
 
 - **The owner's answers built (2026-11-09, #679 to #695).** Each reviewed by a Sonnet adversarial
   panel and fixed before merge; `PARAMS_VERSION` `2026-11-09.6`:
@@ -1412,8 +1503,10 @@ things stand" gives counts and percentages without a weekly total or a date.
 8. Lower-ranked review findings not yet addressed: nested sheets share the Escape key; Apple
    Health push skips the range checks the parsed import applies; Goals reads "1:45" as minutes
    and seconds; a few engine tests assert conditionally.
-9. Behind a reverse proxy, rate limits key on the proxy's address (no trust-proxy setting by
-   design: the environment variables are fixed).
+9. A per-account sign-in budget lets anyone lock a known email out for 15 minutes with wrong
+   passwords, and the right password does not pass a locked account (inherent to keying on the
+   account, #697). Behind a proxy the address budgets (100 sign-in failures, the API's 10x) remain
+   one budget for every runner, a backstop only.
 10. Spec non-goals still open: readiness and race-decision gates as stored decisions, strength
     programming; Polar, WHOOP, Oura and Google Health providers. The Fuel lab shipped in phase
     3a (the ladder, products, logs, the gut-training block and the EAH card; `18-fuel.spec.ts`).
@@ -2291,6 +2384,37 @@ things stand" gives counts and percentages without a weekly total or a date.
     sheet, three `r1` Params (grade D) and `PARAMS_VERSION` `2026-11-07.1`; no plan digest moved.
     Step 4 (checkpoints and splits) and step 5 (the Race page offline) are open, and so are the
     research passes R1 to R5 (`research/engine-rules.md`, "Top evidence gaps").
+
+30. The blank page after tapping Done on Today (2026-11-11) has no known cause: it did not
+    reproduce in headless Chromium, and the phone runs the PWA in iOS Safari. Error boundaries
+    (#705) and window error reports (#713) are in place to catch the next one; the Send feedback
+    note (#714) carries the build and the previous page.
+31. An undo of an older plan revision, made after a `PARAMS_VERSION` bump and before any other
+    redraw, gets the line "Drawn under updated plan rules" although its rows are the restored ones
+    (#717).
+32. The race fuel rate has no duration floor: a 2 h run counts like a 6 h one toward whether the
+    race rung held. The state-of-the-art review of 2026-11-12 (Soon, item 4) proposes a floor that
+    can only lower the rate; wave 3's fuel read-out leaves it out because it would change plan
+    output (a `PARAMS_VERSION` bump and a `plan:report` delta).
+33. The race plan models no late fade, so no end of an arrival range is ranked (#709); that waits
+    for a pacing cohort in the corpus (Lambert 2004 and Hoffman 2010 are not in it).
+34. An invited account's forced password change is enforced by the client gate, not the server: a
+    client holding the temporary password can call other routes until it changes it (#698). The
+    invited-account flow was tried in chromium only, with no phone, HTTPS or proxy.
+35. `delete-user` leaves the rows in backups until they are pruned (about five weeks; `pre-migrate`
+    and `pre-restore` copies by hand), in the live file's free pages until `VACUUM`, and in
+    calendar events the intervals.icu publisher wrote (#711).
+36. A sign in Warning signs rests on weaker support than the rest: the low-sodium list on engine
+    rule n-7, dark urine not in the Clarkson abstract, and the repeated-pain sign on a grade D
+    record (#716). The page and the health notice (#715) were not looked at in a browser, the
+    Warning signs page has no offline test, and the clipboard fallback of the feedback note was
+    not tried in iOS Safari (#714).
+37. The scan that keeps writes keyed by the runner (#712) could be stricter about `OR` shapes and a
+    `where` built in another function.
+38. A migration turned old unlink marks into a refusal of that user's activities within a day of
+    the session (#704); it over-refuses inside that window by design.
+39. The e2e job's image tag in `ci.yml` is not touched by Dependabot's npm update, so a Playwright
+    bump changes it by hand (#707).
 
 ## Clean-up after the merges
 

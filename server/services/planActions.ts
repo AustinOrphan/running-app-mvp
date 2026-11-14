@@ -576,7 +576,10 @@ async function applyUndo(
         windowIds.length === 0
           ? Promise.resolve([])
           : tx.disruption.findMany({ where: { id: { in: windowIds.map((w) => w.id) }, userId } }),
-        tx.plan.findUniqueOrThrow({ where: { id: planId }, select: { options: true } }),
+        tx.plan.findUniqueOrThrow({
+          where: { id: planId },
+          select: { options: true, paramsVersion: true },
+        }),
       ])
       const scoped = scopeUndo(
         restore.payload,
@@ -690,6 +693,7 @@ async function applyUndo(
         undo: null,
         undoOf: target.id,
         disruptionId: target.disruptionId,
+        drawn: { version: restore.plan.paramsVersion, before: planRow.paramsVersion },
       })
       // The runner chose to undo this revision from a surface that showed it, so it counts as seen.
       const now = new Date()

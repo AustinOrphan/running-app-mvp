@@ -164,7 +164,7 @@
   },
   {
     "id": "ultra-nutrition-eah-safety-card",
-    "statement": "Attach an EAH safety card to ultra plans (nausea, headache, confusion, swelling, weight gain mean seek medical care; do not drink more) and an alert for races longer than about 17 h or in heat. The engine states symptoms and directs to medical care but does not prescribe treatment.",
+    "statement": "Attach an EAH safety card to ultra plans (nausea, headache, confusion, swelling, weight gain mean seek medical care the same day, and do not drink more after drinking a lot; a worsening headache, repeated vomiting, drowsiness or confusion means call emergency services) and an alert for races longer than about 17 h or in heat. The timing and the call are conventions of the app. The engine states symptoms and directs to medical care but does not prescribe treatment.",
     "parameter": "eah_alert_event_duration",
     "value": "17",
     "unit": "h",

@@ -1,4 +1,4 @@
-import { eahCard, replayLadder } from '../../shared/engine/fuel.ts'
+import { eahCard, raceRateHold, replayLadder } from '../../shared/engine/fuel.ts'
 import { countsLine } from '../../shared/engine/fuelCopy.ts'
 import type { FuelRunInput, RunWeather } from '../../shared/engine/types.ts'
 import type {
@@ -115,6 +115,7 @@ export function makeLab(
   return {
     settings: SETTINGS,
     ladder,
+    raceRate: raceRateHold({ settings, runs, gutTrainingWeeks: [] }, ladder),
     next: null,
     block: { state: 'planned', weeks: [], from: null, to: null, removalPending: false, lines: [] },
     products: [GEL, DRINK],

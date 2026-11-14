@@ -1,0 +1,33 @@
+{
+  "id": "stormholt-2021-sports-scd-symptoms",
+  "title": "Symptoms Preceding Sports-Related Sudden Cardiac Death in Persons Aged 1-49 Years",
+  "authors": "Stormholt ER, Svane J, Lynge TH, Tfelt-Hansen J",
+  "year": 2021,
+  "journal": "Current Cardiology Reports",
+  "doi": "10.1007/s11886-020-01438-3",
+  "pmid": "33409809",
+  "url": "https://doi.org/10.1007/s11886-020-01438-3",
+  "design": "narrative-review",
+  "population": "Review of symptoms before sports-related sudden cardiac death in persons aged 1 to 49 years",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["injury-load"],
+  "findings": [
+    "Sports-related sudden cardiac death is a leading natural cause of death in young athletes (abstract).",
+    "In the background population, both cardiac and non-specific symptoms are often present before sudden cardiac death; both are present in up to 74% before sports-related sudden cardiac death (abstract).",
+    "The main symptoms are syncope, chest pain, palpitations and dizziness (abstract).",
+    "Knowledge of symptoms could potentially be used with non-invasive prediction models to prevent sports-related sudden cardiac death (abstract)."
+  ],
+  "limitations": "Narrative review of persons aged 1 to 49, so it does not cover older runners; the abstract gives no per-symptom frequencies. Screening by ECG is described as debated.",
+  "implications": [
+    "Supports naming fainting or near-fainting, chest pain, a racing or irregular heartbeat and dizziness in the warning-signs list as signs to stop; no frequency or risk is quoted to the runner."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref confirms title, journal, year, authors and DOI, with no correction notice; Europe PMC abstract (PMID 33409809) read on 2026-11-13 and each finding is stated in it. Task WS1.",
+    "checkedAt": "2026-11-13"
+  }
+}

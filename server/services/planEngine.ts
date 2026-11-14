@@ -333,6 +333,8 @@ export async function generateEnginePlan(
         changes: [],
         diff: null,
         undo: null,
+        // A new plan has no earlier version to compare with, so its first draw says nothing.
+        drawn: { version: draft.paramsVersion, before: null },
       })
       await recordPrediction(tx, { userId, goal, draft, input, today, mode: 'refresh' })
       return tx.plan.findUniqueOrThrow({

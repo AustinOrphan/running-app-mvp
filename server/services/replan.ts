@@ -23,6 +23,7 @@ import {
   methodFlipSummary,
   overshootsSummary,
   raiseSummary,
+  rulesChangedSummary,
   stalePreviewMessage,
   targetsSummary,
   type OvershootLine,
@@ -501,6 +502,13 @@ export interface PlanWriteRecord {
   disruptionId?: string | null
   /** On an 'undo' revision: the revision it reverted. */
   undoOf?: string | null
+  /**
+   * Set only by a write that redrew the plan through the engine, and so set `Plan.paramsVersion`
+   * (RV1): `version` is the one it stored, `before` the plan's own before this write (null for a
+   * new plan or a plan that never recorded one, meaning unknown). Every other write (a session
+   * edit, a zone decision, a rest-window action) leaves the revision's `paramsVersion` null.
+   */
+  drawn?: { version: string; before: string | null }
 }
 
 /**
@@ -514,11 +522,23 @@ export async function recordPlanWrite(
 ): Promise<PlanRevisionView> {
   const owned = await tx.plan.count({ where: { id: record.planId, userId: record.userId } })
   if (owned === 0) throw notFound('Plan not found.')
+  // RV1: only a write that redrew the plan records the rules it was drawn under, and says so when
+  // they differ from the plan's own before it. An unknown earlier version (null) gives no line, and
+  // an undo summary that already carries the line (it quotes the reverted summary) gets no second.
+  const { drawn } = record
+  const line = drawn ? rulesChangedSummary(drawn.version) : null
+  const rulesChanged =
+    drawn !== undefined &&
+    drawn.before !== null &&
+    drawn.before !== drawn.version &&
+    line !== null &&
+    !record.summary.includes(line)
   const row = await tx.planRevision.create({
     data: {
       planId: record.planId,
       reason: record.reason,
-      summary: record.summary,
+      summary: rulesChanged ? `${record.summary} ${line}` : record.summary,
+      paramsVersion: drawn?.version ?? null,
       changes: JSON.stringify(record.changes),
       auto: record.auto ?? false,
       // The one seen marker (ADR 0007): a revision the runner asked for is seen when it is written;
@@ -1147,6 +1167,10 @@ export async function applyReplan(
         weeks: draft.weeks,
         limits: result.targetLimits,
       })
+      const drawnBefore = await tx.plan.findUniqueOrThrow({
+        where: { id: planId, userId: result.userId },
+        select: { paramsVersion: true },
+      })
       await tx.plan.update({
         where: { id: planId, userId: result.userId },
         data: {
@@ -1184,6 +1208,7 @@ export async function applyReplan(
         decision: result.decision,
         auto: result.auto,
         disruptionId: windowWrite?.disruptionId ?? null,
+        drawn: { version: draft.paramsVersion, before: drawnBefore.paramsVersion },
       })
     },
     { timeout: WRITE_TIMEOUT_MS },

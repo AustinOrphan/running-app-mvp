@@ -14,7 +14,12 @@ import {
   rangeSpanMessage,
 } from '../../shared/engine/fuelCopy.ts'
 import { P } from '../../shared/engine/params/index.ts'
-import { FUEL_HISTORY_SHOWN, FUEL_PROMPTS_MAX, FUEL_TARGETS_MAX_DAYS } from '../../shared/limits.ts'
+import {
+  FUEL_HISTORY_SHOWN,
+  FUEL_LADDER_STEPS_SHOWN,
+  FUEL_PROMPTS_MAX,
+  FUEL_TARGETS_MAX_DAYS,
+} from '../../shared/limits.ts'
 import type {
   FuelLabView,
   FuelLogResult,
@@ -367,6 +372,48 @@ describe('GET /api/fuel', () => {
       removalPending: false,
     })
     expect(view.products.map((p) => p.name)).toEqual(['Synthetic gel'])
+  })
+
+  test('reads how long the race rate has held from every log, not the latest few', async () => {
+    const user = await newUser()
+    const gel = await addProduct(user)
+    const empty = await lab(user)
+    expect(empty.raceRate).toEqual({
+      rate: { gPerH: 30, range: [30, 50] },
+      longest: null,
+      dayTwo: null,
+    })
+
+    // The longest tolerated run is the oldest, and more runs follow than the history shows, so a
+    // read-out taken from the shown steps would miss it. Two tolerated runs make 60 g/h the race
+    // rung; the run the next day is a second day.
+    const long = await addRun(user, addDays(today, -400), { durationSec: 9 * HOUR })
+    const setup = [
+      await addRun(user, addDays(today, -399)),
+      await addRun(user, addDays(today, -398)),
+    ]
+    const filler: Awaited<ReturnType<typeof addRun>>[] = []
+    for (let i = 0; i < FUEL_LADDER_STEPS_SHOWN + 2; i += 1) {
+      filler.push(await addRun(user, addDays(today, -300 + 2 * i)))
+    }
+    const next = await addRun(user, addDays(today, -397), { durationSec: 4 * HOUR })
+    // 13 gels of 40 g over 9 h is 58 g/h, enough for the 60 g/h rung.
+    await logRun(user, gel, long.id, { items: [{ productId: gel.id, servings: 13 }] })
+    for (const activity of [...setup, next, ...filler]) await logRun(user, gel, activity.id)
+
+    const view = await lab(user)
+    expect(view.raceRate.rate).toEqual({ gPerH: 60, range: null })
+    expect(view.raceRate.longest).toEqual({
+      activityId: long.id,
+      date: addDays(today, -400),
+      elapsedSec: 9 * HOUR,
+      hot: false,
+    })
+    expect(view.ladder.steps).toHaveLength(FUEL_LADDER_STEPS_SHOWN)
+    expect(view.ladder.steps.map((step) => step.activityId)).not.toContain(long.id)
+    // Day 2 is the latest: the filler runs are two days apart, so only the pair on days -398 and
+    // -397 is back to back.
+    expect(view.raceRate.dayTwo).toMatchObject({ activityId: next.id, date: addDays(today, -397) })
   })
 
   test('lists the latest logs of the history, newest first, and lists no archived product', async () => {
