@@ -1234,7 +1234,7 @@ test('the first run is on the first screen of Activities at 360 px, with the dat
   }
   await page.setViewportSize({ width: 360, height: 740 })
   await page.goto('/activities')
-  const first = page.getByRole('link', { name: /^Run, / }).first()
+  const first = page.getByRole('link', { name: /^Run / }).first()
   await expect(first).toBeVisible()
   const box = await first.boundingBox()
   // above the tab bar (56 px) at the foot of the first screen
@@ -1357,7 +1357,7 @@ test('a trail run with charts does not scroll sideways at 360 px', async () => {
     sheet.getByText('1 added to your log. 0 already there. 0 could not be read.'),
   ).toBeVisible()
   await sheet.getByRole('button', { name: 'Done' }).click()
-  await page.getByRole('link', { name: /^Run, / }).click()
+  await page.getByRole('link', { name: /^Run / }).click()
   await expect(page.getByRole('heading', { name: 'Run', level: 1 })).toBeVisible()
   // The charts are lazy chunks, and each carries a hidden table of its figures.
   await expect(page.getByRole('img', { name: /^Pace, average / })).toBeVisible()

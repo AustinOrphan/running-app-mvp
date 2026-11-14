@@ -26,7 +26,7 @@ test('logging a run from the Activities page shows it in the list and on the das
   await expect(toast(page, 'Run saved')).toBeVisible()
   await expect(sheet).toBeHidden()
 
-  const row = page.getByRole('link', { name: /^Run, [^,]+, 5\.00 mi, 45:00/ })
+  const row = page.getByRole('link', { name: /^Run 5\.00 mi 45:00/ })
   await expect(row).toBeVisible()
   await expect(page.getByText('1 activity')).toBeVisible()
 
@@ -100,7 +100,7 @@ test('a run logged for today opens its own page, the post-run screen, and the to
 
   // the run is in the list behind it (the case above is the back-fill that stays on the list)
   await page.getByRole('link', { name: 'All activities' }).click()
-  await expect(page.getByRole('link', { name: /^Run, [^,]+, 5\.00 mi, 45:00/ })).toBeVisible()
+  await expect(page.getByRole('link', { name: /^Run 5\.00 mi 45:00/ })).toBeVisible()
 })
 
 test('a long row from a source shows the moving pace and names it, and is no taller at 360 px', async ({
@@ -144,13 +144,11 @@ test('a long row from a source shows the moving pace and names it, and is no tal
 
   await page.setViewportSize({ width: 360, height: 740 })
   await page.goto('/activities')
-  const rows = page
-    .getByRole('listitem')
-    .filter({ has: page.getByRole('link', { name: /^Run, / }) })
+  const rows = page.getByRole('listitem').filter({ has: page.getByRole('link', { name: /^Run / }) })
   await expect(rows).toHaveCount(2)
   // told apart by the label a screen reader reads, which is all the row says of it
-  const moving = rows.filter({ has: page.getByRole('link', { name: /Moving pace/ }) })
-  const plain = rows.filter({ has: page.getByRole('link', { name: /, Pace \d/ }) })
+  const moving = rows.filter({ has: page.getByRole('link', { name: /, moving pace$/ }) })
+  const plain = rows.filter({ hasNot: page.getByRole('link', { name: /, moving pace$/ }) })
   await expect(moving).toHaveCount(1)
   await expect(plain).toHaveCount(1)
   await expect(moving.getByText('elapsed', { exact: true })).toHaveCount(0)

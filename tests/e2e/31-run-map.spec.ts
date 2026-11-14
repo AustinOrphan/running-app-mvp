@@ -107,7 +107,7 @@ async function importMapRun(page: Page): Promise<void> {
   await sheet.getByRole('button', { name: 'Import files' }).click()
   await expect(sheet.getByText(/1 added to your log\./)).toBeVisible()
   await sheet.getByRole('button', { name: 'Done' }).click()
-  await page.getByRole('link', { name: /^Run, / }).click()
+  await page.getByRole('link', { name: /^Run / }).click()
 }
 
 const section = (page: Page) => page.getByRole('region', { name: 'Route of this run' })

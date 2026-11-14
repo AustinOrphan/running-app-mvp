@@ -140,22 +140,30 @@ function ActivityRow({
         to={`/activities/${encodeURIComponent(activity.id)}`}
         className={glyph === undefined ? styles.row : `${styles.row} ${styles.rowGlyph}`}
         aria-label={[
-          TYPE_LABELS[activity.type],
+          // The visible text first, in its order, so the name contains it (WCAG 2.5.3); the day
+          // and, for a pace of the moving time, the label follow it.
+          [TYPE_LABELS[activity.type], distance === EN_DASH ? null : distance, duration, pace, note]
+            .filter((part) => part !== null && part !== '')
+            .join(' '),
           dateHeading(activity.date),
-          distance === EN_DASH ? null : distance,
-          duration,
-          pace === null ? null : `${activityPaceLabel(movingPace)} ${pace}`,
-          note,
+          movingPace ? activityPaceLabel(true).toLowerCase() : null,
         ]
           .filter((part) => part !== null && part !== '')
           .join(', ')}
       >
-        <span className={styles.type}>{TYPE_LABELS[activity.type]}</span>
+        {/* The spaces between the cells are not rendered (the row is a grid) but keep the words of
+            the visible text apart for a tool that reads it, so the name above contains it. */}
+        <span className={styles.type}>{TYPE_LABELS[activity.type]}</span>{' '}
         {glyph === undefined ? null : <RouteGlyph glyph={glyph} className={styles.glyph} />}
-        <span className={`${styles.figure} ${styles.distance}`}>{distance ?? ''}</span>
-        <span className={`${styles.figure} ${styles.duration}`}>{duration}</span>
+        <span className={`${styles.figure} ${styles.distance}`}>{distance ?? ''}</span>{' '}
+        <span className={`${styles.figure} ${styles.duration}`}>{duration}</span>{' '}
         <span className={styles.pace}>{pace ?? ''}</span>
-        {note !== null && note !== '' ? <span className={styles.source}>{note}</span> : null}
+        {note !== null && note !== '' ? (
+          <>
+            {' '}
+            <span className={styles.source}>{note}</span>
+          </>
+        ) : null}
       </Link>
       {restorable && activity.duplicateStatus === 'confirmed' ? (
         <div className={styles.duplicate}>
