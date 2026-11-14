@@ -4,7 +4,7 @@ import type { Deps } from '../app.ts'
 import type { Activity as ActivityRow, PrismaClient } from '../db.ts'
 import { loadProfile } from '../serialize.ts'
 import { createLogger } from '../logger.ts'
-import { markDuplicates } from './duplicates.ts'
+import { copyEffort, markDuplicates } from './duplicates.ts'
 import { assessSessionById, runExecutionForActivity, runExecutionQuietly } from './execution.ts'
 import { assertLinkable, linkPlanSession } from './planEngine.ts'
 import { conflict, notFound } from '../errors.ts'
@@ -101,6 +101,70 @@ function validWatchRpe(value: number | null | undefined): number | null {
   return typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= 10
     ? value
     : null
+}
+
+/** Version of the watch-rating lookup, stored in `Activity.watchRpeV` once a run was asked about. */
+export const WATCH_RPE_VERSION = 1
+
+/**
+ * Settles the watch-rating lookup of runs already stored (the `watch-rating` backfill), in one
+ * transaction. Every run is marked looked at (`watchRpeV`). A rating (1 to 10, whole) is written with
+ * `rpeSource: 'watch'` only while `rpe` is still null, so a rating the runner gave is never
+ * overwritten; a run that gets no rating keeps its `updatedAt`, one that gets a rating moves it like
+ * any rating write. A mark is written only while the row still has the `updatedAt` it was read with,
+ * so an edit in between leaves the run unmarked for the next call.
+ *
+ * A run flagged as a possible or confirmed duplicate of another is counted out, so a rating filled on
+ * it is handed to the original under the rule of the duplicate pass (`copyEffort`: an app rating on
+ * the original stays, a watch rating fills an empty one). Returns the ids whose rating changed (the
+ * runs filled and the originals that received one), for the caller to assess against the plan.
+ */
+export async function settleWatchRatings(
+  deps: Pick<Deps, 'prisma'>,
+  userId: string,
+  items: ReadonlyArray<{ id: string; updatedAt: Date; rating: number | null }>,
+): Promise<string[]> {
+  if (items.length === 0) return []
+  return deps.prisma.$transaction(async (tx) => {
+    const changed: string[] = []
+    for (const item of items) {
+      const rpe = validWatchRpe(item.rating)
+      if (rpe !== null) {
+        const written = await tx.activity.updateMany({
+          where: { id: item.id, userId, rpe: null, updatedAt: item.updatedAt },
+          data: { rpe, rpeSource: 'watch', watchRpeV: WATCH_RPE_VERSION },
+        })
+        if (written.count > 0) {
+          changed.push(item.id)
+          const row = await tx.activity.findUnique({
+            where: { id: item.id },
+            select: { duplicateOfId: true, duplicateStatus: true },
+          })
+          if (
+            row?.duplicateOfId &&
+            (row.duplicateStatus === 'possible' || row.duplicateStatus === 'confirmed')
+          ) {
+            const before = await tx.activity.findUnique({
+              where: { id: row.duplicateOfId },
+              select: { rpe: true },
+            })
+            await copyEffort(tx, userId, item.id, row.duplicateOfId)
+            const after = await tx.activity.findUnique({
+              where: { id: row.duplicateOfId },
+              select: { rpe: true },
+            })
+            if (after && after.rpe !== before?.rpe) changed.push(row.duplicateOfId)
+          }
+          continue
+        }
+      }
+      await tx.activity.updateMany({
+        where: { id: item.id, userId, watchRpeV: null, updatedAt: item.updatedAt },
+        data: { watchRpeV: WATCH_RPE_VERSION, updatedAt: item.updatedAt },
+      })
+    }
+    return changed
+  })
 }
 
 /**

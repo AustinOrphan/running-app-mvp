@@ -414,6 +414,15 @@ export const intervalsProvider: PullProvider = {
     return routeOf(raw)
   },
 
+  async fetchRating(ref, ctx) {
+    // A 404 reads as null: the activity is gone, so there is no rating to find.
+    const detail = (await pullJson(
+      ctx,
+      `/activity/${encodeURIComponent(ref.id)}`,
+    )) as RemoteActivity | null
+    return num(detail?.icu_rpe)
+  },
+
   async listWellness(from, to, ctx): Promise<WellnessInput[]> {
     const { athleteId } = credentials(ctx)
     const rows = await pullJson(
