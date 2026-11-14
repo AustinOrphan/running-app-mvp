@@ -369,6 +369,39 @@ describe('GET /api/fuel', () => {
     expect(view.products.map((p) => p.name)).toEqual(['Synthetic gel'])
   })
 
+  test('reads how long the race rate has held from every log, not the latest few', async () => {
+    const user = await newUser()
+    const gel = await addProduct(user)
+    const empty = await lab(user)
+    expect(empty.raceRate).toEqual({
+      rate: { gPerH: 30, range: [30, 50] },
+      longest: null,
+      dayTwo: null,
+    })
+
+    // Two tolerated runs make 60 g/h the race rung; a 5 h run and a run the next day follow.
+    const setup = [
+      await addRun(user, addDays(thisMonday, -14)),
+      await addRun(user, addDays(thisMonday, -7)),
+    ]
+    const long = await addRun(user, addDays(thisMonday, -3), { durationSec: 5 * HOUR })
+    const next = await addRun(user, addDays(thisMonday, -2), { durationSec: 4 * HOUR })
+    for (const activity of [...setup, long, next]) await logRun(user, gel, activity.id)
+
+    const view = await lab(user)
+    expect(view.raceRate.rate).toEqual({ gPerH: 60, range: null })
+    expect(view.raceRate.longest).toEqual({
+      activityId: long.id,
+      date: addDays(thisMonday, -3),
+      elapsedSec: 5 * HOUR,
+      hot: false,
+    })
+    expect(view.raceRate.dayTwo).toMatchObject({
+      activityId: next.id,
+      date: addDays(thisMonday, -2),
+    })
+  })
+
   test('lists the latest logs of the history, newest first, and lists no archived product', async () => {
     const user = await newUser()
     const gel = await addProduct(user)

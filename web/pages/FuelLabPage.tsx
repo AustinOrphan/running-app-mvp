@@ -8,6 +8,7 @@ import { FuelSettingsForm } from '../components/fuel/FuelSettingsForm.tsx'
 import { FuelTargetCard } from '../components/fuel/FuelTargetCard.tsx'
 import { labText } from '../components/fuel/fuelText.ts'
 import { GutBlockCard } from '../components/fuel/GutBlockCard.tsx'
+import { RaceRateCard } from '../components/fuel/RaceRateCard.tsx'
 import { ProductManager } from '../components/fuel/ProductManager.tsx'
 import { TierLadder } from '../components/fuel/TierLadder.tsx'
 import { PageHeader } from '../components/PageHeader.tsx'
@@ -28,6 +29,7 @@ function LabBody({ lab, units }: { lab: FuelLabView; units: Units | undefined })
           <FuelTargetCard next={lab.next} />
           {units === undefined ? null : <FuelPromptCard prompts={lab.prompts} units={units} />}
           <TierLadder ladder={lab.ladder} />
+          <RaceRateCard hold={lab.raceRate} />
           <FuelHistory history={lab.history} />
         </div>
         <div className={styles.column}>

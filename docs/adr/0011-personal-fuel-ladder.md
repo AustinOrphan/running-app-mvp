@@ -116,3 +116,27 @@ Alternatives:
   fall-back. Both are defaults that a Param or a rule edit can change without a new ADR.
 - The unit of change is a Param under `h7` and its rule in `research/engine-rules.md`, bumped
   together under `PARAMS_VERSION`.
+
+## Addendum: how long the race rate has held (task FT1, 2026-11-13)
+
+The Fuel lab shows two facts beside the ladder: the longest logged run on which the race rung was
+tolerated, and the latest day 2 of a back-to-back on which it was (rule H7, amendment FT1;
+`raceRateHold` in `shared/engine/fuel.ts`). The read-out is display only. The ladder's movement,
+the race rate, the fuel line and every plan are unchanged, no Param is added and `PARAMS_VERSION`
+stays.
+
+- It is derived on read from the replay's own input and stored nowhere, like the ladder. The server
+  reads it in `fuelLabView` from the memoised fuel state, so the shared replay is not run twice.
+- It reuses the counting test of the replay (`countReason`, extracted from `replayLadder` without a
+  change of behaviour), so a run counts toward the read-out exactly when it would count on that rung.
+  For (**Fact**): one function, so the two cannot drift.
+- A tolerated run on a hot day is listed and marked. For (**Opinion**): the run happened, the
+  read-out claims no more than the log shows, and leaving it out would hide the longest run a
+  runner did. Against (**Opinion**): the ladder ignores such a run, so the two can differ by one
+  listed run; the "on a hot day" words say so.
+- A back-to-back is two runs on consecutive local days. For (**Preference**): the simplest
+  calendar definition; the engine's only other one is the planned pair of rule H3, which concerns
+  sessions and not logs.
+- The words are facts with no target, count of what is missing or verdict (G5). Alternative: an
+  optional duration floor on the race rate. Against (**Fact**): it would change plan output and need
+  a `PARAMS_VERSION` bump and a `plan:report` delta, so it is left as a separate decision.

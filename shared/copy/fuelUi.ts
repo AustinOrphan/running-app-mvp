@@ -156,6 +156,30 @@ export const FUEL_UI_TEMPLATES = {
   'fuel.lab.ladder-intro': tpl(
     'The ladder is meant to be climbed on long runs from the start of the build, not only in its last weeks.',
   ),
+  'fuel.lab.hold-heading': tpl('Race rate so far', {}, { shape: 'label' }),
+  'fuel.lab.hold-intro': tpl(
+    'Measured at the race rate of {rate}. These are facts from the log, and the ladder does not read them.',
+    { rate: 'text' },
+  ),
+  'fuel.lab.hold-longest': tpl('Longest run with the race rate held: {duration}, {date}.', {
+    duration: 'duration',
+    date: 'date',
+  }),
+  'fuel.lab.hold-longest-hot': tpl(
+    'Longest run with the race rate held: {duration}, {date}, on a hot day.',
+    { duration: 'duration', date: 'date' },
+  ),
+  'fuel.lab.hold-longest-none': tpl('Longest run with the race rate held: none logged yet.'),
+  'fuel.lab.hold-day-two': tpl('Second day of a back-to-back at the race rate: {date}.', {
+    date: 'date',
+  }),
+  'fuel.lab.hold-day-two-hot': tpl(
+    'Second day of a back-to-back at the race rate: {date}, on a hot day.',
+    { date: 'date' },
+  ),
+  'fuel.lab.hold-day-two-none': tpl(
+    'Second day of a back-to-back at the race rate: none logged yet.',
+  ),
   'fuel.lab.ladder-label': tpl('Carbohydrate rates, lowest first', {}, { shape: 'label' }),
   'fuel.lab.history-heading': tpl('History', {}, { shape: 'label' }),
   'fuel.lab.history-label': tpl('Fuel history, newest first', {}, { shape: 'label' }),

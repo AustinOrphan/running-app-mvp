@@ -166,6 +166,21 @@ export const labText = {
 
   ladderHeading: () => say(T['fuel.lab.ladder-heading'], {}),
   ladderIntro: () => say(T['fuel.lab.ladder-intro'], {}),
+  holdHeading: () => say(T['fuel.lab.hold-heading'], {}),
+  holdIntro: (rate: string) => say(T['fuel.lab.hold-intro'], { rate }),
+  holdLongest: (run: { date: string; elapsedSec: number; hot: boolean } | null) =>
+    run === null
+      ? say(T['fuel.lab.hold-longest-none'], {})
+      : say(run.hot ? T['fuel.lab.hold-longest-hot'] : T['fuel.lab.hold-longest'], {
+          duration: duration(run.elapsedSec),
+          date: date(run.date, 'short'),
+        }),
+  holdDayTwo: (run: { date: string; hot: boolean } | null) =>
+    run === null
+      ? say(T['fuel.lab.hold-day-two-none'], {})
+      : say(run.hot ? T['fuel.lab.hold-day-two-hot'] : T['fuel.lab.hold-day-two'], {
+          date: date(run.date, 'short'),
+        }),
   ladderLabel: () => say(T['fuel.lab.ladder-label'], {}),
   ladderCertainty: () => lowCertaintyLine(),
 

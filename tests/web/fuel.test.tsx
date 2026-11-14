@@ -1222,6 +1222,7 @@ describe('the Fuel lab page: sections and layout', () => {
       lab.next?.text.heading,
       'Fuel log',
       'Tier ladder',
+      'Race rate so far',
       'History',
       'Products',
       'Gut training',
@@ -1234,6 +1235,36 @@ describe('the Fuel lab page: sections and layout', () => {
     expect(note.compareDocumentPosition(disclaimer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(api.calls.filter((call) => call.url === '/api/fuel')).toHaveLength(1)
     expectCleanCopy(document.body)
+  })
+
+  test('states how long the race rate has held as two plain facts, beside the ladder', async () => {
+    const runs = [
+      loggedRun(1, { servings: 6, gut: 0 }),
+      loggedRun(2, { servings: 8, gut: 0 }),
+      { ...loggedRun(10, { servings: 12, gut: 0 }), elapsedSec: 5 * 3600 + 10 * 60 },
+      loggedRun(11, { servings: 8, gut: 0 }),
+    ]
+    renderLab(fullLab({ ...makeLab(runs), next: null, block: BLOCK }))
+    const card = await region('Race rate so far')
+    expect(card).toHaveTextContent(/Measured at the race rate of 60 g\/h\./)
+    expect(
+      within(card).getByText(/^Longest run with the race rate held: 5 h 10 min, 10 Mar\.$/),
+    ).toBeVisible()
+    expect(
+      within(card).getByText('Second day of a back-to-back at the race rate: 11 Mar.'),
+    ).toBeVisible()
+    expectCleanCopy(card)
+  })
+
+  test('says plainly that nothing qualifies yet', async () => {
+    renderLab(freshLab())
+    const card = await region('Race rate so far')
+    expect(
+      within(card).getByText('Longest run with the race rate held: none logged yet.'),
+    ).toBeVisible()
+    expect(
+      within(card).getByText('Second day of a back-to-back at the race rate: none logged yet.'),
+    ).toBeVisible()
   })
 
   test('stands in two columns from 900 px: the first four sections on the left, the rest on the right', async () => {
