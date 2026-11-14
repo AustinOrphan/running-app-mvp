@@ -229,6 +229,22 @@ export const jAdapt = {
         note: 'About 7 days; grade B, low confidence.',
       },
     ),
+    heatHotDays: param('j5.heatHotDays', 2, 'D', 'J5', ['racinais-2015-heat-consensus'], {
+      unit: 'days',
+      note: 'Default: the forecast shows this many days of the coming week at or above acclim.exposureTempC (the warmest hour inside the training window) for the first hot days to count. No study sets the number.',
+    }),
+    heatCreditBelow: param('j5.heatCreditBelow', 0.3, 'D', 'J5', ['racinais-2015-heat-consensus'], {
+      unit: 'acclimation credit, 0 to 1',
+      note: 'Default: the first hot days hold the week only while the credit of rule I8 is under this value (3 heat days of the 10 of the block). No study sets the value.',
+    }),
+    heatRecentDays: param('j5.heatRecentDays', 7, 'D', 'J5', ['racinais-2015-heat-consensus'], {
+      unit: 'days',
+      note: 'Default: with no forecast for the coming week, a run at or above acclim.exposureTempC within this many days up to the decision stands for the hot days having arrived.',
+    }),
+    heatHoldGapWeeks: param('j5.heatHoldGapWeeks', 4, 'D', 'J5', [], {
+      unit: 'weeks',
+      note: 'Default: a week is not held for the first hot days when one of this many weeks before it was, so a hot spell with unrecorded temperatures cannot hold week after week.',
+    }),
     sleepEfficiencyDropPp: param(
       'j5.sleepEfficiencyDropPp',
       2,

@@ -31,7 +31,7 @@ import {
 import { runMinutesAhead } from '../../shared/domain/runMinutes.ts'
 import { estimateState } from '../../shared/engine/athlete.ts'
 import { draftRamp } from '../../shared/engine/checklist.ts'
-import type { ExecutionRecord } from '../../shared/engine/adapt.ts'
+import { isHeatOnlyHold, type ExecutionRecord } from '../../shared/engine/adapt.ts'
 import { disruptionPlan, heldDates } from '../../shared/engine/disruption.ts'
 import { diffPlans, type PlanWrites, type RowWrites } from '../../shared/engine/diff.ts'
 import { backdatedSkips, replan, weeklyDecision, weeklyRamp } from '../../shared/engine/index.ts'
@@ -946,7 +946,9 @@ export async function computeReplan(deps: Deps, args: ReplanArgs): Promise<Repla
   const gathered = await gatherEngineInput(
     deps,
     { userId, goalId: plan.goalId, today, options },
-    { existing: true },
+    // The cached forecast, read and never fetched, lets the weekly decision see the first hot days
+    // coming [rule J5]; a cold cell gives none and the decision reads the recent runs instead.
+    { existing: true, forecast: true },
   )
   const hypothetical = args.transform ? args.transform(gathered) : gathered
   const [weekRows, sessionRows] = await Promise.all([
@@ -1010,7 +1012,11 @@ export async function computeReplan(deps: Deps, args: ReplanArgs): Promise<Repla
     : null
   const { draft, changes, heldWeek } = replan(
     { ...input, weekCaps, ...(args.raise ? { raiseToLevel: true } : {}) },
-    { decisions },
+    {
+      decisions,
+      heatHeld:
+        decision !== null && decidedWeek !== null && isHeatOnlyHold(decision) ? [decidedWeek] : [],
+    },
   )
   const rise =
     raiseCheck === null ? null : firstRise(input.existing?.weeks ?? [], draft.weeks, today, changes)

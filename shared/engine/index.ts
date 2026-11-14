@@ -30,7 +30,7 @@ import {
 import { holdDownhill, quadPauseThrough } from './downhill.ts'
 import { feasibility } from './goal.ts'
 import { applyGuards } from './guards.ts'
-import { heatWarning } from './heat.ts'
+import { HEAT_HOLD_FLAG, heatWarning } from './heat.ts'
 import {
   completedReference,
   gainLimit,
@@ -236,6 +236,8 @@ interface Keep {
   /** The kept sessions that a recorded activity stands for; its run is counted from the activity. */
   matched: ReadonlySet<KeptSession>
   decisions: NonNullable<ReplanOptions['decisions']>
+  /** The weeks held for the first hot days alone (`ReplanOptions.heatHeld`). */
+  heatHeld: ReadonlySet<string>
   /**
    * The Monday of a week whose sessions are all in `sessions` (a week held under the shape it was
    * drawn under, `replan`): nothing more is placed in it and its week row is not drawn again from
@@ -251,6 +253,11 @@ export interface ReplanOptions {
    * a hold trims the week's next quality session, a reduce makes the week a recovery week.
    */
   decisions?: Record<string, WeeklyDecision['decision']>
+  /**
+   * The Mondays of the weeks whose hold is the first hot days alone [rules J5, I8]: the cap leaves the
+   * week's long run in place (`holdWeek`), no session is trimmed, and the week carries `heat-hold`.
+   */
+  heatHeld?: readonly string[]
 }
 
 const OWNER_EDITS: ReadonlySet<string> = new Set(['moved', 'skipped', 'adjusted'])
@@ -379,6 +386,24 @@ function capWeek(week: WeekDraft, cap: number | undefined): WeekDraft {
     gainTargetM:
       week.gainTargetM === null ? null : Math.round((week.gainTargetM * share) / 10) * 10,
   }
+}
+
+/**
+ * A loading week held for the first hot days [rules J5, I8]: the week at its cap, flagged, with the
+ * long run of the week the plan had (`stored`) in place where the cap leaves room for it. The
+ * macrocycle draws a held week from its cap, which scales every session of the week by one share,
+ * so the long run is put back from the stored week and the other sessions share what is left.
+ */
+function heatHoldWeek(week: WeekDraft, cap: number | undefined, stored: WeekDraft | undefined) {
+  const held = cap !== undefined && cap < week.targetRunMin ? holdWeek(week, cap) : week
+  const flags = [...held.flags, HEAT_HOLD_FLAG]
+  if (stored === undefined || stored.longRunMin <= held.longRunMin) return { ...held, flags }
+  const longRunMin = Math.min(stored.longRunMin, held.targetRunMin)
+  const longRunM =
+    stored.longRunM === null || stored.longRunMin <= 0
+      ? held.longRunM
+      : Math.round((stored.longRunM * longRunMin) / stored.longRunMin / 100) * 100
+  return { ...held, flags, longRunMin, longRunM }
 }
 
 /**
@@ -549,8 +574,18 @@ function generate(
   const windowed = windowedWeeks(dplan)
   const unwindowed = new Map<string, number>()
   for (const w of macroWeeks) {
+    const cap = input.weekCaps?.[w.weekStart]
+    // The first hot days alone hold a loading week of the build with its long run in place
+    // [rules J5, I8]; any other cap shrinks every session by the same share.
+    const heatHeld = keep.heatHeld.has(w.weekStart) && isLoadingWeek(w) && !w.isTaper
     let week: WeekDraft = {
-      ...capWeek(w, input.weekCaps?.[w.weekStart]),
+      ...(heatHeld
+        ? heatHoldWeek(
+            w,
+            cap,
+            input.existing?.weeks.find((x) => x.weekStart === w.weekStart),
+          )
+        : capWeek(w, cap)),
       index: w.index + weekOffset,
     }
     if (keep.decisions[w.weekStart] === 'reduce' && !week.isTaper && week.phase !== 'race') {
@@ -1168,7 +1203,13 @@ function generate(
     // A hold trims the week's next quality session, once a week [rules J5, design 4.3].
     const trimmedAlready = kept.some((s) => inWeek(s) && isTrimmed(s.rules))
     const holdTrimmed = (list: SessionSpec[]): SessionSpec[] => {
-      if (keep.decisions[week.weekStart] !== 'hold' || trimmedAlready) return list
+      if (
+        keep.decisions[week.weekStart] !== 'hold' ||
+        keep.heatHeld.has(week.weekStart) ||
+        trimmedAlready
+      ) {
+        return list
+      }
       const next = list.find((s) => s.date >= today && isQualityKind(s.kind))
       if (next === undefined) return list
       const trim = trimQuality(
@@ -1589,6 +1630,7 @@ export function buildPlan(input: EngineInput): PlanDraft {
       plannedOn: new Map(),
       matched: new Set(),
       decisions: {},
+      heatHeld: new Set(),
     },
     0,
   )
@@ -1761,6 +1803,7 @@ export function replan(
     plannedOn,
     matched,
     decisions: options.decisions ?? {},
+    heatHeld: new Set(options.heatHeld ?? []),
   }
   const { draft, heldWeek } = drawn(input, keep, oldWeeks, pastWeeks.length)
   const keptSet = new Set<SessionSpec>(kept)

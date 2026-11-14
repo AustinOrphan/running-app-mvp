@@ -23,6 +23,7 @@ import {
   readinessSnapshot,
   sleepAverageH,
 } from './readiness.ts'
+import { firstHotDays, lastLoadingMin } from './heat.ts'
 import { isProgrammeWeek } from './startWeeks.ts'
 import type {
   AthleteState,
@@ -403,6 +404,18 @@ function restartCapFloor(plannedMin: number, layoffDays: number): number {
   return plannedMin >= floor ? floor : 0
 }
 
+/**
+ * Whether a decision holds only for the first hot days [rules J5, I8]: its one signal is `heat`.
+ * Such a hold keeps the long run and trims no session; any other hold works as it always did.
+ */
+export function isHeatOnlyHold(decision: Pick<WeeklyDecision, 'decision' | 'signals'>): boolean {
+  return (
+    decision.decision === 'hold' &&
+    decision.signals.length === 1 &&
+    decision.signals[0]!.code === 'heat'
+  )
+}
+
 /** Progress, hold or reduce from execution, check-ins, efficiency, sleep and HRV [rules J5, G-6]. */
 export function weeklyDecision(
   input: EngineInput,
@@ -465,11 +478,21 @@ export function weeklyDecision(
       rules: ['J5', 'n-4'],
     })
   }
-  if (ctx.heatFirstDays) {
+  // The first hot days of the season hold the coming build week at the level of the last one
+  // [rules J5, I8]; a caller's explicit answer takes the place of the derivation.
+  const comingWeek = addDays(weekStart, 7)
+  const hotDays =
+    ctx.heatFirstDays === undefined
+      ? firstHotDays(input, comingWeek)
+      : ctx.heatFirstDays
+        ? ({ source: 'forecast', days: 0 } as const)
+        : null
+  if (hotDays !== null) {
     holds.push({
       code: 'heat',
-      detail: 'The first hot days of the season: volume holds while adapting to heat.',
-      rules: ['J5', 'I9'],
+      detail:
+        'The first hot days of the season are coming. The week holds at last week’s level while the body adapts to the heat; the long run keeps its place.',
+      rules: ['J5', 'I8'],
     })
   }
 
@@ -618,6 +641,20 @@ export function weeklyDecision(
       decision === 'hold'
         ? wholeMinutes(cap)
         : Math.round(cap * (1 - P.e3.recoveryWeekCutPct.value / 100))
+    // The first hot days alone hold the week at the last loading week as it was run, never above it.
+    // After a recovery week the cap of G-6 steps from the recovery week's minutes, which is no level to
+    // hold at: the planned week and the last loading week bound it then.
+    if (decision === 'hold' && holds.length === 1 && hotDays !== null) {
+      const level = lastLoadingMin(input, weekStart)
+      const reviewed = input.existing?.weeks.find((w) => w.weekStart === weekStart)
+      if (level !== null) {
+        const bound = reviewed?.isRecovery === true ? Math.min(nextPlanned, level) : level
+        nextWeekTargetMin =
+          reviewed?.isRecovery === true
+            ? wholeMinutes(bound)
+            : Math.min(nextWeekTargetMin, wholeMinutes(bound))
+      }
+    }
   }
   return {
     decision,

@@ -36,8 +36,11 @@ export function isAbovePlan(minutes: number, planned: number): boolean {
   return planned > 0 && minutes * 100 > planned * (100 + P.e7.raiseAbovePlanPct.value)
 }
 
-/** The J5 signals that are not about the plan being run short: a week run above plan cannot raise it. */
-const NOT_A_BLOCK: ReadonlySet<string> = new Set(['completion-low'])
+/**
+ * The J5 signals that are no sign of fatigue or pain: a week run short of its plan, and the first hot
+ * days (a hold of the coming week, not a state of the runner).
+ */
+const NOT_A_BLOCK: ReadonlySet<string> = new Set(['completion-low', 'heat'])
 /** The J5 signals that are pain; every other one a decision reads blocks as fatigue. */
 const PAIN_SIGNALS: ReadonlySet<string> = new Set(['pain', 'pain-mild'])
 
