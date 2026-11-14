@@ -137,6 +137,12 @@
 // (22 runners and 40 plans of the weekly re-plan chains), those of the plans that meet a post-race
 // window of the `ultra100mi` or `beyond` class; the other 80 are those of the regeneration before.
 //
+// Regenerated 2026-11-14 (task DH1, rule H5, owner decision D5): the long-fast-finish and
+// back-to-back sessions of the downhill window now carry the downhill flag and rule, and the
+// sessions of its first `h5.repeatedBoutLeadWeeks` weeks carry `downhill-first` in place of
+// `downhill`. Only flags move: the date, kind, minutes, distance and gain of every session are as
+// before. 78 of the 142 digests move (the runners and re-plan chains whose goal descends).
+//
 // The close of the load-progression plan (task L7) may remove this file with its test: from there
 // the owner validation is the oracle.
 import { createHash } from 'node:crypto'

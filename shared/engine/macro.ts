@@ -1568,12 +1568,13 @@ function planWeeks(
     for (const i of candidates.slice(-P.h6.headlampRehearsalRuns.value[1])) flag(i, 'night')
   }
   if (goal.lossM >= P.h4.minStepGainM.value) {
-    for (
-      let i = Math.max(0, raceIdx - P.h5.downhillStartWeeksBeforeRace.value);
-      i < preCount;
-      i++
-    ) {
+    // The first exposure comes `repeatedBoutLeadWeeks` before any heavy one [rule H5]: the weeks of
+    // that lead carry `downhill-first`, counted from the calendar start of the window so that a
+    // re-plan inside the window does not start the lead again.
+    const windowStart = raceIdx - P.h5.downhillStartWeeksBeforeRace.value
+    for (let i = Math.max(0, windowStart); i < preCount; i++) {
       flag(i, 'downhill')
+      if (i < windowStart + P.h5.repeatedBoutLeadWeeks.value) flag(i, 'downhill-first')
     }
   }
   if (goal.isUltra && !hold) {

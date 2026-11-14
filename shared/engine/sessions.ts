@@ -603,8 +603,12 @@ export function prescribe(
     flags.push('night')
     rules.push('H6')
   }
-  if (has('downhill') && (kind === 'long' || kind === 'hills')) {
-    flags.push('downhill')
+  if (
+    has('downhill') &&
+    (kind === 'long' || kind === 'long-fast-finish' || kind === 'b2b' || kind === 'hills')
+  ) {
+    // the first `repeatedBoutLeadWeeks` weeks are the moderate first exposure [rule H5]
+    flags.push(has('downhill-first') ? 'downhill-first' : 'downhill')
     rules.push('H5')
   }
   if (has('heat-acclimation') && (kind === 'easy' || kind === 'recovery')) {

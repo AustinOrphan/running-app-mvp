@@ -746,7 +746,11 @@ export function windowViolations(
   }
   for (const s of sessions) {
     if (s.date < from || !inQuietPeriod(windows, s.date)) continue
-    if (QUIET_KINDS.has(s.kind) || s.flags.includes('downhill')) {
+    if (
+      QUIET_KINDS.has(s.kind) ||
+      s.flags.includes('downhill') ||
+      s.flags.includes('downhill-first')
+    ) {
       failures.push(`${s.date}: ${s.kind} work falls before the end of the post-race window`)
     }
   }

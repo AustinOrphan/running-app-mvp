@@ -2832,6 +2832,10 @@ function descentFacts(scope: Scope): InputFact[] {
         distance: distance(race.distanceM),
         weeks: count(P.h5.downhillStartWeeksBeforeRace.value),
       }),
+      make('H5', 'order', 'explain.h5-order', {
+        lead: count(P.h5.repeatedBoutLeadWeeks.value),
+        days: count(P.h5.taperExclusionDays.value),
+      }),
     ]
   }
   return race.gainM > 0 || race.surface === 'trail' || race.surface === 'mixed'
