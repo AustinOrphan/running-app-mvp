@@ -34,6 +34,17 @@ vi.mock('../../server/services/backup.ts', async (importOriginal) => {
 // Local time, like the slot; a date on which no zone changes its clock.
 const AFTER_SLOT = new Date(2026, 5, 17, 9, 0)
 const BEFORE_SLOT = new Date(2026, 5, 17, 1, 0)
+// Two days on, not one: retention keeps one copy per UTC day, and a copy at 09:00 and the next at
+// 02:05 local can share a UTC day in a zone such as Asia/Kolkata, which would prune the first.
+const LATER_DAY_BEFORE_SLOT = new Date(2026, 5, 19, 1, 55)
+
+/**
+ * Moves the faked clock without firing the timers in between (they keep their distance from now,
+ * so the next daily check comes at most 10 minutes later).
+ */
+function jumpTo(at: Date): void {
+  vi.setSystemTime(at)
+}
 
 let ctx: TestCtx
 let user: TestUser
@@ -139,11 +150,15 @@ describe('the scheduler start', () => {
     expect(copies()).toHaveLength(1)
     expect((await runs())[0]).toMatchObject({ trigger: 'catchup', status: 'ok' })
 
-    await vi.advanceTimersByTimeAsync(3 * 60 * 60_000)
+    // A few daily checks later the slot (seeded at start) has not repeated the catch-up.
+    await vi.advanceTimersByTimeAsync(30 * 60_000)
     expect(await runs()).toHaveLength(1)
 
-    // The next 02:00 slot (first check at 02:10 the next day) makes its own copy.
-    await vi.advanceTimersByTimeAsync(17 * 60 * 60_000 + 15 * 60_000)
+    // A later day's 02:00 slot makes its own copy. The clock jumps to just before it instead of
+    // ticking through the hours: every job of the scheduler runs on each tick, and that work, not
+    // the copy, is what made the test slow under load.
+    jumpTo(LATER_DAY_BEFORE_SLOT)
+    await vi.advanceTimersByTimeAsync(15 * 60_000)
     await vi.waitFor(async () => expect(await runs()).toHaveLength(2), { timeout: 10_000 })
     expect(copies()).toHaveLength(2)
     expect((await runs()).map((run) => run.trigger).sort()).toEqual(['catchup', 'schedule'])
@@ -181,8 +196,9 @@ describe('the scheduler start', () => {
       expect(copies()).toHaveLength(1)
       expect((await runs())[0]).toMatchObject({ trigger: 'catchup', status: 'ok' })
 
-      // The flag is back down: the next day's slot copies.
-      await vi.advanceTimersByTimeAsync(24 * 60 * 60_000)
+      // The flag is back down: a later day's slot copies.
+      jumpTo(LATER_DAY_BEFORE_SLOT)
+      await vi.advanceTimersByTimeAsync(15 * 60_000)
       await vi.waitFor(async () => expect(await runs()).toHaveLength(2), { timeout: 10_000 })
       expect(copies()).toHaveLength(2)
     } finally {
