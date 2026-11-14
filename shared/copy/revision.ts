@@ -590,6 +590,10 @@ export const REVISION_TEMPLATES = {
   ),
   'revision.plan-restored': tpl('Plan restored.'),
 
+  // The last line of a summary when the plan rules changed since the previous revision that
+  // recorded them (RV1): the weeks may have moved because of the rules, not the runner's data.
+  'revision.rules-changed': tpl('Drawn under updated plan rules ({version}).', { version: 'text' }),
+
   // Why an undo is refused, for the reasons that need only the revision itself.
   'revision.undo.already-undone': tpl('This update was already undone.'),
   'revision.undo.is-undo': tpl('An undo cannot be undone.'),
@@ -1024,6 +1028,11 @@ export function goalSwitchSummary(goal: string, weeks: number, sessions: number)
 
 export function planRestoredSummary(): string {
   return render(REVISION_TEMPLATES['revision.plan-restored'], {}, STORED_UNITS)
+}
+
+/** The line a summary gains when the plan rules changed since the previous revision (RV1). */
+export function rulesChangedSummary(version: string): string {
+  return render(REVISION_TEMPLATES['revision.rules-changed'], { version }, STORED_UNITS)
 }
 
 /** How a reason reads in the summary and the label of a window; no numbers. */

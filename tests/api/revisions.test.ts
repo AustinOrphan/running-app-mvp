@@ -1246,6 +1246,7 @@ function revisionRow(over: Partial<PlanRevisionRow> = {}): PlanRevisionRow {
     undoOf: null,
     seenAt: null,
     disruptionId: null,
+    paramsVersion: null,
     ...over,
   }
 }
