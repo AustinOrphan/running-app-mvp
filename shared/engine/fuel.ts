@@ -7,7 +7,7 @@
 // The ladder changes the fuel line only, never a session, and a language model writes none of it
 // (ADR 0005, 0011). Pure and deterministic: no clock, no I/O; the days and the weather arrive as
 // data. Every number comes from the registry `P`.
-import { mondayOf } from '../dates.ts'
+import { addDays, mondayOf } from '../dates.ts'
 import {
   fuelTotals,
   minutesOf,
@@ -32,6 +32,8 @@ import type {
   LadderBasis,
   LadderResult,
   LadderStep,
+  RaceRateHold,
+  RaceRateRun,
   RunWeather,
   RungRate,
   RungState,
@@ -231,6 +233,23 @@ function rungStates(
 }
 
 /**
+ * Whether a logged run counts at a rung, and why not when it does not (rule H7, Counting): not
+ * skipped, long enough (`fuelEligible`), at `h7.rungReachFraction` of the rung at its carbohydrate
+ * rate over elapsed time and, on a rung that requires it, with `h7.multiCarbMinShare` of the
+ * carbohydrate from multiple-source products. The replay and the race-rate read-out share it.
+ */
+function countReason(run: FuelRunInput, rung: FuelRung, block: boolean): CountReason {
+  if (run.log.skipped) return 'skipped'
+  if (!fuelEligible(minutesOf(run.elapsedSec), block)) return 'too-short'
+  const rate = ratePerHour(fuelTotals(run.log.items).carbsG, run.elapsedSec)
+  if (rate === null || rate < P.h7.rungReachFraction.value * rung.gPerH) return 'below-target'
+  if (rung.multiCarbRequired && multiCarbShare(run.log.items) < P.h7.multiCarbMinShare.value) {
+    return 'too-little-multi-carb'
+  }
+  return 'counted'
+}
+
+/**
  * Replays the ladder from the logged runs, oldest first, under the current settings.
  *
  * A run counts when it is not skipped, is long enough (`fuelEligible`; shorter in a gut-training
@@ -273,14 +292,7 @@ export function replayLadder(input: LadderInput): LadderResult {
     const rate = ratePerHour(fuelTotals(run.log.items).carbsG, run.elapsedSec)
     const share = multiCarbShare(run.log.items)
 
-    let reason: CountReason = 'counted'
-    if (run.log.skipped) reason = 'skipped'
-    else if (!fuelEligible(minutesOf(run.elapsedSec), block)) reason = 'too-short'
-    else if (rate === null || rate < P.h7.rungReachFraction.value * rung.gPerH) {
-      reason = 'below-target'
-    } else if (rung.multiCarbRequired && share < P.h7.multiCarbMinShare.value) {
-      reason = 'too-little-multi-carb'
-    }
+    const reason = countReason(run, rung, block)
 
     let outcome: StepOutcome = 'not-counted'
     let toleratedLeft: number | null = null
@@ -544,5 +556,47 @@ export function raceFuelFor(
     nauseaPlanOpen: options.hot || ladder.nauseaForward,
     hours,
     totalG: [low * hours, high * hours],
+  }
+}
+
+// ---------------------------------------------------------------------------------------------
+// How long the race rate has held (rule H7, amendment FT1)
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * The runs on which the race rate held. "Held" uses the ladder's own words for the rung of the
+ * race (`raceFuelFor`: the highest tolerated rung, the floor when none or with a gut condition):
+ * a run counts at that rung (`countReason`: the same test the replay applies) and scores below
+ * `h7.gutStopScore`. A run on a hot day is included and marked, because it happened; the ladder
+ * moves nothing on it, and the read-out claims no more than the log shows. Day 2 of a back-to-back
+ * is a tolerated run on the local day after another counted run at the race rung (no Param: a
+ * calendar fact, not a threshold). A gut-training week counts a shorter run, as in the replay.
+ * Pure and independent of the order of `runs`.
+ */
+export function raceRateHold(input: LadderInput, ladder: LadderResult): RaceRateHold {
+  const rungs = fuelRungs()
+  const rung = rungAt(rungs, ladder.locked ? 0 : Math.max(ladder.toleratedIndex, 0))
+  const counted = input.runs.filter(
+    (run) => countReason(run, rung, isBlockRun(run, input.gutTrainingWeeks)) === 'counted',
+  )
+  const held = counted
+    .filter((run) => runScore(run.log) < P.h7.gutStopScore.value)
+    .sort(compareRuns)
+  const view = (run: FuelRunInput): RaceRateRun => ({
+    activityId: run.activityId,
+    date: run.date,
+    elapsedSec: run.elapsedSec,
+    hot: runIsHot(run.weather, run.log.hotOverride),
+  })
+  let longest: FuelRunInput | null = null
+  for (const run of held) {
+    if (longest === null || run.elapsedSec > longest.elapsedSec) longest = run
+  }
+  const countedDays = new Set(counted.map((run) => run.date))
+  const dayTwo = held.findLast((run) => countedDays.has(addDays(run.date, -1))) ?? null
+  return {
+    rate: rateOf(rung),
+    longest: longest === null ? null : view(longest),
+    dayTwo: dayTwo === null ? null : view(dayTwo),
   }
 }
