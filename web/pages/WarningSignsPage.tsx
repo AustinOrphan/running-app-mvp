@@ -65,6 +65,7 @@ export function WarningSignsPage() {
           </section>
         )
       })}
+      <p className={styles.closing}>{text('warning-signs.background')}</p>
       <p className={styles.closing}>{text('warning-signs.closing')}</p>
     </>
   )

@@ -198,6 +198,14 @@
   min-width: 0;
 }
 
+/* The cross-training sentence of a niggle window on the Plan page: a line of its own above the buttons. */
+.crossLine {
+  margin: 0;
+  flex: 1 1 100%;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
 .bannerActions {
   display: flex;
   flex-wrap: wrap;

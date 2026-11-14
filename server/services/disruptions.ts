@@ -12,6 +12,7 @@
 // - `disruptionViews` and `listDisruptions` say where each window stands, from the engine.
 // - `disruptionSlot` and `todayDisruptions` are the Today parts.
 import { addDays } from '../../shared/dates.ts'
+import { repeatPainPattern } from '../../shared/domain/painArea.ts'
 import { bandWindows } from '../../shared/domain/windowDay.ts'
 import {
   describeIssue,
@@ -30,6 +31,7 @@ import {
   type WindowPlan,
 } from '../../shared/engine/disruption.ts'
 import { P } from '../../shared/engine/params/index.ts'
+import { focalBoneActive } from '../../shared/engine/readiness.ts'
 import type { AthleteState, DisruptionWindow, EngineInput } from '../../shared/engine/types.ts'
 import type {
   Disruption,
@@ -111,12 +113,14 @@ function returnWeekMin(
  */
 export function disruptionViews(
   rows: readonly Disruption[],
-  args: { date: string; state: StateWeeks },
+  args: { date: string; state: StateWeeks; wellness: EngineInput['wellness'] },
 ): DisruptionView[] {
   const active = rows.filter((row) => row.status === 'active')
   const plan = disruptionPlan(active.map(toEngineWindow))
   const volume = new Map(args.state.weeks.map((week) => [week.weekStart, week.runMin]))
   const volumeOf = (weekStart: string) => volume.get(weekStart)
+  // A bone sign in the latest check-in takes the place of the cross-training line (rule J11).
+  const bone = focalBoneActive({ wellness: args.wellness }, args.date)
   return rows.map((row): DisruptionView => {
     const window =
       row.status === 'active'
@@ -130,14 +134,18 @@ export function disruptionViews(
         runFrom: alone?.runFrom ?? addDays(row.endDate, 1),
         qualityFrom: alone?.qualityFrom ?? addDays(row.endDate, 1),
         returnWeekMin: null,
+        crossTraining: false,
       }
     }
+    const phase = windowPhase(window, args.date)
     return {
       ...row,
-      phase: windowPhase(window, args.date),
+      phase,
       runFrom: window.runFrom,
       qualityFrom: window.qualityFrom,
       returnWeekMin: returnWeekMin(plan, window, volumeOf),
+      crossTraining:
+        row.reason === 'niggle' && (phase === 'resting' || phase === 'limited') && !bone,
     }
   })
 }
@@ -147,9 +155,11 @@ export function disruptionViews(
  * active windows within `disruptionHorizonDays`, so a window that ended long ago is not read.
  */
 export function todayDisruptions(context: AthleteContext, date: string): DisruptionView[] {
-  return disruptionViews(context.disruptions, { date, state: context.state }).filter(
-    (view) => view.phase !== 'done',
-  )
+  return disruptionViews(context.disruptions, {
+    date,
+    state: context.state,
+    wellness: context.wellness,
+  }).filter((view) => view.phase !== 'done')
 }
 
 /**
@@ -166,12 +176,28 @@ export function disruptionSlot(args: {
   const { context, date, preview } = args
   const windows = bandWindows(todayDisruptions(context, date))
   const checkin = context.wellness.find((day) => day.date === context.asOf)
-  const reports =
+  const reportsNow =
     checkin !== undefined &&
     (checkin.illness === true ||
       (checkin.painScore != null && checkin.painScore >= P.pain.flagScore.value))
-  const offer = windows.length === 0 && !preview && reports
-  return windows.length === 0 && !offer ? null : { windows, offer }
+  const open = windows.length === 0 && !preview
+  // A report today takes the offer as it always did; the repeat pattern is the second way in (J11).
+  const repeat =
+    open && !reportsNow
+      ? repeatPainPattern({
+          wellness: context.wellness,
+          windows: context.disruptions,
+          date: context.asOf,
+        })
+      : null
+  const offer = open && (reportsNow || repeat !== null)
+  if (windows.length === 0 && !offer) return null
+  return {
+    windows,
+    offer,
+    offerReason: !offer ? null : reportsNow ? 'check-in' : 'pain-repeat',
+    repeat,
+  }
 }
 
 /**
@@ -193,8 +219,8 @@ export async function listDisruptions(
     },
     orderBy: [{ startDate: 'asc' }, { id: 'asc' }],
   })
-  const { state } = await loadAthleteContext(deps, { userId, today })
-  const views = disruptionViews(rows.map(toDisruption), { date, state })
+  const { state, wellness } = await loadAthleteContext(deps, { userId, today })
+  const views = disruptionViews(rows.map(toDisruption), { date, state, wellness })
   return args.includeAll ? views : views.filter((view) => view.phase !== 'done')
 }
 
@@ -211,12 +237,16 @@ export async function viewDisruption(
     where: { id: args.id, userId: args.userId },
   })
   if (own === null) throw notFound('Window not found.')
-  const { state } = await loadAthleteContext(deps, { userId: args.userId, today: args.today })
+  const { state, wellness } = await loadAthleteContext(deps, {
+    userId: args.userId,
+    today: args.today,
+  })
   // The window is read with the active ones, so overlapping windows give its true return week.
   const together = rows.some((row) => row.id === own.id) ? rows : [...rows, own]
   const views = disruptionViews(together.map(toDisruption), {
     date: args.date ?? args.today,
     state,
+    wellness,
   })
   return views.find((view) => view.id === own.id)!
 }

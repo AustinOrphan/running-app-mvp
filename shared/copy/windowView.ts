@@ -11,6 +11,7 @@ import { P } from '../engine/params/index.ts'
 import { countPhrase, sameWeekHours } from './quantity.ts'
 import { windowRuleFact } from './revision.ts'
 import { render, tpl, type Template } from './template.ts'
+import { WARNING_SIGNS_NAME } from './warningSigns.ts'
 
 export const WINDOW_VIEW_TEMPLATES = {
   // The banner: one line for the phase the window is in today.
@@ -49,6 +50,22 @@ export const WINDOW_VIEW_TEMPLATES = {
   'window-view.prompt.ask': tpl('Set a rest window and a return plan?'),
   'window-view.prompt.yes': tpl('Set one up', {}, { shape: 'label' }),
   'window-view.prompt.later': tpl('Not now', {}, { shape: 'label' }),
+  // The same offer when one area was reported on several check-ins (rule J11). It states a count
+  // of days and no cause; the line under it points to the signs and adds none.
+  'window-view.prompt.ask-repeat': tpl(
+    'The same spot was sore on {n} of the last {days} days. Set a rest window and a return plan?',
+    { n: 'count', days: 'count' },
+  ),
+  'window-view.prompt.signs': tpl(
+    'If the pain is in one small spot on a bone, or starts when a run begins or is there the next day, see {page}.',
+    { page: 'text' },
+  ),
+  'window-view.prefill': tpl('Filled in from your check-ins. Change anything.'),
+
+  // While a niggle window is open and no bone sign is reported (rule J11): an option, no promise.
+  'window-view.cross-training': tpl(
+    'Easy cycling or pool work is an option while you are not running. It does not count toward run load.',
+  ),
 
   // The entry to the same sheet from the "Not today" sheet, for a runner who is not 100% today.
   'window-view.entry.label': tpl('Not 100%', {}, { shape: 'label' }),
@@ -308,6 +325,33 @@ export function restPromptWords(units: Units): { ask: string; yes: string; later
     yes: render(t['window-view.prompt.yes'], {}, units),
     later: render(t['window-view.prompt.later'], {}, units),
   }
+}
+
+/**
+ * The question of the offer made for a repeated area: how many of the last days hold a report. The
+ * count is a fact the check-ins state and is no target.
+ */
+export function repeatPromptAsk(repeat: { reports: number; days: number }, units: Units): string {
+  return render(
+    t['window-view.prompt.ask-repeat'],
+    { n: { kind: 'count', n: repeat.reports }, days: { kind: 'count', n: repeat.days } },
+    units,
+  )
+}
+
+/** The pointer to the Warning signs page under the repeat offer; the page name is a link on screen. */
+export function repeatSignsLine(units: Units): string {
+  return render(t['window-view.prompt.signs'], { page: WARNING_SIGNS_NAME }, units)
+}
+
+/** The hint under a sheet whose area and pain came from the check-ins. */
+export function prefillHint(units: Units): string {
+  return render(t['window-view.prefill'], {}, units)
+}
+
+/** The one sentence about cycling or pool work, for a niggle window and no bone sign. */
+export function crossTrainingLine(units: Units): string {
+  return render(t['window-view.cross-training'], {}, units)
 }
 
 /** The "Not 100%" entry of the "Not today" sheet: its button and the line under it. */

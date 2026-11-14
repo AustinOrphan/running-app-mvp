@@ -1,5 +1,9 @@
 import { useState, type ReactNode } from 'react'
-import { betterWords, windowBannerLine } from '../../../shared/copy/windowView.ts'
+import {
+  betterWords,
+  crossTrainingLine,
+  windowBannerLine,
+} from '../../../shared/copy/windowView.ts'
 import { addDays } from '../../../shared/dates.ts'
 import type { DisruptionView, Units } from '../../../shared/types.ts'
 import { Button } from '../Button.tsx'
@@ -32,7 +36,9 @@ export interface DisruptionBannerProps {
  * A window in force, in one line for the phase it is in today ("Resting for illness until Fri 24
  * Oct.", "One symptom-free day first, then easy running from Sun 26 Oct.", "Return week: up to 240
  * min."), with the three things a runner does to it: say they are better (or back), extend it, or
- * remove it. A window that is over renders nothing. The same banner serves the Plan page and
+ * remove it. A niggle window with no bone sign reported adds the cross-training sentence (rule J11)
+ * on the Plan page; Today's compact band keeps to its two lines and leaves it out. A window that is
+ * over renders nothing. The same banner serves the Plan page and
  * Today's `disruption` slot (`compact`); one window is one banner, so windows that overlap each
  * keep their own line and their own buttons.
  */
@@ -93,6 +99,9 @@ export function DisruptionBanner({
           Remove window
         </Button>
       </div>
+      {window.crossTraining && !compact ? (
+        <p className={styles.crossLine}>{crossTrainingLine(units)}</p>
+      ) : null}
     </section>
   )
 }

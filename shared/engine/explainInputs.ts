@@ -737,7 +737,8 @@ function loadFacts(scope: Scope): InputFact[] {
   const { ctx } = scope
   const chronicDays = P.a2.chronicDays.value
   const window = lastDays(ctx, chronicDays)
-  const inWindow = countedUpTo(ctx).filter((a) => a.date >= window.from)
+  // the A2 figures leave cross-training out (PA1b), so the activities behind them do too
+  const inWindow = countedUpTo(ctx).filter((a) => a.date >= window.from && a.type !== 'cross')
   if (inWindow.length === 0) {
     return [gap('A2', 'explain.a2-gap', { days: count(chronicDays) }, { window })]
   }

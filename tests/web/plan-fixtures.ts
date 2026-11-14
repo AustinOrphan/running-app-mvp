@@ -326,6 +326,7 @@ export function makeWindow(over: Partial<DisruptionView> = {}): DisruptionView {
     runFrom: '2027-01-16',
     qualityFrom: '2027-01-19',
     returnWeekMin: null,
+    crossTraining: false,
     ...over,
   }
 }
