@@ -1,0 +1,34 @@
+{
+  "id": "silbernagel-2007-pain-monitoring-achilles",
+  "title": "Continued Sports Activity, Using a Pain-Monitoring Model, during Rehabilitation in Patients with Achilles Tendinopathy",
+  "authors": "Silbernagel KG, Thomeé R, Eriksson BI, Karlsson J",
+  "year": 2007,
+  "journal": "The American Journal of Sports Medicine",
+  "doi": "10.1177/0363546506298279",
+  "pmid": "17307888",
+  "url": "https://doi.org/10.1177/0363546506298279",
+  "design": "rct",
+  "population": "38 patients with Achilles tendinopathy, randomly allocated to two groups of 19 (Swedish sports-medicine setting)",
+  "sampleSize": 38,
+  "evidenceLevel": "B",
+  "topics": ["injury-load"],
+  "findings": [
+    "Thirty-eight patients with Achilles tendinopathy were randomly allocated to two groups. The exercise training group (n = 19) was allowed, with the use of a pain-monitoring model, to continue Achilles tendon-loading activity such as running and jumping, whereas the active rest group (n = 19) had to stop such activities during the first 6 weeks (abstract).",
+    "All patients were rehabilitated according to an identical rehabilitation program; the primary outcomes were the Swedish version of the VISA-A questionnaire (VISA-A-S) and pain level during tendon-loading activity (abstract).",
+    "No significant differences in the rate of improvement were found between the groups; both improved significantly (P < .01) against baseline at all evaluations. Mean (SD) VISA-A-S was 57 (15.8) at baseline and 85 (12.7) at 12 months in the exercise group, and 57 (15.7) and 91 (8.2) in the active rest group (abstract).",
+    "The authors conclude that no negative effects could be demonstrated from continuing tendon-loading activity such as running and jumping with the use of a pain-monitoring model during treatment, and that pain-monitored, tendon-loading activity might be a valuable option (abstract)."
+  ],
+  "limitations": "Abstract only: the full text is closed access and was not read, so the pain thresholds of the model are not quoted from this paper. The 5 of 10 limit and the rule that pain settles by the next morning, which the 2026-11-12 review attributed to it, are not in its abstract; a systematic review (smith-2017-painful-exercise-meta) prints those two criteria for the same group's 2001 trial, not for this one. Small trial (19 per group) in patients with a diagnosed Achilles tendinopathy under supervised treatment, not in healthy runners and not for pain in other places. Non-inferiority was not tested: no difference in 38 people does not show equivalence.",
+  "implications": [
+    "Supports a statement that, in one supervised Achilles tendinopathy rehabilitation, continuing running and jumping under a pain-monitoring model did not do worse over 12 months than 6 weeks of stopping them.",
+    "Gives no threshold for the engine: the numbers of the model are not in the abstract, the population is under treatment, and the trial says nothing about a runner who is not being treated or about any site but the Achilles tendon."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref 2026-11-14: title, Am J Sports Med 35(6):897-906, 2007-06, four authors and DOI match; no updated-by or update-to notice. Europe PMC abstract (PMID 17307888) read; every number in the findings is stated in it. A letter to the editor on the paper exists (10.1177/0363546507303564, not read). Task PA1a.",
+    "checkedAt": "2026-11-14"
+  }
+}

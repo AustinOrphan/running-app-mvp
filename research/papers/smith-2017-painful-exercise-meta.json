@@ -1,0 +1,34 @@
+{
+  "id": "smith-2017-painful-exercise-meta",
+  "title": "Should exercises be painful in the management of chronic musculoskeletal pain? A systematic review and meta-analysis",
+  "authors": "Smith BE, Hendrick P, Smith TO, Bateman M, Moffatt F, Rathleff MS, Selfe J, Logan P",
+  "year": 2017,
+  "journal": "British Journal of Sports Medicine",
+  "doi": "10.1136/bjsports-2016-097383",
+  "pmid": "28596288",
+  "url": "https://doi.org/10.1136/bjsports-2016-097383",
+  "design": "meta-analysis",
+  "population": "Patients with chronic musculoskeletal pain in randomised trials (nine papers from seven trials, 385 participants); not runners as a group",
+  "sampleSize": 385,
+  "evidenceLevel": "A",
+  "topics": ["injury-load"],
+  "findings": [
+    "Nine papers from seven randomised trials with 385 participants compared exercises where pain was allowed or encouraged with non-painful exercises in chronic musculoskeletal pain (abstract).",
+    "In the short term there was a significant difference in pain, with moderate-quality evidence for a small effect of -0.27 (-0.54 to -0.05) in favour of painful exercises; for pain in the medium and long term, and for function and disability at every time point, there was no significant difference (abstract).",
+    "The authors conclude that painful protocols offer a small but significant short-term benefit, that in the medium and long term neither is clearly superior, and that pain during therapeutic exercise for chronic musculoskeletal pain need not be a barrier to successful outcomes (abstract).",
+    "In the review's table of included trials, the criteria for acceptable pain were printed per trial: for example pain up to 5/10 on a visual analogue scale during the exercises, such that the pain subsided by the following morning (a 2001 Achilles tendinopathy trial of Silbernagel and colleagues), pain up to 50 mm, subsiding after each set, or pain subsiding by the next session; the review notes that trials differed in whether a pain scale limit was advised and in the time by which pain had to subside (open-access full text, PMC5739826)."
+  ],
+  "limitations": "The trials are of chronic musculoskeletal pain under supervised exercise therapy (shoulder, Achilles, plantar fascia, knee and others), not of runners with a new niggle, and the comparison is painful against pain-free exercise prescribed as therapy, not running through pain. Few trials; the short-term effect is small and its interval reaches -0.05. Nothing here dates a safe pain level for an unsupervised runner, and the review does not settle one level or time frame. Abstract and the open-access full text were read.",
+  "implications": [
+    "Supports a statement that in supervised exercise therapy for chronic musculoskeletal pain, some pain during exercise did not do worse than pain-free exercise, and that trials that allowed pain used a stated ceiling and a time by which it had to settle (for example 5/10, settled by the next morning).",
+    "Gives no threshold for a runner's niggle window: the engine's own ceiling and settling time would be a default (grade D) borrowed from rehabilitation protocols, and the review does not choose among the ones it lists."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref 2026-11-14: title, Br J Sports Med 51(23):1679-1687, 2017-06-08, eight authors and DOI match; no updated-by or update-to notice. Europe PMC abstract (PMID 28596288) read and the open-access full text (PMC5739826) for the table of included trials (the 5/10 and next-morning criteria of the Silbernagel 2001 entry). Task PA1a.",
+    "checkedAt": "2026-11-14"
+  }
+}
