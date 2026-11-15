@@ -7,6 +7,7 @@ import { loadAthleteContext } from '../../server/services/athleteState.ts'
 import { moveConfirmedLogs } from '../../server/services/duplicates.ts'
 import { storeParsed } from '../../server/services/activityStore.ts'
 import { sealSecret, syncProvider } from '../../server/services/sync.ts'
+import { todayIso } from '../../shared/dates.ts'
 import type { ParsedActivity } from '../../shared/types.ts'
 import { buildFit } from '../fixtures/fit/buildFit.ts'
 import { fakeFetch, type FakeRoute } from '../fakeFetch.ts'
@@ -446,7 +447,7 @@ describe('who wins', () => {
 
 describe("Today's rating card", () => {
   test('offers a run with a held watch rating, and stops once the runner picks the watch value', async () => {
-    const date = new Date().toISOString().slice(0, 10)
+    const date = todayIso()
     const run = await ctx.prisma.activity.create({
       data: { userId: user.id, date, type: 'run', durationSec: 1800, rpe: 6, rpeSource: 'watch' },
     })
