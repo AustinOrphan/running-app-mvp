@@ -103,3 +103,68 @@ describe('an entered race in every week of a plan', () => {
     }, 120_000)
   }
 })
+
+// A race on every weekday, and a re-plan on every day from 7 days before it to 10 days after it (the
+// race day included), the way the server re-plans: the races it sends are the ones after today, and
+// the plan being replaced holds the race session. The re-plan with the race must fail no check
+// that the same re-plan without the race passes.
+const REPLAN_FROM = -7
+const REPLAN_TO = 10
+
+describe('a race on every weekday, re-planned around its day', () => {
+  for (const id of ['novice-5k', 'half', 'trail-50k', 'first-100-mile']) {
+    it(`${id}: no re-plan from 7 days before to 10 days after fails a check the plan without the race passes`, () => {
+      const base = athletes().find((a) => a.id === id)!.input
+      const plain = buildPlan(base)
+      const stored = (plan: typeof plain, prefix: string) => ({
+        weeks: plan.weeks,
+        sessions: plan.sessions.map((s, i) => ({
+          ...s,
+          id: `${prefix}${String(i)}`,
+          status: 'planned',
+          activityId: null,
+        })),
+      })
+      const plainExisting = stored(plain, 'p')
+      const withoutRace = new Map<string, string[]>()
+      const without = (today: string) => {
+        let failed = withoutRace.get(today)
+        if (failed === undefined) {
+          failed = failing(replan({ ...base, today, existing: plainExisting }).draft.checklist)
+          withoutRace.set(today, failed)
+        }
+        return failed
+      }
+      const week = addDays(mondayOf(base.today), 21)
+      let cases = 0
+      const problems: string[] = []
+      for (let weekday = 0; weekday < 7; weekday++) {
+        const date = addDays(week, weekday)
+        if (date >= base.goal.date) continue
+        for (const cls of Object.keys(CLASSES)) {
+          for (const priority of ['B', 'C'] as const) {
+            const entered = race(base, priority, date, cls)
+            const existing = stored(buildPlan({ ...base, races: [entered] }), 's')
+            for (let offset = REPLAN_FROM; offset <= REPLAN_TO; offset++) {
+              const today = addDays(date, offset)
+              if (today <= base.today || today >= base.goal.date) continue
+              const races = offset < 0 ? [entered] : []
+              const draft = replan({ ...base, today, races, existing }).draft
+              const fresh = failing(draft.checklist).filter(
+                (item) => !without(today).includes(item),
+              )
+              if (fresh.length > 0) {
+                problems.push(`${cls} ${priority} race ${date}, re-plan ${today}: ${fresh.join()}`)
+              }
+              cases += 1
+            }
+          }
+        }
+      }
+      expect(problems.slice(0, 12), `${String(problems.length)} of ${String(cases)} cases`).toEqual(
+        [],
+      )
+      expect(cases).toBeGreaterThan(400)
+    }, 300_000)
+  }
+})

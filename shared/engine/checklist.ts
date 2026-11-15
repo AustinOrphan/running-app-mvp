@@ -194,8 +194,8 @@ export function draftRamp(
     const planned = weekMinutes(ahead, weekStart, input.today)
     const total = done + planned
     // a week an entered race cut is a baseline at the minutes it held before the cut [SR1]
-    const uncut = raceCutMinutes(draft.weeks.find((w) => w.weekStart === weekStart)?.flags ?? [])
-    volume.set(weekStart, uncut === null ? total : Math.max(total, uncut))
+    const cut = raceCutMinutes(draft.weeks.find((w) => w.weekStart === weekStart)?.flags ?? [])
+    volume.set(weekStart, cut === null ? total : total + cut)
     weeks.push({ weekStart, done, planned, total })
   }
   // The restart week after a long hold is a baseline for the weeks after it when the J7 share holds
@@ -805,7 +805,7 @@ function raceDay(draft: PlanDraft, input: EngineInput): ChecklistResult {
   const races = draft.sessions.filter((s) => s.kind === 'race')
   const goalRaces = races.filter((s) => s.date === input.goal.date)
   const strays = races.filter(
-    (s) => s.date !== input.goal.date && s.date >= input.today && !entered.has(s.date),
+    (s) => s.date !== input.goal.date && s.date > input.today && !entered.has(s.date),
   )
   if (goalRaces.length !== 1 || strays.length > 0) {
     failures.push(`expected one race on ${input.goal.date}`)

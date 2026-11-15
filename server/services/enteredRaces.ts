@@ -4,7 +4,7 @@
 // `races-changed`, so the plan holds the race session, the easing and the recovery, or gives them
 // back. The goal write stands whether or not the re-plan does: a plan that cannot be re-planned now
 // (a checklist it fails, a goal that has passed) stays as it is and the weekly update draws it again.
-import { RACE_REPLAN_PENDING_WARNING } from '../../shared/copy/enteredRaces.ts'
+import { RACE_NOT_IN_PLAN_WARNING } from '../../shared/copy/enteredRaces.ts'
 import type { RaceChangeLine } from '../../shared/copy/revision.ts'
 import type { EngineWarning } from '../../shared/engine/types.ts'
 import type { Goal } from '../../shared/types.ts'
@@ -72,33 +72,41 @@ export function raceChange(
 }
 
 /**
- * Tells the runner on the Plan page that the plan does not hold the change yet: a warning on the
- * stored plan, replaced by the warnings of the next re-plan that is written. A failure here is
- * logged and goes no further.
+ * The warning the Plan page carries while an entered race has no race session in the plan: a re-plan
+ * after a change to it failed, or an undo took the session out, and the plan does not hold the
+ * race yet. Read from the goals and the plan's sessions each time, never stored, so it follows the
+ * plan whatever wrote it and goes when the race is in. A race the plan's own warnings already name
+ * as not drawn (its day holds a kept session) is not named twice.
  */
-async function noteReplanPending(deps: Deps, userId: string): Promise<void> {
-  try {
-    const plan = await deps.prisma.plan.findFirst({
-      where: { userId, status: 'active' },
-      orderBy: { createdAt: 'desc' },
-      select: { id: true, warnings: true },
-    })
-    if (plan === null) return
-    const stored = JSON.parse(plan.warnings) as EngineWarning[]
-    if (stored.some((warning) => warning.code === 'races-replan-pending')) return
-    const warning: EngineWarning = {
-      code: 'races-replan-pending',
-      severity: 'info',
-      message: RACE_REPLAN_PENDING_WARNING,
-      rules: ['K6'],
-    }
-    await deps.prisma.plan.update({
-      where: { id: plan.id, userId },
-      data: { warnings: JSON.stringify([...stored, warning]) },
-    })
-  } catch (error) {
-    createLogger(deps.config).warn({ reason: safeMessage(error), userId }, 'the plan note failed')
-  }
+export function pendingRaceWarnings(
+  goals: readonly Goal[],
+  plan: {
+    goalId: string
+    warnings: readonly EngineWarning[]
+    sessions: ReadonlyArray<{ kind: string; date: string }>
+  },
+  today: string,
+): EngineWarning[] {
+  const planGoal = goals.find((goal) => goal.id === plan.goalId)
+  if (planGoal === undefined) return []
+  const missing = goals.some(
+    (goal) =>
+      isEnteredRace(goal, { id: planGoal.id, targetDate: planGoal.targetDate }, today) &&
+      !plan.sessions.some((s) => s.kind === 'race' && s.date === goal.targetDate) &&
+      !plan.warnings.some(
+        (w) => w.code === 'entered-race-on-kept-day' && w.message.includes(goal.targetDate),
+      ),
+  )
+  return missing
+    ? [
+        {
+          code: 'races-replan-pending',
+          severity: 'info',
+          message: RACE_NOT_IN_PLAN_WARNING,
+          rules: ['K6'],
+        },
+      ]
+    : []
 }
 
 /**
@@ -128,7 +136,6 @@ export async function replanAfterGoalWrite(
       { reason: safeMessage(error), userId },
       'the re-plan after a change to an entered race failed',
     )
-    await noteReplanPending(deps, userId)
     return false
   }
 }

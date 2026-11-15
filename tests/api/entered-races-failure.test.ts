@@ -69,6 +69,6 @@ test('the goal is saved and the Plan page carries a warning that the plan has no
   const plan = (await client(ctx, user).get('/api/plan')).body as PlanWithSessions
   expect(plan.warnings.map((w) => w.code)).toContain('races-replan-pending')
   expect(plan.warnings.find((w) => w.code === 'races-replan-pending')!.message).toMatch(
-    /not in the plan yet/,
+    /is not in the plan yet/,
   )
 })

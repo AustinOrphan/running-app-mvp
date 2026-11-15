@@ -39,6 +39,7 @@ import { sessionTitle } from '../../shared/engine/sessions.ts'
 import type {
   ChecklistResult,
   EngineInput,
+  EngineWarning,
   PlanChange,
   SessionKind,
   SessionSpec,
@@ -75,6 +76,7 @@ import {
   toPlanSession,
   toPlanWeek,
 } from '../serialize.ts'
+import { pendingRaceWarnings } from './enteredRaces.ts'
 import { assessSessionById } from './execution.ts'
 import { gatherContextInput, gatherEngineInput } from './engineInput.ts'
 import { loadAthleteContext } from './athleteState.ts'
@@ -110,6 +112,10 @@ function present(
   load: LoadPosition | null,
   method: MethodPosition | null,
   pause?: { checkins: EngineInput['wellness']; today: string },
+  pending: (plan: {
+    warnings: EngineWarning[]
+    sessions: PlanSession[]
+  }) => EngineWarning[] = () => [],
 ): PlanWithSessions {
   const { zones } = paces
   const engine = plan.generatorVersion >= 2 ? toPlanEngineFields(plan) : null
@@ -129,7 +135,10 @@ function present(
     }),
     sessions,
     feasibility: engine?.feasibility ?? null,
-    warnings: engine?.warnings ?? [],
+    warnings: [
+      ...(engine?.warnings ?? []),
+      ...pending({ warnings: engine?.warnings ?? [], sessions }),
+    ],
     checklist: engine?.checklist ?? [],
     zones,
     load,
@@ -181,6 +190,14 @@ export async function loadPlanWithSessions(
     load,
     method,
     context === null ? undefined : { checkins: context.wellness, today },
+    (shown) =>
+      context === null
+        ? []
+        : pendingRaceWarnings(
+            context.goals,
+            { goalId: plan.goalId, warnings: shown.warnings, sessions: shown.sessions },
+            today,
+          ),
   )
 }
 

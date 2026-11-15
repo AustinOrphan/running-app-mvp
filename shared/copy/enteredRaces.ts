@@ -48,6 +48,6 @@ export function raceOnKeptDayWarning(name: string, date: string): string {
   return `The race ${name} on ${date} is not drawn into the plan: the day holds a session kept earlier.`
 }
 
-/** A change to an entered race that the plan could not take yet; the Plan page shows it as a warning. */
-export const RACE_REPLAN_PENDING_WARNING =
-  'A change to a race you entered is not in the plan yet: the plan with it did not pass the plan checks. The weekly update draws the plan again.'
+/** An entered race the plan does not hold yet, whatever the cause; the Plan page shows it as a warning. */
+export const RACE_NOT_IN_PLAN_WARNING =
+  'A race you entered is not in the plan yet. The weekly update draws the plan again.'

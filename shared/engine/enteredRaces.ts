@@ -20,6 +20,7 @@ import {
   CLIPPED_HOLD_PURPOSE,
 } from '../copy/enteredRaces.ts'
 import { runningMinutes, VOLUME_KINDS } from './limits.ts'
+import { isDuplicate } from './load.ts'
 import { holdSessions, intensityMinutes } from './micro.ts'
 import { P } from './params/index.ts'
 import { afterRaceTitle, lastWindowDay, tuneUpWindow, windowDay } from './postRace.ts'
@@ -50,6 +51,8 @@ export interface EnteredRacesArgs {
   macro: readonly WeekDraft[]
   /** The sessions the plan placed, before the goal race's own session. Kept sessions are not here. */
   sessions: readonly SessionSpec[]
+  /** The sessions kept from the plan being replaced, past ones included: they count in a week's shares. */
+  fixed: readonly SessionSpec[]
   /** The dates that hold a session the runner or an earlier plan keeps; such a race day is left. */
   keptDates: ReadonlySet<string>
   /** The race session of an entered race, as the goal race's is built. */
@@ -251,15 +254,13 @@ export function applyEnteredRaces(args: EnteredRacesArgs): EnteredRacesResult {
       ...holds,
     ]
 
-    // the reference week of the steps: the most running the plan placed in a week from three weeks
-    // before the race week to the race week, as the plan had it before this race [rule H12]
+    // the reference week of the steps: the most running a week held from three weeks before the race
+    // week to the race week: what was run before today and what is placed or kept, as the plan had
+    // it before this race [rule H12]
     const raceMonday = mondayOf(window.race.date)
     const reference = Math.max(
       0,
-      ...[0, 1, 2, 3].map((back) => {
-        const weekStart = addDays(raceMonday, -7 * back)
-        return runningMinutes(args.sessions.filter((s) => mondayOf(s.date) === weekStart))
-      }),
+      ...[0, 1, 2, 3].map((back) => weekMinutes(addDays(raceMonday, -7 * back))),
     )
     for (const stage of window.stages) {
       const first = stage.from > from ? stage.from : from
@@ -366,23 +367,118 @@ export function applyEnteredRaces(args: EnteredRacesArgs): EnteredRacesResult {
     if (partner !== undefined) broken.add(partner)
   }
   easeIf((s) => broken.has(s))
+  // The share of the time above zone 1 is read as the check reads it: over every running session of
+  // the week, the kept and the past ones included. A race that took easy volume out can push a week
+  // over it: the hardest session the plan placed there is made easy first, and when none is left
+  // the easy runs are lengthened, never past the minutes the week held without the races and never
+  // past the longest run it held, so the week carries no more running than the plan without them.
+  /** Running minutes of a week as it stood without the races: the runs before today, the sessions kept and the sessions placed. */
+  function weekMinutes(weekStart: string): number {
+    const end = addDays(weekStart, 6)
+    const inWeek = (s: SessionSpec) => s.date >= weekStart && s.date <= end
+    const placed = runningMinutes([...args.fixed.filter(inWeek), ...args.sessions.filter(inWeek)])
+    const ran = input.activities
+      .filter(
+        (a) =>
+          (a.type === 'run' || a.type === 'race') &&
+          !isDuplicate(a) &&
+          a.date >= weekStart &&
+          a.date <= end &&
+          a.date < today,
+      )
+      .reduce((sum, a) => sum + (a.movingSec ?? a.durationSec) / 60, 0)
+    const ahead = runningMinutes(args.sessions.filter((s) => inWeek(s) && s.date >= today))
+    const week = weekOf(weekStart)
+    const minutes = Math.max(placed, ran + ahead)
+    return week === undefined ? minutes : Math.min(minutes, week.targetRunMin)
+  }
+  const maxShare = P.f2.z2z3ShareMax.value
+  const WEEKDAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const
+  // an open day of the week with nothing placed, after today, before the day the plan eases to a
+  // shake-out, and not a race day or a day the runner closed: the easy run of `minutes` it can hold
+  const freeDay = (
+    week: WeekDraft,
+    inWeek: (s: SessionSpec) => boolean,
+    minimum: number,
+    room: number,
+  ): { date: string; minutes: number } | null => {
+    const used = new Set([...args.fixed, ...out].filter(inWeek).map((s) => s.date))
+    for (let i = 0; i < 7; i++) {
+      const date = addDays(week.weekStart, i)
+      const open = input.profile.availability[WEEKDAYS[i]!]
+      if (date < today || used.has(date) || raceDays.has(date) || !open.available) continue
+      // the day before a race holds the shake-out and the day of the goal race is the race's
+      if (races.some((r) => addDays(r.goal.date, -1) === date) || date >= input.goal.date) continue
+      const minutes = Math.min(minimum, open.maxMin ?? Infinity)
+      if (minutes >= P.fplace.minRunDayMin.value && minutes <= room) return { date, minutes }
+    }
+    return null
+  }
   for (const week of macro) {
     if (!touched(week)) continue
     const end = addDays(week.weekStart, 6)
+    const inWeek = (s: SessionSpec) => s.date >= week.weekStart && s.date <= end
+    const counted = (s: SessionSpec) => VOLUME_KINDS.has(s.kind) && !s.flags.includes('rest-window')
+    const fixedWeek = args.fixed.filter(inWeek).filter(counted)
+    const held = runningMinutes(args.sessions.filter(inWeek)) + runningMinutes([...fixedWeek])
+    const longest = args.sessions.filter(inWeek).reduce((m, s) => Math.max(m, s.durationMin), 0)
     for (;;) {
-      const runs = out.filter(
-        (s) =>
-          s.date >= week.weekStart &&
-          s.date <= end &&
-          VOLUME_KINDS.has(s.kind) &&
-          !s.flags.includes('rest-window'),
-      )
+      const mine = out.filter(inWeek).filter(counted)
+      const runs = [...fixedWeek, ...mine]
       const total = runs.reduce((sum, s) => sum + s.durationMin, 0)
       const hard = runs.reduce((sum, s) => sum + intensityMinutes(s), 0)
-      if (total === 0 || (hard / total) * 100 <= P.f2.z2z3ShareMax.value) break
-      const worst = runs.reduce((a, b) => (intensityMinutes(b) > intensityMinutes(a) ? b : a))
-      if (intensityMinutes(worst) === 0 || worst.date < today) break
-      easeIf((s) => s === worst)
+      if (total === 0 || (hard / total) * 100 <= maxShare) break
+      const editableHard = mine.filter((s) => s.date >= today && intensityMinutes(s) > 0)
+      if (editableHard.length > 0) {
+        const worst = editableHard.reduce((a, b) =>
+          intensityMinutes(b) > intensityMinutes(a) ? b : a,
+        )
+        easeIf((s) => s === worst)
+        continue
+      }
+      // lengthen an easy run that is not part of an easing or a window, by what is needed
+      const needed = Math.ceil((hard * 100) / maxShare - total)
+      const room = Math.min(needed, held - total)
+      const target = mine
+        .filter(
+          (s) =>
+            s.date >= today &&
+            (s.kind === 'easy' || s.kind === 'recovery') &&
+            !s.flags.includes('post-race') &&
+            s.title !== EASED_BEFORE_RACE_TITLE &&
+            s.durationMin < longest,
+        )
+        .sort((a, b) => a.durationMin - b.durationMin)[0]
+      if (room <= 0) break
+      if (target === undefined) {
+        // no easy run to lengthen: an easy run on a free open day, of the minutes needed
+        const day = freeDay(week, inWeek, Math.max(minRun, needed), held - total)
+        if (day === null) break
+        const run = prescribe('easy', day.minutes, zones, week)
+        out = [
+          ...out,
+          {
+            ...run,
+            date: day.date,
+            order: 0,
+            title: 'Easy run',
+            rules: [...run.rules, 'F2'],
+          },
+        ]
+        continue
+      }
+      const minutes = Math.min(target.durationMin + room, longest)
+      out = out.map((s) =>
+        s === target
+          ? {
+              ...easyRun(s, minutes, zones, weekOf(s.date) ?? macro[0]!, {
+                title: s.title,
+                rule: 'F2',
+              }),
+              flags: s.flags,
+            }
+          : s,
+      )
     }
   }
   return { sessions: out, weeks: markWeeks(macro, args.sessions, out, spans), warnings }
@@ -397,10 +493,10 @@ function daysIn(from: string, to: string): number {
 /** Days of a week inside a window that make it a recovery week. */
 const RECOVERY_WEEK_DAYS = 4
 
-/** The flag a week an entered race cut carries: the minutes it held before, for the ramp's baseline. */
+/** The flag a week an entered race cut carries: the running minutes the cut took out, for the ramp's baseline. */
 export const RACE_CUT_FLAG = 'race-cut-'
 
-/** The minutes a week held before an entered race cut it, from its flag; null for any other week. */
+/** The running minutes an entered race cut out of a week, from its flag; null for any other week. */
 export function raceCutMinutes(flags: readonly string[]): number | null {
   for (const flag of flags) {
     if (!flag.startsWith(RACE_CUT_FLAG)) continue
@@ -412,7 +508,8 @@ export function raceCutMinutes(flags: readonly string[]): number | null {
 
 /**
  * The weeks an entered race changed. A week the race, its easing or its window cut carries
- * `race-cut-<minutes>`: the ramp counts it at the minutes it held before as the baseline of the
+ * `race-cut-<minutes>`: the ramp counts it at the minutes it holds (run, kept and planned) plus the
+ * minutes cut out, the minutes it held before, as the baseline of the
  * weeks after it, which are the weeks of the plan without the race, so they stay inside the limits
  * that plan met. A week keeps its recovery or loading role from the plan without the race [rules
  * E3, G-2, H12]. A week with most of its days (4 or more) inside the recovery window of an entered
@@ -438,18 +535,19 @@ function markWeeks(
       sessions.filter((s) => s.date >= week.weekStart && s.date <= days[6]!)
     const was = within(before)
     const now = within(after)
+    // what the races took out of the week: added to the minutes the week holds (done, kept and
+    // placed), it is the minutes the week held without them
+    const cutMin = Math.max(0, runningMinutes(was) - runningMinutes(now))
     const changed = was.length !== now.length || was.some((s) => !now.includes(s))
     const windowWeek = inWindow >= RECOVERY_WEEK_DAYS && startKind(week.flags) === null
     if (!windowWeek) {
       return changed
-        ? { ...week, flags: [...week.flags, `${RACE_CUT_FLAG}${runningMinutes(was)}`] }
+        ? { ...week, flags: [...week.flags, `${RACE_CUT_FLAG}${String(cutMin)}`] }
         : week
     }
     return {
       ...week,
-      flags: [
-        ...new Set([...week.flags, `${RACE_CUT_FLAG}${runningMinutes(was)}`, 'race-recovery']),
-      ],
+      flags: [...new Set([...week.flags, `${RACE_CUT_FLAG}${String(cutMin)}`, 'race-recovery'])],
       focus: 'After the race: easy running',
     }
   })

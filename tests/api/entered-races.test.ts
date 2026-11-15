@@ -169,9 +169,14 @@ describe('a B goal entered before the goal race', () => {
     const undone = await client(ctx, user).post(`/api/plan/revisions/${added!.id}/undo`).send({})
     expect(undone.status, JSON.stringify(undone.body)).toBe(200)
     expect(shape(await readPlan(user))).toEqual(shape(before))
-    // the goal is still entered, so any later re-plan draws it again
+    // the goal is still entered and the plan holds no race session for it: the Plan page says so
+    const undonePlan = await readPlan(user)
+    expect(undonePlan.warnings.map((w) => w.code)).toContain('races-replan-pending')
+    // the goal is still entered, so any later re-plan draws it again, and the warning goes
     expect((await client(ctx, user).post('/api/plan/replan').send({})).status).toBe(200)
-    expect(raceDays(await readPlan(user))).toEqual([TUNE_UP, GOAL_DATE])
+    const replanned = await readPlan(user)
+    expect(raceDays(replanned)).toEqual([TUNE_UP, GOAL_DATE])
+    expect(replanned.warnings.map((w) => w.code)).not.toContain('races-replan-pending')
   })
 })
 

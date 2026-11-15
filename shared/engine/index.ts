@@ -1455,6 +1455,7 @@ function generate(
     macro,
     sessions: guarded.sessions,
     keptDates,
+    fixed: kept,
     raceSession: (race, week) => raceSession({ ...input, goal: race.goal }, zones, week),
   })
 
