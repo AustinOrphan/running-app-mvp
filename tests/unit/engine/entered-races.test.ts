@@ -7,7 +7,7 @@ import { assertCleanCopy } from '../../../shared/copy/lint.ts'
 import { buildPlan, replan } from '../../../shared/engine/index.ts'
 import { plannedRaces } from '../../../shared/engine/enteredRaces.ts'
 import { runningMinutes } from '../../../shared/engine/limits.ts'
-import { P } from '../../../shared/engine/params/index.ts'
+import { P, PARAMS_VERSION } from '../../../shared/engine/params/index.ts'
 import type {
   EngineInput,
   EnteredRace,
@@ -144,7 +144,7 @@ describe('a B race six weeks before the goal race', () => {
 
   it('is deterministic and stamps the Params version', () => {
     expect(planWith([race('B', TUNE_UP_DATE)]).sessions).toEqual(plan.sessions)
-    expect(plan.paramsVersion).toBe('2026-11-14.3')
+    expect(plan.paramsVersion).toBe(PARAMS_VERSION)
   })
 })
 
