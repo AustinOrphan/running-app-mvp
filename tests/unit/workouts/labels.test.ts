@@ -115,7 +115,7 @@ describe('publicTitle', () => {
         expect(lintText(title), `${kind} ${flags.join()}`).toEqual([])
       }
     }
-  }, 30_000)
+  })
 
   it('passes the shared lint at every length', () => {
     for (const kind of SESSION_KINDS) {
