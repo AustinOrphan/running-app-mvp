@@ -947,8 +947,8 @@ function CeilingEvidence({ evidence, units }: { evidence: OwnCeilingEvidence; un
       <details>
         <summary>{`The ${String(evidence.runs.length)} runs`}</summary>
         <ul className={styles.sessions}>
-          {evidence.runs.map((run) => (
-            <li key={run.date} className={styles.sessionLine}>
+          {evidence.runs.map((run, i) => (
+            <li key={`${run.date}-${String(i)}`} className={styles.sessionLine}>
               {`${formatShortDate(run.date)}: ${paceText(1000 / run.speedMps, units)}, ${bpmText(run.avgHr)} average`}
             </li>
           ))}

@@ -715,7 +715,12 @@ export async function listZoneProposals(
   // The own easy ceiling goes through the same list, so it is declined, accepted and recorded like
   // every other proposal (rules C4, C8, owner decision D4, 2026-11-14).
   const context = await loadAthleteContext(deps, { userId: args.userId, today: args.today })
-  const ceiling = ownCeilingProposal(context.activities, args.today, context.zones)
+  const ceiling = ownCeilingProposal(
+    context.activities,
+    args.today,
+    context.zones,
+    context.zoneChanges.lt1Hr ?? null,
+  )
   if (ceiling !== null) proposals.push(ceiling)
   if (proposals.length === 0) return []
 
@@ -739,9 +744,27 @@ export async function listZoneProposals(
         ),
     ),
   )
+  // The own easy ceiling moves with every run, so "Not now" holds by direction, not by value:
+  // a decline of a lower (or higher) ceiling silences that direction for the window (rule C8).
+  const declinedDirections = new Set(
+    revisions.flatMap((revision) =>
+      zoneDecisionsOf(revision.changes)
+        .filter((d) => d.boundary === 'lt1Hr' && d.outcome === 'declined')
+        .map(({ change }) =>
+          (change.to as number) < (change.from as number) ? 'lower' : 'higher',
+        ),
+    ),
+  )
   return proposals
     .map((proposal) => ({ ...proposal, id: proposalId(proposal) }))
-    .filter((proposal) => !declined.has(proposal.id))
+    .filter(
+      (proposal) =>
+        !declined.has(proposal.id) &&
+        !(
+          proposal.boundary === 'lt1Hr' &&
+          declinedDirections.has(proposal.to < proposal.from ? 'lower' : 'higher')
+        ),
+    )
 }
 
 /** Accepts (applies to the profile) or declines a proposal; the revision log keeps the record. */
@@ -786,7 +809,8 @@ export async function decideZoneProposal(
   } else if (proposal.boundary === 'hrMax') {
     await prisma.athleteProfile.update({
       where: { userId: args.userId },
-      data: { hrMax: proposal.to, hrMaxSource: 'measured' },
+      // A new maximum makes an accepted own ceiling stale (C2, C8), as in the profile route.
+      data: { hrMax: proposal.to, hrMaxSource: 'measured', ownLt1Hr: null },
     })
   } else {
     throw conflict(zoneNotStoredText(proposal.boundary))

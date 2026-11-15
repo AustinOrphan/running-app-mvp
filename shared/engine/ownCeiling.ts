@@ -40,17 +40,21 @@ export function ownCeilingProposal(
   activities: readonly HrFitRun[],
   today: string,
   zones: ZoneSet,
+  /** The day of the last accepted change of this boundary: only runs after it count (C8). */
+  changedOn: string | null = null,
 ): ZoneProposal | null {
   const { lt1Hr, lt2Hr, hrMax, lt1PaceSecPerKm, hr } = zones
   if (lt1Hr === null || lt2Hr === null || hrMax === null || lt1PaceSecPerKm === null) return null
   if (hr === null || !(lt1PaceSecPerKm.value > 0)) return null
 
   const maxWbgtC = P.c8.ownLt1MaxWbgtC.value
-  const runs: OwnCeilingRun[] = coolRunPoints(activities, today, maxWbgtC).map((p) => ({
-    date: p.date,
-    speedMps: p.speedMps,
-    avgHr: p.avgHr,
-  }))
+  const runs: OwnCeilingRun[] = coolRunPoints(activities, today, maxWbgtC)
+    .filter((p) => changedOn === null || p.date > changedOn)
+    .map((p) => ({
+      date: p.date,
+      speedMps: p.speedMps,
+      avgHr: p.avgHr,
+    }))
   const observations = P.c8.minObservations.value
   const fewest = Math.min(P.c8.ownLt1MinRunsLower.value, P.c8.ownLt1MinRunsRaise.value)
   if (runs.length < fewest + observations - 1) return null
@@ -100,18 +104,22 @@ export function ownCeilingProposal(
     runs,
     maxWbgtC,
   }
-  const latest = Math.round(estimates[estimates.length - 1]!)
-  const lead = `On ${String(runs.length)} cool runs with clean heart-rate data, the line of heart rate against pace gives ${String(latest)} bpm at the easy pace limit, against the current ${String(from)} bpm.`
+  const sortedReadings = [...estimates].sort((a, b) => a - b)
+  const shown = Math.round(direction === 'lower' ? sortedReadings[1]! : sortedReadings[0]!)
+  const which =
+    direction === 'lower' ? 'the middle of the three readings' : 'the lowest of the three readings'
+  const lead = `On ${String(runs.length)} cool runs with clean heart-rate data, the line of heart rate against pace gives ${String(shown)} bpm at the easy pace limit (${which}), against the current ${String(from)} bpm.`
   const tail =
     direction === 'lower'
       ? ` Moving the easy heart-rate limit down to ${String(to)} bpm would match the line; confirm or decline.`
       : ` A higher limit allows more intensity on every easy step, so this offer needed more runs and a closer agreement than a lower one, and moves the limit by at most ${String(P.c8.ownLt1MaxRaiseBpm.value)} bpm. Moving it to ${String(to)} bpm would match the line as far as that allows; confirm or decline.`
+  const effects = ` Accepting sets the top of zone 1, which also sets the heart-rate alerts on the watch, the heart-rate cap of an ultra race day and the easy pace on My paces.`
   return {
     boundary: 'lt1Hr',
     from,
     to,
     observations,
-    reason: lead + tail,
+    reason: lead + tail + effects,
     rules: ['C8', 'C4', 'A8'],
     evidence,
   }

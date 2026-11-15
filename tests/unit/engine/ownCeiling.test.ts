@@ -155,6 +155,26 @@ describe('the own easy ceiling offer', () => {
     expect(ownCeilingProposal(runs(16, 90), TODAY, ZONES)).not.toBeNull()
   })
 
+  test('runs on or before the last accepted change do not count (fresh data, C8)', () => {
+    const all = runs(14, 90)
+    expect(ownCeilingProposal(all, TODAY, ZONES, null)).not.toBeNull()
+    // The change was accepted on the day of the sixth run: eight runs remain, too few to raise.
+    expect(ownCeilingProposal(all, TODAY, ZONES, all[5]!.date)).toBeNull()
+    expect(ownCeilingProposal(all, TODAY, ZONES, TODAY)).toBeNull()
+  })
+
+  test('the offer names what accepting moves, and the reading that the value comes from', () => {
+    const lower = ownCeilingProposal(runs(10, 60), TODAY, ZONES)!
+    expect(lower.reason).toContain('the middle of the three readings')
+    const higher = ownCeilingProposal(runs(14, 90), TODAY, ZONES)!
+    expect(higher.reason).toContain('the lowest of the three readings')
+    for (const offer of [lower, higher]) {
+      expect(offer.reason).toContain('heart-rate alerts on the watch')
+      expect(offer.reason).toContain('ultra race day')
+      expect(offer.reason).toContain('easy pace on My paces')
+    }
+  })
+
   test('too few runs give nothing', () => {
     expect(ownCeilingProposal(runs(5, 60), TODAY, ZONES)).toBeNull()
     expect(ownCeilingProposal([], TODAY, ZONES)).toBeNull()

@@ -318,7 +318,7 @@ export const cZones = {
     }),
     ownLt1MaxRaiseBpm: param('c8.ownLt1MaxRaiseBpm', 5, 'D', 'C8', [], {
       unit: 'bpm',
-      note: 'Default: one offer never raises the ceiling by more than this; a further rise needs a new offer on later runs. A lower ceiling moves to the estimate in one step.',
+      note: 'Default: one offer never raises the ceiling by more than this; a further rise needs a new offer, and only cool runs after the accepted change count (C8). A lower ceiling moves to the estimate in one step.',
     }),
     ownLt1MaxFractionOfHrMax: param(
       'c8.ownLt1MaxFractionOfHrMax',

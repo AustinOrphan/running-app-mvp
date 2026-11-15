@@ -82,14 +82,25 @@ async function runnerWithRuns(email: string, count: number, intercept: number) {
       },
     },
   })
+  await addRuns(u.id, count, intercept, (i) => addDays(today, -2 * (count - i)))
+  return u
+}
+
+/** `count` cool steady flat runs on the line HR = `intercept` + 20 x speed, on the days `dateOf` gives. */
+async function addRuns(
+  userId: string,
+  count: number,
+  intercept: number,
+  dateOf: (i: number) => string,
+) {
   const durationSec = 2400
   for (let i = 0; i < count; i += 1) {
     const speed = 2.4 + (0.9 * i) / Math.max(count - 1, 1)
     const hr = Math.round(intercept + 20 * speed)
     await ctx.prisma.activity.create({
       data: {
-        userId: u.id,
-        date: addDays(today, -2 * (count - i)),
+        userId,
+        date: dateOf(i),
         type: 'run',
         source: 'manual',
         durationSec,
@@ -112,7 +123,6 @@ async function runnerWithRuns(email: string, count: number, intercept: number) {
       },
     })
   }
-  return u
 }
 
 const lt1Proposals = (list: ZoneProposalView[]) => list.filter((p) => p.boundary === 'lt1Hr')
@@ -198,6 +208,35 @@ describe('the own easy ceiling proposal', () => {
       value: 149,
       source: 'own-line',
     })
+  })
+
+  test('each step needs new evidence: only cool runs after the accepted change count', async () => {
+    const u = await runnerWithRuns('ceiling-fresh@example.com', 14, 91)
+    const c = client(ctx, u)
+    const [offer] = lt1Proposals((await c.get('/api/zones/proposals')).body as ZoneProposalView[])
+    expect(offer).toMatchObject({ from: 144, to: 149 })
+    await c.post(`/api/zones/proposals/${offer!.id}/accept`).send({})
+    // The same runs do not offer the next step.
+    expect(lt1Proposals((await c.get('/api/zones/proposals')).body as ZoneProposalView[])).toEqual(
+      [],
+    )
+    // Fourteen new cool runs, on a higher line, do.
+    vi.setSystemTime(new Date(2026, 10, 4, 12))
+    await addRuns(u.id, 14, 100, (i) => addDays(today, 1 + i))
+    const [next] = lt1Proposals((await c.get('/api/zones/proposals')).body as ZoneProposalView[])
+    expect(next).toMatchObject({ from: 149, to: 151 })
+    expect(next!.evidence!.runs).toHaveLength(14)
+  })
+
+  test('a decline holds for its direction when one more run moves the offered value', async () => {
+    const u = await runnerWithRuns('ceiling-hold@example.com', 10, 60)
+    const c = client(ctx, u)
+    const [offer] = lt1Proposals((await c.get('/api/zones/proposals')).body as ZoneProposalView[])
+    await c.post(`/api/zones/proposals/${offer!.id}/decline`).send({})
+    await addRuns(u.id, 1, 55, () => addDays(today, -1))
+    expect(lt1Proposals((await c.get('/api/zones/proposals')).body as ZoneProposalView[])).toEqual(
+      [],
+    )
   })
 
   test('a new maximum or threshold heart rate from the runner clears an accepted ceiling', async () => {
