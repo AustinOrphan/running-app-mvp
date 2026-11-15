@@ -919,6 +919,14 @@ export const EXPLAIN_TEMPLATES = {
     'Your race descends {loss} over {distance}. Graded downhill running starts {weeks} weeks before it.',
     { loss: 'climb', distance: 'distance', weeks: 'count' },
   ),
+  'explain.h5-order': tpl(
+    'The first {lead} weeks of downhill running carry a gentle-descent cue. Later hill and long runs carry a descent cue, none in the last {days} days.',
+    { lead: 'count', days: 'count' },
+  ),
+  'explain.h5-cue': tpl(
+    'Hill and long runs in the downhill weeks carry a descent cue, none in the last {days} days.',
+    { days: 'count' },
+  ),
   'explain.h5-gap': tpl(
     'No descent is entered for this goal, so the plan has no descent figure to build toward.',
   ),

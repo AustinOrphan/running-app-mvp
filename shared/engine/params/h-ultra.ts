@@ -206,6 +206,22 @@ export const hUltra = {
         note: 'Default: duration of the research damaging protocol.',
       },
     ),
+    cueGradePct: param<[number, number]>('h5.cueGradePct', [5, 10], 'D', 'H5', [], {
+      unit: '% grade',
+      note: 'Default: the descent cue names grades from 5% to 10%, gentle enough to practise a controlled, relaxed descent. No study sets the grades.',
+    }),
+    taperExclusionDays: param('h5.taperExclusionDays', 10, 'D', 'H5', [], {
+      unit: 'days',
+      note: 'Default: no downhill emphasis or cue on a session in the last days before the race, so that no eccentric damage is left to recover from. The repeated-bout protection is untested this close to a race.',
+    }),
+    quadPauseDays: param('h5.quadPauseDays', 3, 'D', 'H5', [], {
+      unit: 'days',
+      note: 'Default: a check-in that reports quad soreness pauses the downhill emphasis for this many days after the report. No study sets the length.',
+    }),
+    quadPauseMinPain: param('h5.quadPauseMinPain', 2, 'D', 'H5', [], {
+      unit: 'pain score 0-10',
+      note: 'Default: the quad pause starts at a pain score of this or more in a check-in whose area names the quads or thigh. It matches the repeat-pain default of rule J11; no study sets it.',
+    }),
     kneeExtensorStrengthGainPct: param<[number, number]>(
       'h5.kneeExtensorStrengthGainPct',
       [9, 24],

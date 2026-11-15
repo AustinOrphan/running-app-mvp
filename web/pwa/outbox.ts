@@ -70,7 +70,8 @@ export const OUTBOX_ROUTES: readonly OutboxRoute[] = [
     label: 'check-in',
     matches: (url) => /^\/api\/checkins\/\d{4}-\d{2}-\d{2}$/.test(url),
     combine: 'merge',
-    invalidates: [keys.today, keys.wellness],
+    // the plan too: a quad report pauses the downhill cue on the stored sessions (rule H5)
+    invalidates: [keys.today, keys.wellness, keys.plan],
   },
   {
     // `PUT /api/fuel/logs/:activityId` stores the whole log, so a second write replaces the first.

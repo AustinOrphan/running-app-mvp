@@ -832,12 +832,13 @@ describe('useOutboxReplay', () => {
     await outbox.save(URL, { fatigue: 4 })
     await waitFor(() => {
       expect(invalidate.mock.calls.map(([filter]) => filter?.queryKey)).toEqual(
-        expect.arrayContaining([[keys.today], [keys.wellness]]),
+        expect.arrayContaining([[keys.today], [keys.wellness], [keys.plan]]),
       )
     })
     expect(invalidate.mock.calls.map(([filter]) => filter?.queryKey)).toEqual([
       [keys.today],
       [keys.wellness],
+      [keys.plan],
     ])
   })
 

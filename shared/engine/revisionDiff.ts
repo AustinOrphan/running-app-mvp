@@ -49,6 +49,7 @@ const CALENDAR_FLAGS: ReadonlySet<string> = new Set([
   'gut-training',
   'night',
   'downhill',
+  'downhill-first',
   'b2b',
 ])
 const POST_RACE_FLAGS: ReadonlySet<string> = new Set(['post-race', 'post-race-restart'])

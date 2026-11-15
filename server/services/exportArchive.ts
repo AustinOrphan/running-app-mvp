@@ -130,7 +130,7 @@ export function exportTables(prisma: PrismaClient, userId: string): Table[] {
       fields: [
         'date: the runner’s local day, YYYY-MM-DD. startTime: HH:MM local. startUtc: ISO 8601 UTC.',
         'durationSec, movingSec: seconds. distanceM, gapDistanceM, elevationGainM, elevationLossM: metres.',
-        'rpe: 1 to 10. rpeSource: who gave the rating, app (the runner) or watch (filled from the rating given on the watch when the run was imported); null when unknown. feel: -2 (much easier than expected) to +2 (much harder). pain: 0 to 10. heatExposure: warm-room (a run indoors at 25 C or more) or passive (a hot bath or sauna after an easy run), marked by the runner, else null.',
+        'rpe: 1 to 10. rpeSource: who gave the rating, app (the runner) or watch (filled from the rating given on the watch, when the run was imported or later by the lookup); null when unknown. feel: -2 (much easier than expected) to +2 (much harder). pain: 0 to 10. heatExposure: warm-room (a run indoors at 25 C or more) or passive (a hot bath or sauna after an easy run), marked by the runner, else null.',
         'avgHr, maxHr: beats per minute. avgCadence: steps per minute. avgPowerW: watts.',
         'tempC, dewPointC: degrees Celsius. windKph: kilometres per hour. humidityPct: percent.',
         'startLat, startLng: degrees, rounded to 0.01.',
@@ -139,6 +139,7 @@ export function exportTables(prisma: PrismaClient, userId: string): Table[] {
         'duplicateOfId, duplicateStatus: the duplicate pass’s link and verdict.',
         'hrQuality: the checks on the run’s heart-rate data, from its stream; null means not checked yet (and for a run with no stream). v: the version. th: the thresholds the counts used. source: strap, wrist or unknown. movingSec: moving seconds. cleanSec: moving seconds that passed every check. lockSec (heart rate locked to the step cadence), spikeSec (jumps larger than a heart makes), dropSec (no heart rate), flatSec (one exact value for a minute or more), mismatchSec (heart rate fell while effort rose sharply): seconds flagged by each check; one second can be flagged by several, so they can add up to more than movingSec minus cleanSec. halves: for runs of 40 minutes or more, the clean seconds, metres and heart rate times seconds of the first and second half by terrain band (the bands of terrainBins), or null. gapDecouplingPct: drift between the halves on grade-adjusted pace, in percent, or null.',
         'trackV: the version of the route extraction (see activity-tracks.json); null means not looked at yet.',
+        'watchRpeV: the version of the watch-rating lookup; set once intervals.icu was asked for the run’s rating, whether or not it held one, so null means not asked yet.',
         'surfaceBins: how far the run went on each kind of way, from its route and the OpenStreetMap ways of your downloaded map area (see map-area.json); null means not computed, or the run is outside the area or has no route. trailM, pavedM, roadM: metres on trails (paths, tracks and unpaved ways), paved paths and roads. unknownM: metres with no mapped way within 25 m. The four add up to the length of the route. v: the version of the matching.',
       ],
       json: ['hrHistogram', 'terrainBins', 'hrQuality', 'surfaceBins'],

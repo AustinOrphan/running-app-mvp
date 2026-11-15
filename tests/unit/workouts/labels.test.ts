@@ -24,6 +24,7 @@ const FLAG_SET: Record<SessionFlag, true> = {
   'b2b-day1': true,
   'b2b-day2': true,
   downhill: true,
+  'downhill-first': true,
   'run-walk': true,
   'post-race': true,
   'injury-return': true,

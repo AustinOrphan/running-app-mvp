@@ -110,6 +110,12 @@ export interface PullProvider {
    */
   fetchRoute?(ref: RemoteActivityRef, ctx: ProviderCtx): Promise<ParsedActivity['route']>
   /**
+   * The rating the watch gave an already stored activity, for the watch-rating backfill: one
+   * request per activity. Null when the remote has none or no longer has the activity. Throws
+   * `RateLimitPause` on a 429 and `ProviderAuthError` on a refused key.
+   */
+  fetchRating?(ref: RemoteActivityRef, ctx: ProviderCtx): Promise<number | null>
+  /**
    * Daily wellness for `from` to `to`, oldest first. Throws `WellnessTruncated` (with the days it
    * read) instead of returning less than the window.
    */

@@ -27,6 +27,7 @@ import {
   type DayRule,
   type DisruptionPlan,
 } from './disruption.ts'
+import { holdDownhill, quadPauseThrough } from './downhill.ts'
 import { feasibility } from './goal.ts'
 import { applyGuards } from './guards.ts'
 import { heatWarning } from './heat.ts'
@@ -493,6 +494,11 @@ function generate(
   const kept = keep.sessions
   const state = afterBreak(estimateState(input))
   const zones = buildZones(input.profile, state, today)
+  const downhillHold = {
+    raceDate: goal.date,
+    today,
+    pausedThrough: quadPauseThrough(input.wellness, today),
+  }
   // The method preset that applies [rules P1 to P4]: the label reads its long-run share, the macro
   // cycle draws the weeks with it, and the week placement below reads the table of quality kinds,
   // once the plan's weeks show whether it has a base week to lengthen.
@@ -1174,6 +1180,9 @@ function generate(
       return list.map((s) => (s === next ? cut : s))
     }
     sessions = holdTrimmed(sessions)
+    // The last days before the race and the days after a report of sore quads carry no downhill
+    // emphasis [rule H5]; the flag only comes off, so the week's load stays as it was.
+    sessions = holdDownhill(sessions, downhillHold)
     // Fewer run days open than planned: the week gets the days there are, and the plan says so. A
     // week of a start path keeps a rest day between runs, so open days that sit next to each other
     // hold fewer sessions than the programme draws; the week then says what was placed.

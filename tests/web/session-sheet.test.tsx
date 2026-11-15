@@ -121,6 +121,30 @@ describe('SessionSheet', () => {
     expect(within(dialog).queryByText('Go by this today.')).not.toBeInTheDocument()
   })
 
+  test('a first downhill session shows its label and the gentle cue (rule H5)', async () => {
+    const session = makeSession({ id: 's10', kind: 'hills', flags: ['downhill-first'] })
+    renderSheet(session)
+    const dialog = await screen.findByRole('dialog', { name: 'Threshold intervals' })
+    expect(within(dialog).getByText('First downhill practice')).toBeInTheDocument()
+    expect(
+      within(dialog).getByText(/First downhill practice: keep it gentle\./),
+    ).toBeInTheDocument()
+    expect(within(dialog).getByText(/descents of 5 to 10 percent/)).toBeInTheDocument()
+  })
+
+  test('a downhill session shows the cue, and a session without the flag shows neither', async () => {
+    const down = makeSession({ id: 's11', flags: ['downhill'] })
+    renderSheet(down)
+    const first = await screen.findByRole('dialog', { name: 'Threshold intervals' })
+    expect(within(first).getByText('Downhill emphasis')).toBeInTheDocument()
+    expect(within(first).getByText(/^Downhill practice:/)).toBeInTheDocument()
+    cleanup()
+    renderSheet(makeSession({ id: 's12', flags: [] }))
+    const plain = await screen.findByRole('dialog', { name: 'Threshold intervals' })
+    expect(within(plain).queryByText(/Downhill/)).not.toBeInTheDocument()
+    expect(within(plain).queryByText(/descents of/)).not.toBeInTheDocument()
+  })
+
   test('a single work step is named as the workout names it', async () => {
     renderSheet(
       makeSession({

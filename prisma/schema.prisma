@@ -93,6 +93,7 @@ model Activity {
   surfaceBins     String? // JSON text: SurfaceBins (M1d: metres on trail, paved path and road; null = not computed, or outside the downloaded map area)
   hrQuality       String? // JSON text: HrQuality (runs and races with a stream)
   trackV          Int? // TRACK_VERSION when the run's positions were last looked for (a row in ActivityTrack, or none); null = not yet
+  watchRpeV       Int? // WB1: WATCH_RPE_VERSION when the watch rating was last asked of intervals.icu for the run (a rating filled, or none held); null = not yet
   decouplingPct   Float?
   gapDistanceM    Int?
   feel            Int? // -2 much easier .. +2 much harder than expected
