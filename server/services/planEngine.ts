@@ -721,7 +721,9 @@ export async function listZoneProposals(
     context.zones,
     context.zoneChanges.lt1Hr ?? null,
   )
-  if (ceiling !== null) proposals.push(ceiling)
+  // Without an active plan an answer leaves no revision, so the fresh-data guard and the held
+  // decline could not apply: no offer then.
+  if (ceiling !== null && plan !== null) proposals.push(ceiling)
   if (proposals.length === 0) return []
 
   // A decline is found by its stored change (`zones.<boundary>.declined`, the proposed values in
@@ -779,6 +781,9 @@ export async function decideZoneProposal(
     where: { userId: args.userId, status: 'active' },
     orderBy: { createdAt: 'desc' },
   })
+  // The own ceiling is decided only with a plan to hold the revision that records the answer.
+  if (proposal.boundary === 'lt1Hr' && !plan)
+    throw notFound('That zone proposal is no longer open.')
 
   if (args.decision === 'decline') {
     if (plan) {
@@ -809,7 +814,8 @@ export async function decideZoneProposal(
   } else if (proposal.boundary === 'hrMax') {
     await prisma.athleteProfile.update({
       where: { userId: args.userId },
-      // A new maximum makes an accepted own ceiling stale (C2, C8), as in the profile route.
+      // A new maximum makes an accepted own ceiling stale (C2, C8), as in the profile route. No
+      // producer emits an hrMax proposal today, so this branch has no test.
       data: { hrMax: proposal.to, hrMaxSource: 'measured', ownLt1Hr: null },
     })
   } else {

@@ -163,6 +163,15 @@ describe('the own easy ceiling offer', () => {
     expect(ownCeilingProposal(all, TODAY, ZONES, TODAY)).toBeNull()
   })
 
+  test('the day of the change itself is excluded, the day after it is not (strict comparison)', () => {
+    const all = runs(12, 60)
+    const tenth = all[2]!.date
+    // Ten runs stay when the change was the day before the tenth from last: enough to lower.
+    expect(ownCeilingProposal(all, TODAY, ZONES, addDays(tenth, -1))).not.toBeNull()
+    // Changed on that run's own day it is dropped too: nine stay, too few.
+    expect(ownCeilingProposal(all, TODAY, ZONES, tenth)).toBeNull()
+  })
+
   test('the offer names what accepting moves, and the reading that the value comes from', () => {
     const lower = ownCeilingProposal(runs(10, 60), TODAY, ZONES)!
     expect(lower.reason).toContain('the middle of the three readings')

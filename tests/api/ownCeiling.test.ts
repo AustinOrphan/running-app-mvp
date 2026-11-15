@@ -211,21 +211,47 @@ describe('the own easy ceiling proposal', () => {
   })
 
   test('each step needs new evidence: only cool runs after the accepted change count', async () => {
-    const u = await runnerWithRuns('ceiling-fresh@example.com', 14, 91)
+    const u = await runnerWithRuns('ceiling-fresh@example.com', 14, 110)
     const c = client(ctx, u)
     const [offer] = lt1Proposals((await c.get('/api/zones/proposals')).body as ZoneProposalView[])
     expect(offer).toMatchObject({ from: 144, to: 149 })
     await c.post(`/api/zones/proposals/${offer!.id}/accept`).send({})
-    // The same runs do not offer the next step.
+    // The same runs do not offer the next step, though their line (about 169 bpm) is far over the
+    // 149 now in force: only the fresh-data rule is left to hold it back.
     expect(lt1Proposals((await c.get('/api/zones/proposals')).body as ZoneProposalView[])).toEqual(
       [],
     )
     // Fourteen new cool runs, on a higher line, do.
     vi.setSystemTime(new Date(2026, 10, 4, 12))
-    await addRuns(u.id, 14, 100, (i) => addDays(today, 1 + i))
+    await addRuns(u.id, 14, 110, (i) => addDays(today, 1 + i))
     const [next] = lt1Proposals((await c.get('/api/zones/proposals')).body as ZoneProposalView[])
     expect(next).toMatchObject({ from: 149, to: 151 })
     expect(next!.evidence!.runs).toHaveLength(14)
+  })
+
+  test('a runner with cool runs and no plan gets no offer, and cannot answer one', async () => {
+    const u = await runnerWithRuns('ceiling-noplan@example.com', 10, 60)
+    await ctx.prisma.plan.deleteMany({ where: { userId: u.id } })
+    const c = client(ctx, u)
+    expect(lt1Proposals((await c.get('/api/zones/proposals')).body as ZoneProposalView[])).toEqual(
+      [],
+    )
+    expect((await c.post('/api/zones/proposals/lt1Hr-144-120/accept').send({})).status).toBe(404)
+  })
+
+  test('a decline of a lower ceiling leaves a later higher offer listed', async () => {
+    const u = await runnerWithRuns('ceiling-dir@example.com', 10, 60)
+    const c = client(ctx, u)
+    const [offer] = lt1Proposals((await c.get('/api/zones/proposals')).body as ZoneProposalView[])
+    await c.post(`/api/zones/proposals/${offer!.id}/decline`).send({})
+    // Later cool runs on a much higher line: the next offer points the other way.
+    // The first ten runs are gone (as if they had left the eight-week window), the decline is still
+    // inside the proposal window.
+    await ctx.prisma.activity.deleteMany({ where: { userId: u.id } })
+    vi.setSystemTime(new Date(2026, 10, 10, 12))
+    await addRuns(u.id, 14, 120, (i) => addDays(today, 1 + i))
+    const [next] = lt1Proposals((await c.get('/api/zones/proposals')).body as ZoneProposalView[])
+    expect(next?.evidence?.direction).toBe('higher')
   })
 
   test('a decline holds for its direction when one more run moves the offered value', async () => {
