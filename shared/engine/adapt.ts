@@ -644,7 +644,7 @@ export function weeklyDecision(
     // The first hot days alone hold the week at the last loading week as it was run, never above it.
     // After a recovery week the cap of G-6 steps from the recovery week's minutes, which is no level to
     // hold at: the planned week and the last loading week bound it then.
-    if (decision === 'hold' && holds.length === 1 && hotDays !== null) {
+    if (isHeatOnlyHold({ decision, signals: [...holds, ...independent, ...direct] })) {
       const level = lastLoadingMin(input, weekStart)
       const reviewed = input.existing?.weeks.find((w) => w.weekStart === weekStart)
       if (level !== null) {

@@ -396,7 +396,11 @@ function capWeek(week: WeekDraft, cap: number | undefined): WeekDraft {
  */
 function heatHoldWeek(week: WeekDraft, cap: number | undefined, stored: WeekDraft | undefined) {
   const held = cap !== undefined && cap < week.targetRunMin ? holdWeek(week, cap) : week
-  const flags = [...held.flags, HEAT_HOLD_FLAG]
+  // flagged only when the hold lowers the week the plan had (or already did, on a second re-plan)
+  const lowered =
+    stored !== undefined &&
+    (stored.flags.includes(HEAT_HOLD_FLAG) || stored.targetRunMin > held.targetRunMin)
+  const flags = lowered ? [...held.flags, HEAT_HOLD_FLAG] : held.flags
   if (stored === undefined || stored.longRunMin <= held.longRunMin) return { ...held, flags }
   const longRunMin = Math.min(stored.longRunMin, held.targetRunMin)
   const longRunM =

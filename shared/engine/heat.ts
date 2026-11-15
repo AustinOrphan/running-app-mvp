@@ -617,6 +617,10 @@ export function firstHotDays(
   ) {
     return { source: 'forecast', days: 0 }
   }
+  // Only the week in progress or the next one can be held: for an older week the forecast has no hour,
+  // and today's runs would stand for heat that is long past.
+  const thisMonday = mondayOf(input.today)
+  if (coming < thisMonday || coming > addDays(thisMonday, 7)) return null
   for (let k = 1; k <= P.j5.heatHoldGapWeeks.value; k++) {
     const earlier = weeks.find((w) => w.weekStart === addDays(coming, -7 * k))
     if (earlier?.flags.includes(HEAT_HOLD_FLAG)) return null
@@ -642,11 +646,10 @@ export function firstHotDays(
     input.activities
       .filter(
         (a) =>
-          a.type !== 'strength' &&
           a.date >= since &&
           a.date <= input.today &&
-          a.tempC !== null &&
-          a.tempC >= P.acclim.exposureTempC.value,
+          // the rule of the credit for a run at the exposure temperature: its minimum minutes too
+          isHeatExposure({ ...a, heatExposure: null }),
       )
       .map((a) => a.date),
   )

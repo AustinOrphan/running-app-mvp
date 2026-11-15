@@ -218,4 +218,22 @@ describe('the first hot days through the weekly re-plan', () => {
     expect(JSON.parse(cold.flags)).not.toContain(HEAT_HOLD_FLAG)
     expect(cold.targetRunMin).toBe(after.targetRunMin)
   })
+
+  test('a forecast that changes between the preview and the commit makes the commit stale', async () => {
+    const { u } = await seedPlan('hh1-stale@example.com')
+    await fillForecast(u.id, [0, 1, 2], 30)
+    const c = client(ctx, u)
+    const preview = await c.post('/api/plan/preview').send({ type: 'replan' })
+    expect(preview.status, JSON.stringify(preview.body)).toBe(200)
+    const hash = (preview.body as { hash: string }).hash
+
+    // the weather job replaces the hot forecast with a cool one
+    await ctx.prisma.forecastCache.deleteMany()
+    await fillForecast(u.id, [], 30)
+    const commit = await c.post('/api/plan/replan').send({ expectHash: hash })
+    expect(commit.status).toBe(409)
+    expect((commit.body as { error: { details: { code: string } } }).error.details.code).toBe(
+      'stale-preview',
+    )
+  })
 })

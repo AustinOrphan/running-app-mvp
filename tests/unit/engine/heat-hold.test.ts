@@ -188,6 +188,36 @@ describe('firstHotDays: where it never applies', () => {
     expect(hold({ targetRunMin: 201 })).not.toBeNull()
   })
 
+  it('never holds a week already past, whatever the recent runs show', () => {
+    const old = '2026-10-05'
+    const past = base({
+      forecast: null,
+      activities: [heatRun(addDays(TODAY, -1))],
+      existing: { weeks: [week(old, { targetRunMin: 220 }), week(LAST)], sessions: [] },
+    })
+    expect(firstHotDays(past, old)).toBeNull()
+    const open = weeklyDecision(past, addDays(old, -7), {
+      efficiency: { current: 1, trendPct: 0, samples: 12 },
+    })
+    expect(open.signals.map((s) => s.code)).not.toContain('heat')
+  })
+
+  it('holds the next week too, and not the one after it', () => {
+    const next = addDays(COMING, 7)
+    const weeks = [
+      week(COMING),
+      week(next, { targetRunMin: 220 }),
+      week(addDays(next, 7), { targetRunMin: 220 }),
+    ]
+    const ahead = (coming: string) =>
+      firstHotDays(
+        base({ forecast: null, activities: [heatRun(TODAY)], existing: { weeks, sessions: [] } }),
+        coming,
+      )
+    expect(ahead(next)).not.toBeNull()
+    expect(ahead(addDays(next, 7))).toBeNull()
+  })
+
   it('never holds a week the plan does not have', () => {
     expect(firstHotDays(base({ existing: null }), COMING)).toBeNull()
   })
@@ -257,6 +287,15 @@ describe('weeklyDecision with the first hot days', () => {
     })
     expect(d.decision).toBe('hold')
     expect(d.nextWeekTargetMin).toBe(120)
+  })
+
+  it('gives the cap of the other signal alone beside an independent one', () => {
+    const declining = { current: 1, trendPct: -5, samples: 12 }
+    const both = weeklyDecision(base(), LAST, { efficiency: declining })
+    const alone = weeklyDecision(base(), LAST, { efficiency: declining, heatFirstDays: false })
+    expect(both.signals.map((s) => s.code)).toEqual(['heat', 'efficiency-decline'])
+    expect(isHeatOnlyHold(both)).toBe(false)
+    expect(both.nextWeekTargetMin).toBe(alone.nextWeekTargetMin)
   })
 
   it('is not heat-only beside another signal', () => {
@@ -344,6 +383,17 @@ describe('replan with a week held for the first hot days', () => {
     expect(plain.draft.weeks.find((x) => x.weekStart === w.weekStart)!.flags).not.toContain(
       HEAT_HOLD_FLAG,
     )
+  })
+
+  it('leaves the week and its flag alone when the cap does not lower it', () => {
+    const w = loading!
+    const heat = replan(
+      { ...half.input, existing, weekCaps: { [w.weekStart]: w.targetRunMin + 50 } },
+      { decisions: { [w.weekStart]: 'hold' }, heatHeld: [w.weekStart] },
+    )
+    const week = heat.draft.weeks.find((x) => x.weekStart === w.weekStart)!
+    expect(week.targetRunMin).toBe(w.targetRunMin)
+    expect(week.flags).not.toContain(HEAT_HOLD_FLAG)
   })
 
   it('carries the weeks after the held one on from it', () => {
