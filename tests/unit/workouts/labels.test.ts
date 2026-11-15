@@ -31,7 +31,9 @@ const FLAG_SET: Record<SessionFlag, true> = {
   'rest-window': true,
   'entered-race': true,
 }
-const FLAGS = Object.keys(FLAG_SET) as SessionFlag[]
+// `entered-race` only marks the race session of a race the runner entered, which `publicTitle` never
+// reads by flag; it is tried once below, so the subsets stay at 2^12.
+const FLAGS = (Object.keys(FLAG_SET) as SessionFlag[]).filter((flag) => flag !== 'entered-race')
 
 /** Wording that must never leave the app in a title: health, a reason, the run-walk ladder. */
 const FORBIDDEN =
@@ -114,6 +116,14 @@ describe('publicTitle', () => {
         expect(title, `${kind} ${flags.join()}`).not.toMatch(FORBIDDEN)
         expect(lintText(title), `${kind} ${flags.join()}`).toEqual([])
       }
+    }
+  })
+
+  it('is the same title with the entered-race flag', () => {
+    for (const kind of SESSION_KINDS) {
+      expect(publicTitle(session(kind, 45, { flags: ['entered-race'] }))).toBe(
+        publicTitle(session(kind, 45)),
+      )
     }
   })
 

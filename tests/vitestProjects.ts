@@ -25,7 +25,6 @@ export const SWEEP_FILES: readonly string[] = [
   'tests/unit/engine/disruption-sweep.test.ts', // 13
   'tests/unit/engine/preset-fidelity.test.ts', // 12
   'tests/unit/engine/entered-races-sweep.test.ts', // SR1
-  'tests/unit/workouts/labels.test.ts', // 2^13 flag combinations per kind
   // By hand (skipped in `npm run test` without the variable named in each file's header), where
   // each runs for minutes:
   'tests/unit/engine/window-grids.test.ts', // WINDOW_GRIDS_FULL
