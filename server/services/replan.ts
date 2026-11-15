@@ -31,7 +31,7 @@ import {
 import { runMinutesAhead } from '../../shared/domain/runMinutes.ts'
 import { estimateState } from '../../shared/engine/athlete.ts'
 import { draftRamp } from '../../shared/engine/checklist.ts'
-import { isHeatOnlyHold, type ExecutionRecord } from '../../shared/engine/adapt.ts'
+import { hasHeatHold, isHeatOnlyHold, type ExecutionRecord } from '../../shared/engine/adapt.ts'
 import { disruptionPlan, heldDates } from '../../shared/engine/disruption.ts'
 import { diffPlans, type PlanWrites, type RowWrites } from '../../shared/engine/diff.ts'
 import { backdatedSkips, replan, weeklyDecision, weeklyRamp } from '../../shared/engine/index.ts'
@@ -1015,6 +1015,8 @@ export async function computeReplan(deps: Deps, args: ReplanArgs): Promise<Repla
     {
       decisions,
       heatHeld:
+        decision !== null && decidedWeek !== null && hasHeatHold(decision) ? [decidedWeek] : [],
+      heatAlone:
         decision !== null && decidedWeek !== null && isHeatOnlyHold(decision) ? [decidedWeek] : [],
     },
   )

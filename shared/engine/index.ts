@@ -236,8 +236,10 @@ interface Keep {
   /** The kept sessions that a recorded activity stands for; its run is counted from the activity. */
   matched: ReadonlySet<KeptSession>
   decisions: NonNullable<ReplanOptions['decisions']>
-  /** The weeks held for the first hot days alone (`ReplanOptions.heatHeld`). */
+  /** The weeks whose hold has the first hot days among its signals (`ReplanOptions.heatHeld`). */
   heatHeld: ReadonlySet<string>
+  /** Those held for the first hot days alone (`ReplanOptions.heatAlone`). */
+  heatAlone: ReadonlySet<string>
   /**
    * The Monday of a week whose sessions are all in `sessions` (a week held under the shape it was
    * drawn under, `replan`): nothing more is placed in it and its week row is not drawn again from
@@ -258,6 +260,12 @@ export interface ReplanOptions {
    * week's long run in place (`holdWeek`), no session is trimmed, and the week carries `heat-hold`.
    */
   heatHeld?: readonly string[]
+  /**
+   * The subset of `heatHeld` whose only signal is the heat: only these keep the long run in place and
+   * trim no session; a hold with another signal beside the heat is capped and trimmed as that signal
+   * says, and still carries `heat-hold`.
+   */
+  heatAlone?: readonly string[]
 }
 
 const OWNER_EDITS: ReadonlySet<string> = new Set(['moved', 'skipped', 'adjusted'])
@@ -394,14 +402,25 @@ function capWeek(week: WeekDraft, cap: number | undefined): WeekDraft {
  * macrocycle draws a held week from its cap, which scales every session of the week by one share,
  * so the long run is put back from the stored week and the other sessions share what is left.
  */
-function heatHoldWeek(week: WeekDraft, cap: number | undefined, stored: WeekDraft | undefined) {
-  const held = cap !== undefined && cap < week.targetRunMin ? holdWeek(week, cap) : week
+function heatHoldWeek(
+  week: WeekDraft,
+  cap: number | undefined,
+  stored: WeekDraft | undefined,
+  alone: boolean,
+) {
+  const held = !alone
+    ? capWeek(week, cap)
+    : cap !== undefined && cap < week.targetRunMin
+      ? holdWeek(week, cap)
+      : week
   // flagged only when the hold lowers the week the plan had (or already did, on a second re-plan)
   const lowered =
     stored !== undefined &&
     (stored.flags.includes(HEAT_HOLD_FLAG) || stored.targetRunMin > held.targetRunMin)
   const flags = lowered ? [...held.flags, HEAT_HOLD_FLAG] : held.flags
-  if (stored === undefined || stored.longRunMin <= held.longRunMin) return { ...held, flags }
+  if (!alone || stored === undefined || stored.longRunMin <= held.longRunMin) {
+    return { ...held, flags }
+  }
   const longRunMin = Math.min(stored.longRunMin, held.targetRunMin)
   const longRunM =
     stored.longRunM === null || stored.longRunMin <= 0
@@ -579,8 +598,8 @@ function generate(
   const unwindowed = new Map<string, number>()
   for (const w of macroWeeks) {
     const cap = input.weekCaps?.[w.weekStart]
-    // The first hot days alone hold a loading week of the build with its long run in place
-    // [rules J5, I8]; any other cap shrinks every session by the same share.
+    // The first hot days flag a held loading week of the build; alone they also keep its long run in
+    // place [rules J5, I8], where any other cap shrinks every session by the same share.
     const heatHeld = keep.heatHeld.has(w.weekStart) && isLoadingWeek(w) && !w.isTaper
     let week: WeekDraft = {
       ...(heatHeld
@@ -588,6 +607,7 @@ function generate(
             w,
             cap,
             input.existing?.weeks.find((x) => x.weekStart === w.weekStart),
+            keep.heatAlone.has(w.weekStart),
           )
         : capWeek(w, cap)),
       index: w.index + weekOffset,
@@ -1209,7 +1229,7 @@ function generate(
     const holdTrimmed = (list: SessionSpec[]): SessionSpec[] => {
       if (
         keep.decisions[week.weekStart] !== 'hold' ||
-        keep.heatHeld.has(week.weekStart) ||
+        keep.heatAlone.has(week.weekStart) ||
         trimmedAlready
       ) {
         return list
@@ -1635,6 +1655,7 @@ export function buildPlan(input: EngineInput): PlanDraft {
       matched: new Set(),
       decisions: {},
       heatHeld: new Set(),
+      heatAlone: new Set(),
     },
     0,
   )
@@ -1808,6 +1829,7 @@ export function replan(
     matched,
     decisions: options.decisions ?? {},
     heatHeld: new Set(options.heatHeld ?? []),
+    heatAlone: new Set(options.heatAlone ?? []),
   }
   const { draft, heldWeek } = drawn(input, keep, oldWeeks, pastWeeks.length)
   const keptSet = new Set<SessionSpec>(kept)
