@@ -3731,6 +3731,8 @@ export const POLICY_ONLY_RULES: ReadonlySet<string> = new Set([
   // (ADR 0018), not from the athlete snapshot an Explain reads; it has no builder until a surface
   // of the plan asks "why" of one line
   'H14',
+  // the road race plan (H15, ADR 0023) is derived on the same page the same way; it has no builder
+  'H15',
   // My paces is derived on its own page from the zones, the heart-rate line and the predictions
   // (ADR 0020), not from the snapshot an Explain reads; its Why buttons open the rules it cites
   'C9',

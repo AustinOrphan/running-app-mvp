@@ -28,7 +28,7 @@ import {
   type DisruptionPlan,
 } from './disruption.ts'
 import { holdDownhill, quadPauseThrough } from './downhill.ts'
-import { feasibility } from './goal.ts'
+import { feasibility, goalPaceSecPerKm } from './goal.ts'
 import { applyGuards } from './guards.ts'
 import { HEAT_HOLD_FLAG, heatWarning } from './heat.ts'
 import {
@@ -1643,10 +1643,7 @@ function defaultWeeks(
 function raceSession(input: EngineInput, zones: ZoneSet, week: WeekDraft): SessionSpec {
   const { goal } = input
   const minutes = Math.max(1, Math.round(goal.expectedDurationSec / 60))
-  const goalPace =
-    goal.goalType === 'time' && goal.targetTimeSec !== null && goal.distanceM > 0
-      ? Math.round(goal.targetTimeSec / (goal.distanceM / 1000))
-      : null
+  const goalPace = goalPaceSecPerKm(goal)
   // every class above the marathon is an ultra (`goal.isUltra`), and its race is run to a ceiling [H11]
   const spec = prescribe('race', minutes, zones, week, {
     goalPaceSecPerKm: goalPace,

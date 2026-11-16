@@ -192,7 +192,7 @@ Stated so the plan's words stay inside them.
   5 h marathon from a road trial; fuel timing in a road marathon; gut training in road runners.
 - A fluid volume for a road marathon that is safe and optimal for a given runner. The 2% body-mass
   limit of the older ACSM stand is supported by neither road result in the corpus.
-- A road race heart rate or RPE, a warm-up, and pre-cooling.
+- A road race heart rate or RPE, and a warm-up or pre-cooling for a road race.
 - The 25 C of `i9.warnWbgtC` for a marathon (Roberts 2010 points lower). Unresolved here; the
   engine PR decides how the road heat line is worded.
 - Burke 2011 gives 30 to 60 g/h for events of longer duration after its "about 1 h" statement; the

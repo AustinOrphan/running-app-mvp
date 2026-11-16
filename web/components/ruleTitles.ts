@@ -96,6 +96,7 @@ export const RULE_TITLES: Record<string, string> = {
   H12: 'Recovery after the race',
   H13: 'Heat acclimation blocks',
   H14: 'Race plan',
+  H15: 'Road race plan',
   // (i) environment
   I1: 'Weather index',
   I2: 'Optimum temperature band',

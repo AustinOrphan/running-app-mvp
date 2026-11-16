@@ -9,6 +9,8 @@ import type { Quantity } from '../engine/types.ts'
 import { roundEstimateSec } from '../units.ts'
 import { tpl, type Template } from './template.ts'
 
+type DurationQuantity = Extract<Quantity, { kind: 'duration' }>
+
 export const TODAY_TEMPLATES = {
   // The verdict: one line on what readiness means for today.
   'today.verdict.ready': tpl('Ready as planned.'),
@@ -462,8 +464,11 @@ export function raceEstimateSlots(prediction: {
   lowSec: number
   highSec: number
   predictedSec: number
-}): { low: Quantity; high: Quantity; likely: Quantity } {
-  const duration = (sec: number): Quantity => ({ kind: 'duration', sec: roundEstimateSec(sec) })
+}): { low: DurationQuantity; high: DurationQuantity; likely: DurationQuantity } {
+  const duration = (sec: number): DurationQuantity => ({
+    kind: 'duration',
+    sec: roundEstimateSec(sec),
+  })
   return {
     low: duration(prediction.lowSec),
     high: duration(prediction.highSec),
