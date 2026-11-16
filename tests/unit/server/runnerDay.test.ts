@@ -121,10 +121,10 @@ describe('chosenZone (the rule step 5 applies)', () => {
 describe('describeZoneCutover', () => {
   test('names ids and counts, nothing else', () => {
     expect(describeZoneCutover({ moving: ['a1', 'b2'], unset: 3 })).toBe(
-      "D10: 2 runner(s) (a1, b2) will follow a zone other than the server's; 3 runner(s) have no zone chosen and keep the server's day",
+      "D10: 2 runner(s) (a1, b2) follow a zone other than the server's; 3 runner(s) have no zone chosen and keep the server's day",
     )
     expect(describeZoneCutover({ moving: [], unset: 0 })).toBe(
-      "D10: 0 runners will follow a zone other than the server's; 0 runner(s) have no zone chosen and keep the server's day",
+      "D10: 0 runners follow a zone other than the server's; 0 runner(s) have no zone chosen and keep the server's day",
     )
   })
 })

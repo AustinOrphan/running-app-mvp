@@ -147,5 +147,5 @@ export function describeZoneCutover(report: { moving: string[]; unset: number })
     report.moving.length === 0
       ? '0 runners'
       : `${report.moving.length} runner(s) (${report.moving.join(', ')})`
-  return `D10: ${moving} will follow a zone other than the server's; ${report.unset} runner(s) have no zone chosen and keep the server's day`
+  return `D10: ${moving} follow a zone other than the server's; ${report.unset} runner(s) have no zone chosen and keep the server's day`
 }

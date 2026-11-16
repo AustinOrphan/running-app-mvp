@@ -1845,7 +1845,7 @@ export interface StateInputs {
 export interface StateView {
   /** The data version the picture was built at: `<boot>.<writes>.<external>`. */
   version: string
-  /** The server's local day the picture is for. */
+  /** The runner's day the picture is for. */
   asOf: string
   /** When the picture was built, as an instant. */
   builtAt: string

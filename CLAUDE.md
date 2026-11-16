@@ -318,7 +318,9 @@ protection reads. The Docker image must still build (`docker build .`) after a c
   the stored zone as stored, the server's zone for the stored `UTC`, no row or an unknown zone (logged
   once). A request reads `req.runnerDay` (`{ tz, today, now }`, set in `requireAuth`); a job reads
   `runnerDays`; a service takes `today` from its caller and never resolves it. Nothing under `server/`
-  reads the process zone except the backup slot, the log clock and the named UTC windows;
+  reads the process zone except the backup slot, the log clock and the named UTC windows, and, until
+  D10 step 6, four reads of the process or stored zone (the Smashrun offset in `routes/imports.ts`, the
+  forecast wall clock, the map area and the calendar header);
   `tests/unit/server/noProcessZone.test.ts` scans for `todayIso`, local-clock getters and
   `toISOString().slice(0, 10)`, and its allowlists only shrink. The backup stays on the server clock.
   Imports date an offset-less time in the stored zone, `UTC` literally, never in `runnerZone`.

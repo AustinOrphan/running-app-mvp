@@ -108,7 +108,7 @@ export function useServerToday() {
  * The zone the runner's days follow, read without a request: the session user's `tz`, then the zone
  * of a cached Today payload (a `me` payload cached before the field existed), then null, which the
  * callers read as the device's own day. Never the device zone by name, so a phone in another zone
- * than the server shows the server's day (D10, ADR 0022).
+ * than the runner's shows the runner's day (D10, ADR 0022).
  */
 export function useRunnerZone(): string | null {
   // Observers that never fetch: the session user is read once by the app shell, and a page asking

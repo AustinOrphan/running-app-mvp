@@ -708,6 +708,26 @@ describe('ProfilePage', () => {
       expect(screen.queryByText(/^Saving makes days follow/)).not.toBeInTheDocument()
     })
 
+    test('a saved zone the server does not follow says the days follow the server zone', async () => {
+      setup(makeProfile({ timezone: 'Nowhere/Land' }), {}, SERVER, SERVER)
+      await loaded()
+      const line = screen.getByText(/^The zone saved here, Nowhere\/Land, is not known/)
+      expect(line).toHaveTextContent(
+        /^The zone saved here, Nowhere\/Land, is not known to this server, so days follow Pacific\/Kiritimati, the server's zone\. Today is \w{3} \d{1,2} \w{3} \d{4} there\. Days already logged keep their dates\.$/,
+      )
+      expect(screen.queryByText(/the zone saved here\. Today/)).not.toBeInTheDocument()
+      expectCleanCopy(line)
+    })
+
+    test('choosing Not set with the server zone unknown shows no save note', async () => {
+      const { user } = setup(makeProfile({ timezone: 'Europe/London' }), {}, 'Europe/London')
+      await loaded()
+      const picker = screen.getByRole('combobox', { name: 'Timezone' })
+      await user.selectOptions(picker, "Not set (the server's zone)")
+      expect(picker).toHaveDisplayValue("Not set (the server's zone)")
+      expect(screen.queryByText(/^Saving makes days follow/)).not.toBeInTheDocument()
+    })
+
     test('there is no line while the session zone is unknown', async () => {
       setup(makeProfile({ timezone: 'Europe/London' }))
       await loaded()

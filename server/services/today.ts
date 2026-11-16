@@ -297,7 +297,7 @@ function readinessWithScreening(
 
 /**
  * The Today payload for `date` (today when omitted, else up to `PREVIEW_DAYS` days ahead; anything
- * else is the route's 400 here too). `today` is the server's day and the day of the snapshot. A
+ * else is the route's 400 here too). `today` is the runner's day and the day of the snapshot. A
  * day ahead is a read-only preview: its sessions as planned, with no readiness read, no verdict,
  * no signals and no easing, because readiness is never run for a day that has not begun. The week
  * strip, the race countdown and the hero's heat read follow the viewed date, so a preview cached

@@ -922,9 +922,7 @@ function ProfileForm({ initial, units, weightUnit }: { initial: AthleteProfile }
             </Field>
           </div>
           {daysZone !== null ? (
-            <p className={styles.note}>
-              {zoneLineText(daysZone, runnerToday, initial.timezone !== ZONE_UNSET_VALUE)}
-            </p>
+            <p className={styles.note}>{zoneLineText(daysZone, runnerToday, initial.timezone)}</p>
           ) : null}
           {saveNote !== null ? <p className={styles.note}>{saveNote}</p> : null}
         </section>

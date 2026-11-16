@@ -93,7 +93,7 @@ export function useSessionStrength(
   const workout =
     kept ?? fetched.data?.find((candidate) => candidate.sessionId === session.id) ?? null
   // A live answer gives the day as `date`, except a preview, which is a day later than today; a
-  // copy kept on the phone is judged by the phone's clock in the server's zone.
+  // copy kept on the phone is judged by the phone's clock in the runner's zone.
   const day =
     view === undefined
       ? null

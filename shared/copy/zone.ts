@@ -26,6 +26,15 @@ export const ZONE_TEMPLATES = {
     { zone: 'text', date: 'date' },
     { fallback: "Days follow the server's zone until a zone is saved here." },
   ),
+  // A saved zone the server's ICU does not know: the days follow the server's zone instead.
+  'zone.line.unknown': tpl(
+    "The zone saved here, {saved}, is not known to this server, so days follow {zone}, the server's zone. Today is {date} there.",
+    { saved: 'text', zone: 'text', date: 'date' },
+    {
+      fallback:
+        "The zone saved here is not known to this server, so days follow the server's zone.",
+    },
+  ),
   'zone.line.logged': tpl('Days already logged keep their dates.'),
   // While the picker shows a zone other than the saved one (the browser's zone is pre-filled over an
   // unset zone), what saving does.
@@ -54,14 +63,18 @@ export const zoneUtcLabel = (): string => render(ZONE_TEMPLATES['zone.option.utc
 /**
  * The line under the picker: the zone the days follow and today's date there, then that days
  * already logged keep their dates. `zone` is the session user's zone, never the picker's draft;
- * `chosen` is false while the saved zone is the unset entry, so the days follow the server's.
+ * `saved` is the stored zone. The days follow `saved` only when the two are the same string (the
+ * server keeps the stored spelling); the unset `UTC` follows the server's zone, and any other
+ * saved zone that is not followed is one the server does not know.
  */
-export function zoneLineText(zone: string, today: string, chosen: boolean): string {
-  const line = render(
-    ZONE_TEMPLATES[chosen ? 'zone.line.chosen' : 'zone.line.unset'],
-    { zone, date: { kind: 'date', iso: today, style: 'long' } },
-    'km',
-  )
+export function zoneLineText(zone: string, today: string, saved: string): string {
+  const date = { kind: 'date', iso: today, style: 'long' } as const
+  const line =
+    saved === ZONE_UNSET_VALUE
+      ? render(ZONE_TEMPLATES['zone.line.unset'], { zone, date }, 'km')
+      : saved === zone
+        ? render(ZONE_TEMPLATES['zone.line.chosen'], { zone, date }, 'km')
+        : render(ZONE_TEMPLATES['zone.line.unknown'], { saved, zone, date }, 'km')
   return `${line} ${render(ZONE_TEMPLATES['zone.line.logged'], {}, 'km')}`
 }
 

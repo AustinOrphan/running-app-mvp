@@ -37,8 +37,8 @@ Alternatives:
 - Code that needs "today" calls `todayIso`, the only function that reads local time.
 - A server running in a different timezone from the runner computes the wrong current week;
   the Docker setup passes `TZ` through for that reason.
-- Proposed 2026-11-16: ADR 0022 supersedes the two consequences above (a runner's day follows the
-  runner's zone) once its step 5 merges. Until then they hold.
+- Superseded 2026-11-16 (#754): ADR 0022 supersedes the two consequences above; a runner's day
+  follows the runner's zone.
 - Sorting by date is a plain string sort.
 - Two stored values are exceptions to "derived numbers are never stored", both recorded 2026-10-23
   (phase 3a close review). `WeeklyBrief.facts` keeps last week's `ranMin` and `plannedMin`
