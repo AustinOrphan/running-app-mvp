@@ -1080,7 +1080,7 @@ export async function computeReplan(deps: Deps, args: ReplanArgs): Promise<Repla
             ? null
             : breakWeek === undefined
               ? decisionSummary(decision.decision, decision.nextWeekTargetMin)
-              : breakRepeatSummary(breakWeek.capMin),
+              : breakRepeatSummary(decision.nextWeekTargetMin),
         ]
           .filter((line): line is string => line !== null)
           .join(' ')

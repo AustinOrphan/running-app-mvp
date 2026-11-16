@@ -233,7 +233,7 @@ protection reads. The Docker image must still build (`docker build .`) after a c
 - A short week counts as the recovery week (rules E3, G-6, J7, owner decision 2026-11-15): `breakWeekOf`
   (`shared/engine/breakWeek.ts`) is the one predicate, read by `weeklyDecision` only (a finished loading week
   of the stored plan, run at or under `e3.breakWeekMaxShare` of its target, over zero minutes, no window over
-  it, no signal but a short night or a mild pain). The decision then carries `breakRepeat` and caps the week
+  it, no signal but a short night or a mild pain, and a loading or recovery week of the build after it). The decision then carries `breakRepeat` and caps the week
   after it at the J7 share of the planned week, and `computeReplan` hands it to the engine as
   `EngineInput.breakWeek`: `planWeeks` draws that week as a loading week (flag `break-repeat`), `replanAnchor`
   starts from the planned figure, and `keepCadenceAcrossReplan` counts the loading weeks from it, so later

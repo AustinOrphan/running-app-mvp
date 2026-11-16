@@ -502,8 +502,6 @@ export interface BreakWeek {
   weekStart: string
   /** The minutes that week was planned at: the figure the next week repeats. */
   plannedMin: number
-  /** The long run that week was planned with, in minutes: the repeat carries it. */
-  plannedLongMin: number
   /** The minutes run in it. */
   ranMin: number
   /** The most the repeat may hold: the J7 share of `plannedMin` for the days since the last run. */

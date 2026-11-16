@@ -5,7 +5,7 @@ import { addDays } from '../dates.ts'
 import { dayRulesIn, disruptionPlan, isDisruptedWeek, restartFraction } from './disruption.ts'
 import { plannedMinOf } from './limits.ts'
 import { P } from './params/index.ts'
-import { isLoadingWeek } from './startWeeks.ts'
+import { isLoadingWeek, isProgrammeWeek } from './startWeeks.ts'
 import type { BreakWeek, EngineInput } from './types.ts'
 
 /** The flag of the week that repeats a loading week after one that counted as the recovery week. */
@@ -29,6 +29,11 @@ export function breakWeekOf(
   const week = input.existing?.weeks.find((w) => w.weekStart === weekStart)
   if (week === undefined || !isLoadingWeek(week) || isDisruptedWeek(week.flags)) return null
   if (week.flags.includes(BREAK_REPEAT_FLAG)) return null
+  // the week after it must be one that can repeat the loading week: a loading or a recovery week of
+  // the build, never a taper, race, post-race or programme week, or none
+  const next = input.existing?.weeks.find((w) => w.weekStart === addDays(weekStart, 7))
+  if (next === undefined || next.isTaper || next.phase === 'race') return null
+  if (next.flags.includes('post-race') || isProgrammeWeek(next.flags)) return null
   const plannedMin = plannedMinOf(week)
   if (plannedMin <= 0 || ranMin <= 0) return null
   if (ranMin > plannedMin * P.e3.breakWeekMaxShare.value + 1e-9) return null
@@ -37,7 +42,6 @@ export function breakWeekOf(
   return {
     weekStart,
     plannedMin,
-    plannedLongMin: week.longRunMin,
     ranMin,
     capMin: Math.round(plannedMin * restartFraction(layoffDays)),
   }

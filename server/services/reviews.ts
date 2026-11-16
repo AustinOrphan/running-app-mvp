@@ -1,3 +1,4 @@
+import { BREAK_REVIEW_REASON } from '../../shared/copy/breakWeek.ts'
 import type { Deps } from '../app.ts'
 import { addDays, mondayOf } from '../../shared/dates.ts'
 import { toV1Phase } from '../../shared/domain/plan.ts'
@@ -159,7 +160,8 @@ function suggestV2(
   if (!decision) return null
   return {
     action: decision.decision,
-    reason: V2_REASONS[decision.decision],
+    reason:
+      decision.breakRepeat === undefined ? V2_REASONS[decision.decision] : BREAK_REVIEW_REASON,
     suggestedNextMin: decision.nextWeekTargetMin,
     signals: decision.signals,
   }
