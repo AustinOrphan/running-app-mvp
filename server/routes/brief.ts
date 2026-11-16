@@ -28,6 +28,8 @@ export function briefRouter(deps: Deps): Router {
     res.json({
       brief: await briefView(deps, {
         userId: req.userId,
+        today: req.runnerDay.today,
+        tz: req.runnerDay.tz,
         ...(query.weekStart === undefined ? {} : { weekStart: query.weekStart }),
       }),
     })
@@ -45,7 +47,13 @@ export function briefsRouter(deps: Deps): Router {
 
   router.get('/', async (req, res) => {
     const query = parse(listQuery, req.query)
-    res.json({ briefs: await briefList(deps, { userId: req.userId, limit: query.limit }) })
+    res.json({
+      briefs: await briefList(deps, {
+        userId: req.userId,
+        limit: query.limit,
+        today: req.runnerDay.today,
+      }),
+    })
   })
 
   router.post('/:weekStart/seen', async (req, res) => {

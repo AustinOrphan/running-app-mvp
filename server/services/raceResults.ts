@@ -103,10 +103,10 @@ function distanceFor(
  */
 export async function saveRaceResult(
   deps: Deps,
-  args: { userId: string; goal: Goal; body: RaceResultBody },
+  args: { userId: string; goal: Goal; body: RaceResultBody; today: string },
 ): Promise<{ result: RaceResultView; created: boolean }> {
   const { prisma } = deps
-  const { userId, goal, body } = args
+  const { userId, goal, body, today } = args
 
   const activity =
     body.activityId === null
@@ -170,7 +170,7 @@ export async function saveRaceResult(
   })
 
   if (body.activityId !== null) {
-    await runExecutionQuietly(deps, { userId, activityId: body.activityId })
+    await runExecutionQuietly(deps, { userId, activityId: body.activityId, today })
   }
   return {
     result: toRaceResultView(saved.row, {

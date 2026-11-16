@@ -4,12 +4,13 @@ import { briefText, briefWeekLabel, renderBrief } from '../../shared/copy/briefR
 import { BRIEF_TEMPLATES } from '../../shared/copy/briefTemplates.ts'
 import { render } from '../../shared/copy/template.ts'
 import { renderFact } from '../../shared/copy/templates.ts'
-import { addDays, isIsoDate, mondayOf, todayIso } from '../../shared/dates.ts'
+import { addDays, isIsoDate, mondayOf } from '../../shared/dates.ts'
 import type { InputFact } from '../../shared/engine/types.ts'
 import type { BriefView, PlanRevisionView, Units } from '../../shared/types.ts'
 import { useBrief, useMarkBriefSeen } from '../api/brief.ts'
 import { ruleTarget, type WhyTarget } from '../api/explain.ts'
 import { useSettings } from '../api/settings.ts'
+import { useRunnerToday } from '../api/today.ts'
 import buttonStyles from '../components/Button.module.css'
 import { Button } from '../components/Button.tsx'
 import { InputFacts } from '../components/InputFacts.tsx'
@@ -32,14 +33,14 @@ function unseenIds(brief: BriefView): string[] {
 }
 
 /** Why there is no brief: no plan, a week that has not begun, or a week before the first brief. */
-function emptyText(weekStart: string | undefined, units: Units): string {
+function emptyText(weekStart: string | undefined, units: Units, today: string): string {
   if (weekStart === undefined || !isIsoDate(weekStart)) {
     return weekStart === undefined
       ? briefText('brief.no-plan', units)
       : BRIEF_TEMPLATES['brief.none'].fallback
   }
   const week = mondayOf(weekStart)
-  const current = mondayOf(todayIso())
+  const current = mondayOf(today)
   if (week === current) return briefText('brief.no-plan', units)
   const id = week > current ? 'brief.not-yet' : 'brief.none'
   return render(BRIEF_TEMPLATES[id], { week: date(week) }, units)
@@ -224,6 +225,7 @@ function BriefBody({ brief, units }: { brief: BriefView; units: Units }) {
  */
 export function BriefPage() {
   const { weekStart } = useParams()
+  const today = useRunnerToday()
   const settings = useSettings()
   const readable = weekStart === undefined || isIsoDate(weekStart)
   const brief = useBrief(readable ? weekStart : undefined, { enabled: readable })
@@ -234,7 +236,7 @@ export function BriefPage() {
     return (
       <>
         <PageHeader title={title} />
-        <p className={styles.text}>{emptyText(weekStart, units)}</p>
+        <p className={styles.text}>{emptyText(weekStart, units, today)}</p>
       </>
     )
   }
@@ -262,7 +264,7 @@ export function BriefPage() {
     return (
       <>
         <PageHeader title={title} />
-        <p className={styles.text}>{emptyText(weekStart, units)}</p>
+        <p className={styles.text}>{emptyText(weekStart, units, today)}</p>
       </>
     )
   }

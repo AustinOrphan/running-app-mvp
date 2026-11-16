@@ -5,8 +5,9 @@ import request from 'supertest'
 import { afterAll, beforeAll, beforeEach, describe, expect, test, vi } from 'vitest'
 import { dataVersionKey } from '../../server/dataVersion.ts'
 import { refreshInsightsQuietly } from '../../server/services/insight.ts'
-import { runExecutionForActivity, runNightlyMatching } from '../../server/services/execution.ts'
-import { storeParsed } from '../../server/services/activityStore.ts'
+import { runNightlyMatching } from '../../server/services/execution.ts'
+import { runExecutionForActivityToday as runExecutionForActivity } from './helpers.ts'
+import { storeParsedToday as storeParsed } from './helpers.ts'
 import type { StandoutView } from '../../shared/copy/standoutRender.ts'
 import { renderFact } from '../../shared/copy/templates.ts'
 import { addDays, mondayOf, todayIso } from '../../shared/dates.ts'
@@ -664,7 +665,7 @@ describe('the pipeline', () => {
     })
     const run = await addRun(u.id, 0, { pain: 6 })
     await expect(
-      refreshInsightsQuietly(ctx, { userId: u.id, activityIds: [run.id] }),
+      refreshInsightsQuietly(ctx, { userId: u.id, activityIds: [run.id], today }),
     ).resolves.toBeUndefined()
     expect(await stored(run.id)).toBeNull()
     // The next read computes it.
@@ -681,7 +682,7 @@ describe('ActivityInsight is non-state', () => {
     expect(await stored(run.id)).not.toBeNull()
     expect(await dataVersionKey(ctx.prisma)).toEqual(before)
     // Rewriting the same row, as the pipeline and the sweep do, changes nothing either.
-    await refreshInsightsQuietly(ctx, { userId: u.id, activityIds: [run.id] })
+    await refreshInsightsQuietly(ctx, { userId: u.id, activityIds: [run.id], today })
     expect(await dataVersionKey(ctx.prisma)).toEqual(before)
   })
 

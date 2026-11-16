@@ -11,7 +11,7 @@ import { Router } from 'express'
 import { z } from 'zod'
 import type { Deps } from '../app.ts'
 import { notFound, parse, validationError } from '../errors.ts'
-import { daysBetween, isIsoDate, todayIso } from '../../shared/dates.ts'
+import { daysBetween, isIsoDate } from '../../shared/dates.ts'
 import {
   itemNeedsFoodMessage,
   itemProductOnlyMessage,
@@ -190,7 +190,7 @@ export function fuelRouter(deps: Deps): Router {
   const router = Router()
 
   router.get('/', async (req, res) => {
-    res.json(await fuelLabView(deps, { userId: req.userId, today: todayIso() }))
+    res.json(await fuelLabView(deps, { userId: req.userId, today: req.runnerDay.today }))
   })
 
   router.get('/targets', async (req, res) => {
@@ -203,7 +203,9 @@ export function fuelRouter(deps: Deps): Router {
       const message = rangeSpanMessage(FUEL_TARGETS_MAX_DAYS)
       throw validationError(message, [{ path: 'to', message }])
     }
-    res.json(await fuelTargetsBetween(deps, { userId: req.userId, today: todayIso(), from, to }))
+    res.json(
+      await fuelTargetsBetween(deps, { userId: req.userId, today: req.runnerDay.today, from, to }),
+    )
   })
 
   async function findRun(userId: string, id: string) {

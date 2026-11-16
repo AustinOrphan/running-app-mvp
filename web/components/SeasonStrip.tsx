@@ -16,7 +16,8 @@ import {
   seasonWeekName,
   seasonWeeksName,
 } from '../../shared/copy/season.ts'
-import { mondayOf, todayIso } from '../../shared/dates.ts'
+import { mondayOf } from '../../shared/dates.ts'
+import { useRunnerToday } from '../api/today.ts'
 import { shownTargetMin } from '../../shared/domain/plannedWeek.ts'
 import { minutesToHours1 } from '../../shared/units.ts'
 import type { PlanWithWeeks } from '../../shared/types.ts'
@@ -104,10 +105,11 @@ export function SeasonStrip({
   plan: PlanWithWeeks
   onSelectWeek: (weekStart: string) => void
 }) {
+  const runnerToday = useRunnerToday()
   useEffect(() => {
     warmWeeklyHoursChart()
   }, [])
-  const currentMonday = mondayOf(todayIso())
+  const currentMonday = mondayOf(runnerToday)
   const weeks = useWeeks(actualRange(plan, currentMonday))
   // the bars' own box: the plot less the axis gutter, so the weeks' columns are measured exactly
   const plotRef = useRef<HTMLDivElement>(null)

@@ -501,6 +501,8 @@ export interface PlanWriteRecord {
   decision?: WeeklyDecision | null
   /** Written by the scheduler, not by a request. */
   auto?: boolean
+  /** The runner's day of the write: the returned view says the revision was written on it. */
+  today: string
   /** The rest window this write created, changed or removed. */
   disruptionId?: string | null
   /** On an 'undo' revision: the revision it reverted. */
@@ -554,7 +556,7 @@ export async function recordPlanWrite(
       undoOf: record.undoOf ?? null,
     },
   })
-  return toPlanRevision(row)
+  return toPlanRevision(row, record.today)
 }
 
 /**
@@ -1247,6 +1249,7 @@ export async function applyReplan(
       })
       return recordPlanWrite(tx, {
         planId,
+        today,
         userId: result.userId,
         reason: result.reason,
         summary: withTargets(result.baseSummary, weeks.targets),

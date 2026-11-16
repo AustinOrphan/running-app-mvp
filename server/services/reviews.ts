@@ -262,6 +262,7 @@ export async function saveReview(
   weekStart: string,
   patch: ReviewPatch,
   today: string,
+  tz: string,
 ): Promise<SavedReview> {
   const { prisma } = deps
   const existing = await prisma.weeklyReview.findUnique({
@@ -354,7 +355,7 @@ export async function saveReview(
       const written = await replanActivePlan(deps, { userId, reason: 'review', today })
       // The saved review carries the revision as the list serves it: with the undo state the
       // other surfaces show, not only what the write itself knows.
-      result.revision = await viewRevision(deps, { userId, revisionId: written.id })
+      result.revision = await viewRevision(deps, { userId, revisionId: written.id, today, tz })
     } catch (error) {
       if (error instanceof HttpError) {
         result.replanError = error.message

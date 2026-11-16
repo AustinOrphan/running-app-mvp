@@ -49,6 +49,8 @@ const MAX_REPORT_ROWS = 100
 type Format = 'fit' | 'gpx' | 'tcx'
 
 interface ScanOptions {
+  /** The runner's day, for the matching that follows each stored activity. */
+  today: string
   settleMs?: number
   /** Overrides of `FOLDER_LIMITS`, for tests. */
   limits?: Partial<FolderLimits>
@@ -311,6 +313,7 @@ async function ingest(
   name: string,
   bytes: Uint8Array,
   timezone: string,
+  today: string,
   tally: Tally,
   depth: number,
   budget: Budget,
@@ -354,6 +357,7 @@ async function ingest(
           member.name,
           member.bytes,
           timezone,
+          today,
           tally,
           depth + 1,
           budget,
@@ -397,6 +401,7 @@ async function ingest(
       source: 'file',
       importBatchId,
       channel: 'folder',
+      today,
       file: { name: baseName(name), format, bytes },
     })
     if (result.outcome === 'duplicate') tally.duplicate += 1
@@ -449,7 +454,7 @@ async function scan(deps: Deps, userId: string, path: string, opts: ScanOptions)
       if (Date.now() - details.mtimeMs < settleMs) continue
       const bytes = new Uint8Array(await readFile(file))
       const seenBefore = tally.seen
-      await ingest(deps, userId, path, file, bytes, timezone, tally, 0, {
+      await ingest(deps, userId, path, file, bytes, timezone, opts.today, tally, 0, {
         left: limits.maxUnpackedBytes,
         limits,
       })
@@ -503,11 +508,7 @@ function failedError(tally: Tally): Error | null {
  * Throws when the root cannot be read, or, after finishing the rest, when a file failed for a
  * reason that is not its content (such as a database error).
  */
-export async function scanFolder(
-  deps: Deps,
-  userId: string,
-  opts: ScanOptions = {},
-): Promise<number> {
+export async function scanFolder(deps: Deps, userId: string, opts: ScanOptions): Promise<number> {
   const tally = await scan(deps, userId, await resolveFolderRoot(deps), opts)
   const failure = failedError(tally)
   if (failure) throw failure
@@ -524,7 +525,7 @@ export async function scanFolder(
 export async function scanFolderIntegration(
   deps: Deps,
   userId: string,
-  opts: { trigger?: Extract<SyncTrigger, 'schedule' | 'manual'> } = {},
+  opts: { today: string; trigger?: Extract<SyncTrigger, 'schedule' | 'manual'> },
 ): Promise<number> {
   const { prisma } = deps
   const row = await prisma.integration.findUnique({
@@ -536,7 +537,7 @@ export async function scanFolderIntegration(
   let tally: Tally | null = null
   let failure: Error | null = null
   try {
-    tally = await scan(deps, userId, await resolveFolderRoot(deps), {})
+    tally = await scan(deps, userId, await resolveFolderRoot(deps), { today: opts.today })
     failure = failedError(tally)
   } catch (error) {
     failure = error instanceof Error ? error : new Error(String(error))

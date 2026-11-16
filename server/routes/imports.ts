@@ -233,6 +233,7 @@ export function importsRouter(deps: Deps): Router {
 
   async function importRows(
     userId: string,
+    today: string,
     source: Exclude<ActivitySource, 'manual'>,
     fileName: string,
     parsed: { rows: ImportRow[]; errors: RowError[] },
@@ -318,7 +319,7 @@ export function importsRouter(deps: Deps): Router {
       { timeout: 60_000 },
     )
     // Sessions handed from a confirmed copy to its original are assessed once the import is saved.
-    await assessSessionsQuietly(deps, { userId, sessionIds: moved })
+    await assessSessionsQuietly(deps, { userId, sessionIds: moved, today })
 
     return toImportBatch(batch)
   }
@@ -333,14 +334,24 @@ export function importsRouter(deps: Deps): Router {
       distanceUnit: body.distanceUnit ?? (user.units === 'km' ? 'km' : 'mi'),
       utcOffsetMinutes: (instant) => -instant.getTimezoneOffset(),
     })
-    res.status(201).json(await importRows(req.userId, 'smashrun', body.fileName, parsed))
+    res
+      .status(201)
+      .json(await importRows(req.userId, req.runnerDay.today, 'smashrun', body.fileName, parsed))
   })
 
   router.post('/csv', async (req, res) => {
     const body = parse(uploadSchema, req.body)
     res
       .status(201)
-      .json(await importRows(req.userId, 'csv', body.fileName, parseGenericCsv(body.text)))
+      .json(
+        await importRows(
+          req.userId,
+          req.runnerDay.today,
+          'csv',
+          body.fileName,
+          parseGenericCsv(body.text),
+        ),
+      )
   })
 
   router.post('/files', async (req, res) => {
@@ -377,6 +388,7 @@ export function importsRouter(deps: Deps): Router {
             importBatchId: batch.id,
             file: { name, format, bytes },
             channel: 'upload',
+            today: req.runnerDay.today,
           })
           if (result.outcome === 'duplicate') {
             tally.skippedDuplicate += 1
@@ -416,6 +428,7 @@ export function importsRouter(deps: Deps): Router {
           source: body.source,
           importBatchId: batch.id,
           channel: 'upload',
+          today: req.runnerDay.today,
         })
         if (result.outcome === 'duplicate') {
           tally.skippedDuplicate += 1

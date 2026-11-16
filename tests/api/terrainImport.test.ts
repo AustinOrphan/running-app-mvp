@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'vitest'
 import { parseActivityFile } from '../../shared/importers/files/index.ts'
-import { storeParsed } from '../../server/services/activityStore.ts'
+import { storeParsedToday as storeParsed } from './helpers.ts'
 import { toActivity } from '../../server/serialize.ts'
 import { COURSE, courseFit } from '../fixtures/fit/terrainCourse.ts'
 import { createTestCtx, seedUser, type TestCtx, type TestUser } from './helpers.ts'

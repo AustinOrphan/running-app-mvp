@@ -49,7 +49,7 @@ import {
   restoreNoteText,
 } from '../../shared/copy/goals.ts'
 import { outlookLine, resultButtonLabel, resultButtonName } from '../../shared/copy/trackRecord.ts'
-import { todayIso } from '../../shared/dates.ts'
+import { useRunnerDayOf, useRunnerToday } from '../api/today.ts'
 import { formatDistance, formatDuration } from '../../shared/units.ts'
 import type {
   ActivateRequiresPlan,
@@ -666,6 +666,8 @@ interface GoalRowProps {
 function GoalRow({ goal, units, archived, result, onEdit, onRecordResult }: GoalRowProps) {
   const nameId = useId()
   const noteId = useId()
+  const runnerToday = useRunnerToday()
+  const dayOf = useRunnerDayOf()
   const activate = useActivateGoal()
   const remove = useDeleteGoal()
   const restore = useRestorePlan()
@@ -783,7 +785,7 @@ function GoalRow({ goal, units, archived, result, onEdit, onRecordResult }: Goal
               </Button>
             )}
             {/* A result is recorded once the race day has come; a recorded one can always be edited. */}
-            {result !== undefined && (result !== null || goal.targetDate <= todayIso()) ? (
+            {result !== undefined && (result !== null || goal.targetDate <= runnerToday) ? (
               <Button
                 variant="secondary"
                 aria-label={resultButtonName(result !== null, goal.name, units)}
@@ -810,7 +812,7 @@ function GoalRow({ goal, units, archived, result, onEdit, onRecordResult }: Goal
           {archived !== null ? (
             <div className={styles.restore}>
               <p id={noteId} className={styles.note}>
-                {restoreNoteText(archived.goalName, todayIso(new Date(archived.archivedAt)))}
+                {restoreNoteText(archived.goalName, dayOf(new Date(archived.archivedAt)))}
               </p>
               <Button
                 variant="secondary"

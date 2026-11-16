@@ -16,6 +16,7 @@ import type { Deps } from '../../server/app.ts'
 import { dataVersionKey } from '../../server/dataVersion.ts'
 import { HttpError, notFound, validationError } from '../../server/errors.ts'
 import { runReplanJob } from '../../server/jobs/scheduler.ts'
+import { serverTimeZone } from '../../server/runnerDay.ts'
 import { generateBrief, readFacts, replanNoteOf } from '../../server/services/brief.ts'
 import {
   client,
@@ -328,7 +329,12 @@ describe('the weekly job', () => {
   test('keeps the brief of an update that ran when a later attempt fails', async () => {
     const r = await updated(email())
     const before = await briefOf(r.u.id)
-    await generateBrief(deps(), { userId: r.u.id, today: monday, failure: new Error('later') })
+    await generateBrief(deps(), {
+      userId: r.u.id,
+      today: monday,
+      tz: serverTimeZone(),
+      failure: new Error('later'),
+    })
     const after = await briefOf(r.u.id)
     expect(after!.revisionId).toBe(r.revisionId)
     expect(after!.facts).toBe(before!.facts)
@@ -920,7 +926,12 @@ describe('the table', () => {
     // a request that builds the brief
     expect((await getBrief(r))!.provisional).toBe(true)
     // and the job's own write, called alone
-    await generateBrief(deps(), { userId: r.u.id, today: monday, failure: new Error('x') })
+    await generateBrief(deps(), {
+      userId: r.u.id,
+      today: monday,
+      tz: serverTimeZone(),
+      failure: new Error('x'),
+    })
     expect(await briefOf(r.u.id)).toMatchObject({ provisional: false })
     const after = await dataVersionKey(ctx.prisma)
     expect(after.key).toBe(before.key)

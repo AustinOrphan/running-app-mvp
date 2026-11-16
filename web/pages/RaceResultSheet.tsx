@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent 
 import { useActivities } from '../api/activities.ts'
 import { ApiError, fieldErrors } from '../api/client.ts'
 import { useRemoveResult, useSaveResult, type RaceResultInput } from '../api/predictions.ts'
+import { useRunnerToday } from '../api/today.ts'
 import { Button } from '../components/Button.tsx'
 import { Field, Input, Select, Textarea } from '../components/Field.tsx'
 import { Segmented } from '../components/Segmented.tsx'
@@ -27,7 +28,7 @@ import {
   savedToast,
   sheetFieldProblem,
 } from '../../shared/copy/trackRecord.ts'
-import { addDays, isIsoDate, todayIso } from '../../shared/dates.ts'
+import { addDays, isIsoDate } from '../../shared/dates.ts'
 import type { RaceOutcome } from '../../shared/engine/backtest.ts'
 import { RESULT_ACTIVITY_WINDOW_DAYS } from '../../shared/limits.ts'
 import type { ActivityListItem, Goal, TrackRecordRace, Units } from '../../shared/types.ts'
@@ -93,7 +94,7 @@ export function RaceResultSheet({ goal, result, units, onClose }: RaceResultShee
   const toast = useToast()
   const save = useSaveResult()
   const remove = useRemoveResult()
-  const today = todayIso()
+  const today = useRunnerToday()
 
   const [outcome, setOutcome] = useState<RaceOutcome>(result?.outcome ?? 'finished')
   const [time, setTime] = useState(

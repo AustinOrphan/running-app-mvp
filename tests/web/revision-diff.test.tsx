@@ -17,7 +17,13 @@ import { ToastProvider } from '../../web/components/Toast.tsx'
 import { PlanDiffView } from '../../web/components/revisions/PlanDiffView.tsx'
 import { RevisionDiff } from '../../web/components/revisions/RevisionDiff.tsx'
 import { UndoControl } from '../../web/components/revisions/UndoControl.tsx'
-import { expectCleanCopy, mockApi, renderWithProviders, type MockRoutes } from './helpers.tsx'
+import {
+  expectCleanCopy,
+  mockApi,
+  renderWithProviders,
+  seedRunnerZone,
+  type MockRoutes,
+} from './helpers.tsx'
 import {
   AVAILABLE,
   makeBrief,
@@ -249,7 +255,12 @@ describe('PlanDiffView', () => {
 describe('RevisionDiff', () => {
   test('shows the reason, the day, the stored summary, the cause once, the rows and the undo', () => {
     mockApi({})
-    renderWithProviders(<RevisionDiff revision={revisionWithDiff()} units="km" onWhy={() => {}} />)
+    renderWithProviders(
+      <RevisionDiff revision={revisionWithDiff()} units="km" onWhy={() => {}} />,
+      {
+        runnerZone: 'UTC',
+      },
+    )
     expect(screen.getByText('Weekly update')).toBeInTheDocument()
     expect(screen.getByText('10 Jan')).toBeInTheDocument()
     expect(
@@ -520,6 +531,7 @@ function renderUndo(routes: MockRoutes, revision = revisionWithDiff(), units: 'k
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   })
+  seedRunnerZone(queryClient, 'UTC')
   const invalidate = vi.spyOn(queryClient, 'invalidateQueries')
   render(
     <QueryClientProvider client={queryClient}>
