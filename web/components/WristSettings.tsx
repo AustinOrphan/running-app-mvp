@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react'
-import { daysBetween, todayIso } from '../../shared/dates.ts'
+import { daysBetween } from '../../shared/dates.ts'
 import { wristLastSend, wristPlain, wristSendLabel } from '../../shared/copy/publish.ts'
 import {
   isRemoveFailed,
@@ -8,17 +8,18 @@ import {
   useSetPublishing,
   useWristStatus,
 } from '../api/wrist.ts'
+import { useRunnerDayOf } from '../api/today.ts'
 import { Button } from './Button.tsx'
 import { clockTime } from './WristStatus.tsx'
 import styles from './WristSettings.module.css'
 
 /** "Last send to intervals.icu: 13 Jan at 11:00.", or that nothing has been sent yet. */
-function lastSendLine(lastRunAt: string | null): string {
+function lastSendLine(lastRunAt: string | null, dayOf: (at: Date) => string): string {
   const at = lastRunAt === null ? new Date(Number.NaN) : new Date(lastRunAt)
   if (lastRunAt === null || Number.isNaN(at.getTime())) {
     return wristPlain('publish.settings.never-sent')
   }
-  return wristLastSend(todayIso(at), clockTime(lastRunAt))
+  return wristLastSend(dayOf(at), clockTime(lastRunAt))
 }
 
 /**
@@ -40,6 +41,7 @@ export function WristSettings() {
   const headingId = useId()
   const helpId = useId()
   const offerId = useId()
+  const dayOf = useRunnerDayOf()
   const { status } = useWristStatus()
   const save = useSetPublishing()
   const send = useSendAgain()
@@ -148,7 +150,7 @@ export function WristSettings() {
       {enabled ? (
         <div className={styles.actions}>
           <p className={styles.note}>
-            {running ? wristPlain('publish.settings.sending-now') : lastSendLine(lastRunAt)}
+            {running ? wristPlain('publish.settings.sending-now') : lastSendLine(lastRunAt, dayOf)}
           </p>
           <Button
             variant="secondary"

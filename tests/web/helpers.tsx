@@ -5,6 +5,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { expect, vi } from 'vitest'
 import { lintText } from '../../shared/copy/lint.ts'
 import type { ActivityListItem, ActivityListPage } from '../../shared/types.ts'
+import { keys } from '../../web/api/client.ts'
 
 export interface MockRequest {
   body: unknown
@@ -173,11 +174,21 @@ export function makeTestQueryClient(): QueryClient {
   })
 }
 
+/**
+ * Puts a session user with the zone `tz` in the cache, as the app shell does once signed in, so
+ * the pages read the runner's day in that zone whatever zone the device is in (D10, ADR 0022).
+ * Without it a page falls back to the device's day.
+ */
+export function seedRunnerZone(queryClient: QueryClient, tz: string): void {
+  queryClient.setQueryData([keys.me], { tz })
+}
+
 export function renderWithProviders(
   ui: ReactElement,
-  opts: { route?: string; queryClient?: QueryClient } = {},
+  opts: { route?: string; queryClient?: QueryClient; runnerZone?: string } = {},
 ): RenderResult {
   const queryClient = opts.queryClient ?? makeTestQueryClient()
+  if (opts.runnerZone !== undefined) seedRunnerZone(queryClient, opts.runnerZone)
   return render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={[opts.route ?? '/']}>{ui}</MemoryRouter>

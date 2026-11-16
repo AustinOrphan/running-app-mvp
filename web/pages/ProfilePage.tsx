@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { render } from '../../shared/copy/template.ts'
 import { TEMPLATES } from '../../shared/copy/templates.ts'
 import { WARNING_SIGNS_NAME, WARNING_SIGNS_PATH } from '../../shared/copy/warningSigns.ts'
-import { addDays, todayIso } from '../../shared/dates.ts'
+import { addDays } from '../../shared/dates.ts'
 import type {
   AthleteProfile,
   Availability,
@@ -26,6 +26,7 @@ import { usePlanNotice } from '../api/planNotice.ts'
 import { useProfile, useUpdateProfile } from '../api/profile.ts'
 import { useSaveScreening, useScreenings } from '../api/screenings.ts'
 import { useSettings } from '../api/settings.ts'
+import { useRunnerToday } from '../api/today.ts'
 import { useZones } from '../api/zones.ts'
 import { Button } from '../components/Button.tsx'
 import { PlanNoticeStanding } from '../components/PlanNotice.tsx'
@@ -983,6 +984,7 @@ function NoticeSection() {
 
 /** The REDs screen: when it was last done, when the next is due, and the entry point. */
 function ScreeningSection() {
+  const today = useRunnerToday()
   const headingId = useId()
   const screenings = useScreenings()
   const [open, setOpen] = useState(false)
@@ -1008,7 +1010,7 @@ function ScreeningSection() {
           {`Last screened ${formatLongDate(latest.date)}: ${String(latest.flags)} ${latest.flags === 1 ? 'sign' : 'signs'}.`}
         </p>
         <p className={styles.note}>
-          {nextDue <= todayIso()
+          {nextDue <= today
             ? 'A new screen is due now.'
             : `Next screen due ${formatLongDate(nextDue)}.`}
         </p>

@@ -1,9 +1,9 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react'
 import { undoDoneText, undoReasonLine, undoWords } from '../../../shared/copy/revisionView.ts'
-import { todayIso } from '../../../shared/dates.ts'
 import type { PlanPreview, PlanRevisionView, UndoReason, Units } from '../../../shared/types.ts'
 import { ApiError } from '../../api/client.ts'
 import { stalePreviewOf, usePreviewUndo, useUndoRevision } from '../../api/plan.ts'
+import { useRunnerDayOf, useRunnerToday } from '../../api/today.ts'
 import { Button } from '../Button.tsx'
 import { useToast } from '../Toast.tsx'
 import { PlanDiffView } from './PlanDiffView.tsx'
@@ -36,6 +36,8 @@ function reasonsOf(details: unknown): UndoReason[] {
  */
 export function UndoControl({ revision, units }: UndoControlProps) {
   const headingId = useId()
+  const runnerToday = useRunnerToday()
+  const dayOf = useRunnerDayOf()
   const toast = useToast()
   const previewUndo = usePreviewUndo()
   const undo = useUndoRevision()
@@ -59,7 +61,7 @@ export function UndoControl({ revision, units }: UndoControlProps) {
     }
   }, [open])
 
-  const words = undoWords({ auto: revision.auto, today: preview?.today ?? todayIso(), units })
+  const words = undoWords({ auto: revision.auto, today: preview?.today ?? runnerToday, units })
 
   function start() {
     setOpen(true)
@@ -89,7 +91,7 @@ export function UndoControl({ revision, units }: UndoControlProps) {
       { id: revision.id, expectHash: preview.hash },
       {
         onSuccess: () => {
-          toast.show(undoDoneText(todayIso(new Date(revision.createdAt)), units))
+          toast.show(undoDoneText(dayOf(new Date(revision.createdAt)), units))
           returnTo.current = 'control'
           setOpen(false)
         },

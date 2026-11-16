@@ -975,10 +975,11 @@ describe('Activities page: where a saved activity lands', () => {
   })
 
   test('the rule is today and yesterday, and no other day', () => {
-    expect(opensItsPage(todayIso())).toBe(true)
-    expect(opensItsPage(addDays(todayIso(), -1))).toBe(true)
-    expect(opensItsPage(addDays(todayIso(), -2))).toBe(false)
-    expect(opensItsPage(addDays(todayIso(), 1))).toBe(false)
+    const today = '2026-03-10'
+    expect(opensItsPage(today, today)).toBe(true)
+    expect(opensItsPage(addDays(today, -1), today)).toBe(true)
+    expect(opensItsPage(addDays(today, -2), today)).toBe(false)
+    expect(opensItsPage(addDays(today, 1), today)).toBe(false)
   })
 })
 

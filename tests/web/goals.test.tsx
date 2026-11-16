@@ -626,11 +626,12 @@ const mustReplace = {
   },
 }
 
-function renderWithToasts() {
+function renderWithToasts(runnerZone?: string) {
   return renderWithProviders(
     <ToastProvider>
       <GoalsPage />
     </ToastProvider>,
+    { runnerZone },
   )
 }
 
@@ -814,7 +815,8 @@ describe('Restore this plan', () => {
 
   test('notes the archive under the goal it belongs to, in the runner s words', async () => {
     withArchive([archivedPlan({ id: 'p1', goalId: 'g1', goalName: 'Spring half' })])
-    const { container } = renderWithToasts()
+    // The day is the runner's, so a device zone a day ahead of UTC does not move it.
+    const { container } = renderWithToasts('UTC')
 
     const card = await screen.findByRole('article', { name: 'Spring half' })
     expect(

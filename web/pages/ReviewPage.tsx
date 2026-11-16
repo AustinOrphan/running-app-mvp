@@ -10,7 +10,7 @@ import {
 import { sessionStatusLabel } from '../../shared/copy/sessionStatus.ts'
 import { RAISE_TEMPLATES, raiseFigures } from '../../shared/copy/raise.ts'
 import { render } from '../../shared/copy/template.ts'
-import { addDays, mondayOf, todayIso, weekStartsBetween } from '../../shared/dates.ts'
+import { addDays, mondayOf, weekStartsBetween } from '../../shared/dates.ts'
 import { toV1Phase } from '../../shared/domain/plan.ts'
 import { shownTargetMin } from '../../shared/domain/plannedWeek.ts'
 import {
@@ -45,6 +45,7 @@ import { RouteGlyph } from '../components/RouteGlyph.tsx'
 import { usePlan, useRaisePlan } from '../api/plan.ts'
 import { useDeclineRaise, useReviews, useSaveReview, type ReviewPatch } from '../api/reviews.ts'
 import { useSettings } from '../api/settings.ts'
+import { useRunnerToday } from '../api/today.ts'
 import { useWeeks } from '../api/weeks.ts'
 import { useAcceptZoneProposal, useDeclineZoneProposal, useZoneProposals } from '../api/zones.ts'
 import { Button } from '../components/Button.tsx'
@@ -189,7 +190,7 @@ function outsidePlanContext(plan: PlanWithSessions | null, weekStart: string): s
 }
 
 export function ReviewPage() {
-  const today = todayIso()
+  const today = useRunnerToday()
   const thisWeek = mondayOf(today)
   const from = addDays(thisWeek, -7 * WEEKS_BACK)
   const reviews = useReviews({ from, to: thisWeek })
