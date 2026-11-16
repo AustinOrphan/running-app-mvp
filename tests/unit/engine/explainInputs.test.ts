@@ -2172,7 +2172,7 @@ describe('J2 to J5 and J7: readiness, the decision and breaks', () => {
     const input: EngineInput = {
       ...base,
       today: '2026-10-28',
-      activities: [activity('2026-10-20', { id: 'x', durationSec: 60 * 60 })],
+      activities: [activity('2026-10-20', { id: 'x', durationSec: 120 * 60 })],
       existing: {
         weeks: [
           {
@@ -2207,7 +2207,7 @@ describe('J2 to J5 and J7: readiness, the decision and breaks', () => {
     )!.facts
     const completion = facts.find((f) => f.template === 'explain.j5-completion')!
     expect(text(completion)).toBe(
-      `1.0 h of 3.3 h planned were run, under the ${String(P.j5.completionHoldShare.value * 100)}% the plan looks for.`,
+      `2.0 h of 3.3 h planned were run, under the ${String(P.j5.completionHoldShare.value * 100)}% the plan looks for.`,
     )
   })
 

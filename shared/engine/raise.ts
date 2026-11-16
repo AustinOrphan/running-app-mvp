@@ -1,6 +1,7 @@
 // The offer to raise the plan to match [rule E7]: when recent weeks were run above the plan, the weekly
 // review asks whether to raise it. Pure; the condition here only decides whether to ask, and a yes
 // is a re-plan with `raiseToLevel` under every limit of the ordinary one. Never automatic.
+import { BREAK_SIGNAL } from '../copy/breakWeek.ts'
 import { addDays, mondayOf } from '../dates.ts'
 import { worstPainIn, weeklyDecision, type WeeklyContext } from './adapt.ts'
 import { plannedMinOf } from './limits.ts'
@@ -40,7 +41,7 @@ export function isAbovePlan(minutes: number, planned: number): boolean {
  * The J5 signals that are no sign of fatigue or pain: a week run short of its plan, and the first hot
  * days (a hold of the coming week, not a state of the runner).
  */
-const NOT_A_BLOCK: ReadonlySet<string> = new Set(['completion-low', 'heat'])
+const NOT_A_BLOCK: ReadonlySet<string> = new Set(['completion-low', 'heat', BREAK_SIGNAL])
 /** The J5 signals that are pain; every other one a decision reads blocks as fatigue. */
 const PAIN_SIGNALS: ReadonlySet<string> = new Set(['pain', 'pain-mild'])
 

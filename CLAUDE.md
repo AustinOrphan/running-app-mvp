@@ -230,6 +230,14 @@ protection reads. The Docker image must still build (`docker build .`) after a c
   with no forecast for that week, the recent runs. It holds a loading week of the build only (never taper, race,
   recovery, post-race or a start programme), at the last loading week's minutes, with the long run kept
   (`heatHeld` in `ReplanOptions`, `heatHoldWeek`) and no session trimmed; the week carries `heat-hold`.
+- A short week counts as the recovery week (rules E3, G-6, J7, owner decision 2026-11-15): `breakWeekOf`
+  (`shared/engine/breakWeek.ts`) is the one predicate, read by `weeklyDecision` only (a finished loading week
+  of the stored plan, run at or under `e3.breakWeekMaxShare` of its target, over zero minutes, no window over
+  it, no signal but a short night or a mild pain). The decision then carries `breakRepeat` and caps the week
+  after it at the J7 share of the planned week, and `computeReplan` hands it to the engine as
+  `EngineInput.breakWeek`: `planWeeks` draws that week as a loading week (flag `break-repeat`), `replanAnchor`
+  starts from the planned figure, and `keepCadenceAcrossReplan` counts the loading weeks from it, so later
+  re-plans read the flag in the stored plan. Nothing else reads the predicate or sets the flag.
 - My paces (ADR 0020, rule C9) is derived on read and stored nowhere: `myPaces` and `eventRow`
   (`shared/engine/myPaces.ts`) over the snapshot and `hrModelOf`, the memo `paces.view` behind
   `GET /api/paces`, and the zones shown through `ZoneSummary`, the one rendering the Profile shares. A

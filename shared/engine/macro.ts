@@ -9,10 +9,12 @@
 // Race week is the last week with the race in it: its volume is the shake-out running around the
 // race, not the race itself, and its long run is 0. The weeks after the race (H12) follow it; the
 // days of the race week after the hold are a week of their own (`macroPlanDraft`).
+import { BREAK_REPEAT_FOCUS } from '../copy/breakWeek.ts'
 import { addDays, daysBetween, mondayOf } from '../dates.ts'
 import type { Activity } from '../types.ts'
 import { breakRestart, runsReaching, weekEvidence } from './adapt.ts'
 import { bmiOf } from './athlete.ts'
+import { BREAK_REPEAT_FLAG } from './breakWeek.ts'
 import {
   disruptionPlan,
   holdRestartWeeks,
@@ -275,14 +277,19 @@ function keepCadenceAcrossReplan(
   workWeeks: number,
   programmeWeeks: number,
   startWeeks: number,
+  breaking: boolean,
 ): void {
   const past = (input.existing?.weeks ?? []).filter((w) => w.weekStart < firstMonday)
   if (past.length === 0) return
   const byStart = new Map(past.map((w) => [w.weekStart, w]))
   const fixedProgramme = (w: WeekDraft) =>
     ladderRung(w.flags) !== null || w.flags.includes('injury-return')
+  // The week before this one counts as the recovery week (`breaking`), so the loading weeks count
+  // from this week; a week that repeated the loading week after one is the first of its block, and
+  // the week before it counted as the recovery week [rules E3, G-6, J7].
   let run = 0
-  for (let cursor = addDays(firstMonday, -7); ; cursor = addDays(cursor, -7)) {
+  let shifted = breaking
+  for (let cursor = addDays(firstMonday, -7); !breaking; cursor = addDays(cursor, -7)) {
     const w = byStart.get(cursor)
     if (
       w === undefined ||
@@ -295,10 +302,20 @@ function keepCadenceAcrossReplan(
       break
     }
     run += 1
+    if (w.flags.includes(BREAK_REPEAT_FLAG)) {
+      shifted = true
+      break
+    }
   }
   // the first block of a plan may run one week longer, until a recovery week has been seen
-  let allowance = past.some((w) => w.isRecovery) ? 0 : 1
+  let allowance = shifted || past.some((w) => w.isRecovery) ? 0 : 1
   const pre = phases.filter((p) => p.phase !== 'taper' && p.phase !== 'race')
+  // A block that counts from the repeat draws its recovery weeks by the count alone: the weeks the
+  // count back from the peak placed are dropped, so the cycle shifts whole [rule E3].
+  if (shifted) {
+    for (const [i, ph] of pre.entries())
+      if (i >= Math.max(programmeWeeks, startWeeks)) ph.isRecovery = false
+  }
   for (const [i, ph] of pre.entries()) {
     if (i < programmeWeeks) {
       run = 0
@@ -312,10 +329,16 @@ function keepCadenceAcrossReplan(
     run += 1
     // a floor week is never turned into a recovery week
     if (run > workWeeks + allowance && i >= startWeeks) {
-      ph.isRecovery = true
-      const next = pre[i + 1]
+      // The last week before the taper is the peak, a work week: its recovery week falls on the
+      // week before it, so the shift costs a loading week and never moves the taper [rules E3, K1].
+      const target =
+        shifted && i === pre.length - 1 && i - 1 >= Math.max(programmeWeeks, startWeeks, 1)
+          ? i - 1
+          : i
+      pre[target]!.isRecovery = true
+      const next = pre[target + 1]
       if (next?.isRecovery === true) next.isRecovery = false
-      run = 0
+      run = target === i ? 0 : 1
       allowance = 0
     }
   }
@@ -391,6 +414,16 @@ function replanAnchor(
   if (weeks === undefined || state.layoffDays >= P.j7.tier1Days.value) return null
   const current = weeks.find((w) => w.weekStart === firstMonday)
   if (current === undefined || current.isTaper || current.phase === 'race') return null
+  // The week before counts as the recovery week: this week repeats the loading week it was planned
+  // as, at most the J7 share of it, inside the step the weeks before the break allow, and the
+  // sequence steps up from it [rules E3, G-6, J7].
+  const broke = input.breakWeek
+  if (broke !== undefined && broke.weekStart === addDays(firstMonday, -7)) {
+    return {
+      minutes: Math.min(Math.max(broke.plannedMin, raiseTo), stepCap, broke.capMin),
+      paused: false,
+    }
+  }
   // A week a window took days from is a part week, stored at the minutes the window left: it is no
   // week to carry the sequence on from. The work week is the last loading week it did not touch, and
   // a part week that is the current one carries on from the higher of the two [rules J9, J7, g-2].
@@ -906,8 +939,11 @@ function planWeeks(
   // Phases
   const taperCount = Math.min(Math.ceil(taperDays(goal, state) / 7), total)
   const preCount = total - taperCount
+  // The week before this one counts as the recovery week (rule E3): this week is a loading week even
+  // where the plan being replaced stored it as a recovery week.
+  const breaking = input.breakWeek?.weekStart === addDays(firstMonday, -7)
   const openingRecovery =
-    input.existing?.weeks.find((w) => w.weekStart === firstMonday)?.isRecovery === true
+    !breaking && input.existing?.weeks.find((w) => w.weekStart === firstMonday)?.isRecovery === true
   const carriedLabels = freshPhases ? [] : carriedPhases(input, firstMonday, raceMonday, preCount)
   const phases = planPhases(
     preCount,
@@ -987,9 +1023,12 @@ function planWeeks(
     // A week a window took days from is a part week, a baseline beside another week and never
     // alone. Only the weeks run are such: the weeks drawn here are drawn without the windows, which
     // `generate` applies [rules J9, g-2].
-    partial: new Set(
-      windowedWeeks(disruptionPlan(input.disruptions ?? [])).filter((w) => w < firstMonday),
-    ),
+    partial: new Set([
+      ...windowedWeeks(disruptionPlan(input.disruptions ?? [])).filter((w) => w < firstMonday),
+      // the week that counts as the recovery week is a baseline beside another week and never
+      // alone: the repeat is measured against the last loading week run before it [rule G-6]
+      ...(breaking ? [input.breakWeek!.weekStart] : []),
+    ]),
     // a restart floor week of the plan being replaced stays the baseline of the weeks after it
     floor: pastFloor(input, firstMonday),
     exempt,
@@ -1188,6 +1227,7 @@ function planWeeks(
     cycleWorkWeeks(input, state),
     programmeWeeks,
     startWeeks,
+    breaking && restart === null,
   )
   const anchored = restart === null ? continued : null
   const start =
@@ -1257,7 +1297,11 @@ function planWeeks(
       ? floorEps(((caps.distanceM - 50) * runPace) / 60_000)
       : Infinity
     const longCap = Math.min(peakLong, caps.min, distanceCapMin)
-    const rawLong = floorEps(start * share)
+    // the repeat carries the long run its loading week was planned with, inside the same limits
+    const rawLong =
+      i === 0 && breaking && !ph.isRecovery
+        ? Math.max(floorEps(start * share), input.breakWeek!.plannedLongMin)
+        : floorEps(start * share)
     // A week of a start path is its programme, every session held to the 30-day limit of G-1 as a
     // hard bound [rules E6, g-1]; the first week is the baseline the ramp measures from.
     const step = restart === null || i >= startWeeks ? null : (schedule.steps[i] ?? null)
@@ -1544,6 +1588,9 @@ function planWeeks(
     if (i < blockLen) flag(i, 'strength-block')
   }
   if (preCount > 0) flag(preCount - 1, 'peak')
+  // the week that repeats the loading week after one that counted as the recovery week [rule E3]
+  const repeating = breaking && restart === null && preCount > 0 && !phases[0]!.isRecovery
+  if (repeating) flag(0, BREAK_REPEAT_FLAG)
   for (let i = 0; i < preCount; i++) {
     if (restartWeeks.has(addDays(firstMonday, 7 * i))) flag(i, 'post-race-restart')
   }
@@ -1644,7 +1691,9 @@ function planWeeks(
           ? drawn.focus
           : ph.isRecovery
             ? 'Recovery week: lighter volume, frequency kept'
-            : FOCUS[ph.phase],
+            : repeating && i === 0
+              ? BREAK_REPEAT_FOCUS
+              : FOCUS[ph.phase],
       targetRunMin: t,
       longRunMin: long,
       longRunM: long > 0 ? (longM[i] ?? null) : null,
