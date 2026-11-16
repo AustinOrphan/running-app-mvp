@@ -141,6 +141,7 @@ function Body({ view }: { view: PlanInputsView }) {
                 window: count(sleep.efficiency.windowNights),
                 before: count(sleep.efficiency.baselineMinNights),
               }),
+          text('plan-inputs.sleep.efficiency-source'),
         ]}
         rows={[
           [

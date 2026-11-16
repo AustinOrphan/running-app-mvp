@@ -112,9 +112,10 @@ describe('PlanInputsPage', () => {
     expect(rowOf(sleep, 'With time in bed before them')).toHaveTextContent('6')
     expect(
       within(sleep).getByText(
-        /does not read sleep efficiency yet: it needs 4 of the last 7 nights and 7 before them.*Only Apple Health supplies time in bed/,
+        /does not read sleep efficiency yet: it needs 4 of the last 7 nights and 7 before them with time in bed/,
       ),
     ).toBeInTheDocument()
+    expect(within(sleep).getByText('Only Apple Health supplies time in bed.')).toBeInTheDocument()
 
     const runs = screen.getByRole('region', { name: 'Runs' })
     expect(rowOf(runs, 'Runs and races')).toHaveTextContent('120')
