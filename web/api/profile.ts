@@ -21,12 +21,16 @@ export function useUpdateProfile() {
   return useMutation({
     mutationFn: (profile: Partial<AthleteProfile>) =>
       api<AthleteProfile>('PUT', '/profile', profile),
-    onSuccess: (saved) => {
+    onSuccess: (saved, sent) => {
       const before = queryClient.getQueryData<AthleteProfile>([keys.profile])
       queryClient.setQueryData([keys.profile], saved)
       // Every cached answer carries a day, and the zone decides which day it is (D10, ADR 0022):
-      // a save that moves the zone reads everything again, the session user included.
-      if (before !== undefined && before.timezone !== saved.timezone) {
+      // a save that moves the zone reads everything again, the session user included. A zone sent
+      // with no profile cached has an unknown previous zone, which counts as a change.
+      if (
+        (before !== undefined && before.timezone !== saved.timezone) ||
+        (before === undefined && sent.timezone !== undefined)
+      ) {
         return queryClient.invalidateQueries()
       }
       return Promise.all(

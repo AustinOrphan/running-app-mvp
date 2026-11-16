@@ -58,6 +58,64 @@ describe('useRunnerToday', () => {
     expect(empty.result.current).toBe(todayIso())
   })
 
+  test('the session user wins over a cached Today payload of another zone', () => {
+    const queryClient = makeTestQueryClient()
+    queryClient.setQueryData(['today'], { tz: 'Pacific/Kiritimati' })
+    seedRunnerZone(queryClient, 'Pacific/Pago_Pago')
+    const { result } = renderHook(() => useRunnerToday(), { wrapper: wrapperFor(queryClient) })
+    expect(result.current).toBe(isoDateInZone(new Date(), 'Pacific/Pago_Pago'))
+  })
+
+  test('a session user cached without a zone falls through to the Today payload', () => {
+    const queryClient = makeTestQueryClient()
+    queryClient.setQueryData(['me'], { id: 'u1' })
+    queryClient.setQueryData(['today'], { tz: 'Pacific/Pago_Pago' })
+    const { result } = renderHook(() => useRunnerToday(), { wrapper: wrapperFor(queryClient) })
+    expect(result.current).toBe(isoDateInZone(new Date(), 'Pacific/Pago_Pago'))
+  })
+
+  test("an unknown zone gives the device's day and throws nothing", () => {
+    vi.useFakeTimers()
+    const queryClient = makeTestQueryClient()
+    seedRunnerZone(queryClient, 'Not/AZone')
+    const { result } = renderHook(() => useRunnerToday(), { wrapper: wrapperFor(queryClient) })
+    expect(result.current).toBe(todayIso())
+    expect(() => vi.advanceTimersByTime(60_000)).not.toThrow()
+  })
+
+  test('a timer that fires 1 ms early still rolls the day over', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-10-22T10:59:59.000Z'))
+    const queryClient = makeTestQueryClient()
+    seedRunnerZone(queryClient, 'Pacific/Pago_Pago')
+    const { result } = renderHook(() => useRunnerToday(), { wrapper: wrapperFor(queryClient) })
+    expect(result.current).toBe('2026-10-21')
+    // The boundary is 1000 ms away: the first fire is at 999 ms, 1 ms early.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(999)
+    })
+    expect(result.current).toBe('2026-10-21')
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2)
+    })
+    expect(result.current).toBe('2026-10-22')
+  })
+
+  test('a return to the page after the boundary updates the day', () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-10-22T10:00:00.000Z'))
+    const queryClient = makeTestQueryClient()
+    seedRunnerZone(queryClient, 'Pacific/Pago_Pago')
+    const { result } = renderHook(() => useRunnerToday(), { wrapper: wrapperFor(queryClient) })
+    expect(result.current).toBe('2026-10-21')
+    // The device slept past the boundary (no timer runs, as with the real timers left alone).
+    vi.setSystemTime(new Date('2026-10-22T12:00:00.000Z'))
+    act(() => {
+      document.dispatchEvent(new Event('visibilitychange'))
+    })
+    expect(result.current).toBe('2026-10-22')
+  })
+
   test("moves to the next day when the runner's day ends, not the device's", async () => {
     vi.useFakeTimers()
     // 23:59:30 at Pago Pago on 21 Oct, which is 10:59:30 on the 23rd on the device.

@@ -161,13 +161,24 @@ export function useRunnerToday(): string {
       timer = setTimeout(
         () => {
           setTick((n) => n + 1)
+          // A timer that fires early leaves the day unchanged: arm again for what is left. When
+          // the day has moved, the render above runs this effect again with the new day.
+          if (dayIn(new Date(), tz) === today) arm()
         },
-        Math.max(Math.min(wait, MAX_TIMER_MS), 1_000),
+        Math.max(Math.min(wait, MAX_TIMER_MS), 1),
       )
     }
     arm()
+    // A device that slept through midnight has no timer to wake it: look again on return.
+    const recheck = () => {
+      if (document.visibilityState === 'visible') setTick((n) => n + 1)
+    }
+    document.addEventListener('visibilitychange', recheck)
+    window.addEventListener('focus', recheck)
     return () => {
       clearTimeout(timer)
+      document.removeEventListener('visibilitychange', recheck)
+      window.removeEventListener('focus', recheck)
     }
   }, [tz, today])
   return today

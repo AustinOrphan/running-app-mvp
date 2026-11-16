@@ -880,6 +880,7 @@ describe('invalidation of engine data', () => {
     const harness = setup()
     const rendered = renderHook(
       () => ({
+        me: useMe(),
         profile: useProfile(),
         zones: useZones(),
         proposals: useZoneProposals(),
@@ -917,6 +918,7 @@ describe('invalidation of engine data', () => {
     const { calls } = mockApi({ ...engineRoutes(), ...over })
     const { result } = mountEngineReaders()
     await waitFor(() => {
+      expect(result.current.me.isSuccess).toBe(true)
       expect(result.current.profile.isSuccess).toBe(true)
       expect(result.current.zones.isSuccess).toBe(true)
       expect(result.current.proposals.isSuccess).toBe(true)
@@ -961,12 +963,14 @@ describe('invalidation of engine data', () => {
         await r.saveProfile.mutateAsync({ timezone: 'Pacific/Kiritimati' })
       },
       {
+        'GET /api/auth/me': () => ({ ...user, tz: saved ? 'Pacific/Kiritimati' : 'UTC' }),
         'GET /api/profile': () => ({ timezone: saved ? 'Pacific/Kiritimati' : 'UTC' }),
         'PUT /api/profile': () => ({ timezone: 'Pacific/Kiritimati' }),
       },
     )
-    // Every mounted reader asks again, and the profile reader too (the others are in the first test).
+    // Every mounted reader asks again, the session user and the profile reader too.
     expect(urls).toEqual([
+      '/api/auth/me',
       '/api/plan',
       '/api/plan/revisions',
       '/api/profile',
@@ -975,6 +979,15 @@ describe('invalidation of engine data', () => {
       '/api/zones',
       '/api/zones/proposals',
     ])
+  })
+
+  test('a zone saved with no profile cached counts as a change and invalidates everything', async () => {
+    mockApi(allRoutes({ 'PUT /api/profile': () => ({ timezone: 'Pacific/Kiritimati' }) }))
+    const { queryClient, wrapper } = setup()
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries')
+    const { result } = renderHook(() => useUpdateProfile(), { wrapper })
+    await act(() => result.current.mutateAsync({ timezone: 'Pacific/Kiritimati' }))
+    expect(invalidate).toHaveBeenCalledWith()
   })
 
   test('a week edit refetches the plan, its revisions and today', async () => {

@@ -92,8 +92,11 @@ function ActivityRow({
   glyph,
   restorable = false,
   original,
+  today,
 }: {
   activity: ActivityListItem
+  /** The runner's day, read once by the page. */
+  today: string
   /** The row a possible duplicate was flagged against, when it is on the screen. */
   original?: ActivityListItem
   units: Units
@@ -102,7 +105,6 @@ function ActivityRow({
   /** Offers to undo a confirmed duplicate, so the row counts again. */
   restorable?: boolean
 }) {
-  const today = useRunnerToday()
   const resolve = useResolveDuplicate()
   const hasDistance = activity.type !== 'strength'
   // A strength row shows the sets of its log where a run shows its distance (design 11.4); a list
@@ -392,6 +394,7 @@ export function ActivitiesPage() {
             <ActivityRow
               key={row.id}
               activity={row}
+              today={today}
               units={units}
               glyph={glyphs.get(row.id)}
               original={originalOf(row)}
@@ -525,6 +528,7 @@ export function ActivitiesPage() {
                   <ActivityRow
                     key={row.id}
                     activity={row}
+                    today={today}
                     units={units}
                     glyph={glyphs.get(row.id)}
                     restorable
