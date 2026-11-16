@@ -248,12 +248,56 @@ export const jAdapt = {
     sleepEfficiencyDropPp: param(
       'j5.sleepEfficiencyDropPp',
       2,
-      'B',
+      'D',
       'J5',
       ['murphy-2024-overreaching-sleep'],
       {
         unit: 'percentage points',
-        note: 'A sleep-efficiency drop of about 2 pp counts as one signal.',
+        note: "Default: a drop of about 2 pp in the mean sleep efficiency of the last j5.reducePersistDays nights below the runner's own baseline counts as one signal. The review finds it consistent with overreaching and not a validated trigger.",
+      },
+    ),
+    sleepEffMinNights: param(
+      'j5.sleepEffMinNights',
+      4,
+      'D',
+      'J5',
+      ['murphy-2024-overreaching-sleep'],
+      {
+        unit: 'nights',
+        note: 'Default: the window of j5.reducePersistDays nights needs at least this many nights with both sleep and time in bed (the same count as j5.sleepMinNights); below it the signal is inactive.',
+      },
+    ),
+    sleepEffBaselineNights: param(
+      'j5.sleepEffBaselineNights',
+      10,
+      'D',
+      'J5',
+      ['murphy-2024-overreaching-sleep'],
+      {
+        unit: 'nights',
+        note: 'Default: the baseline is the mean efficiency of the newest nights with both values before the window, this many at most (the 10 readings of the J4 baseline).',
+      },
+    ),
+    sleepEffLookbackDays: param(
+      'j5.sleepEffLookbackDays',
+      21,
+      'D',
+      'J5',
+      ['murphy-2024-overreaching-sleep'],
+      {
+        unit: 'days',
+        note: 'Default: the baseline nights come from this many days before the window (the 21 days of j4.lookbackDays).',
+      },
+    ),
+    sleepEffMinBaselineNights: param(
+      'j5.sleepEffMinBaselineNights',
+      7,
+      'D',
+      'J5',
+      ['murphy-2024-overreaching-sleep'],
+      {
+        unit: 'nights',
+        note: 'Default: the baseline needs at least this many nights with both values; below it the signal is inactive. No study sets the number.',
       },
     ),
   },

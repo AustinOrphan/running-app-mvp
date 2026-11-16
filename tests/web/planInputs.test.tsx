@@ -33,7 +33,19 @@ function view(over: Partial<PlanInputsView> = {}): PlanInputsView {
       baselineKeeps: 10,
       minReadings: 10,
     },
-    sleep: { nights: 5, windowNights: 7, minNights: 4 },
+    sleep: {
+      nights: 5,
+      windowNights: 7,
+      minNights: 4,
+      efficiency: {
+        nights: 3,
+        windowNights: 7,
+        minNights: 4,
+        baselineNights: 6,
+        baselineMinNights: 7,
+        read: false,
+      },
+    },
     runs: {
       windowDays: 365,
       count: 120,
@@ -96,6 +108,13 @@ describe('PlanInputsPage', () => {
 
     const sleep = screen.getByRole('region', { name: 'Sleep' })
     expect(rowOf(sleep, 'Recorded in the last 7 nights')).toHaveTextContent('5')
+    expect(rowOf(sleep, 'With time in bed in the last 7 nights')).toHaveTextContent('3')
+    expect(rowOf(sleep, 'With time in bed before them')).toHaveTextContent('6')
+    expect(
+      within(sleep).getByText(
+        /does not read sleep efficiency yet: it needs 4 of the last 7 nights and 7 before them.*Only Apple Health supplies time in bed/,
+      ),
+    ).toBeInTheDocument()
 
     const runs = screen.getByRole('region', { name: 'Runs' })
     expect(rowOf(runs, 'Runs and races')).toHaveTextContent('120')

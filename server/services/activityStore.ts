@@ -563,13 +563,14 @@ const WELLNESS_FIELDS = [
   'hrvRmssd',
   'hrvSdnn',
   'sleepSec',
+  'inBedSec',
   'sleepScore',
   'weightKg',
   'vo2max',
 ] as const
 
 /** Wellness columns stored as integers; providers may report fractions (e.g. averaged HR). */
-const WELLNESS_INT_FIELDS = new Set<string>(['restingHr', 'sleepSec', 'sleepScore'])
+const WELLNESS_INT_FIELDS = new Set<string>(['restingHr', 'sleepSec', 'inBedSec', 'sleepScore'])
 
 function wellnessValue(field: (typeof WELLNESS_FIELDS)[number], value: number): number {
   return WELLNESS_INT_FIELDS.has(field) ? Math.round(value) : value
@@ -592,7 +593,7 @@ export async function storeWellness(
     async (tx) => {
       let written = 0
       for (const row of rows) {
-        const incoming = WELLNESS_FIELDS.filter((field) => row[field] !== null)
+        const incoming = WELLNESS_FIELDS.filter((field) => row[field] != null)
         if (incoming.length === 0) continue
 
         const existing = await tx.wellnessDay.findUnique({

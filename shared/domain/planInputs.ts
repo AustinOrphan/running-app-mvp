@@ -8,7 +8,7 @@ import { hrModelSample, type HrModel } from '../engine/execution.ts'
 import { hrQualityPasses } from '../engine/hrQuality.ts'
 import { isDuplicate } from '../engine/load.ts'
 import { P } from '../engine/params/index.ts'
-import { baselineReadings, sleepNightsRecorded } from '../engine/readiness.ts'
+import { baselineReadings, sleepEfficiencyEval, sleepNightsRecorded } from '../engine/readiness.ts'
 import type { WatchRatingCheck } from '../engine/watchRatings.ts'
 import type { Boundary, EngineInput, ZoneSet } from '../engine/types.ts'
 import type { Activity } from '../types.ts'
@@ -56,6 +56,18 @@ export interface PlanInputsView {
     nights: number
     windowNights: number
     minNights: number
+    /** Sleep efficiency (rule J5): only Apple Health supplies the time in bed it needs. */
+    efficiency: {
+      /** Nights with sleep and time in bed among the last `windowNights`, today's included. */
+      nights: number
+      windowNights: number
+      minNights: number
+      /** Nights with both before that window, in the baseline the drop is measured against. */
+      baselineNights: number
+      baselineMinNights: number
+      /** True when both counts are met, so the weekly check reads the signal. */
+      read: boolean
+    }
   }
   wellnessWindowDays: number
   runs: {
@@ -134,6 +146,7 @@ export function planInputs(input: PlanInputsInput): PlanInputsView {
   const cyclic = input.profile.sex === 'female'
   const hrv = baselineReadings(byDate, today, 'hrv', cyclic)
   const rest = baselineReadings(byDate, today, 'resting-hr', false)
+  const efficiency = sleepEfficiencyEval(wellness, today)
   const rmssdDays = wellness.filter((row) => positive(row.hrvRmssd)).length
   const sdnnDays = wellness.filter((row) => positive(row.hrvSdnn)).length
 
@@ -182,6 +195,14 @@ export function planInputs(input: PlanInputsInput): PlanInputsView {
       nights: sleepNightsRecorded(wellness, today),
       windowNights: P.j5.sleepWarnNights.value,
       minNights: P.j5.sleepMinNights.value,
+      efficiency: {
+        nights: efficiency.windowNights,
+        windowNights: P.j5.reducePersistDays.value,
+        minNights: P.j5.sleepEffMinNights.value,
+        baselineNights: efficiency.baselineNights,
+        baselineMinNights: P.j5.sleepEffMinBaselineNights.value,
+        read: efficiency.dropPp !== null,
+      },
     },
     wellnessWindowDays: input.wellnessWindowDays,
     runs: {

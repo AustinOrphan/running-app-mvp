@@ -134,6 +134,13 @@ function Body({ view }: { view: PlanInputsView }) {
             window: count(sleep.windowNights),
             min: count(sleep.minNights),
           }),
+          sleep.efficiency.read
+            ? text('plan-inputs.sleep.efficiency-used')
+            : line('plan-inputs.sleep.efficiency-held', {
+                min: count(sleep.efficiency.minNights),
+                window: count(sleep.efficiency.windowNights),
+                before: count(sleep.efficiency.baselineMinNights),
+              }),
         ]}
         rows={[
           [
@@ -142,6 +149,13 @@ function Body({ view }: { view: PlanInputsView }) {
             }),
             number(sleep.nights),
           ],
+          [
+            line('plan-inputs.sleep.efficiency', {
+              window: plural(sleep.efficiency.windowNights, 'night'),
+            }),
+            number(sleep.efficiency.nights),
+          ],
+          [text('plan-inputs.sleep.efficiency-before'), number(sleep.efficiency.baselineNights)],
         ]}
       />
       <Section

@@ -297,6 +297,7 @@ export function toWellnessDay(row: WellnessDayRow): WellnessDay {
     hrvRmssd: row.hrvRmssd,
     hrvSdnn: row.hrvSdnn,
     sleepSec: row.sleepSec,
+    inBedSec: row.inBedSec,
     sleepScore: row.sleepScore,
     weightKg: row.weightKg,
     vo2max: row.vo2max,

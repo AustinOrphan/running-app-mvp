@@ -68,6 +68,24 @@ export const PLAN_INPUTS_TEMPLATES = {
     { window: 'count', min: 'count' },
   ),
 
+  'plan-inputs.sleep.efficiency': tpl(
+    'With time in bed in the last {window}',
+    { window: 'text' },
+    { shape: 'label' },
+  ),
+  'plan-inputs.sleep.efficiency-before': tpl(
+    'With time in bed before them',
+    {},
+    { shape: 'label' },
+  ),
+  'plan-inputs.sleep.efficiency-used': tpl(
+    'The plan reads how much of your time in bed you slept, as in the weekly check (rule J5).',
+  ),
+  'plan-inputs.sleep.efficiency-held': tpl(
+    'The plan does not read sleep efficiency yet: it needs {min} of the last {window} nights and {before} before them with both sleep and time in bed. Only Apple Health supplies time in bed.',
+    { min: 'count', window: 'count', before: 'count' },
+  ),
+
   // Runs
   'plan-inputs.runs.heading': tpl('Runs', {}, { shape: 'label' }),
   'plan-inputs.runs.window': tpl(

@@ -420,6 +420,39 @@ describe('storeWellness', () => {
     expect(row).toMatchObject({ restingHr: 48, sleepSec: 27000, weightKg: 70.25 })
   })
 
+  test('stores the time in bed, and a row without it keeps the stored value', async () => {
+    await storeWellness(
+      ctx,
+      user.id,
+      [{ ...empty, date: '2026-03-01', sleepSec: 25_200, inBedSec: 28_800.4 }],
+      'apple-health',
+    )
+    await storeWellness(
+      ctx,
+      user.id,
+      [{ ...empty, date: '2026-03-01', restingHr: 50 }],
+      'apple-health',
+    )
+    const row = await ctx.prisma.wellnessDay.findFirstOrThrow()
+    expect(row).toMatchObject({ sleepSec: 25_200, inBedSec: 28_800, restingHr: 50 })
+  })
+
+  test('a row that carries only a time in bed is stored', async () => {
+    const n = await storeWellness(
+      ctx,
+      user.id,
+      [{ ...empty, date: '2026-03-01', inBedSec: 28_800 }],
+      'apple-health',
+    )
+    expect(n).toBe(1)
+  })
+
+  test('a row with no values is not stored, whether inBedSec is null or absent', async () => {
+    expect(
+      await storeWellness(ctx, user.id, [{ ...empty, date: '2026-03-02', inBedSec: null }], 'x'),
+    ).toBe(0)
+  })
+
   test('rows with no values are not stored', async () => {
     const n = await storeWellness(ctx, user.id, [{ ...empty, date: '2026-03-01' }], 'intervals')
     expect(n).toBe(0)

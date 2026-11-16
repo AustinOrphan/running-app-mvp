@@ -432,6 +432,11 @@ export interface WellnessInput {
   hrvRmssd: number | null
   hrvSdnn: number | null
   sleepSec: number | null
+  /**
+   * Time in bed in seconds; only Apple Health supplies it (rule J5). Absent reads as null, so the
+   * providers that never carry it (intervals.icu, Garmin) leave it out.
+   */
+  inBedSec?: number | null
   sleepScore: number | null
   weightKg: number | null
   vo2max: number | null

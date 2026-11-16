@@ -357,6 +357,78 @@ function sleepAvgOn(ctx: Ctx, date: string): number | null {
   return sleepEval(ctx, date).avgH
 }
 
+type SleepRow = { sleepSec?: number | null; inBedSec?: number | null }
+
+/**
+ * Sleep efficiency of one night in percent: sleep over time in bed, on a night with both [rule J5].
+ * Null without both, and null when more sleep than time in bed is stored (the importers store no
+ * time in bed then, and a value edited later is not trusted either).
+ */
+export function sleepEfficiencyOf(row: SleepRow | undefined): number | null {
+  const sleep = validPositive(row?.sleepSec)
+  const inBed = validPositive(row?.inBedSec)
+  if (sleep === null || inBed === null || sleep > inBed) return null
+  return (sleep / inBed) * 100
+}
+
+/** What the sleep-efficiency signal of rule J5 reads on a date, and whether it is active. */
+export interface SleepEfficiencyEval {
+  /** Nights with both values among the last `j5.reducePersistDays` ending on the date. */
+  windowNights: number
+  /** Nights with both values in the baseline: the newest `j5.sleepEffBaselineNights` of the `j5.sleepEffLookbackDays` before the window. */
+  baselineNights: number
+  /** Baseline mean minus window mean in percentage points (positive is a drop); null when inactive. */
+  dropPp: number | null
+}
+
+/**
+ * The window and the baseline are read as the HRV baseline of rule J4 is: the window is the last
+ * `j5.reducePersistDays` nights ending on `date`; the baseline is the newest
+ * `j5.sleepEffBaselineNights` nights with both values within `j5.sleepEffLookbackDays` before the
+ * window, so the window's own nights never build it. The signal is inactive (`dropPp` null) with
+ * fewer than `j5.sleepEffMinNights` nights in the window or `j5.sleepEffMinBaselineNights` in the
+ * baseline, which is every runner whose time in bed is not recorded (only Apple Health supplies it).
+ */
+export function sleepEfficiencyEval(
+  wellness: ReadonlyArray<SleepRow & { date: string }>,
+  date: string,
+): SleepEfficiencyEval {
+  const byDate = new Map(wellness.map((row) => [row.date, row]))
+  const windowDays = P.j5.reducePersistDays.value
+  const win: number[] = []
+  for (let k = 0; k < windowDays; k++) {
+    const e = sleepEfficiencyOf(byDate.get(addDays(date, -k)))
+    if (e !== null) win.push(e)
+  }
+  const base: number[] = []
+  for (
+    let k = windowDays;
+    k < windowDays + P.j5.sleepEffLookbackDays.value &&
+    base.length < P.j5.sleepEffBaselineNights.value;
+    k++
+  ) {
+    const e = sleepEfficiencyOf(byDate.get(addDays(date, -k)))
+    if (e !== null) base.push(e)
+  }
+  const active =
+    win.length >= P.j5.sleepEffMinNights.value &&
+    base.length >= P.j5.sleepEffMinBaselineNights.value
+  return {
+    windowNights: win.length,
+    baselineNights: base.length,
+    // Rounded to a hundredth of a point so that a drop of exactly the Param is not lost to float error.
+    dropPp: active ? Math.round((mean(base) - mean(win)) * 100) / 100 : null,
+  }
+}
+
+/** The drop in sleep efficiency on `date`, or null while the signal is inactive [rule J5]. */
+export function sleepEfficiencyDrop(
+  wellness: ReadonlyArray<SleepRow & { date: string }>,
+  date: string,
+): number | null {
+  return sleepEfficiencyEval(wellness, date).dropPp
+}
+
 interface DayFlags {
   poor: boolean
   objective: boolean
