@@ -20,6 +20,15 @@ export function useRacePlan(options: { enabled?: boolean } = {}) {
 }
 
 /**
+ * Whether the answer holds a race plan to open: the ultra plan or the road plan (ADR 0023). The
+ * More row and the rail read this one test, so a new kind of plan changes one place. Nothing
+ * while the answer is not in.
+ */
+export function hasRacePlan(view: RacePlanView | undefined): boolean {
+  return view?.plan != null || view?.road != null
+}
+
+/**
  * The runner's own course points for the goal race, in metres, nearest the start first. Private:
  * the answer is not one of the reads the service worker keeps (ADR 0012; the race plan carries the
  * rows), and the editor asks again each time it opens.
