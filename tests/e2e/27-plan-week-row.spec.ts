@@ -101,6 +101,12 @@ test.describe('the week table at 1280 px', () => {
     const strip = await page.getByRole('region', { name: 'Season' }).boundingBox()
     const table = page.getByRole('table', { name: /Weekly plan/ })
     await expect(table).toBeVisible()
+    // The widest date a Monday can carry, whatever day the suite runs on: a two-digit day with a
+    // long month name is what pushed the table out of the column on a Monday in mid-November.
+    await page.evaluate(() => {
+      const text = document.querySelector('tr[aria-current="date"] td')?.firstChild
+      if (text?.nodeType === Node.TEXT_NODE) text.textContent = '28 May '
+    })
     const box = await table.boundingBox()
     const heading = await page.getByRole('heading', { name: 'Plan', level: 1 }).boundingBox()
     if (strip === null || box === null || heading === null) {
