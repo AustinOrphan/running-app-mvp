@@ -360,6 +360,13 @@
     width: 100%;
   }
 
+  /* "This week" under the date: the Week column then fits a two-digit day without the table
+     outgrowing the page column at 1280 px (the other columns are at their narrowest there). */
+  .row .thisWeek {
+    display: block;
+    margin-left: 0;
+  }
+
   .phaseHeading {
     display: table-row;
     padding: 0;
