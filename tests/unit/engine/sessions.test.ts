@@ -534,7 +534,18 @@ describe('prescribe: other quality and special sessions', () => {
       expect(s.target.paceSecPerKm).not.toBeNull()
       expect(s.target.rpe).toEqual(P.expectedRpe.race.value)
       expect(s.rules).toEqual(['K6'])
-      expect(s.purpose).toBe('Race day: run by effort, follow the fuel and pacing plan.')
+      expect(s.purpose).toBe('Race day: run by effort, with the goal pace band as a guide.')
+    })
+
+    it('promises no race plan, fuel or pacing plan to a goal that has none, and keeps the ultra words', () => {
+      const road = prescribe('race', 240, zones(), week(), { ultra: false, goalPaceSecPerKm: 340 })
+      const finish = prescribe('race', 240, zones(), week(), { ultra: false })
+      expect(finish.purpose).toBe('Race day: run by effort.')
+      for (const s of [road, finish]) expect(s.purpose).not.toMatch(/plan|fuel|pacing/i)
+      const ultra = prescribe('race', 240, zones(), week(), { ultra: true, goalPaceSecPerKm: 340 })
+      expect(ultra.purpose).toBe(
+        'Race day: keep the heart rate at or below the zone 1 ceiling for most of the day; climb by effort and hike the steep parts.',
+      )
     })
 
     it('changes the race alone: no other kind reads the flag but the strength session', () => {

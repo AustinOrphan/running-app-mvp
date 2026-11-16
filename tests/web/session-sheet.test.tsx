@@ -1141,6 +1141,28 @@ describe('the race plan block (rule H14)', () => {
     expect(within(sheet).queryByRole('link', { name: 'Open the race plan' })).toBeNull()
   })
 
+  test('a road race session shows its purpose with no promise of a fuel or pacing plan (RT1)', async () => {
+    const purpose = 'Race day: run by effort, with the goal pace band as a guide.'
+    renderSheet(
+      makeSession({
+        id: 'road1',
+        kind: 'race',
+        title: 'Race',
+        date: '2027-01-13',
+        durationMin: 240,
+        purpose,
+        target: { zone: 'z3', rpe: [8, 9], hr: null, paceSecPerKm: [340, 330], heatNote: null },
+        flags: [],
+      }),
+      noTargets,
+    )
+    const sheet = await screen.findByRole('dialog', { name: 'Race' })
+    expect(await within(sheet).findByText(purpose)).toBeVisible()
+    expect(within(sheet).queryByText(/fuel and pacing plan/i)).toBeNull()
+    expect(within(sheet).queryByRole('link', { name: 'Open the race plan' })).toBeNull()
+    expectCleanCopy(sheet)
+  })
+
   test('a race the runner entered besides the goal race has no race plan block', async () => {
     renderSheet(
       makeSession({
