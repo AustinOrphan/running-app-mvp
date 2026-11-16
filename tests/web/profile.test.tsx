@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, test, vi } from 'vitest'
 import { PARQ_PLUS_URL, PLAN_NOTICE_VERSION } from '../../shared/domain/planNotice.ts'
@@ -494,7 +494,7 @@ describe('ProfilePage', () => {
     test.each([
       [
         1,
-        'The browser or device did not allow location for this site. Allow it in the browser’s site settings, or enter the coordinates instead.',
+        'The browser or device did not allow location here. Allow it in the browser’s site settings or the device’s location settings, or enter the coordinates instead.',
       ],
       [2, 'No location could be found. Enter the coordinates instead.'],
       [3, 'No location arrived within the wait. Enter the coordinates instead.'],
@@ -510,6 +510,41 @@ describe('ProfilePage', () => {
       expect(screen.getByRole('button', { name: 'Use my location' })).not.toHaveAttribute(
         'aria-busy',
       )
+    })
+
+    test('a request that never answers ends at the fallback timer, and a late answer is ignored', async () => {
+      let late: Success | undefined
+      stubLocation({
+        secure: true,
+        api: (ok) => {
+          late = ok
+        },
+      })
+      // Fake timers would stall user-event's own delays, so only the 20 s timer is captured and run.
+      let fallback: (() => void) | undefined
+      const realSetTimeout = window.setTimeout.bind(window)
+      vi.spyOn(window, 'setTimeout').mockImplementation(((fn: () => void, ms?: number) => {
+        if (ms === 20000) {
+          fallback = fn
+          return 0
+        }
+        return realSetTimeout(fn, ms)
+      }) as typeof window.setTimeout)
+      await press()
+      const button = screen.getByRole('button', { name: 'Use my location' })
+      expect(button).toHaveAttribute('aria-busy', 'true')
+      expect(fallback).toBeDefined()
+      act(() => {
+        fallback?.()
+      })
+      expect(
+        screen.getByText('No location arrived within the wait. Enter the coordinates instead.'),
+      ).toBeInTheDocument()
+      expect(button).not.toHaveAttribute('aria-busy')
+      act(() => {
+        late?.({ coords: { latitude: 12.3456, longitude: -65.4321 } })
+      })
+      expect(screen.getByRole('textbox', { name: 'Home latitude' })).not.toHaveValue('12.35')
     })
 
     test('the button is busy until the browser answers', async () => {

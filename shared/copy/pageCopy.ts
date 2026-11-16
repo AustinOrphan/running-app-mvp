@@ -131,7 +131,7 @@ export const PAGE_TEMPLATES = {
     'This browser cannot share a location. Enter the coordinates instead.',
   ),
   'profile.location.denied': tpl(
-    'The browser or device did not allow location for this site. Allow it in the browser’s site settings, or enter the coordinates instead.',
+    'The browser or device did not allow location here. Allow it in the browser’s site settings or the device’s location settings, or enter the coordinates instead.',
   ),
   'profile.location.unavailable': tpl('No location could be found. Enter the coordinates instead.'),
   'profile.location.timeout': tpl(

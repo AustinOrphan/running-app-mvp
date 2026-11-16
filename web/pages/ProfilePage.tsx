@@ -1,4 +1,4 @@
-import { useId, useState, type FormEvent } from 'react'
+import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { render } from '../../shared/copy/template.ts'
 import { TEMPLATES } from '../../shared/copy/templates.ts'
@@ -333,6 +333,16 @@ function ProfileForm({ initial, units, weightUnit }: { initial: AthleteProfile }
   const [localErrors, setLocalErrors] = useState<Record<string, string>>({})
   const [locationNote, setLocationNote] = useState<string | undefined>()
   const [locating, setLocating] = useState(false)
+  // The fallback timer of a location request; null when none is waiting.
+  const locationTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const mounted = useRef(true)
+  useEffect(() => {
+    mounted.current = true
+    return () => {
+      mounted.current = false
+      if (locationTimer.current !== null) clearTimeout(locationTimer.current)
+    }
+  }, [])
 
   const serverErrors = fieldErrors(update.error)
   const errors: Record<string, string> = { ...serverErrors, ...localErrors }
@@ -388,9 +398,24 @@ function ProfileForm({ initial, units, weightUnit }: { initial: AthleteProfile }
     }
     setLocationNote(undefined)
     setLocating(true)
+    // The API's own timeout starts only after permission is granted, and a prompt dismissed
+    // without an answer (Firefox, "Not now") calls neither callback. This timer ends the wait; the
+    // request then counts as settled and a late answer is ignored.
+    let settled = false
+    const settle = (): boolean => {
+      if (settled || !mounted.current) return false
+      settled = true
+      if (locationTimer.current !== null) clearTimeout(locationTimer.current)
+      locationTimer.current = null
+      setLocating(false)
+      return true
+    }
+    locationTimer.current = setTimeout(() => {
+      if (settle()) say('profile.location.timeout')
+    }, 20000)
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        setLocating(false)
+        if (!settle()) return
         setDraft((current) => ({
           ...current,
           homeLat: String(round2(position.coords.latitude)),
@@ -398,7 +423,7 @@ function ProfileForm({ initial, units, weightUnit }: { initial: AthleteProfile }
         }))
       },
       (failure) => {
-        setLocating(false)
+        if (!settle()) return
         // 1 PERMISSION_DENIED, 2 POSITION_UNAVAILABLE, 3 TIMEOUT.
         say(
           failure.code === 1
