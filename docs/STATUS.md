@@ -37,8 +37,8 @@ Each item names the default that holds until the owner answers.
    `docs/superpowers/plans/2026-11-10-companion-phase0-spike.md`, #702): waiting on the owner's
    Task 1 steps in Xcode. Default: nothing is built.
 6. **Two designs in progress** (owner decisions of 2026-11-14, below): time zones per runner (D10)
-   and a full road-race plan (D11). Neither is built; each is queued after the engine work that
-   June needs.
+   and a full road-race plan (D11, in progress: ADR 0023 and the docs PR, nothing built yet).
+   Each is queued after the engine work that June needs.
 
 Answered on 2026-11-14, one item at a time (the owner's answers to D1 to D11 of the review of
 2026-11-12, and the Strava question):
@@ -78,9 +78,14 @@ Answered on 2026-11-14, one item at a time (the owner's answers to D1 to D11 of 
   needed for what scanners miss.
 - **D10. Time zones.** Per-runner days now, queued after the engine work that June needs; lifts the
   same-zone limit on invites once built.
-- **D11. Road races.** A full road-race plan, sequenced after the same work, with a research pass
-  (road pacing, fuel, heat) and a change to ADR 0018; the wording fix for non-ultra goals landed
-  first (#738).
+- **D11. Road races.** In progress (2026-11-16). A full road-race plan, sequenced after the same
+  work; the wording fix for non-ultra goals landed first (#738) and the research pass merged
+  (#741, 19 papers). The owner answered the design questions on 2026-11-16: half and marathon get
+  the full plan and the 10 km the time, pace and heat blocks; trail or mixed courses lose the pace
+  and first-half lines; no printable card in v1; a half under 2 h gets no fuel rate. The decision
+  is ADR 0023 (proposed; ADR 0018 accepted, pointing to it). Four PRs: docs (this one), engine and
+  copy, web, server switch. The design question 4 reference is the race plan design, question 4
+  (`docs/superpowers/specs/2026-11-07-race-plan-design.md`).
 - **Break week.** A week run by choice at a fraction of its target counts as the cycle's recovery
   week, and the next week repeats the loading week (#736, #737).
 - **Strava.** One shared install-wide registration, built only when a tester needs Strava; until

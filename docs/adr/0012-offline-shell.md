@@ -395,3 +395,13 @@ added by this change.
 - The `held` flag is stored in the entry in IndexedDB; an entry written by an earlier build has none
   and is treated as not waiting until its first failed send.
 - The strength sheet's own save of "without sets" still posts an activity and needs a connection.
+
+## Addendum 2026-11-16: the road race plan rides the two kept reads it already has
+
+The road race plan (ADR 0023) travels in optional fields of reads the worker already keeps: `road` on
+`GET /api/race/plan` (the sixth read) and `roadRace` on `/api/today`. No read is added, so the
+allowlist in `web/sw/sw.js` and `tests/unit/shared/sw.test.ts` stay as they are, and the time limits
+(4 days and 36 hours) are unchanged. The fields are absent in a copy kept before the plan existed and
+ignored by a shell built before it, so an old shell keeps working and a new shell reads a missing field
+as no plan. The payload carries a pace from the runner's critical speed and grams from body mass, so it
+lives in `rl-api-v1` and is emptied only by `purgeDeviceData()`, like the rest.
