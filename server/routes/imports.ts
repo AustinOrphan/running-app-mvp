@@ -333,8 +333,9 @@ export function importsRouter(deps: Deps): Router {
     })
     const parsed = parseSmashrunCsv(body.text, {
       distanceUnit: body.distanceUnit ?? (user.units === 'km' ? 'km' : 'mi'),
-      // The runner's zone (`req.runnerDay.tz`, `runnerZone` of the stored one), so `startUtc` is the
-      // true instant and matches another source's copy of the run.
+      // The runner's zone (`req.runnerDay.tz`, `runnerZone` of the stored one) puts a UTC-only
+      // `startDateUtc` on the runner's local day and time. No `startUtc` is written here, and a
+      // re-import skips an existing providerKey, so no stored run is re-dated.
       utcOffsetMinutes: (instant) => offsetMinFor(instant.toISOString(), req.runnerDay.tz) ?? 0,
     })
     res

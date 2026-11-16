@@ -24,14 +24,18 @@ import { instantAtWallTime, todayIso } from '../../shared/dates.ts'
 import { serverTimeZone } from '../../server/runnerDay.ts'
 
 /**
- * The Open-Meteo GMT stamp (`YYYY-MM-DDTHH:00`) of the hour whose wall clock in the server's zone
- * reads `hour` on `date`. The engine reads the forecast on the zone a runner's days follow, which
- * is the server's for a runner with no zone chosen, so a fixture that means "the 12:00 hour" says
- * so through this.
+ * `count` Open-Meteo GMT stamps (`YYYY-MM-DDTHH:00`), one per hour from the instant of the server
+ * zone's midnight on `date`. The engine reads the forecast on the zone a runner's days follow, which
+ * is the server's for a runner with no zone chosen, so a fixture that means "the 12:00 hour" takes
+ * index 12 of this. Every stamp is distinct, as real GMT data is, so a daylight-saving day neither
+ * duplicates nor drops an hour (index 12 is 13:00 wall time after the spring change).
  */
-export function gmtOfServerHour(date: string, hour: number): string {
-  const instant = instantAtWallTime(date, hour * 60, serverTimeZone())
-  return `${instant.toISOString().slice(0, 13)}:00`
+export function gmtServerHours(date: string, count: number): string[] {
+  const start = instantAtWallTime(date, 0, serverTimeZone()).getTime()
+  return Array.from(
+    { length: count },
+    (_, i) => `${new Date(start + i * 3_600_000).toISOString().slice(0, 13)}:00`,
+  )
 }
 
 /**
