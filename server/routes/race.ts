@@ -9,7 +9,6 @@
 // other value. The body is never logged (`pino-http` logs the request line, not the body).
 import { Router } from 'express'
 import { z } from 'zod'
-import { todayIso } from '../../shared/dates.ts'
 import { P } from '../../shared/engine/params/index.ts'
 import {
   RACE_CHECKPOINT_CLIMB_MAX_M,
@@ -93,7 +92,7 @@ export function raceRouter(deps: Deps): Router {
 
   router.get('/plan', async (req, res) => {
     parse(noQuery, req.query)
-    const today = todayIso()
+    const { today } = req.runnerDay
     res.vary('Cookie')
     res.set('Cache-Control', 'private, no-cache')
     res.set('ETag', etag(athleteKey(await dataVersionKey(deps.prisma), today)))

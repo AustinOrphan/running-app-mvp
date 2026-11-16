@@ -3,7 +3,6 @@
 // (`app.ts`). The tag follows the data version and the day, so a request that sends the current tag
 // is answered 304 before anything is built.
 import { Router } from 'express'
-import { todayIso } from '../../shared/dates.ts'
 import type { Deps } from '../app.ts'
 import { dataVersionKey } from '../dataVersion.ts'
 import { athleteKey } from '../services/athleteState.ts'
@@ -13,7 +12,7 @@ export function planInputsRouter(deps: Deps): Router {
   const router = Router()
 
   router.get('/', async (req, res) => {
-    const today = todayIso()
+    const { today } = req.runnerDay
     res.vary('Cookie')
     res.set('Cache-Control', 'private, no-cache')
     res.set('ETag', `W/"plan-inputs.${athleteKey(await dataVersionKey(deps.prisma), today)}"`)
