@@ -1,0 +1,33 @@
+{
+  "id": "pugh-2018-marathon-gi-symptoms-recreational",
+  "title": "Prevalence, Severity and Potential Nutritional Causes of Gastrointestinal Symptoms during a Marathon in Recreational Runners",
+  "authors": "Pugh JN, Kirk B, Fearn R, Morton JP, Close GL",
+  "year": 2018,
+  "journal": "Nutrients",
+  "doi": "10.3390/nu10070811",
+  "pmid": "29937533",
+  "url": "https://doi.org/10.3390/nu10070811",
+  "design": "prospective-cohort",
+  "population": "96 recreational runners of the 2017 Liverpool (n = 66) and Dublin (n = 30) marathons, with food diaries and the Gastrointestinal Symptom Rating Scale",
+  "sampleSize": 96,
+  "evidenceLevel": "C",
+  "topics": ["road-racing", "ultra-nutrition"],
+  "findings": [
+    "43% reported moderate (4 or more) gastrointestinal symptoms in the 7 days before the marathon and 27% reported moderate symptoms during the marathon.",
+    "The most common symptoms were flatulence (16%) in training and nausea (8%) during the marathon.",
+    "Correlations between nutritional intake (the day before, race morning and during the race) and symptoms were not statistically significant (p > 0.05).",
+    "Symptoms in training correlated with symptoms during the marathon; the authors conclude a modest prevalence of symptoms, with no association with nutritional intake before or during the race."
+  ],
+  "limitations": "96 runners from two races; self-reported food diaries; the abstract does not give intake amounts, so no rate is available from this record; non-significant correlations in a small sample are not proof of no association.",
+  "implications": [
+    "Roughly one recreational marathoner in four reports moderate stomach symptoms during the race, and those who had symptoms in training were more likely to have them. Supports 'practise in training' wording for fuel, and nothing on a rate."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref matches (Nutrients 10:811). Abstract read on Europe PMC. Crossref lists no correction, erratum or retraction notice (checked 2026-11-16).",
+    "checkedAt": "2026-11-16"
+  }
+}

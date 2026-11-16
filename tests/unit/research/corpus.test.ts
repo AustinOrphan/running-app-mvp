@@ -15,9 +15,9 @@ import { titleOverlap } from '../../../scripts/research-verify.ts'
 const files = loadPaperFiles()
 
 describe('research corpus', () => {
-  it('holds the 445 verified papers and the 22 topics', () => {
-    expect(files).toHaveLength(445)
-    expect(topicKeys()).toHaveLength(22)
+  it('holds the 464 verified papers and the 23 topics', () => {
+    expect(files).toHaveLength(464)
+    expect(topicKeys()).toHaveLength(23)
   })
 
   it.each(files.map(({ file, data }) => [file, data] as const))('%s validates', (file, data) => {

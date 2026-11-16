@@ -1,0 +1,33 @@
+{
+  "id": "almond-2005-boston-marathon-hyponatremia",
+  "title": "Hyponatremia among Runners in the Boston Marathon",
+  "authors": "Almond CS, Shin AY, Fortescue EB, Mannix RC, Wypij D, Binstadt BA, Duncan CN, Olson DP, Salerno AE, Newburger JW, Greenes DS",
+  "year": 2005,
+  "journal": "New England Journal of Medicine",
+  "doi": "10.1056/nejmoa043901",
+  "pmid": "15829535",
+  "url": "https://doi.org/10.1056/nejmoa043901",
+  "design": "prospective-cohort",
+  "population": "766 runners enrolled in the 2002 Boston Marathon; 488 (64%) gave a usable blood sample at the finish",
+  "sampleSize": 766,
+  "evidenceLevel": "B",
+  "topics": ["road-racing", "ultra-nutrition"],
+  "findings": [
+    "13% of the 488 runners with a finish-line sample had hyponatremia (serum sodium 135 mmol/L or lower) and 0.6% had critical hyponatremia (120 mmol/L or lower).",
+    "On univariate analyses it was associated with substantial weight gain, more than 3 L of fluid during the race, drinking every mile, a racing time over 4:00 hours, female sex and low body-mass index.",
+    "On multivariate analysis it was associated with weight gain (odds ratio 4.2; 95% CI 2.2 to 8.2), a racing time over 4:00 hours (odds ratio 7.4; 95% CI 2.9 to 23.1 against a time under 3:30), and body-mass-index extremes.",
+    "Female sex, the composition of the fluids and use of non-steroidal anti-inflammatory drugs were not associated on multivariate analysis."
+  ],
+  "limitations": "One marathon in one year; 36% of enrolled runners gave no usable sample; self-reported fluid intake; the study records association, not a trial of any drinking instruction.",
+  "implications": [
+    "Hyponatremia was found in about one non-elite marathoner in eight, and the risk was higher for weight gain and for finishing times over four hours. Supports an overdrinking warning for the slower road finisher, in step with the 2015 consensus; the corpus already holds the consensus, not a road cohort."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "pubmed",
+    "findingsSupported": true,
+    "notes": "Crossref matches (NEJM 352:1550-1556). Abstract read on PubMed (Europe PMC drops the '<' symbol in the odds-ratio line). Crossref lists no correction, erratum or retraction notice (checked 2026-11-16).",
+    "checkedAt": "2026-11-16"
+  }
+}

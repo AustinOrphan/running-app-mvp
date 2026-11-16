@@ -1,0 +1,33 @@
+{
+  "id": "hodgson-2022-great-north-run-heat-pollution",
+  "title": "Amateur runners more influenced than elite runners by temperature and air pollution during the UK's Great North Run half marathon",
+  "authors": "Hodgson JR, Chapman L, Pope FD",
+  "year": 2022,
+  "journal": "Science of The Total Environment",
+  "doi": "10.1016/j.scitotenv.2022.156825",
+  "pmid": "35752238",
+  "url": "https://doi.org/10.1016/j.scitotenv.2022.156825",
+  "design": "retrospective-cohort",
+  "population": "Finishing times of the quickest and slowest amateur participants and the elite field at the Great North Run (half marathon, Newcastle upon Tyne), 2006 to 2019, with temperature, humidity, heat index, wind speed and air quality",
+  "sampleSize": null,
+  "evidenceLevel": "C",
+  "topics": ["road-racing", "heat-weather"],
+  "findings": [
+    "Increased temperatures, heat index and ozone concentrations were significantly detrimental to amateur half-marathon performance.",
+    "The elite field was influenced by higher ozone concentrations.",
+    "The authors think the longer exposure time contributes to the greater slowing of the slowest participants.",
+    "Nitrogen dioxide and PM2.5 showed no significant relationship with finishing times."
+  ],
+  "limitations": "The abstract gives no slowing per degree and no sample or effect sizes, so only direction and the ranking by ability are recorded; the series is 14 editions of one cool-climate race, so it holds little data at high temperatures; the slowest and quickest amateurs are summarised from results, not individual runners.",
+  "implications": [
+    "The only half-marathon record on heat and finishing time in the corpus: temperature and heat index slowed the amateur field, the slowest more than the quickest. It supports the direction and the ability ordering already in the engine for the marathon; it gives no half-marathon per-degree figure."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref matches (Sci Total Environ 842:156825). Abstract read on Europe PMC and PubMed. Crossref lists no correction, erratum or retraction notice (checked 2026-11-16).",
+    "checkedAt": "2026-11-16"
+  }
+}

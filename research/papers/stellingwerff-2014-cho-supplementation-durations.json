@@ -1,0 +1,33 @@
+{
+  "id": "stellingwerff-2014-cho-supplementation-durations",
+  "title": "Systematic review: Carbohydrate supplementation on exercise performance or capacity of varying durations",
+  "authors": "Stellingwerff T, Cox GR",
+  "year": 2014,
+  "journal": "Applied Physiology, Nutrition, and Metabolism",
+  "doi": "10.1139/apnm-2014-0027",
+  "pmid": "24951297",
+  "url": "https://doi.org/10.1139/apnm-2014-0027",
+  "design": "systematic-review",
+  "population": "61 randomised placebo-controlled performance studies of carbohydrate supplementation (679 subjects), by exercise duration",
+  "sampleSize": 679,
+  "evidenceLevel": "A",
+  "topics": ["road-racing", "ultra-nutrition"],
+  "findings": [
+    "Of 61 included performance studies (n = 679 subjects), 82% (50 studies) showed a significant performance benefit and 18% no change compared with placebo.",
+    "The benefit grew with total exercise time: a significant correlation (p = 0.0036) between exercise duration and the percent performance gain with carbohydrate over placebo.",
+    "In short-duration exercise (about 1 h), oral receptor exposure to carbohydrate (mouthwash or oral consumption) provides a central mechanism, and the type or amount of carbohydrate and its absorption and oxidation appear irrelevant.",
+    "For exercise longer than 2 h, where muscle glycogen is stressed, the benefit is through high carbohydrate delivery (above 90 g/h) and oxidation; glucose-fructose blends are beneficial, and individual recommendations should follow each athlete's tolerance."
+  ],
+  "limitations": "The abstract gives no result for the 1 to 2 h band, which is where a 1:30 to 2:00 half marathon sits; the studies are mostly cycling and laboratory protocols; the review itself separates the mechanisms by duration with 'about 1 h' and 'more than 2 h' only.",
+  "implications": [
+    "Carbohydrate during about 1 h of hard exercise works through the mouth, not through a delivered dose, and the gain grows with duration. Above 2 h the dose matters. For a finish between those, the review states nothing, so no rate for a half marathon under 2 h follows from it."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref matches (APNM 39:998-1011). Abstract read on Europe PMC (systematic review). Crossref lists no correction, erratum or retraction notice (checked 2026-11-16).",
+    "checkedAt": "2026-11-16"
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "id": "lee-2014-half-marathon-fluid-cho",
+  "title": "Self-selecting Fluid Intake while Maintaining High Carbohydrate Availability Does not Impair Half-marathon Performance",
+  "authors": "Lee MJ, Hammond KM, Vasdev A, Poole KL, Impey SG, Close GL, Morton JP",
+  "year": 2014,
+  "journal": "International Journal of Sports Medicine",
+  "doi": "10.1055/s-0034-1375635",
+  "pmid": "25144431",
+  "url": "https://doi.org/10.1055/s-0034-1375635",
+  "design": "experimental-crossover",
+  "population": "15 participants who ran three half marathons, finishing in about 110 min, each with high carbohydrate availability (60 g/h from gels in two arms; a 6% carbohydrate drink to guidelines in the third)",
+  "sampleSize": 15,
+  "evidenceLevel": "C",
+  "topics": ["road-racing", "ultra-nutrition"],
+  "findings": [
+    "Participants drank a 6% carbohydrate solution to guidelines (DRINK) or a non-caloric solution in self-selected volumes with three 20 g glucose gels per hour (G-GEL) or three glucose-fructose gels per hour (GF-GEL).",
+    "Fluid intake (1,557, 473 and 404 mL) and body mass loss (0.8, 2.0 and 2.3%) differed between conditions, but race time did not (110.6 +/- 14.4, 110.3 +/- 14.6 and 113.7 +/- 12.8 min).",
+    "In G-GEL there was a positive correlation between body mass loss and race time.",
+    "Plasma glucose was lower in GF-GEL, and total carbohydrate oxidation (3.2, 3.0 and 2.6 g/min) was lower (P = 0.06); the authors say glucose-fructose mixtures in sub-optimal amounts reduce plasma glucose and total oxidation rates."
+  ],
+  "limitations": "All three arms kept carbohydrate high, so there is no no-carbohydrate arm and the paper cannot show that any rate helps; it shows that 60 g/h from gels was taken at a roughly 110 min half-marathon effort without a change in time between fluid strategies; 15 participants.",
+  "implications": [
+    "At about 110 min (the under-2-hour band) a 60 g/h intake was tolerated and fluid volume did not change race time. This is tolerance data, not a test of benefit, so it does not justify stating a rate for the band."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref matches (IJSM 35:1216-1222). Abstract read on Europe PMC. Crossref lists no correction, erratum or retraction notice (checked 2026-11-16).",
+    "checkedAt": "2026-11-16"
+  }
+}

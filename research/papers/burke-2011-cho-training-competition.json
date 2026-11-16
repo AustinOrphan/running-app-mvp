@@ -1,0 +1,33 @@
+{
+  "id": "burke-2011-cho-training-competition",
+  "title": "Carbohydrates for training and competition",
+  "authors": "Burke LM, Hawley JA, Wong SH, Jeukendrup AE",
+  "year": 2011,
+  "journal": "Journal of Sports Sciences",
+  "doi": "10.1080/02640414.2011.585473",
+  "pmid": "21660838",
+  "url": "https://doi.org/10.1080/02640414.2011.585473",
+  "design": "narrative-review",
+  "population": "Review for the 2010 IOC consensus conference on sports nutrition: carbohydrate availability before, during and after exercise",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["road-racing", "ultra-nutrition"],
+  "findings": [
+    "Carbohydrate intake during exercise should be scaled to the characteristics of the event.",
+    "During sustained high-intensity sports lasting about 1 h, small amounts of carbohydrate, including mouth-rinsing, enhance performance via central nervous system effects.",
+    "30-60 g/h is an appropriate target for sports of longer duration; events longer than 2.5 h may benefit from up to 90 g/h, and products with blends of different carbohydrates may maximise absorption at such rates.",
+    "Whether additional 'train-low' strategies improve performance in well-trained individuals is unclear."
+  ],
+  "limitations": "Narrative review for a consensus conference, so graded D here (the grade follows the design: an expert narrative, not a systematic search); the abstract does not define 'longer duration' lower bound beyond the 1 h and 2.5 h statements.",
+  "implications": [
+    "Names three carbohydrate bands by event length: about 1 h (small amounts, central effect), longer events (30 to 60 g/h) and above 2.5 h (up to 90 g/h). A half marathon under 2 h sits between the first two bands; the review gives it no rate."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref matches (J Sports Sci 29:S17-S27). Abstract read on Europe PMC. Crossref lists no correction, erratum or retraction notice (checked 2026-11-16).",
+    "checkedAt": "2026-11-16"
+  }
+}

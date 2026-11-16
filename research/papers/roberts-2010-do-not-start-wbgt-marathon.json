@@ -1,0 +1,33 @@
+{
+  "id": "roberts-2010-do-not-start-wbgt-marathon",
+  "title": "Determining a \"Do Not Start\" Temperature for a Marathon on the Basis of Adverse Outcomes",
+  "authors": "Roberts WO",
+  "year": 2010,
+  "journal": "Medicine & Science in Sports & Exercise",
+  "doi": "10.1249/mss.0b013e3181b1cdcf",
+  "pmid": "19927037",
+  "url": "https://doi.org/10.1249/mss.0b013e3181b1cdcf",
+  "design": "retrospective-observational",
+  "population": "Race records (starters, finishers, finish-line medical encounters) of several marathons, plotted against start wet bulb globe temperature",
+  "sampleSize": null,
+  "evidenceLevel": "C",
+  "topics": ["road-racing", "heat-weather"],
+  "findings": [
+    "A start WBGT above 21 C resulted in a mass-casualty incident or mid-race cancellation in several races.",
+    "At the Twin Cities Marathon the rate of 'unsuccessful' starters (medical encounters plus non-finishers) rose rapidly above a start WBGT of 13 C.",
+    "The event had an area-wide mass-casualty incident at a start WBGT of 22 C, with an unsuccessful-starter rate of 160 per 1,000 finishers.",
+    "The author concludes it seems prudent not to start marathons in unacclimatised northern-latitude fields at a start WBGT above 21 C; the do-not-start WBGT for the Twin Cities Marathon is 20.5 C on this model."
+  ],
+  "limitations": "Outcomes are medical encounters and non-finishes, not finishing time, so the paper does not give a time penalty; northern-latitude events with unacclimatised fields; retrospective race records.",
+  "implications": [
+    "Safety side of road-race heat: unsuccessful starts climbed from a start WBGT of about 13 C and mass-casualty events occurred at 21 to 22 C. Supports a heat warning line at the existing I9 level; not a source of pace penalty."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref matches (MSSE 42:226-232). Abstract read on Europe PMC and PubMed. Crossref lists no correction, erratum or retraction notice (checked 2026-11-16).",
+    "checkedAt": "2026-11-16"
+  }
+}

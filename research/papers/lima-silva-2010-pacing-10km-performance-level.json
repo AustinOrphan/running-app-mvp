@@ -1,0 +1,32 @@
+{
+  "id": "lima-silva-2010-pacing-10km-performance-level",
+  "title": "Effect of performance level on pacing strategy during a 10-km running race",
+  "authors": "Lima-Silva AE, Bertuzzi RC, Pires FO, Barros RV, Gagliardi JF, Hammond J, Kiss MA, Bishop DJ",
+  "year": 2010,
+  "journal": "European Journal of Applied Physiology",
+  "doi": "10.1007/s00421-009-1300-6",
+  "pmid": "20012450",
+  "url": "https://doi.org/10.1007/s00421-009-1300-6",
+  "design": "cross-sectional",
+  "population": "24 male runners in a self-paced treadmill 10-km trial, split into terciles by performance (high and low groups compared)",
+  "sampleSize": 24,
+  "evidenceLevel": "C",
+  "topics": ["road-racing", "performance-prediction"],
+  "findings": [
+    "In the high-performing group velocity peaked at 18.8 +/- 1.4 km/h in the first 400 m, above the average race velocity; this was not different from the low group's average racing velocity (14.5 +/- 0.7 km/h).",
+    "Velocity then fell non-significantly until 9,600 m, followed by an increase at the end (P < 0.05).",
+    "High and low performance runners adopted different pacing strategies; peak treadmill velocity, running economy and lactate threshold correlated with start, middle, last and average velocity."
+  ],
+  "limitations": "24 men on a treadmill, not a road race; terciles of one small sample; the low group's strategy is not described in the abstract beyond 'different'.",
+  "implications": [
+    "Laboratory 10 km pacing: a fast opening then a slow drift and an end spurt in better runners. It does not support a prescribed 10 km split pattern. Kept as the 10 km counterpart of the road-race pacing records, with the limit that it is a treadmill study."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref matches (online 2009-12-11, print volume 108, 2010; the stored year follows the print volume, within Crossref's one-year tolerance). Abstract read on Europe PMC. Crossref lists no correction, erratum or retraction notice (checked 2026-11-16).",
+    "checkedAt": "2026-11-16"
+  }
+}
