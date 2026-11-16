@@ -10,7 +10,7 @@
 // A race inside the taper of the goal race stays as entered with no easing and no window beyond the
 // taper's own. A race inside the recovery window of an earlier one stays; the earlier window ends
 // at it. The plan never suggests a race: it only plans around the ones entered.
-import { addDays, mondayOf } from '../dates.ts'
+import { addDays, daysBetween, mondayOf } from '../dates.ts'
 import {
   EASED_BEFORE_RACE_TITLE,
   enteredRacePurpose,
@@ -394,8 +394,8 @@ export function applyEnteredRaces(args: EnteredRacesArgs): EnteredRacesResult {
   }
   const maxShare = P.f2.z2z3ShareMax.value
   const WEEKDAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const
-  // an open day of the week with nothing placed, after today, before the day the plan eases to a
-  // shake-out, and not a race day or a day the runner closed: the easy run of `minutes` it can hold
+  // an open day of the week with nothing placed, after today, not a race day and not a day the
+  // runner closed (the day before a race takes its shake-out at most): the easy run of `minutes` it can hold
   const freeDay = (
     week: WeekDraft,
     inWeek: (s: SessionSpec) => boolean,
@@ -407,10 +407,13 @@ export function applyEnteredRaces(args: EnteredRacesArgs): EnteredRacesResult {
       const date = addDays(week.weekStart, i)
       const open = input.profile.availability[WEEKDAYS[i]!]
       if (date < today || used.has(date) || raceDays.has(date) || !open.available) continue
-      // the day before a race holds the shake-out and the day of the goal race is the race's
-      if (races.some((r) => addDays(r.goal.date, -1) === date) || date >= input.goal.date) continue
-      const minutes = Math.min(minimum, open.maxMin ?? Infinity)
-      if (minutes >= P.fplace.minRunDayMin.value && minutes <= room) return { date, minutes }
+      if (date >= input.goal.date) continue
+      // the day before a race holds at most its shake-out
+      const before = races.find((r) => addDays(r.goal.date, -1) === date)
+      const shake = before === undefined ? Infinity : easing(before.priority).maxMin
+      // the minutes wanted, or the largest run the room and the day's cap allow when they are fewer
+      const minutes = Math.min(minimum, room, open.maxMin ?? Infinity, shake)
+      if (minutes >= P.fplace.minRunDayMin.value) return { date, minutes }
     }
     return null
   }
@@ -421,7 +424,14 @@ export function applyEnteredRaces(args: EnteredRacesArgs): EnteredRacesResult {
     const counted = (s: SessionSpec) => VOLUME_KINDS.has(s.kind) && !s.flags.includes('rest-window')
     const fixedWeek = args.fixed.filter(inWeek).filter(counted)
     const held = runningMinutes(args.sessions.filter(inWeek)) + runningMinutes([...fixedWeek])
-    const longest = args.sessions.filter(inWeek).reduce((m, s) => Math.max(m, s.durationMin), 0)
+    // the longest run the week held, the kept ones included
+    const longest = [...fixedWeek, ...args.sessions.filter(inWeek)].reduce(
+      (m, s) => Math.max(m, s.durationMin),
+      0,
+    )
+    // the most the runner's availability lets a run of the day hold
+    const dayCap = (date: string): number =>
+      input.profile.availability[WEEKDAYS[daysBetween(week.weekStart, date)]!].maxMin ?? Infinity
     for (;;) {
       const mine = out.filter(inWeek).filter(counted)
       const runs = [...fixedWeek, ...mine]
@@ -445,8 +455,9 @@ export function applyEnteredRaces(args: EnteredRacesArgs): EnteredRacesResult {
             s.date >= today &&
             (s.kind === 'easy' || s.kind === 'recovery') &&
             !s.flags.includes('post-race') &&
-            s.title !== EASED_BEFORE_RACE_TITLE &&
-            s.durationMin < longest,
+            // the day before a race holds the shake-out and is not lengthened
+            !races.some((r) => addDays(r.goal.date, -1) === s.date) &&
+            s.durationMin < Math.min(longest, dayCap(s.date)),
         )
         .sort((a, b) => a.durationMin - b.durationMin)[0]
       if (room <= 0) break
@@ -467,7 +478,7 @@ export function applyEnteredRaces(args: EnteredRacesArgs): EnteredRacesResult {
         ]
         continue
       }
-      const minutes = Math.min(target.durationMin + room, longest)
+      const minutes = Math.min(target.durationMin + room, longest, dayCap(target.date))
       out = out.map((s) =>
         s === target
           ? {

@@ -107,14 +107,35 @@ describe('an entered race in every week of a plan', () => {
 // A race on every weekday, and a re-plan on every day from 7 days before it to 10 days after it (the
 // race day included), the way the server re-plans: the races it sends are the ones after today, and
 // the plan being replaced holds the race session. The re-plan with the race must fail no check
-// that the same re-plan without the race passes.
+// that the same re-plan without the race passes, and no week of it holds more running minutes than
+// the same week of the plan without the race: the greater of that week in the plan as first drawn and
+// in the re-plan of the same day without the race (a re-plan's later weeks follow the part week it
+// starts from, so either alone is not the plan without the race). The athletes include the ones with per-day caps
+// (masters, 50 km trail).
 const REPLAN_FROM = -7
 const REPLAN_TO = 10
 
 describe('a race on every weekday, re-planned around its day', () => {
-  for (const id of ['novice-5k', 'half', 'trail-50k', 'first-100-mile']) {
+  for (const id of ['novice-5k', 'half', 'half-capped', 'masters', 'trail-50k', 'first-100-mile']) {
     it(`${id}: no re-plan from 7 days before to 10 days after fails a check the plan without the race passes`, () => {
-      const base = athletes().find((a) => a.id === id)!.input
+      const matrix = athletes().find((a) => a.id === id.replace('-capped', ''))!.input
+      // `half-capped`: the half marathon runner with two closed days and caps on Thursday and Friday
+      const base: EngineInput =
+        id === 'half-capped'
+          ? {
+              ...matrix,
+              profile: {
+                ...matrix.profile,
+                availability: {
+                  ...matrix.profile.availability,
+                  mon: { available: false, maxMin: null },
+                  wed: { available: false, maxMin: null },
+                  thu: { available: true, maxMin: 50 },
+                  fri: { available: true, maxMin: 45 },
+                },
+              },
+            }
+          : matrix
       const plain = buildPlan(base)
       const stored = (plan: typeof plain, prefix: string) => ({
         weeks: plan.weeks,
@@ -126,14 +147,23 @@ describe('a race on every weekday, re-planned around its day', () => {
         })),
       })
       const plainExisting = stored(plain, 'p')
-      const withoutRace = new Map<string, string[]>()
-      const without = (today: string) => {
-        let failed = withoutRace.get(today)
-        if (failed === undefined) {
-          failed = failing(replan({ ...base, today, existing: plainExisting }).draft.checklist)
-          withoutRace.set(today, failed)
+      const weekMinutes = (sessions: typeof plain.sessions) => {
+        const byWeek = new Map<string, number>()
+        for (const s of sessions) {
+          byWeek.set(mondayOf(s.date), (byWeek.get(mondayOf(s.date)) ?? 0) + runningMinutes([s]))
         }
-        return failed
+        return byWeek
+      }
+      const plainMinutes = weekMinutes(plain.sessions)
+      const withoutRace = new Map<string, { failed: string[]; minutes: Map<string, number> }>()
+      const without = (today: string) => {
+        let known = withoutRace.get(today)
+        if (known === undefined) {
+          const draft = replan({ ...base, today, existing: plainExisting }).draft
+          known = { failed: failing(draft.checklist), minutes: weekMinutes(draft.sessions) }
+          withoutRace.set(today, known)
+        }
+        return known
       }
       const week = addDays(mondayOf(base.today), 21)
       let cases = 0
@@ -150,11 +180,26 @@ describe('a race on every weekday, re-planned around its day', () => {
               if (today <= base.today || today >= base.goal.date) continue
               const races = offset < 0 ? [entered] : []
               const draft = replan({ ...base, today, races, existing }).draft
+              const reference = without(today)
               const fresh = failing(draft.checklist).filter(
-                (item) => !without(today).includes(item),
+                (item) => !reference.failed.includes(item),
               )
               if (fresh.length > 0) {
                 problems.push(`${cls} ${priority} race ${date}, re-plan ${today}: ${fresh.join()}`)
+              }
+              // while the race is ahead the entered-race pass is the one that cut the weeks; once it
+              // has been run no race is sent, and the weeks differ only as any re-plan from another
+              // stored plan does
+              for (const [weekStart, minutes] of offset < 0 ? weekMinutes(draft.sessions) : []) {
+                const limit = Math.max(
+                  reference.minutes.get(weekStart) ?? 0,
+                  plainMinutes.get(weekStart) ?? 0,
+                )
+                if (minutes > limit) {
+                  problems.push(
+                    `${cls} ${priority} race ${date}, re-plan ${today}: week ${weekStart} holds ${String(minutes)} min, above ${String(limit)}`,
+                  )
+                }
               }
               cases += 1
             }
