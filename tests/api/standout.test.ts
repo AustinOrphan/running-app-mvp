@@ -652,7 +652,7 @@ describe('the pipeline', () => {
     const recent = await addRun(u.id, 3, { pain: 6 })
     const old = await addRun(u.id, 30, { pain: 6 })
     const strength = await addRun(u.id, 2, { type: 'strength', pain: 6 })
-    await runNightlyMatching(ctx, { today })
+    await runNightlyMatching(ctx, { todays: new Map([[u.id, today]]) })
     expect(await stored(recent.id)).not.toBeNull()
     expect(await stored(old.id)).toBeNull()
     expect(await stored(strength.id)).toBeNull()

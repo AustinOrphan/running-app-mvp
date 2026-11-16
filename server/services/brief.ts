@@ -16,7 +16,7 @@
 // plan query runs beside them. `WeeklyBrief` is non-state, so none of these writes moves the data
 // version. A brief is seen when the revision it describes is: `PlanRevision.seenAt` is the one
 // marker, and stamping it is a state write.
-import { addDays, mondayOf } from '../../shared/dates.ts'
+import { addDays, instantAtWallTime, mondayOf } from '../../shared/dates.ts'
 import { BRIEF_VERSION, buildBriefFacts } from '../../shared/engine/brief.ts'
 import { isHotForSteering, trainingHeatAdvice } from '../../shared/engine/heat.ts'
 import type {
@@ -288,14 +288,14 @@ export async function generateBrief(
  */
 async function unclaimedWeeklyRevision(
   deps: Deps,
-  args: { planId: string; weekStart: string },
+  args: { planId: string; weekStart: string; tz: string },
 ): Promise<string | null> {
   const row = await deps.prisma.planRevision.findFirst({
     where: {
       planId: args.planId,
       reason: { in: WEEKLY_REASONS },
-      // The Monday begins at local midnight (ADR 0003).
-      createdAt: { gte: new Date(`${args.weekStart}T00:00:00`) },
+      // The Monday begins at local midnight of the runner's zone (ADR 0003, ADR 0022).
+      createdAt: { gte: instantAtWallTime(args.weekStart, 0, args.tz) },
       brief: null,
     },
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
@@ -312,6 +312,7 @@ async function composeCurrent(
   const revisionId = await unclaimedWeeklyRevision(deps, {
     planId: args.planId,
     weekStart: mondayOf(args.today),
+    tz: args.tz,
   })
   const composed = await compose(deps, {
     userId: args.userId,
@@ -409,7 +410,7 @@ async function briefRow(
  * describes none) and within its week, newest first, without the no-ops. A provisional brief reads
  * today's plan, so nothing happened since it.
  */
-async function sinceRows(deps: Deps, userId: string, row: WeeklyBriefRow) {
+async function sinceRows(deps: Deps, userId: string, row: WeeklyBriefRow, tz: string) {
   if (row.planId === null || row.provisional) return []
   const anchor =
     row.revisionId === null
@@ -420,8 +421,8 @@ async function sinceRows(deps: Deps, userId: string, row: WeeklyBriefRow) {
             select: { createdAt: true },
           })
         )?.createdAt ?? row.generatedAt)
-  // The week ends at the local midnight that opens the next Monday.
-  const weekEnd = new Date(`${addDays(row.weekStart, 7)}T00:00:00`)
+  // The week ends at the local midnight, in the runner's zone, that opens the next Monday.
+  const weekEnd = instantAtWallTime(addDays(row.weekStart, 7), 0, tz)
   return deps.prisma.planRevision.findMany({
     where: {
       planId: row.planId,
@@ -462,7 +463,7 @@ async function toView(
     row.revisionId === null
       ? null
       : viewRevision(deps, { userId, revisionId: row.revisionId, today, tz }),
-    sinceRows(deps, userId, row).then(async (rows): Promise<PlanRevisionView[]> => {
+    sinceRows(deps, userId, row, tz).then(async (rows): Promise<PlanRevisionView[]> => {
       if (rows.length === 0 || row.planId === null) return []
       const plan = await deps.prisma.plan.findFirst({
         where: { id: row.planId, userId },
@@ -622,14 +623,14 @@ export async function briefStamp(args: {
  */
 export async function markBriefSeen(
   deps: Deps,
-  args: { userId: string; weekStart: string },
+  args: { userId: string; weekStart: string; tz: string },
 ): Promise<void> {
   const { prisma } = deps
   const row = await prisma.weeklyBrief.findUnique({
     where: { userId_weekStart: { userId: args.userId, weekStart: args.weekStart } },
   })
   if (row === null) throw notFound('There is no brief for that week.')
-  const later = await sinceRows(deps, args.userId, row)
+  const later = await sinceRows(deps, args.userId, row, args.tz)
   const ids = [...(row.revisionId === null ? [] : [row.revisionId]), ...later.map((r) => r.id)]
   if (ids.length === 0) return
   const unseen = await prisma.planRevision.findMany({

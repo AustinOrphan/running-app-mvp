@@ -47,7 +47,7 @@ export function wristRouter(deps: Deps): Router {
     if (issue !== null) throw validationError(issue, [{ path: 'to', message: issue }])
     // A cached "On your watch" would be false: the answer says what the app knows now.
     res.set('Cache-Control', 'no-store')
-    res.json(await wristStatus(deps, req.userId, { from, to }))
+    res.json(await wristStatus(deps, req.userId, { from, to }, today))
   })
 
   router.put('/intervals', async (req, res) => {

@@ -17,6 +17,7 @@ import { dataVersionKey } from '../../server/dataVersion.ts'
 import { HttpError, notFound, validationError } from '../../server/errors.ts'
 import { runReplanJob } from '../../server/jobs/scheduler.ts'
 import { serverTimeZone } from '../../server/runnerDay.ts'
+import { replanActivePlan } from '../../server/services/planEngine.ts'
 import { generateBrief, readFacts, replanNoteOf } from '../../server/services/brief.ts'
 import {
   client,
@@ -341,13 +342,31 @@ describe('the weekly job', () => {
   })
 
   test('keeps the brief of an update that changed the plan when a second update of the week changes nothing', async () => {
-    // The catch-up and the 03:00 slot can both re-plan one plan in a week: the second one finds the
-    // plan already as the first left it, and its empty revision must not replace the first's brief.
+    // The week guard stops the 03:00 slot and the catch-up from a second update in one week, but a
+    // brief that failed to write, or a move of zone, can still let one through: the second finds
+    // the plan already as the first left it, and its empty revision must not replace the first's
+    // brief.
     const r = await updated(email())
     const before = (await briefOf(r.u.id))!
     expect(readFacts(before.facts)!.changes!.count).toBeGreaterThan(0)
 
+    // The job itself makes no second update for the week.
     await runReplanJob(deps(), { now: MONDAY_NOON })
+    expect(
+      await ctx.prisma.planRevision.count({ where: { planId: r.plan.id, reason: 'weekly' } }),
+    ).toBe(1)
+
+    const second = await replanActivePlan(deps(), {
+      userId: r.u.id,
+      reason: 'weekly',
+      today: monday,
+    })
+    await generateBrief(deps(), {
+      userId: r.u.id,
+      today: monday,
+      tz: serverTimeZone(),
+      revisionId: second.id,
+    })
 
     const weekly = await ctx.prisma.planRevision.findMany({
       where: { planId: r.plan.id, reason: 'weekly' },

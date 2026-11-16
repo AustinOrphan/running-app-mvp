@@ -450,27 +450,39 @@ export async function assessSessionsQuietly(
   }
 }
 
-/** Nightly sweep over the last 7 days of activities and sessions, for every user with a plan. */
+/**
+ * Nightly sweep over the last 7 days of activities and sessions, for every user with a plan whose
+ * day is in `todays` (the runner's `today` by user id, D10): each runner is swept on their own day.
+ */
 export async function runNightlyMatching(
   deps: Deps,
-  args: { today: string; onError?: (error: unknown, userId: string) => void },
+  args: {
+    todays: ReadonlyMap<string, string>
+    onError?: (error: unknown, userId: string) => void
+  },
 ): Promise<void> {
   const plans = await deps.prisma.plan.findMany({
-    where: { status: 'active', generatorVersion: { gte: 2 } },
+    where: {
+      status: 'active',
+      generatorVersion: { gte: 2 },
+      userId: { in: [...args.todays.keys()] },
+    },
   })
-  const from = addDays(args.today, -SWEEP_DAYS)
   for (const plan of plans) {
+    const today = args.todays.get(plan.userId)
+    if (today === undefined) continue
+    const from = addDays(today, -SWEEP_DAYS)
     try {
       await matchAndAssess(
         deps,
-        { userId: plan.userId, planId: plan.id, goalId: plan.goalId, today: args.today },
-        (a) => a.date >= from && a.date <= args.today,
+        { userId: plan.userId, planId: plan.id, goalId: plan.goalId, today },
+        (a) => a.date >= from && a.date <= today,
       )
     } catch (error) {
       // One user's failure must not stop the sweep for the others.
       args.onError?.(error, plan.userId)
     }
     // The runs of the window are described again, whatever matching did; this never throws.
-    await refreshRecentInsights(deps, { userId: plan.userId, today: args.today })
+    await refreshRecentInsights(deps, { userId: plan.userId, today })
   }
 }
