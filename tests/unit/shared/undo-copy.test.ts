@@ -247,6 +247,22 @@ describe('the lines of a diff', () => {
     ).toEqual(['Week of 26 Oct: updated'])
   })
 
+  it('names a week held for the first hot days, and the end of the hold', () => {
+    const week: WeekDiffLine = {
+      weekStart: '2026-10-26',
+      runMinBefore: 240,
+      runMinAfter: 200,
+      flagsAdded: ['heat-hold'],
+      flagsRemoved: [],
+    }
+    expect(text([], 'km', [week])).toEqual([
+      'Week of 26 Oct: running time 4.0 h to 3.3 h, now held at last week’s level for the first hot days',
+    ])
+    expect(text([], 'km', [{ ...week, flagsAdded: [], flagsRemoved: ['heat-hold'] }])).toEqual([
+      'Week of 26 Oct: running time 4.0 h to 3.3 h, no longer held at last week’s level for the first hot days',
+    ])
+  })
+
   it.each([
     [245, 247],
     [45, 50],

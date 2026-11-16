@@ -114,7 +114,7 @@ export function exportTables(prisma: PrismaClient, userId: string): Table[] {
       about: 'Your athlete profile: body, heart rate, availability, home place and time zone.',
       fields: [
         'heightCm, weightKg: centimetres and kilograms.',
-        'hrMax, hrRest, lthr: beats per minute. thresholdPaceSecPerKm: seconds per kilometre.',
+        'hrMax, hrRest, lthr: beats per minute. ownLt1Hr: the easy heart-rate ceiling accepted from your own heart-rate line, in beats per minute, or null. thresholdPaceSecPerKm: seconds per kilometre.',
         'birthYear, runningSinceYear: calendar years.',
         'homeLat, homeLng: degrees, rounded to 0.01.',
         'timezone: an IANA zone; every local day in the archive is a day in it.',

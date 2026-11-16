@@ -233,6 +233,27 @@ protection reads. The Docker image must still build (`docker build .`) after a c
   mild weather is not counted (stevens-2018). The mark is set only through the rating write; a day counts once. `suggestsHeatDays`
   (the same file) is the one test for Today's `heat.heatDays` and the Explain facts: an option with
   safety lines (`shared/copy/heatDays.ts`), never a target or a count of missing days.
+- The own easy ceiling (EC1, rules C4, C8, owner decision D4 2026-11-14) is an offer in both directions, never
+  applied silently: `ownCeilingProposal` (`shared/engine/ownCeiling.ts`) reads the A8 line of cool runs that
+  pass B2 at the first-threshold pace and `listZoneProposals` lists it beside the other zone proposals (the same
+  accept and decline routes and revision kind). A higher ceiling clears a stricter bar than a lower one (G6, the
+  `c8.ownLt1*` Params). Accepting writes `AthleteProfile.ownLt1Hr`, which `buildZones` reads ahead of the other
+  anchors of that boundary (source `own-line`); the watch, H11 and My paces follow through the zones. The profile
+  route clears it when the maximum or threshold heart rate changes. No observed maximum is proposed (C8).
+- First hot days (rule J5, HH1, owner decision D7 2026-11-14): `firstHotDays` (`shared/engine/heat.ts`) is the one
+  test; `weeklyDecision` reads it for the coming week from `input.forecast` (the cached forecast, never fetched:
+  `computeReplan`, `weeklyDecisions` and Explain gather it, and Explain's memo names carry `forecastStamp`) or,
+  with no forecast for that week, the recent runs. It holds a loading week of the build only (never taper, race,
+  recovery, post-race or a start programme), at the last loading week's minutes, with the long run kept
+  (`heatHeld` in `ReplanOptions`, `heatHoldWeek`) and no session trimmed; the week carries `heat-hold`.
+- A short week counts as the recovery week (rules E3, G-6, J7, owner decision 2026-11-15): `breakWeekOf`
+  (`shared/engine/breakWeek.ts`) is the one predicate, read by `weeklyDecision` only (a finished loading week
+  of the stored plan, run at or under `e3.breakWeekMaxShare` of its target, over zero minutes, no window over
+  it, no signal but a short night or a mild pain, and a loading or recovery week of the build after it). The decision then carries `breakRepeat` and caps the week
+  after it at the J7 share of the planned week, and `computeReplan` hands it to the engine as
+  `EngineInput.breakWeek`: `planWeeks` draws that week as a loading week (flag `break-repeat`), `replanAnchor`
+  starts from the planned figure, and `keepCadenceAcrossReplan` counts the loading weeks from it, so later
+  re-plans read the flag in the stored plan. Nothing else reads the predicate or sets the flag.
 - My paces (ADR 0020, rule C9) is derived on read and stored nowhere: `myPaces` and `eventRow`
   (`shared/engine/myPaces.ts`) over the snapshot and `hrModelOf`, the memo `paces.view` behind
   `GET /api/paces`, and the zones shown through `ZoneSummary`, the one rendering the Profile shares. A

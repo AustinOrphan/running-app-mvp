@@ -17,6 +17,7 @@ import { createHash } from 'node:crypto'
 import { addDays, mondayOf } from '../../shared/dates.ts'
 import {
   changesSummary,
+  breakRepeatSummary,
   decisionSummary,
   loadSettingSummary,
   methodChangeSummary,
@@ -33,7 +34,7 @@ import {
 import { runMinutesAhead } from '../../shared/domain/runMinutes.ts'
 import { estimateState } from '../../shared/engine/athlete.ts'
 import { draftRamp } from '../../shared/engine/checklist.ts'
-import type { ExecutionRecord } from '../../shared/engine/adapt.ts'
+import { hasHeatHold, isHeatOnlyHold, type ExecutionRecord } from '../../shared/engine/adapt.ts'
 import { disruptionPlan, heldDates } from '../../shared/engine/disruption.ts'
 import { diffPlans, type PlanWrites, type RowWrites } from '../../shared/engine/diff.ts'
 import { backdatedSkips, replan, weeklyDecision, weeklyRamp } from '../../shared/engine/index.ts'
@@ -967,7 +968,9 @@ export async function computeReplan(deps: Deps, args: ReplanArgs): Promise<Repla
   const gathered = await gatherEngineInput(
     deps,
     { userId, goalId: plan.goalId, today, options },
-    { existing: true },
+    // The cached forecast, read and never fetched, lets the weekly decision see the first hot days
+    // coming [rule J5]; a cold cell gives none and the decision reads the recent runs instead.
+    { existing: true, forecast: true },
   )
   const hypothetical = args.transform ? args.transform(gathered) : gathered
   const [weekRows, sessionRows] = await Promise.all([
@@ -997,9 +1000,16 @@ export async function computeReplan(deps: Deps, args: ReplanArgs): Promise<Repla
   // The week a hold or a reduce caps: the week that follows the one the decision reviewed.
   const decidedWeek =
     decision !== null && decision.decision !== 'progress' ? addDays(lastWeek, 7) : null
+  // A week that counts as the cycle's recovery week caps the week after it at the J7 share of the
+  // loading week it repeats, in place of the step from the minutes run [rules E3, G-6, J7]. With no
+  // other hold the decision is a progress, so no hold trims a session of the repeat.
+  const breakWeek = decision?.breakRepeat
   const weekCaps: Record<string, number> = {}
   if (decision !== null && decidedWeek !== null) {
     weekCaps[decidedWeek] = decision.nextWeekTargetMin
+  }
+  if (breakWeek !== undefined && decidedWeek === null) {
+    weekCaps[addDays(lastWeek, 7)] = decision!.nextWeekTargetMin
   }
   for (const week of weekRows) {
     if (
@@ -1030,8 +1040,19 @@ export async function computeReplan(deps: Deps, args: ReplanArgs): Promise<Repla
       }))
     : null
   const { draft, changes, heldWeek } = replan(
-    { ...input, weekCaps, ...(args.raise ? { raiseToLevel: true } : {}) },
-    { decisions },
+    {
+      ...input,
+      weekCaps,
+      ...(breakWeek === undefined ? {} : { breakWeek }),
+      ...(args.raise ? { raiseToLevel: true } : {}),
+    },
+    {
+      decisions,
+      heatHeld:
+        decision !== null && decidedWeek !== null && hasHeatHold(decision) ? [decidedWeek] : [],
+      heatAlone:
+        decision !== null && decidedWeek !== null && isHeatOnlyHold(decision) ? [decidedWeek] : [],
+    },
   )
   const rise =
     raiseCheck === null ? null : firstRise(input.existing?.weeks ?? [], draft.weeks, today, changes)
@@ -1078,7 +1099,11 @@ export async function computeReplan(deps: Deps, args: ReplanArgs): Promise<Repla
       ? [
           lead,
           flip,
-          decision ? decisionSummary(decision.decision, decision.nextWeekTargetMin) : null,
+          decision === null
+            ? null
+            : breakWeek === undefined
+              ? decisionSummary(decision.decision, decision.nextWeekTargetMin)
+              : breakRepeatSummary(decision.nextWeekTargetMin),
         ]
           .filter((line): line is string => line !== null)
           .join(' ')

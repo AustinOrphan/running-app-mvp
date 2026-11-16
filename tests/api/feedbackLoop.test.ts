@@ -254,7 +254,7 @@ describe('reviews of version-2 plans use the weekly decision and re-plan', () =>
 
   test('a week run well under the plan holds, with the completion signal and its rules', async () => {
     const { u, plan } = await generatedPlan('review-hold@example.com')
-    await runWeek(u.id, plan, thisMonday, 0.4)
+    await runWeek(u.id, plan, thisMonday, 0.6)
     vi.setSystemTime(new Date(2026, 9, 28, 12))
 
     const res = await client(ctx, u).get(`/api/reviews?from=${thisMonday}&to=${thisMonday}`)
@@ -349,7 +349,7 @@ describe('reviews of version-2 plans use the weekly decision and re-plan', () =>
       update: { injuries },
     })
     const suggested = async ({ u, plan }: typeof clean) => {
-      await runWeek(u.id, plan, thisMonday, 0.5)
+      await runWeek(u.id, plan, thisMonday, 0.6)
       const acts = await ctx.prisma.activity.findMany({
         where: { userId: u.id, date: { gte: thisMonday } },
       })
@@ -426,7 +426,7 @@ describe('reviews of version-2 plans use the weekly decision and re-plan', () =>
         plan.sessions.some((s) => s.weekStart === w.weekStart && quality.includes(s.kind)),
     )!.weekStart
     for (let week = thisMonday; week < target; week = addDays(week, 7)) {
-      await runWeek(u.id, plan, week, week === addDays(target, -7) ? 0.5 : 1)
+      await runWeek(u.id, plan, week, week === addDays(target, -7) ? 0.6 : 1)
     }
     // noon local time on that Monday
     vi.setSystemTime(new Date(`${target}T12:00:00`))

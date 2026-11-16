@@ -447,7 +447,11 @@ describe('facts', () => {
     // every signal code the weekly decision can emit has a phrase or is handled on its own
     const handled = new Set(['post-race-stage', 'post-race-delayed', 'reds'])
     const adapt = readFileSync(join(process.cwd(), 'shared/engine/adapt.ts'), 'utf8')
-    const codes = [...adapt.matchAll(/code: '([a-z-]+)'/g)].map((m) => m[1]!)
+    const breakCopy = readFileSync(join(process.cwd(), 'shared/copy/breakWeek.ts'), 'utf8')
+    const codes = [
+      ...adapt.matchAll(/code: '([a-z-]+)'/g),
+      ...breakCopy.matchAll(/BREAK_SIGNAL = '([a-z-]+)'/g),
+    ].map((m) => m[1]!)
     expect(codes.length).toBeGreaterThan(10)
     const unmapped = codes.filter((c) => !handled.has(c) && !Object.hasOwn(SIGNAL_WORDS, c))
     expect(unmapped).toEqual([])
@@ -2172,7 +2176,7 @@ describe('J2 to J5 and J7: readiness, the decision and breaks', () => {
     const input: EngineInput = {
       ...base,
       today: '2026-10-28',
-      activities: [activity('2026-10-20', { id: 'x', durationSec: 60 * 60 })],
+      activities: [activity('2026-10-20', { id: 'x', durationSec: 120 * 60 })],
       existing: {
         weeks: [
           {
@@ -2207,7 +2211,7 @@ describe('J2 to J5 and J7: readiness, the decision and breaks', () => {
     )!.facts
     const completion = facts.find((f) => f.template === 'explain.j5-completion')!
     expect(text(completion)).toBe(
-      `1.0 h of 3.3 h planned were run, under the ${String(P.j5.completionHoldShare.value * 100)}% the plan looks for.`,
+      `2.0 h of 3.3 h planned were run, under the ${String(P.j5.completionHoldShare.value * 100)}% the plan looks for.`,
     )
   })
 

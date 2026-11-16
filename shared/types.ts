@@ -408,6 +408,12 @@ export interface AthleteProfile {
   hrMaxSource: 'measured' | 'estimated' | null
   hrRest: number | null
   lthr: number | null
+  /**
+   * The easy heart-rate ceiling the runner accepted from their own heart-rate line (rules C4, C8);
+   * absent or null means none. Written only by accepting that proposal; the zones read it ahead of
+   * the other anchors of the first threshold.
+   */
+  ownLt1Hr?: number | null
   thresholdPaceSecPerKm: number | null
   runningSinceYear: number | null
   injuries: Injury[]

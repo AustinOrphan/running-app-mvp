@@ -389,6 +389,12 @@ export const REVISION_TEMPLATES = {
     decision: 'text',
     minutes: 'weekMinutes',
   }),
+  // A loading week run at the volume of a recovery week counts as the cycle's recovery week; the
+  // week after it repeats the loading week (rules E3, G-6, J7).
+  'revision.break-repeat': tpl(
+    'Last week counts as the recovery week; this week repeats the loading week, up to {minutes}.',
+    { minutes: 'weekMinutes' },
+  ),
   // Zero minutes is "no running set", not "up to 0 min".
   'revision.decision-bare': tpl("Last week's decision: {decision}.", { decision: 'text' }),
 
@@ -690,6 +696,15 @@ export function changesSummary(changes: number, weeks: number): string {
   return render(
     REVISION_TEMPLATES['revision.changes.many'],
     { changes: count(changes), weeks: count(weeks) },
+    STORED_UNITS,
+  )
+}
+
+/** The sentence of a re-plan after a week that counts as the recovery week: the repeat and its most. */
+export function breakRepeatSummary(capMin: number): string {
+  return render(
+    REVISION_TEMPLATES['revision.break-repeat'],
+    { minutes: { kind: 'minutes', min: capMin } },
     STORED_UNITS,
   )
 }
