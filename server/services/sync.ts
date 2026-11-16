@@ -171,10 +171,12 @@ export async function syncProvider(
   userId: string,
   provider: string,
   opts: {
+    /** The runner's day, for the matching that follows each stored activity. */
+    today: string
     from?: string
     fetch?: typeof fetch
     trigger?: Extract<SyncTrigger, 'schedule' | 'manual'>
-  } = {},
+  },
 ): Promise<ImportBatch | null> {
   const { prisma, config } = deps
   const registered = getProvider(provider)
@@ -242,7 +244,7 @@ async function run(
   provider: string,
   row: Integration,
   opened: { secret: Record<string, unknown>; config: Record<string, unknown> },
-  opts: { from?: string; fetch?: typeof fetch; trigger: SyncTrigger },
+  opts: { today: string; from?: string; fetch?: typeof fetch; trigger: SyncTrigger },
 ): Promise<ImportBatch | null> {
   const { prisma } = deps
   const pull = getProvider(provider).pull
@@ -314,6 +316,7 @@ async function run(
           source: provider,
           importBatchId,
           channel: 'provider',
+          today: opts.today,
           ...(fetched.file ? { file: fetched.file } : {}),
         })
         if (stored.outcome === 'duplicate') counts.skippedDuplicate += 1

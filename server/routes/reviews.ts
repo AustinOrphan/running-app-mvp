@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { z } from 'zod'
-import { isIsoDate, mondayOf, todayIso } from '../../shared/dates.ts'
+import { isIsoDate, mondayOf } from '../../shared/dates.ts'
 import type { Deps } from '../app.ts'
 import { parse } from '../errors.ts'
 import { saveRaiseAnswer } from '../services/raiseOffer.ts'
@@ -30,14 +30,17 @@ export function reviewsRouter(deps: Deps): Router {
   const router = Router()
 
   router.get('/', async (req, res) => {
-    const weekStarts = parseWeekRange(req.query)
-    res.json(await listReviews(deps, req.userId, weekStarts, todayIso()))
+    const { today } = req.runnerDay
+    const weekStarts = parseWeekRange(req.query, today)
+    res.json(await listReviews(deps, req.userId, weekStarts, today))
   })
 
   router.put('/:weekStart', async (req, res) => {
     const { weekStart } = parse(weekParam, req.params)
     const patch = parse(reviewBody, req.body ?? {})
-    res.json(await saveReview(deps, req.userId, weekStart, patch, todayIso()))
+    res.json(
+      await saveReview(deps, req.userId, weekStart, patch, req.runnerDay.today, req.runnerDay.tz),
+    )
   })
 
   // Not now, to the offer to raise the plan to match recent weeks (rule E7): remembered for the
@@ -45,7 +48,8 @@ export function reviewsRouter(deps: Deps): Router {
   router.put('/:weekStart/raise', async (req, res) => {
     const { weekStart } = parse(weekParam, req.params)
     const { answer } = parse(raiseAnswerBody, req.body)
-    await saveRaiseAnswer(deps, { userId: req.userId, weekStart, answer, today: todayIso() })
+    const { today } = req.runnerDay
+    await saveRaiseAnswer(deps, { userId: req.userId, weekStart, answer, today })
     res.status(204).end()
   })
 

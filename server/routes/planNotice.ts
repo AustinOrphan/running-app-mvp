@@ -15,7 +15,7 @@ export function planNoticeRouter(deps: Deps): Router {
   const router = Router()
 
   router.get('/', async (req, res) => {
-    res.json(await loadPlanNotice(prisma, req.userId))
+    res.json(await loadPlanNotice(prisma, req.userId, req.runnerDay.today))
   })
 
   router.put('/', async (req, res) => {
@@ -26,6 +26,7 @@ export function planNoticeRouter(deps: Deps): Router {
         req.userId,
         { version: body.version, ageConfirmed: body.ageConfirmed === true },
         new Date(),
+        req.runnerDay.today,
       ),
     )
   })

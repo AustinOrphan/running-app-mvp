@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { z } from 'zod'
-import { isIsoDate, todayIso } from '../../shared/dates.ts'
+import { isIsoDate } from '../../shared/dates.ts'
 import type { Deps } from '../app.ts'
 import { parse } from '../errors.ts'
 import { toScreening } from '../serialize.ts'
@@ -37,7 +37,7 @@ export function screeningsRouter(deps: Deps): Router {
     const row = await prisma.screening.create({
       data: {
         userId: req.userId,
-        date: body.date ?? todayIso(),
+        date: body.date ?? req.runnerDay.today,
         kind: 'reds',
         answers: JSON.stringify(body.answers),
         flags,

@@ -5,7 +5,8 @@
 // counts read the athlete snapshot only; a producer receives the snapshot too and may read a table
 // of its own. The producers of the job-log notes and of the source notes are registered at the end
 // of this file, and their ETag stamps in `today.ts`.
-import { addDays, daysBetween, mondayOf, todayIso } from '../../shared/dates.ts'
+import { addDays, daysBetween, isoDateInZone, mondayOf } from '../../shared/dates.ts'
+import { runnerZone } from '../runnerDay.ts'
 import { isToRun } from '../../shared/domain/sessionStatus.ts'
 import { aggregateWeeks } from '../../shared/domain/weeks.ts'
 import { P } from '../../shared/engine/params/index.ts'
@@ -335,7 +336,8 @@ export async function sourceHealthNotes({
         orderBy: { date: 'desc' },
         select: { date: true },
       })
-      const since = newest?.date ?? todayIso(row.createdAt)
+      const since =
+        newest?.date ?? isoDateInZone(row.createdAt, runnerZone(context.profile.timezone))
       if (daysBetween(since, today) <= silentDays) return null
       if (plannedRuns.filter((date) => date > since && date <= today).length < 2) return null
       return {

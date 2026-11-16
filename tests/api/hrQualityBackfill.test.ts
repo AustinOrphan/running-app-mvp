@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'vitest'
 import { runHrQualityJob } from '../../server/jobs/scheduler.ts'
-import { storeParsed } from '../../server/services/activityStore.ts'
+import { storeParsedToday as storeParsed } from './helpers.ts'
 import { backfillHrQuality } from '../../server/services/hrQualityBackfill.ts'
 import { HR_QUALITY_THRESHOLDS } from '../../shared/importers/files/hrQuality.ts'
 import { hrQualityPasses } from '../../shared/engine/hrQuality.ts'

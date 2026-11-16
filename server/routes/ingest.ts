@@ -4,6 +4,7 @@ import { SecretError, hashToken, tokensEqual } from '../crypto.ts'
 import type { Integration } from '../db.ts'
 import { HttpError, notFound, unauthorized } from '../errors.ts'
 import { getProvider } from '../providers/registry.ts'
+import { loadRunnerDay } from '../runnerDay.ts'
 import { storeParsed, storeWellness } from '../services/activityStore.ts'
 import { openIntegration, providerContext } from '../services/sync.ts'
 import { MAX_FAILURES_STORED, recordSyncRun, syncMessage } from '../services/syncLog.ts'
@@ -72,6 +73,9 @@ export function ingestRouter(deps: Deps): Router {
       }
       const ctx = await providerContext(deps, row.userId, provider, opened)
       const startedAt = new Date()
+      // Token-authenticated, ahead of `requireAuth`: the runner's day is read here, as the calendar
+      // feed does.
+      const { today } = await loadRunnerDay(prisma, row.userId)
 
       let accepted = 0
       let batchId: string | null = null
@@ -106,6 +110,7 @@ export function ingestRouter(deps: Deps): Router {
                 source: provider,
                 importBatchId: batchId,
                 channel: 'push',
+                today,
               })
               if (stored.outcome === 'duplicate') counts.skippedDuplicate += 1
               else accepted += 1

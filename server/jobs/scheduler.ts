@@ -1,5 +1,6 @@
 import { basename } from 'node:path'
 import { todayIso } from '../../shared/dates.ts'
+import { serverTimeZone } from '../runnerDay.ts'
 import { FOLDER_SCAN_MINUTES } from '../../shared/limits.ts'
 import type { SyncStatus, SyncTrigger } from '../../shared/types.ts'
 import type { Deps } from '../app.ts'
@@ -142,7 +143,11 @@ export async function runSyncJob(
       try {
         // syncProvider records its own failures on the row and in the log; this only keeps the
         // loop going.
-        await syncProvider(deps, userId, provider, { fetch: opts.fetch, trigger: 'schedule' })
+        await syncProvider(deps, userId, provider, {
+          today: todayIso(now),
+          fetch: opts.fetch,
+          trigger: 'schedule',
+        })
       } catch (error) {
         thrown ??= error
         log?.warn({ reason: safeMessage(error), provider }, 'scheduled sync failed')
@@ -184,7 +189,7 @@ export async function runFolderJob(deps: Deps, log?: Log): Promise<void> {
   for (const row of rows) {
     if (row.userId !== owner) continue
     try {
-      await scanFolderIntegration(deps, row.userId, { trigger: 'schedule' })
+      await scanFolderIntegration(deps, row.userId, { today: todayIso(), trigger: 'schedule' })
     } catch (error) {
       // The row already holds the message; the next scan retries.
       log?.warn({ reason: safeMessage(error) }, 'folder scan failed')
@@ -643,7 +648,8 @@ async function writeBrief(
   log?: Log,
 ): Promise<void> {
   try {
-    await generateBrief(deps, args)
+    // Step 3 of D10 gives the job each runner's zone; until then it is the server's.
+    await generateBrief(deps, { ...args, tz: serverTimeZone() })
   } catch (error) {
     log?.warn({ reason: safeMessage(error), userId: args.userId }, 'weekly brief failed')
   }

@@ -6,7 +6,6 @@ import { hashToken, newToken } from '../crypto.ts'
 import { HttpError, parse } from '../errors.ts'
 import { exportArchive, exportEntryCount } from '../services/exportArchive.ts'
 import { MAX_ZIP_ENTRIES } from '../services/zipWriter.ts'
-import { todayIso } from '../../shared/dates.ts'
 
 const getQuery = z.strictObject({ token: z.string().min(1).max(100).optional() })
 
@@ -111,7 +110,10 @@ export function exportRouter(deps: Deps): Router {
     res
       .status(200)
       .type('application/zip')
-      .set('Content-Disposition', `attachment; filename="running-log-export-${todayIso()}.zip"`)
+      .set(
+        'Content-Disposition',
+        `attachment; filename="running-log-export-${req.runnerDay.today}.zip"`,
+      )
       .set('Cache-Control', 'no-store')
     // `pipeline` ends the response with the stream's error, so a broken export is a cut-off
     // download that no unzip tool accepts, never a short archive that looks whole.

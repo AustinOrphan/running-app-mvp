@@ -680,6 +680,7 @@ describe('PUT /api/goals/:id/result: linking an activity', () => {
     expect(vi.mocked(runExecutionQuietly).mock.calls[0]![1]).toEqual({
       userId: user.id,
       activityId,
+      today: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/) as unknown,
     })
     expect(seen).toEqual([{ results: 1, type: 'race' }])
 

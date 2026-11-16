@@ -1,6 +1,5 @@
 import { Router } from 'express'
 import { z } from 'zod'
-import { todayIso } from '../../shared/dates.ts'
 import { predictRace } from '../../shared/engine/index.ts'
 import type { PredictionView } from '../../shared/types.ts'
 import type { Deps } from '../app.ts'
@@ -41,7 +40,11 @@ export function predictionsRouter(deps: Deps): Router {
       goal.distanceM === null
         ? null
         : predictRace(
-            await gatherEngineInput(deps, { userId: req.userId, goalId, today: todayIso() }),
+            await gatherEngineInput(deps, {
+              userId: req.userId,
+              goalId,
+              today: req.runnerDay.today,
+            }),
           )
     const body: PredictionView = { prediction, log: log.map(toPredictionLogEntry) }
     res.json(body)

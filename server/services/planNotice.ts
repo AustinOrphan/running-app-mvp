@@ -1,6 +1,5 @@
 import { render } from '../../shared/copy/template.ts'
 import { TEMPLATES } from '../../shared/copy/templates.ts'
-import { todayIso } from '../../shared/dates.ts'
 import { ageStanding, PLAN_NOTICE_VERSION } from '../../shared/domain/planNotice.ts'
 import type { PlanNoticeView } from '../../shared/types.ts'
 import type { PrismaClient } from '../db.ts'
@@ -21,6 +20,7 @@ const UNDER_AGE_MESSAGE = render(TEMPLATES['plannotice.under'], {}, 'km')
 export async function loadPlanNotice(
   prisma: PrismaClient,
   userId: string,
+  today: string,
 ): Promise<PlanNoticeView> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
@@ -31,7 +31,7 @@ export async function loadPlanNotice(
     },
   })
   if (!user) throw notFound()
-  const age = ageStanding(user.profile?.birthYear ?? null, Number(todayIso().slice(0, 4)))
+  const age = ageStanding(user.profile?.birthYear ?? null, Number(today.slice(0, 4)))
   const confirmed = user.planNoticeVersion === PLAN_NOTICE_VERSION
   const hasPlan = (await prisma.plan.count({ where: { userId } })) > 0
   return {
@@ -44,8 +44,12 @@ export async function loadPlanNotice(
 }
 
 /** Throws the error that plan generation answers with while the notice is unconfirmed or under age. */
-export async function requirePlanNotice(prisma: PrismaClient, userId: string): Promise<void> {
-  const view = await loadPlanNotice(prisma, userId)
+export async function requirePlanNotice(
+  prisma: PrismaClient,
+  userId: string,
+  today: string,
+): Promise<void> {
+  const view = await loadPlanNotice(prisma, userId, today)
   if (!view.required) return
   if (view.age === 'under') {
     throw new HttpError(409, 'conflict', UNDER_AGE_MESSAGE, { code: PLAN_UNDER_AGE })
@@ -59,8 +63,9 @@ export async function confirmPlanNotice(
   userId: string,
   input: { version: number; ageConfirmed: boolean },
   now: Date,
+  today: string,
 ): Promise<PlanNoticeView> {
-  const view = await loadPlanNotice(prisma, userId)
+  const view = await loadPlanNotice(prisma, userId, today)
   if (input.version !== PLAN_NOTICE_VERSION) {
     throw conflict('The notice changed. Read it again.', { code: 'stale-notice' })
   }
@@ -74,5 +79,5 @@ export async function confirmPlanNotice(
     where: { id: userId },
     data: { planNoticeVersion: PLAN_NOTICE_VERSION, planNoticeAt: now },
   })
-  return loadPlanNotice(prisma, userId)
+  return loadPlanNotice(prisma, userId, today)
 }

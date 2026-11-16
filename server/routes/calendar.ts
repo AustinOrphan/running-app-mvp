@@ -1,9 +1,9 @@
 import { Router } from 'express'
 import type { SerializedRequest } from 'pino'
-import { todayIso } from '../../shared/dates.ts'
 import type { Deps } from '../app.ts'
 import { createFeedLimiters } from '../auth/rateLimit.ts'
 import { notFound } from '../errors.ts'
+import { loadRunnerDay } from '../runnerDay.ts'
 import { calendarFeed, userForCalendarToken } from '../services/calendar.ts'
 
 /** What the access log writes in place of a feed token. */
@@ -59,7 +59,8 @@ export function calendarRouter(deps: Deps): Router {
   router.get('/:token/plan.ics', ...createFeedLimiters(), async (req, res) => {
     const userId = await userForCalendarToken(deps, String(req.params.token))
     if (userId === null) throw notFound()
-    const feed = await calendarFeed(deps, { userId, today: todayIso() })
+    const { today } = await loadRunnerDay(deps.prisma, userId)
+    const feed = await calendarFeed(deps, { userId, today })
     res
       .status(200)
       .set({

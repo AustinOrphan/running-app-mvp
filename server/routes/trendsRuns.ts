@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { z } from 'zod'
-import { addDays, todayIso } from '../../shared/dates.ts'
+import { addDays } from '../../shared/dates.ts'
 import {
   hrWindows,
   longRunReadings,
@@ -34,7 +34,7 @@ export function trendsRunsRouter(deps: Deps): Router {
   router.get('/', async (req, res) => {
     parse(query, req.query)
     const { userId } = req
-    const today = todayIso()
+    const { today } = req.runnerDay
     const view = await memoByVersion(
       deps,
       { userId, name: TRENDS_RUNS_MEMO, today },

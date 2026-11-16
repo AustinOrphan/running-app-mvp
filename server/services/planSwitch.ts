@@ -150,6 +150,7 @@ export async function restoreArchivedPlan(
     await recordPlanWrite(tx, {
       planId: plan.id,
       userId,
+      today,
       reason: 'owner',
       summary: planRestoredSummary(),
       changes: [],

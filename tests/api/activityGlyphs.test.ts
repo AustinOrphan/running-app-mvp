@@ -1,5 +1,5 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from 'vitest'
-import { storeParsed } from '../../server/services/activityStore.ts'
+import { storeParsedToday as storeParsed } from './helpers.ts'
 import { ACTIVITY_GLYPH_IDS_MAX } from '../../shared/limits.ts'
 import { parseActivityFile } from '../../shared/importers/files/index.ts'
 import type { ActivityGlyphs } from '../../shared/types.ts'

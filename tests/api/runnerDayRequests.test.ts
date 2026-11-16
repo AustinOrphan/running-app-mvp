@@ -126,6 +126,50 @@ describe('the runner day on the request', () => {
     expect((res.body as TodayView).tz).toBe('echo:Marker/Stored')
   })
 
+  // Step 2b: the year of a bound or an age is the year of the runner's day. At 11:00 UTC on 31
+  // December 2026 Pacific/Kiritimati reads 1 January 2027 and Pacific/Pago_Pago reads 31 December.
+  describe('the year of the runner day', () => {
+    const NEW_YEAR_EVE = new Date(Date.UTC(2026, 11, 31, 11, 0))
+
+    test('the birth-year bound follows the runner year', async () => {
+      vi.setSystemTime(NEW_YEAR_EVE)
+      try {
+        // A session minted at the new date: the earlier cookie has expired by then.
+        const late = await seedUser(ctx, { email: 'bound@example.com' })
+        // The latest birth year is the year minus 10: 2017 in 2027, past the bound in 2026.
+        injected.zone = EAST
+        const east = await client(ctx, late).put('/api/profile').send({ birthYear: 2017 })
+        expect(east.status).toBe(200)
+        injected.zone = WEST
+        const west = await client(ctx, late).put('/api/profile').send({ birthYear: 2017 })
+        expect(west.status).toBe(400)
+      } finally {
+        vi.setSystemTime(NOW)
+      }
+    })
+
+    test('the age of the plan notice follows the runner year', async () => {
+      vi.setSystemTime(NEW_YEAR_EVE)
+      try {
+        const late = await seedUser(ctx, { email: 'age@example.com' })
+        await ctx.prisma.athleteProfile.upsert({
+          where: { userId: late.id },
+          create: { userId: late.id, birthYear: 2009 },
+          update: { birthYear: 2009 },
+        })
+        // Born in 2009: 18 in 2027 (the statement is asked for), 17 in 2026 (under age).
+        injected.zone = EAST
+        const east = await client(ctx, late).get('/api/plan-notice')
+        expect((east.body as { age: string }).age).toBe('ask')
+        injected.zone = WEST
+        const west = await client(ctx, late).get('/api/plan-notice')
+        expect((west.body as { age: string }).age).toBe('under')
+      } finally {
+        vi.setSystemTime(NOW)
+      }
+    })
+  })
+
   test('setup and the password change answer with the zone', async () => {
     const fresh = await createTestCtx()
     try {
