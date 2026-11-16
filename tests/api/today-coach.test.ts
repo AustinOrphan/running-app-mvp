@@ -19,13 +19,14 @@ import type { PrismaClient } from '../../server/db.ts'
 import { slotProviders } from '../../server/services/todaySlots.ts'
 import { registerHealthNoteProducer } from '../../server/services/todayHealth.ts'
 import { registerTodayStamp } from '../../server/services/today.ts'
-import { refreshWeatherCaches, settleWeatherCache } from '../../server/services/weatherCache.ts'
+import { settleWeatherCache } from '../../server/services/weatherCache.ts'
 import { fakeFetch } from '../fakeFetch.ts'
 import {
   client,
   createTestCtx,
   expectNoRefusedFetches,
   noNetwork,
+  refreshWeatherCachesToday as refreshWeatherCaches,
   seedUser,
   type TestCtx,
   type TestUser,

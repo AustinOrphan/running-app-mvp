@@ -4,13 +4,14 @@ import { afterAll, afterEach, beforeAll, describe, expect, test, vi } from 'vite
 import { addDays } from '../../shared/dates.ts'
 import { HEAT_HOLD_FLAG } from '../../shared/engine/heat.ts'
 import type { PlanWithSessions } from '../../shared/types.ts'
-import { refreshWeatherCaches, settleWeatherCache } from '../../server/services/weatherCache.ts'
+import { settleWeatherCache } from '../../server/services/weatherCache.ts'
 import { fakeFetch } from '../fakeFetch.ts'
 import {
   client,
   createTestCtx,
   expectNoRefusedFetches,
   noNetwork,
+  refreshWeatherCachesToday as refreshWeatherCaches,
   seedUser,
   type TestCtx,
   type TestUser,

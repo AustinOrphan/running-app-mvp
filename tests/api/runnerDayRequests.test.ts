@@ -15,16 +15,24 @@ import {
 
 const injected = vi.hoisted(() => ({ zone: null as string | null, echo: false }))
 
+/** The echo mode's answer: the east zone for the marker column value, the west zone otherwise. */
+function echoZone(stored: string | null | undefined): string {
+  return stored === 'Marker/Stored' ? 'Pacific/Kiritimati' : 'Pacific/Pago_Pago'
+}
+
 vi.mock('../../server/runnerDay.ts', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../server/runnerDay.ts')>()
   return {
     ...actual,
     runnerZone: (stored: string | null | undefined) =>
-      injected.echo ? `echo:${String(stored)}` : (injected.zone ?? actual.runnerZone(stored)),
+      injected.echo ? echoZone(stored) : (injected.zone ?? actual.runnerZone(stored)),
     runnerDay: (now: Date, stored: string | null | undefined) => {
-      // The echo mode returns the stored value as the zone, to show which column was read.
-      if (injected.echo)
-        return { tz: `echo:${String(stored)}`, today: isoDateInZone(now, 'UTC'), now }
+      // The echo mode answers with a zone that tells which stored value was read (a real zone,
+      // since step 3 computes slot times in the zone a request carries).
+      if (injected.echo) {
+        const tz = echoZone(stored)
+        return { tz, today: isoDateInZone(now, tz), now }
+      }
       const tz = injected.zone ?? actual.runnerZone(stored)
       return { tz, today: isoDateInZone(now, tz), now }
     },
@@ -123,7 +131,7 @@ describe('the runner day on the request', () => {
     injected.echo = true
     const res = await client(ctx, user).get('/api/today')
     expect(res.status).toBe(200)
-    expect((res.body as TodayView).tz).toBe('echo:Marker/Stored')
+    expect((res.body as TodayView).tz).toBe(EAST)
   })
 
   // Step 2b: the year of a bound or an age is the year of the runner's day. At 11:00 UTC on 31

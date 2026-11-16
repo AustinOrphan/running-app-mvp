@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import request from 'supertest'
-import { afterAll, beforeAll, beforeEach, describe, expect, test, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test, vi } from 'vitest'
 import { dataVersionKey } from '../../server/dataVersion.ts'
 import { refreshInsightsQuietly } from '../../server/services/insight.ts'
 import { runNightlyMatching } from '../../server/services/execution.ts'
@@ -15,7 +15,14 @@ import { fitHrModel } from '../../shared/engine/execution.ts'
 import { standoutFacts, STANDOUT_VERSION } from '../../shared/engine/standout.ts'
 import type { ExecutionAssessment, ExplainView, InputFact } from '../../shared/engine/types.ts'
 import type { ParsedActivity } from '../../shared/types.ts'
-import { client, createTestCtx, seedUser, type TestCtx, type TestUser } from './helpers.ts'
+import {
+  client,
+  createTestCtx,
+  expectNoRefusedFetches,
+  seedUser,
+  type TestCtx,
+  type TestUser,
+} from './helpers.ts'
 
 // The file parser's summary is a separate task; this stand-in keeps the store test independent.
 vi.mock('../../shared/importers/files/summarize.ts', () => ({
@@ -58,6 +65,10 @@ afterAll(async () => {
 beforeEach(() => {
   vi.mocked(standoutFacts).mockClear()
   vi.mocked(fitHrModel).mockClear()
+})
+
+afterEach(() => {
+  expectNoRefusedFetches(ctx)
 })
 
 let seq = 0
@@ -652,10 +663,29 @@ describe('the pipeline', () => {
     const recent = await addRun(u.id, 3, { pain: 6 })
     const old = await addRun(u.id, 30, { pain: 6 })
     const strength = await addRun(u.id, 2, { type: 'strength', pain: 6 })
-    await runNightlyMatching(ctx, { today })
+    await runNightlyMatching(ctx, { todays: new Map([[u.id, today]]) })
     expect(await stored(recent.id)).not.toBeNull()
     expect(await stored(old.id)).toBeNull()
     expect(await stored(strength.id)).toBeNull()
+  })
+
+  test('the nightly sweep gives each runner a window from their own day', async () => {
+    const early = await newUser()
+    const late = await newUser()
+    await planWith(early.id, [])
+    await planWith(late.id, [])
+    // Both runs are 5 days before the server's day: inside the window of a runner whose day is
+    // the server's, outside the window of one whose day is 4 days on.
+    const a = await addRun(early.id, 5, { pain: 6 })
+    const b = await addRun(late.id, 5, { pain: 6 })
+    await runNightlyMatching(ctx, {
+      todays: new Map([
+        [early.id, today],
+        [late.id, addDays(today, 4)],
+      ]),
+    })
+    expect(await stored(a.id)).not.toBeNull()
+    expect(await stored(b.id)).toBeNull()
   })
 
   test('a failure to describe a run never reaches the caller', async () => {

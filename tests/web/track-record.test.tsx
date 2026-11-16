@@ -650,10 +650,12 @@ describe('The result sheet', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Save result' }))
 
     const date = within(dialog).getByLabelText('Race date')
+    // The refusal arrives outside an event, so React flushes the effect that moves focus after the
+    // commit that shows the message: wait for the focus too.
     await waitFor(() => {
       expect(date).toHaveAccessibleDescription('Use a race date that has passed.')
+      expect(date).toHaveFocus()
     })
-    expect(date).toHaveFocus()
     expect(within(dialog).getByLabelText('Distance (mi)')).toHaveAccessibleDescription(
       'Enter the distance that was raced.',
     )
@@ -688,9 +690,10 @@ describe('The result sheet', () => {
       expect(select).toHaveAccessibleDescription(
         'That activity is already linked to the result of another race.',
       )
+      // focus is moved by an effect that follows the commit of the message
+      expect(select).toHaveFocus()
     })
     expect(select).toHaveAttribute('aria-invalid', 'true')
-    expect(select).toHaveFocus()
     expect(within(dialog).queryByRole('alert')).toBeNull()
   })
 

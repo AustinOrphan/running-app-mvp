@@ -301,6 +301,24 @@ describe("RacePage: the phone's copy", () => {
     expect(reads).toBe(2)
   })
 
+  test('keeps asking while the answer is still the copy, until the server answers', async () => {
+    // The `online` event can come before a request can get out: the worker then answers from the copy.
+    let reads = 0
+    mockApi({
+      'GET /api/race/plan': () => {
+        reads += 1
+        return reads <= 2
+          ? { plan: planWith(), reason: null, servedFromCache: true, savedAt: SAVED }
+          : { plan: planWith(), reason: null }
+      },
+      'GET /api/settings': () => SETTINGS,
+    })
+    renderWithProviders(<RacePage />, { route: '/race' })
+    expect(await screen.findByText(/2 days to go/, undefined, { timeout: 6000 })).toBeVisible()
+    expect(screen.queryByText(/^Offline\./)).toBeNull()
+    expect(reads).toBe(3)
+  })
+
   test('says so when the browser is offline and the copy carries no time', async () => {
     vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
     mockApi({

@@ -88,7 +88,12 @@ async function runner(email: string, garminLinked = false) {
 }
 
 function publish(u: TestUser, over: Partial<PublishOptions> = {}) {
-  return publishForUser(ctx, u.id, { fetch: fake.fetch, trigger: 'schedule', ...over })
+  return publishForUser(ctx, u.id, {
+    fetch: fake.fetch,
+    trigger: 'schedule',
+    today: todayIso(over.now),
+    ...over,
+  })
 }
 
 const at = (minutes: number): Date => new Date(NOW.getTime() + minutes * MIN)
@@ -578,7 +583,7 @@ describe('publishForUser', () => {
     // the key was left behind, so the next tick runs and decides on a plan that has settled
     const channel = await ctx.prisma.deliveryChannel.findFirstOrThrow({ where: { userId: u.id } })
     expect(channel.dataKey).toBe(keyBefore)
-    expect(await isPublishDue(ctx, channel, NOW)).toBe(true)
+    expect(await isPublishDue(ctx, channel, NOW, todayIso(NOW))).toBe(true)
     delete fake.hooks.list
     expect(await publish(u)).toMatchObject({ status: 'ok', withdrawn: 1 })
     expect(fake.events.size).toBe(1)

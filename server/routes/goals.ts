@@ -227,7 +227,7 @@ export function goalsRouter(deps: Deps): Router {
       },
     })
     // The race climate is read after the response, never during it.
-    warmWeatherCaches(deps, req.userId)
+    warmWeatherCaches(deps, req.userId, req.runnerDay.today)
     // A race entered before the goal race re-plans the active plan around it [rules K6, H12].
     await replanAfterGoalWrite(deps, {
       userId: req.userId,
@@ -295,7 +295,7 @@ export function goalsRouter(deps: Deps): Router {
       },
     })
     if (CLIMATE_FIELDS.some((field) => body[field] !== undefined)) {
-      warmWeatherCaches(deps, req.userId)
+      warmWeatherCaches(deps, req.userId, req.runnerDay.today)
     }
     await replanAfterGoalWrite(deps, {
       userId: req.userId,

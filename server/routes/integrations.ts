@@ -336,7 +336,10 @@ export function integrationsRouter(deps: Deps): Router {
     // The key is needed to take the sent sessions off the calendar, so this happens before the row
     // goes; a removal that fails answers 409 `remove-failed` and keeps the integration.
     if (registered.publish) {
-      await prepareDisconnect(deps, req.userId, { removeSent: removeSent === 'true' })
+      await prepareDisconnect(deps, req.userId, {
+        removeSent: removeSent === 'true',
+        today: req.runnerDay.today,
+      })
     }
     await prisma.integration.deleteMany({ where: { userId: req.userId, provider } })
     res.status(204).end()

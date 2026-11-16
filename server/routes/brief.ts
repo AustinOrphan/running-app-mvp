@@ -58,7 +58,11 @@ export function briefsRouter(deps: Deps): Router {
 
   router.post('/:weekStart/seen', async (req, res) => {
     const params = parse(seenParams, req.params)
-    await markBriefSeen(deps, { userId: req.userId, weekStart: params.weekStart })
+    await markBriefSeen(deps, {
+      userId: req.userId,
+      weekStart: params.weekStart,
+      tz: req.runnerDay.tz,
+    })
     res.status(204).end()
   })
 
