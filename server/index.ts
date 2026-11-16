@@ -4,6 +4,7 @@ import { createPrisma, initSqlite } from './db.ts'
 import { startScheduler } from './jobs/scheduler.ts'
 import { createLogger } from './logger.ts'
 import { installProcessErrorHandlers } from './processErrors.ts'
+import { describeZoneCutover, zoneCutoverReport } from './runnerDay.ts'
 
 loadEnvFileIfPresent()
 const config = loadConfig(process.env)
@@ -11,6 +12,13 @@ const logger = createLogger(config)
 installProcessErrorHandlers(logger)
 const prisma = createPrisma(config.databaseUrl)
 await initSqlite(prisma)
+
+// D10 step 1: read-only. Says whose day step 5 will move and who has no zone chosen.
+try {
+  logger.info(describeZoneCutover(await zoneCutoverReport(prisma)))
+} catch (error) {
+  logger.warn({ err: error }, 'D10 zone report failed')
+}
 
 const deps = { prisma, config }
 const app = createApp(deps)

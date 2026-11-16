@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test, vi } from 'vitest'
 import {
   addDays,
+  clockInZone,
   daysBetween,
   daysLeftInWeek,
   formatLongDate,
@@ -8,6 +9,7 @@ import {
   formatWeekday,
   formatWeekdayDate,
   formatWeekdayName,
+  instantAtWallTime,
   isIsoDate,
   isoDateInZone,
   localWallTime,
@@ -231,5 +233,108 @@ describe('localWallTime', () => {
     const built = construct.mock.calls.length
     expect(wallClockFormatter('Nowhere/Else')).toBe(first)
     expect(construct).toHaveBeenCalledTimes(built)
+  })
+})
+
+describe('zone clock', () => {
+  const at = (iso: string) => new Date(iso)
+
+  test('clockInZone reads the date, weekday and minute of a zone far from UTC', () => {
+    // 2026-11-16 is a Monday.
+    expect(clockInZone(at('2026-11-16T12:00:00Z'), 'Pacific/Kiritimati')).toEqual({
+      date: '2026-11-17',
+      weekday: 2,
+      minute: 120,
+    })
+    expect(clockInZone(at('2026-11-16T05:00:00Z'), 'Pacific/Pago_Pago')).toEqual({
+      date: '2026-11-15',
+      weekday: 0,
+      minute: 1080,
+    })
+  })
+
+  test('clockInZone handles offsets that are not whole hours', () => {
+    expect(clockInZone(at('2026-11-16T20:00:00Z'), 'Asia/Kathmandu')).toEqual({
+      date: '2026-11-17',
+      weekday: 2,
+      minute: 105,
+    })
+    expect(clockInZone(at('2026-11-16T03:00:00Z'), 'America/St_Johns')).toEqual({
+      date: '2026-11-15',
+      weekday: 0,
+      minute: 1410,
+    })
+  })
+
+  test('clockInZone follows a half-hour daylight saving change', () => {
+    // Lord Howe is +11 in November and +10:30 in July.
+    expect(clockInZone(at('2026-11-16T13:30:00Z'), 'Australia/Lord_Howe').minute).toBe(30)
+    expect(clockInZone(at('2026-07-15T13:30:00Z'), 'Australia/Lord_Howe')).toEqual({
+      date: '2026-07-16',
+      weekday: 4,
+      minute: 0,
+    })
+  })
+
+  test('clockInZone gives midnight as minute 0 of the new day, never minute 1440', () => {
+    expect(clockInZone(at('2026-11-16T23:00:00Z'), 'Europe/Berlin')).toEqual({
+      date: '2026-11-17',
+      weekday: 2,
+      minute: 0,
+    })
+  })
+
+  test('instantAtWallTime inverts clockInZone away from a change', () => {
+    expect(instantAtWallTime('2026-11-17', 120, 'Pacific/Kiritimati').toISOString()).toBe(
+      '2026-11-16T12:00:00.000Z',
+    )
+    expect(instantAtWallTime('2026-11-17', 105, 'Asia/Kathmandu').toISOString()).toBe(
+      '2026-11-16T20:00:00.000Z',
+    )
+    expect(instantAtWallTime('2026-11-15', 1410, 'America/St_Johns').toISOString()).toBe(
+      '2026-11-16T03:00:00.000Z',
+    )
+    expect(instantAtWallTime('2026-07-16', 0, 'Australia/Lord_Howe').toISOString()).toBe(
+      '2026-07-15T13:30:00.000Z',
+    )
+  })
+
+  test('instantAtWallTime gives the first instant after a spring-forward gap', () => {
+    // Berlin 2026-03-29: 02:00 CET becomes 03:00 CEST at 01:00Z.
+    expect(instantAtWallTime('2026-03-29', 60, 'Europe/Berlin').toISOString()).toBe(
+      '2026-03-29T00:00:00.000Z',
+    )
+    expect(instantAtWallTime('2026-03-29', 150, 'Europe/Berlin').toISOString()).toBe(
+      '2026-03-29T01:00:00.000Z',
+    )
+    expect(instantAtWallTime('2026-03-29', 180, 'Europe/Berlin').toISOString()).toBe(
+      '2026-03-29T01:00:00.000Z',
+    )
+  })
+
+  test('instantAtWallTime gives the earlier instant when a fall-back hour repeats', () => {
+    // Berlin 2026-10-25: 03:00 CEST becomes 02:00 CET at 01:00Z, so 02:30 happens at 00:30Z and 01:30Z.
+    expect(instantAtWallTime('2026-10-25', 150, 'Europe/Berlin').toISOString()).toBe(
+      '2026-10-25T00:30:00.000Z',
+    )
+    expect(instantAtWallTime('2026-10-25', 180, 'Europe/Berlin').toISOString()).toBe(
+      '2026-10-25T02:00:00.000Z',
+    )
+  })
+
+  test('the two helpers agree for every minute of a spring-forward day', () => {
+    for (let minute = 0; minute < 1440; minute += 15) {
+      const instant = instantAtWallTime('2026-03-29', minute, 'Europe/Berlin')
+      const clock = clockInZone(instant, 'Europe/Berlin')
+      if (minute >= 120 && minute < 180) expect(clock.minute).toBe(180)
+      else expect(clock.minute).toBe(minute)
+      expect(clock.date).toBe('2026-03-29')
+    }
+  })
+
+  test('both helpers throw a RangeError for an unknown zone, and clockInZone for an invalid date', () => {
+    expect(() => clockInZone(at('2026-11-16T12:00:00Z'), 'Nowhere/Land')).toThrow(RangeError)
+    expect(() => instantAtWallTime('2026-11-16', 0, 'Nowhere/Land')).toThrow(RangeError)
+    expect(() => clockInZone(new Date('nope'), 'UTC')).toThrow(RangeError)
   })
 })

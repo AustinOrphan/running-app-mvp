@@ -47,6 +47,7 @@ import type {
 import type { Deps } from '../app.ts'
 import { dataVersionKey } from '../dataVersion.ts'
 import { validationError } from '../errors.ts'
+import { serverTimeZone } from '../runnerDay.ts'
 import { isDuplicate } from '../../shared/engine/load.ts'
 import {
   athleteKey,
@@ -74,11 +75,6 @@ const SUPPORTING_KINDS: ReadonlySet<PlanSession['kind']> = new Set<PlanSession['
   'strength',
   'mobility',
 ])
-
-/** The server's IANA zone: the zone whose calendar day is "today" for every client. */
-export function serverTimeZone(): string {
-  return Intl.DateTimeFormat().resolvedOptions().timeZone
-}
 
 /**
  * Throws the 400 of the route unless `date` is `today` or at most `PREVIEW_DAYS` days after it. A

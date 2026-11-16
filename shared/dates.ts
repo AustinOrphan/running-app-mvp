@@ -128,6 +128,93 @@ export function localWallTime(iso: string, timeZone: string): string {
   return `${get('year')}-${get('month')}-${get('day')}T${get('hour')}:00:00`
 }
 
+const zoneClockFormatters = new Map<string, Intl.DateTimeFormat>()
+
+function zoneClockFormatter(tz: string): Intl.DateTimeFormat {
+  const cached = zoneClockFormatters.get(tz)
+  if (cached !== undefined) return cached
+  let formatter: Intl.DateTimeFormat
+  try {
+    formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: tz,
+      hourCycle: 'h23',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    })
+  } catch {
+    throw new RangeError(`Invalid time zone: ${JSON.stringify(tz)}`)
+  }
+  zoneClockFormatters.set(tz, formatter)
+  return formatter
+}
+
+/** The wall clock of `ms` in `tz`, read back as if it were UTC (whole seconds). */
+function wallAsUtcMs(ms: number, tz: string): number {
+  const parts = zoneClockFormatter(tz).formatToParts(Math.floor(ms / 1000) * 1000)
+  const get = (type: string) => Number(parts.find((p) => p.type === type)?.value ?? '0')
+  return Date.UTC(
+    get('year'),
+    get('month') - 1,
+    get('day'),
+    get('hour'),
+    get('minute'),
+    get('second'),
+  )
+}
+
+/** The zone's offset from UTC at `ms`, in milliseconds (east positive). */
+function offsetMsAt(ms: number, tz: string): number {
+  return wallAsUtcMs(ms, tz) - Math.floor(ms / 1000) * 1000
+}
+
+/**
+ * The wall clock of `tz` at `now`: the calendar date, the weekday (0 Sunday to 6 Saturday) and the
+ * minute of the day (0 to 1439). Reads no machine zone. Throws a RangeError for an unknown zone or
+ * an invalid `now`.
+ */
+export function clockInZone(
+  now: Date,
+  tz: string,
+): { date: string; weekday: number; minute: number } {
+  if (Number.isNaN(now.getTime())) throw new RangeError('Invalid date')
+  const wallMs = wallAsUtcMs(now.getTime(), tz)
+  const wall = new Date(wallMs)
+  return {
+    date: format(Math.floor(wallMs / MS_PER_DAY) * MS_PER_DAY),
+    weekday: wall.getUTCDay(),
+    minute: wall.getUTCHours() * 60 + wall.getUTCMinutes(),
+  }
+}
+
+/**
+ * The first instant whose wall clock in `tz` reads `date` at `minute` of the day. When the wall time
+ * occurs twice (clocks going back) it is the earlier instant; when it does not occur (clocks going
+ * forward) it is the first instant after the gap. Throws a RangeError for an unknown zone.
+ */
+export function instantAtWallTime(date: string, minute: number, tz: string): Date {
+  const wall = parse(date) + minute * 60_000
+  // The offsets in force a day either side bracket every change that can touch this wall time.
+  const before = offsetMsAt(wall - MS_PER_DAY, tz)
+  const after = offsetMsAt(wall + MS_PER_DAY, tz)
+  const candidates = [...new Set([before, after])]
+    .map((offset) => wall - offset)
+    .filter((ms) => wallAsUtcMs(ms, tz) === wall)
+  if (candidates.length > 0) return new Date(Math.min(...candidates))
+  // In a gap: bisect, to the minute, for the first instant that already has the later offset.
+  let low = wall - Math.max(before, after)
+  let high = wall - Math.min(before, after)
+  while (high - low > 60_000) {
+    const mid = low + Math.max(1, Math.floor((high - low) / 2 / 60_000)) * 60_000
+    if (offsetMsAt(mid, tz) === after) high = mid
+    else low = mid
+  }
+  return new Date(high)
+}
+
 /** Mondays from mondayOf(from) to mondayOf(to), inclusive; empty when `from` is after `to`. */
 export function weekStartsBetween(from: string, to: string): string[] {
   const first = mondayOf(from)
