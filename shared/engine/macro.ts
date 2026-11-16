@@ -1297,11 +1297,7 @@ function planWeeks(
       ? floorEps(((caps.distanceM - 50) * runPace) / 60_000)
       : Infinity
     const longCap = Math.min(peakLong, caps.min, distanceCapMin)
-    // the repeat carries the long run its loading week was planned with, inside the same limits
-    const rawLong =
-      i === 0 && breaking && !ph.isRecovery
-        ? Math.max(floorEps(start * share), input.breakWeek!.plannedLongMin)
-        : floorEps(start * share)
+    const rawLong = floorEps(start * share)
     // A week of a start path is its programme, every session held to the 30-day limit of G-1 as a
     // hard bound [rules E6, g-1]; the first week is the baseline the ramp measures from.
     const step = restart === null || i >= startWeeks ? null : (schedule.steps[i] ?? null)

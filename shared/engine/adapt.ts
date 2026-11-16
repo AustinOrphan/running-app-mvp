@@ -418,8 +418,8 @@ export function hasHeatHold(decision: Pick<WeeklyDecision, 'decision' | 'signals
 export function isHeatOnlyHold(decision: Pick<WeeklyDecision, 'decision' | 'signals'>): boolean {
   return (
     decision.decision === 'hold' &&
-    decision.signals.length === 1 &&
-    decision.signals[0]!.code === 'heat'
+    decision.signals.filter((s) => s.code !== BREAK_SIGNAL).length === 1 &&
+    decision.signals.some((s) => s.code === 'heat')
   )
 }
 
@@ -432,7 +432,6 @@ const BREAK_COMPATIBLE_HOLDS: ReadonlySet<string> = new Set([
   'completion-low',
   'sleep-warning',
   'pain-mild',
-  'heat',
 ])
 
 /** Progress, hold or reduce from execution, check-ins, efficiency, sleep and HRV [rules J5, G-6]. */

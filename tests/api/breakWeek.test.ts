@@ -169,6 +169,12 @@ describe('the weekly re-plan after a loading week run far under its target', () 
     assertCleanCopy(made.summary, 'revision summary')
     expect(made.decision).toMatchObject({ decision: 'progress', nextWeekTargetMin: plannedMin })
 
+    const review = await client(ctx, u).get(`/api/reviews?from=${FIRST}&to=${FIRST}`)
+    const [first] = review.body as Array<{ reason?: string; suggestedAction?: string }>
+    expect(JSON.stringify(review.body)).toContain('counts as the recovery week')
+    expect(JSON.stringify(review.body)).not.toContain('support a small increase')
+    expect(first).toBeDefined()
+
     const repeat = await weekRow(plan.id, MONDAY)
     expect(repeat.isRecovery).toBe(false)
     expect(JSON.parse(repeat.flags)).toContain(BREAK_REPEAT_FLAG)

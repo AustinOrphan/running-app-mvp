@@ -447,7 +447,11 @@ describe('facts', () => {
     // every signal code the weekly decision can emit has a phrase or is handled on its own
     const handled = new Set(['post-race-stage', 'post-race-delayed', 'reds'])
     const adapt = readFileSync(join(process.cwd(), 'shared/engine/adapt.ts'), 'utf8')
-    const codes = [...adapt.matchAll(/code: '([a-z-]+)'/g)].map((m) => m[1]!)
+    const breakCopy = readFileSync(join(process.cwd(), 'shared/copy/breakWeek.ts'), 'utf8')
+    const codes = [
+      ...adapt.matchAll(/code: '([a-z-]+)'/g),
+      ...breakCopy.matchAll(/BREAK_SIGNAL = '([a-z-]+)'/g),
+    ].map((m) => m[1]!)
     expect(codes.length).toBeGreaterThan(10)
     const unmapped = codes.filter((c) => !handled.has(c) && !Object.hasOwn(SIGNAL_WORDS, c))
     expect(unmapped).toEqual([])

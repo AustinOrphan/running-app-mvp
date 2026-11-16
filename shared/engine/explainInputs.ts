@@ -1340,6 +1340,7 @@ export const SIGNAL_WORDS: Readonly<Record<string, string>> = {
   'readiness-flag': 'readiness flags on several days',
   'hrv-suppressed': 'HRV that stayed below your usual range',
   heat: 'the first hot days of the season',
+  'break-recovery': 'a week run at half its target or less, which counts as the recovery week',
   'completion-low': 'less running than planned so far',
   'sleep-warning': 'short sleep',
   disruption: 'days covered by a rest window',

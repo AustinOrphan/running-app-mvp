@@ -5,7 +5,7 @@ import { lintText } from '../../../shared/copy/lint.ts'
 import { BREAK_REPEAT_FOCUS, BREAK_SIGNAL_DETAIL } from '../../../shared/copy/breakWeek.ts'
 import { breakRepeatSummary } from '../../../shared/copy/revision.ts'
 import { addDays, mondayOf } from '../../../shared/dates.ts'
-import { weeklyDecision } from '../../../shared/engine/adapt.ts'
+import { isHeatOnlyHold, weeklyDecision } from '../../../shared/engine/adapt.ts'
 import { estimateState } from '../../../shared/engine/athlete.ts'
 import { BREAK_REPEAT_FLAG, breakWeekOf } from '../../../shared/engine/breakWeek.ts'
 import { buildPlan, replan, weeklyRamp } from '../../../shared/engine/index.ts'
@@ -339,6 +339,47 @@ describe('the re-plan after a week that counts as the recovery week', () => {
     expect(week.targetRunMin).toBeLessThanOrEqual(earlier.targetRunMin)
     expect(week.targetRunMin).toBeGreaterThan(0)
     expect(out.draft.checklist.filter((c) => !c.ok)).toEqual([])
+  })
+})
+
+describe('the guards of the repeat', () => {
+  it('leaves the first hot days to their own hold: no repeat beside the heat', () => {
+    const state = estimateState(scenario(0.28))
+    const d = weeklyDecision(scenario(0.28), LAST, {
+      ramp: weeklyRamp(state),
+      rebuild: rebuildZone(scenario(0.28), state),
+      heatFirstDays: true,
+    })
+    expect(d.breakRepeat).toBeUndefined()
+    expect(d.signals.map((s) => s.code)).toContain('heat')
+  })
+
+  it('does not announce a repeat when the next week is the taper, a race week or none', () => {
+    const asTaper = plan.weeks.map((w) =>
+      w.weekStart === MONDAY ? { ...w, isTaper: true, phase: 'taper' as const } : w,
+    )
+    expect(decide(scenario(0.28, {}, asTaper)).breakRepeat).toBeUndefined()
+    const asRace = plan.weeks.map((w) =>
+      w.weekStart === MONDAY ? { ...w, phase: 'race' as const } : w,
+    )
+    expect(decide(scenario(0.28, {}, asRace)).breakRepeat).toBeUndefined()
+    expect(
+      decide(
+        scenario(
+          0.28,
+          {},
+          plan.weeks.filter((w) => w.weekStart !== MONDAY),
+        ),
+      ).breakRepeat,
+    ).toBeUndefined()
+  })
+
+  it('reads heat-only holds past the break signal', () => {
+    const signal = (code: string) => ({ code, detail: '', rules: [] })
+    expect(
+      isHeatOnlyHold({ decision: 'hold', signals: [signal('break-recovery'), signal('heat')] }),
+    ).toBe(true)
+    expect(isHeatOnlyHold({ decision: 'hold', signals: [signal('break-recovery')] })).toBe(false)
   })
 })
 
