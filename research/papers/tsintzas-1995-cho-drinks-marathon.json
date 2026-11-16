@@ -1,0 +1,32 @@
+{
+  "id": "tsintzas-1995-cho-drinks-marathon",
+  "title": "Influence of carbohydrate-electrolyte drinks on marathon running performance",
+  "authors": "Tsintzas OK, Williams C, Singh R, Wilson W, Burrin J",
+  "year": 1995,
+  "journal": "European Journal of Applied Physiology and Occupational Physiology",
+  "doi": "10.1007/bf00361543",
+  "pmid": "7768238",
+  "url": "https://doi.org/10.1007/bf00361543",
+  "design": "rct",
+  "population": "7 endurance-trained runners in three randomised 42.2-km treadmill time trials 4 weeks apart (about 190 to 194 min)",
+  "sampleSize": 7,
+  "evidenceLevel": "C",
+  "topics": ["road-racing", "ultra-nutrition"],
+  "findings": [
+    "The runners drank 3 mL/kg of water, a 6.9% carbohydrate solution or a 5.5% carbohydrate solution before the start and 2 mL/kg every 5 km; total volume was about 1.1 L in each.",
+    "Times were 193.9 +/- 5.0 (water), 192.4 +/- 3.3 (6.9%) and 190.0 +/- 3.9 min (5.5%); the 5.5% trial was faster than water (P < 0.05).",
+    "Running speed was maintained in the 5.5% trial, whereas it fell after 10 km on water and after 25 km on the 6.9% solution (P < 0.05)."
+  ],
+  "limitations": "Seven runners on a treadmill; a 3 h 10 min effort, faster than most recreational marathons but far slower than elite; about 1.1 L of drink in total, so a small dose by current practice; the abstract does not state grams per hour (computing about 60 g in total from volume and concentration is arithmetic, not a stated result); the abstract was truncated by the indexer.",
+  "implications": [
+    "With a small carbohydrate dose, the best-fed arm held speed through a 3 h 10 min marathon-length run and finished about 2% faster than water. Older and small; supports 'some carbohydrate helps in a marathon-length effort' and gives no rate."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref matches (EJAP 70:154-160, 1995). Abstract read on Europe PMC, which truncates it at 250 words ('ABSTRACT TRUNCATED'); findings use only the part shown. Crossref lists no correction, erratum or retraction notice (checked 2026-11-16).",
+    "checkedAt": "2026-11-16"
+  }
+}

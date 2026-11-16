@@ -1,0 +1,32 @@
+{
+  "id": "dion-2013-half-marathon-thirst-fluid",
+  "title": "Half-marathon running performance is not improved by a rate of fluid intake above that dictated by thirst sensation in trained distance runners",
+  "authors": "Dion T, Savoie FA, Asselin A, Gariepy C, Goulet ED",
+  "year": 2013,
+  "journal": "European Journal of Applied Physiology",
+  "doi": "10.1007/s00421-013-2730-8",
+  "pmid": "24085484",
+  "url": "https://doi.org/10.1007/s00421-013-2730-8",
+  "design": "experimental-crossover",
+  "population": "10 trained distance runners in two randomised 21.1-km treadmill time trials at 30 C and 42% relative humidity",
+  "sampleSize": 10,
+  "evidenceLevel": "C",
+  "topics": ["road-racing", "heat-weather", "ultra-nutrition"],
+  "findings": [
+    "Programmed fluid intake (about 1,380 mL/h, to keep body mass loss under 2%) reduced dehydration from 3.1 to 1.3% body weight, rectal temperature from 39.4 to 39.1 C and heart rate from 175 to 171 bpm compared with thirst-driven drinking (about 384 mL/h).",
+    "Half-marathon time did not differ between trials (thirst-driven 89.8 +/- 7.7 min, programmed 89.6 +/- 7.7 min), nor did pace.",
+    "The authors conclude that programmed fluid intake offers no performance benefit over thirst-driven drinking during a half marathon in warm conditions."
+  ],
+  "limitations": "Ten trained runners (about 90 min), on a treadmill; water only, so the study says nothing about carbohydrate drinks; a 1,380 mL/h programme is far above what a recreational road runner would drink.",
+  "implications": [
+    "In a warm half marathon at about 90 min, drinking to thirst (about 3% body-mass loss) was as fast as drinking about 1.4 L/h. Supports 'drink to thirst' wording for the half and does not support forcing fluid."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref matches (EJAP 113:3011-3020). Abstract read on Europe PMC and PubMed (PubMed used for the '<2%' symbols). Crossref lists no correction, erratum or retraction notice (checked 2026-11-16).",
+    "checkedAt": "2026-11-16"
+  }
+}

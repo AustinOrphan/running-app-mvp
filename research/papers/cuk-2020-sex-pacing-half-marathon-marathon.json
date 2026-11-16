@@ -1,0 +1,32 @@
+{
+  "id": "cuk-2020-sex-pacing-half-marathon-marathon",
+  "title": "Sex differences in pacing during half-marathon and marathon race",
+  "authors": "Cuk I, Nikolaidis PT, Knechtle B",
+  "year": 2020,
+  "journal": "Research in Sports Medicine",
+  "doi": "10.1080/15438627.2019.1593835",
+  "pmid": "30897961",
+  "url": "https://doi.org/10.1080/15438627.2019.1593835",
+  "design": "retrospective-cohort",
+  "population": "17,525 finishers of the 2017 Vienna City Marathon (4,807 men and 1,278 women) and half marathon (7,624 men and 3,816 women), five race segments",
+  "sampleSize": 17525,
+  "evidenceLevel": "C",
+  "topics": ["road-racing", "performance-prediction"],
+  "findings": [
+    "Absolute average change of speed across five race segments was 5.46% (men) and 4.12% (women) in the marathon.",
+    "It was 3.60% (men) and 3.36% (women) in the half marathon: pacing was more even in the half marathon in both sexes.",
+    "The sex difference in pacing was smaller in the half marathon than in the marathon."
+  ],
+  "limitations": "One race, one year; city-marathon field; no finishing-time strata in the abstract; average change of speed is a summary of variability, not a measure of second-half slowing.",
+  "implications": [
+    "Half-marathon pacing is more even than marathon pacing in a mass-participation field; speed varies about 3.4 to 3.6% across segments in the half against 4.1 to 5.5% in the marathon. Supports keeping a first-half pacing line to the marathon and not extending it to the half."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref matches (Res Sports Med 28:111-120; online 2019-03-21, volume year 2020). Abstract read on Europe PMC. Crossref lists no correction, erratum or retraction notice (checked 2026-11-16).",
+    "checkedAt": "2026-11-16"
+  }
+}

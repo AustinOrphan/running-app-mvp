@@ -1,0 +1,33 @@
+{
+  "id": "march-2011-marathon-pacing-age-sex-time",
+  "title": "Age, Sex, and Finish Time as Determinants of Pacing in the Marathon",
+  "authors": "March DS, Vanderburgh PM, Titlebaum PJ, Hoops ML",
+  "year": 2011,
+  "journal": "Journal of Strength and Conditioning Research",
+  "doi": "10.1519/jsc.0b013e3181bffd0f",
+  "pmid": "20224445",
+  "url": "https://doi.org/10.1519/jsc.0b013e3181bffd0f",
+  "design": "retrospective-cohort",
+  "population": "186 men and 133 women finishers of three editions (2005-2007) of a midwestern U.S. marathon on a 1.6 km loop course; ambient temperature never above 5 C",
+  "sampleSize": 319,
+  "evidenceLevel": "C",
+  "topics": ["road-racing", "performance-prediction"],
+  "findings": [
+    "Pacing was defined as the mean velocity of the last 9.7 km divided by that of the first 32.5 km (closer to 1.0 is better pacing).",
+    "Age, sex and run time each were significant independent determinants of pacing in a multiple regression.",
+    "The authors conclude that older, women and faster runners were better pacers than younger, men and slower marathoners, respectively.",
+    "Ambient temperature never exceeded 5 C, so hyperthermia was not expected to affect pacing."
+  ],
+  "limitations": "Cool conditions only; one loop course with pace markers; 319 finishers from one race; the regression coefficients are not legible in the abstract (symbols lost in the indexed text), so only the direction is recorded; association, not a trial of any pacing instruction.",
+  "implications": [
+    "Descriptive support that slower finishers hold pace less well over the last quarter of a marathon than faster finishers, in the cool. It is not a target shape and gives no per-kilometre pace."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref matches title, journal, year, authors (JSCR 25:386-391). Abstract read on Europe PMC and PubMed; the regression statistics are garbled in the indexed abstract, so no coefficient is quoted. Crossref lists no correction, erratum or retraction notice (checked 2026-11-16).",
+    "checkedAt": "2026-11-16"
+  }
+}

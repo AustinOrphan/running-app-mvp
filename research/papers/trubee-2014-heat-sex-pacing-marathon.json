@@ -1,0 +1,34 @@
+{
+  "id": "trubee-2014-heat-sex-pacing-marathon",
+  "title": "Effects of Heat Stress and Sex on Pacing in Marathon Runners",
+  "authors": "Trubee NW, Vanderburgh PM, Diestelkamp WS, Jackson KJ",
+  "year": 2014,
+  "journal": "Journal of Strength and Conditioning Research",
+  "doi": "10.1519/jsc.0000000000000295",
+  "pmid": "24149746",
+  "url": "https://doi.org/10.1519/jsc.0000000000000295",
+  "design": "retrospective-cohort",
+  "population": "22,990 men and 13,233 women at the 2007 and 2009 Chicago marathons (mean ambient temperature 26.67 C and 2.77 C), 5-km splits",
+  "sampleSize": 36223,
+  "evidenceLevel": "C",
+  "topics": ["road-racing", "heat-weather", "performance-prediction"],
+  "findings": [
+    "Pacing was the mean velocity of the last 12.2 km divided by that of the first 30 km.",
+    "Age, sex, heat stress and overall finish time were each simultaneous independent elements of pacing (p < 0.01).",
+    "Non-elite women paced better than non-elite men in both marathons, and the sex difference was larger in the warm race.",
+    "Elite men and women had better pacing than their non-elite counterparts, and no difference was found between elite men and women.",
+    "The authors advise coaches of novice runners to use a slower initial velocity in hotter temperatures to maintain or increase velocity later in the race."
+  ],
+  "limitations": "Two races only (one hot, one cold), so heat stress is confounded with year and course conditions; temperature is the race mean, not a WBGT; the advice in the abstract is the authors' recommendation, not a tested intervention.",
+  "implications": [
+    "In the warm Chicago race the late-race slowing of non-elite runners was greater, and heat was an independent element of pacing. Supports one line that heat raises the cost of a fast start; no figure."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref matches (JSCR 28:1673-1678). Abstract read on Europe PMC. Crossref lists no correction, erratum or retraction notice (checked 2026-11-16).",
+    "checkedAt": "2026-11-16"
+  }
+}

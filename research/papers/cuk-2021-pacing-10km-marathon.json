@@ -1,0 +1,32 @@
+{
+  "id": "cuk-2021-pacing-10km-marathon",
+  "title": "Pacing in Long-Distance Running: Sex and Age Differences in 10-km Race and Marathon",
+  "authors": "Cuk I, Nikolaidis PT, Villiger E, Knechtle B",
+  "year": 2021,
+  "journal": "Medicina",
+  "doi": "10.3390/medicina57040389",
+  "pmid": "33920504",
+  "url": "https://doi.org/10.3390/medicina57040389",
+  "design": "retrospective-cohort",
+  "population": "Official results of the Oslo marathon (n = 8,828) and 10-km race (n = 16,315), 2015 to 2018",
+  "sampleSize": 25143,
+  "evidenceLevel": "C",
+  "topics": ["road-racing", "performance-prediction"],
+  "findings": [
+    "Both 10-km runners and marathoners showed positive pacing strategies (slower later in the race).",
+    "Women slowed less than men in the marathon (9.85% against 12.70%) but not in the 10-km race (3.99% against 3.38%).",
+    "Pace change was more marked in the youngest and the oldest marathoners than in the other age groups (12.55% against 10.96%)."
+  ],
+  "limitations": "Four editions of one city's events; results data only (no weather, effort or training); the abstract does not say how the slowing percentage is computed beyond 'positive pacing'.",
+  "implications": [
+    "At 10 km the typical slowing is about 3 to 4%, against about 10 to 13% in the marathon, so a first-half pacing line is a marathon matter. Supports giving a 10 km goal the time, pace and heat blocks without a split or fade line."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref matches (Medicina 57:389). Abstract read on Europe PMC. Crossref lists no correction, erratum or retraction notice (checked 2026-11-16).",
+    "checkedAt": "2026-11-16"
+  }
+}

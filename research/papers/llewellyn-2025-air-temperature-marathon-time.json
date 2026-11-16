@@ -1,0 +1,32 @@
+{
+  "id": "llewellyn-2025-air-temperature-marathon-time",
+  "title": "The effects of air temperature on marathon finishing time in elite and average runners",
+  "authors": "Llewellyn TL, Maceri RM",
+  "year": 2025,
+  "journal": "Journal of Sports Sciences",
+  "doi": "10.1080/02640414.2025.2513167",
+  "pmid": "40449013",
+  "url": "https://doi.org/10.1080/02640414.2025.2513167",
+  "design": "retrospective-cohort",
+  "population": "Finishing times of the top 10 men, top 10 women and the median finisher at six marathons since their inception (Boston, Lincoln, Grandma's, Berlin, Chicago, New York City) against air temperature",
+  "sampleSize": null,
+  "evidenceLevel": "C",
+  "topics": ["road-racing", "heat-weather"],
+  "findings": [
+    "In almost all races, higher temperatures were correlated with longer finishing time in the median runner and the top 10 men.",
+    "Temperature had no correlation with finishing time in the top 10 women in 5 of 6 marathons.",
+    "Only Berlin has warmed significantly since its inception."
+  ],
+  "limitations": "Correlations of one summary time per race and year with air temperature (no WBGT), so no slope per degree is stated in the abstract and any multiplier would be unsupported; six races, mostly large Northern Hemisphere events.",
+  "implications": [
+    "A second marathon series with the median finisher in it (the first being Ely 2007): hotter races went with slower median times. Supports the direction for the average runner; no number."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref matches (J Sports Sci 43:1587-1594, online 2025-05-31). Abstract read on Europe PMC. Crossref lists no correction, erratum or retraction notice (checked 2026-11-16).",
+    "checkedAt": "2026-11-16"
+  }
+}

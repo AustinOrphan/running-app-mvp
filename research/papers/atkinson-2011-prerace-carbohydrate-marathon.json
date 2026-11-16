@@ -1,0 +1,33 @@
+{
+  "id": "atkinson-2011-prerace-carbohydrate-marathon",
+  "title": "Pre-Race Dietary Carbohydrate Intake Can Independently Influence Sub-Elite Marathon Running Performance",
+  "authors": "Atkinson G, Taylor CE, Morgan N, Ormond LR, Wallis GA",
+  "year": 2011,
+  "journal": "International Journal of Sports Medicine",
+  "doi": "10.1055/s-0031-1273739",
+  "pmid": "21590642",
+  "url": "https://doi.org/10.1055/s-0031-1273739",
+  "design": "prospective-cohort",
+  "population": "257 competitors in the 2009 London Marathon (mean age 39 +/- 8 years, mean finish time 273.8 +/- 59.5 min) who logged anthropometry, training and nutrition online",
+  "sampleSize": 257,
+  "evidenceLevel": "C",
+  "topics": ["road-racing", "ultra-nutrition"],
+  "findings": [
+    "Sex, body mass index, training distance and the carbohydrate eaten the day before the race were significant predictors of running speed; together they accounted for 56% of the inter-individual variability (P < 0.0005).",
+    "The slope for the day-before carbohydrate was B = 0.08 to 0.26 km/h per unit.",
+    "Runners who ate more than 7 g/kg body mass of carbohydrate the day before had faster overall race speeds (P = 0.01) and kept their speed during the race to a greater extent (P = 0.02) than those who ate less than 7 g/kg.",
+    "The authors conclude that pre-race-day carbohydrate intake can independently influence marathon performance."
+  ],
+  "limitations": "Observational with self-recorded diet and online data collection; the high-intake group may differ in other ways (a faster, more experienced group); the unit of the slope is not stated in the abstract; the finishing time of the mean runner (4.6 h) is slower than the typical engine goal.",
+  "implications": [
+    "A day-before intake above about 7 g/kg went with faster marathon speed and less fade in 257 mostly slower runners. This sits under the existing K6 race-week carbohydrate line (8 to 10 g/kg); it supports the direction, not a higher number, and does not support in-race rates."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref matches (IJSM 32:611-617). Abstract read on Europe PMC and PubMed (PubMed text used for the P values, which Europe PMC garbled). Crossref lists no correction, erratum or retraction notice (checked 2026-11-16).",
+    "checkedAt": "2026-11-16"
+  }
+}

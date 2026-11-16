@@ -1,0 +1,34 @@
+{
+  "id": "adams-2017-falmouth-pace-deviation",
+  "title": "Deviation from goal pace, body temperature and body mass loss as predictors of road race performance",
+  "authors": "Adams WM, Hosokawa Y, Belval LN, Huggins RA, Stearns RL, Casa DJ",
+  "year": 2017,
+  "journal": "Journal of Science and Medicine in Sport",
+  "doi": "10.1016/j.jsams.2016.07.009",
+  "pmid": "27720128",
+  "url": "https://doi.org/10.1016/j.jsams.2016.07.009",
+  "design": "prospective-cohort",
+  "population": "Active runners with a gastrointestinal temperature pill and a GPS heart-rate watch in the 2014 Falmouth Road Race (11.3 km, warm weather)",
+  "sampleSize": null,
+  "evidenceLevel": "C",
+  "topics": ["road-racing", "heat-weather"],
+  "findings": [
+    "Percent off predicted pace was calculated for seven segments of the race.",
+    "Percent off predicted pace during the first mile significantly predicted overall finish time (R2 = 0.64).",
+    "Larger percent body mass loss was associated with faster finish times (R2 = 0.19, p = 0.018) and faster average pace (R2 = 0.29, p = 0.012).",
+    "Gastrointestinal temperature at the finish was not predictive of finish time (p > 0.05); there was a trend to a slower pace in runners finishing at 40 C or above.",
+    "Overall, finish time was influenced by greater variations in pace during the first two miles; runners who minimised fluid losses and had lower gastrointestinal temperature were associated with meeting self-predicted goals."
+  ],
+  "limitations": "The sample size and the confidence intervals are not in the abstract (the record's sampleSize is null for that reason); one 11.3 km race in the warm; the body-mass-loss and goal-pace results are associations in a self-selected sample.",
+  "implications": [
+    "The only 10 km-class road race record in the corpus with pace by segment: in a warm 11.3 km race the first two miles' deviation from predicted pace, not later pace, tracked the finish time. Weak support for a 10 km pacing sentence about the opening; says nothing on fluid targets (body mass loss went with faster finishes)."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref matches (JSAMS 20:302-306). Abstract read on Europe PMC; the percent-sign text after 'R2 = 0.64' is garbled in the indexed abstract and the p value there is omitted. Crossref lists no correction, erratum or retraction notice (checked 2026-11-16).",
+    "checkedAt": "2026-11-16"
+  }
+}

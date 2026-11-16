@@ -1,0 +1,32 @@
+{
+  "id": "santos-lozano-2014-nyc-marathon-pacing",
+  "title": "Influence of Sex and Level on Marathon Pacing Strategy. Insights from the New York City Race",
+  "authors": "Santos-Lozano A, Collado PS, Foster C, Lucia A, Garatachea N",
+  "year": 2014,
+  "journal": "International Journal of Sports Medicine",
+  "doi": "10.1055/s-0034-1367048",
+  "pmid": "24886929",
+  "url": "https://doi.org/10.1055/s-0034-1367048",
+  "design": "retrospective-cohort",
+  "population": "190,228 New York City Marathon finishers (69,316 women), 2006 to 2011, 5-km splits",
+  "sampleSize": 190228,
+  "evidenceLevel": "C",
+  "topics": ["road-racing", "performance-prediction"],
+  "findings": [
+    "All runners developed a positive pace profile (slower in the second half).",
+    "Variability of speed across 5-km splits was lower in the top runners (coefficient of variation 7.8% men and 6.6% women) than in the less successful runners (coefficient of variation 8.3 to 14.4%).",
+    "Both men and women tried to hold an even pace profile, partly by avoiding an excessively fast start that might produce a pronounced fall in speed in the second half."
+  ],
+  "limitations": "Retrospective results data; no weather, effort or training data; split-based variability confounds pacing with fatigue and course; the abstract gives no per-finishing-time split table.",
+  "implications": [
+    "The largest road marathon pacing sample in the corpus: at every level the average finisher slowed, and less variable speed went with faster finishing. Supports a plain sentence that an even pace is the norm among faster finishers; it does not prove that an even pace causes a faster finish."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref matches (IJSM 35:933-938, online 2014-06-02). Abstract read on Europe PMC. Crossref lists no correction, erratum or retraction notice (checked 2026-11-16).",
+    "checkedAt": "2026-11-16"
+  }
+}
