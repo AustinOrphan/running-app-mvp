@@ -362,13 +362,15 @@ type SleepRow = { sleepSec?: number | null; inBedSec?: number | null }
 /**
  * Sleep efficiency of one night in percent: sleep over time in bed, on a night with both [rule J5].
  * Null without both, and null when more sleep than time in bed is stored (the importers store no
- * time in bed then, and a value edited later is not trusted either).
+ * time in bed then, and a value edited later is not trusted either) and when the efficiency is
+ * under `j5.sleepEffFloorPct`, a bad pair of values rather than a night.
  */
 export function sleepEfficiencyOf(row: SleepRow | undefined): number | null {
   const sleep = validPositive(row?.sleepSec)
   const inBed = validPositive(row?.inBedSec)
   if (sleep === null || inBed === null || sleep > inBed) return null
-  return (sleep / inBed) * 100
+  const eff = (sleep / inBed) * 100
+  return eff < P.j5.sleepEffFloorPct.value ? null : eff
 }
 
 /** What the sleep-efficiency signal of rule J5 reads on a date, and whether it is active. */

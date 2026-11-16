@@ -256,6 +256,17 @@ export const jAdapt = {
         note: "Default: a drop of about 2 pp in the mean sleep efficiency of the last j5.reducePersistDays nights below the runner's own baseline counts as one signal. The review finds it consistent with overreaching and not a validated trigger.",
       },
     ),
+    sleepEffFloorPct: param(
+      'j5.sleepEffFloorPct',
+      50,
+      'D',
+      'J5',
+      ['murphy-2024-overreaching-sleep'],
+      {
+        unit: '% efficiency',
+        note: 'Default: a night with an efficiency under this is read as a bad pair of values (two devices, a split night) and left out; no study sets the number. Above 100 % is excluded because sleep cannot exceed time in bed.',
+      },
+    ),
     sleepEffMinNights: param(
       'j5.sleepEffMinNights',
       4,

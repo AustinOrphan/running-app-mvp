@@ -46,6 +46,13 @@ describe('sleepEfficiencyOf', () => {
     expect(sleepEfficiencyOf({ sleepSec: 0, inBedSec: 8 * 3600 })).toBeNull()
     expect(sleepEfficiencyOf({ sleepSec: 9 * 3600, inBedSec: 8 * 3600 })).toBeNull()
   })
+
+  it('leaves out an efficiency under the floor as a bad pair, and keeps one at the floor', () => {
+    const floor = P.j5.sleepEffFloorPct.value
+    expect(sleepEfficiencyOf({ sleepSec: 100 * (floor - 1), inBedSec: 10_000 })).toBeNull()
+    expect(sleepEfficiencyOf({ sleepSec: 100 * floor, inBedSec: 10_000 })).toBe(floor)
+    expect(sleepEfficiencyOf({ sleepSec: 10_000, inBedSec: 10_000 })).toBe(100)
+  })
 })
 
 describe('sleepEfficiencyDrop (rule J5)', () => {
@@ -131,6 +138,12 @@ describe('weeklyDecision reads the sleep-efficiency drop from the stored nights'
       wellnessDay(addDays(END, -k), { sleepSec: 7 * 3600 }),
     )
     expect(run(rows)).not.toContain('sleep-efficiency-drop')
+  })
+
+  it('holds the week on this signal alone', () => {
+    const d = weeklyDecision(input({ today: addDays(END, 1), wellness: series(88) }), WEEK)
+    expect(d.signals.map((s) => s.code)).toEqual(['sleep-efficiency-drop'])
+    expect(d.decision).toBe('hold')
   })
 
   it('lets the caller pass the figure, null included', () => {

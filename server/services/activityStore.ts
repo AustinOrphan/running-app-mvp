@@ -580,7 +580,8 @@ function wellnessValue(field: (typeof WELLNESS_FIELDS)[number], value: number): 
  * Upserts wellness rows by date and returns how many rows were written. A null field never
  * overwrites a stored value. A row the owner entered by hand (`source 'manual'`) only gains the
  * fields it lacks and stays manual; any other row takes the incoming non-null fields and the
- * incoming source. A row with no values at all is skipped.
+ * incoming source. A row with no values at all is skipped. Sleep and time in bed are written as
+ * a pair: see the comment at the merge.
  */
 export async function storeWellness(
   deps: Deps,
@@ -615,10 +616,23 @@ export async function storeWellness(
         }
 
         const manual = existing.source === 'manual'
-        const data: Partial<Record<(typeof WELLNESS_FIELDS)[number], number>> = {}
+        const data: Partial<Record<(typeof WELLNESS_FIELDS)[number], number | null>> = {}
         for (const field of incoming) {
+          if (field === 'inBedSec') continue
           if (manual && existing[field] !== null) continue
           data[field] = wellnessValue(field, row[field] as number)
+        }
+        // Sleep and time in bed are a pair from one import (rule J5): a write that sets the sleep
+        // sets the time in bed to the incoming value, null when the source has none, so a stored
+        // pair never mixes two sources. A time in bed that arrives alone is kept only beside no sleep.
+        if (data.sleepSec !== undefined) {
+          data.inBedSec = row.inBedSec != null ? wellnessValue('inBedSec', row.inBedSec) : null
+        } else if (
+          row.inBedSec != null &&
+          existing.sleepSec === null &&
+          existing.inBedSec === null
+        ) {
+          data.inBedSec = wellnessValue('inBedSec', row.inBedSec)
         }
         if (Object.keys(data).length === 0) continue
         await tx.wellnessDay.update({
