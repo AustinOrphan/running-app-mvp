@@ -7,8 +7,14 @@ import { daysBetween } from '../../shared/dates.ts'
 import { courseSilhouettePoints } from '../../shared/domain/courseSilhouette.ts'
 import { racePlanFor, summaryOf } from '../../shared/engine/racePlan.ts'
 import type { RacePlanSummary } from '../../shared/engine/racePlan.ts'
+import {
+  isRoadPlanClass,
+  roadRacePlanFor,
+  roadSummaryOf,
+} from '../../shared/engine/racePlanRoad.ts'
+import type { RoadRacePlanSummary } from '../../shared/engine/racePlanRoad.ts'
 import type { CourseSilhouettePoint, RacePlanView } from '../../shared/types.ts'
-import { goalModelFor, loadAthleteContext, memoByVersion } from './athleteState.ts'
+import { goalModelFor, goalPrediction, loadAthleteContext, memoByVersion } from './athleteState.ts'
 import type { SnapshotDeps } from './athleteState.ts'
 import { loadFuelState } from './fuel.ts'
 import { listRaceCheckpoints } from './raceCheckpoints.ts'
@@ -18,7 +24,10 @@ export type RaceDeps = SnapshotDeps
 /**
  * The plan of the runner's current goal (`currentGoalFor`), or why there is none: no goal, a goal
  * with no distance, a goal that is not an ultra (every class above the marathon, as H11), or a race
- * that is over. Computed once per data version and day; the result is deep-frozen.
+ * that is over. An ultra's plan is `plan`; a 10 km, half marathon or marathon goal's is `road`
+ * (rule H15, ADR 0023) and keeps `plan: null` and `reason: 'not-ultra'`, so a shell built before it
+ * shows its empty state. Derived on read and stored nowhere; computed once per data version and
+ * day; the result is deep-frozen.
  */
 export function loadRacePlan(
   deps: RaceDeps,
@@ -38,7 +47,37 @@ async function buildRacePlan(deps: RaceDeps, userId: string, today: string): Pro
   if (daysBetween(today, goal.targetDate) < 0) return { plan: null, reason: 'race-over' }
   const model = await goalModelFor(context, goal.id, { climate: true })
   if (model === null) return { plan: null, reason: 'no-distance' }
-  if (!model.isUltra) return { plan: null, reason: 'not-ultra' }
+  if (!model.isUltra) {
+    if (!isRoadPlanClass(model.distanceClass)) return { plan: null, reason: 'not-ultra' }
+    const [prediction, fuel] = await Promise.all([
+      context.prediction(goal.id),
+      loadFuelState(deps, userId),
+    ])
+    const { csMps, csTrainingSince, csWindowWidened } = context.state.fitness
+    const road = roadRacePlanFor({
+      goal: model,
+      supportLevel: goal.supportLevel,
+      prediction,
+      // The helper `context.prediction` calls, with no race heat: only the heat minutes read it.
+      coolPredictedSec:
+        prediction === null
+          ? null
+          : (goalPrediction(context.state, model, null)?.predictedSec ?? null),
+      cs:
+        csMps === null
+          ? null
+          : {
+              mps: csMps,
+              fromTraining: csTrainingSince != null,
+              widened: csWindowWidened === true,
+            },
+      ladder: fuel.ladder,
+      weightKg: context.profile.weightKg,
+      acclimationCredit: context.state.heatAcclimation,
+      today,
+    })
+    return { plan: null, reason: 'not-ultra', road }
+  }
 
   const [prediction, fuel, checkpoints] = await Promise.all([
     context.prediction(goal.id),
@@ -77,6 +116,19 @@ export async function todayRaceSlot(
 ): Promise<RacePlanSummary | null> {
   const view = await loadRacePlan(deps, { userId: args.userId, today: args.today })
   return view.plan === null ? null : summaryOf(view.plan, args.date)
+}
+
+/**
+ * The Today slot `roadRace`: the road plan's race-week card and race-day block for the viewed day,
+ * or null outside race week, for a 10 km, an ultra and once the race is over. The same memo as
+ * `todayRaceSlot`, so the same data version covers it.
+ */
+export async function todayRoadRaceSlot(
+  deps: RaceDeps,
+  args: { userId: string; today: string; date: string },
+): Promise<RoadRacePlanSummary | null> {
+  const view = await loadRacePlan(deps, { userId: args.userId, today: args.today })
+  return view.road == null ? null : roadSummaryOf(view.road, args.date)
 }
 
 /**

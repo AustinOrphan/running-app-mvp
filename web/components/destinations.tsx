@@ -88,7 +88,7 @@ const goals: Destination = {
   ),
 }
 
-/** Listed only while the current goal is an ultra with a race still to come. */
+/** Listed only while the current goal has a race plan (an ultra, half marathon, marathon or 10 km) and a race still to come. */
 const racePlan: Destination = {
   to: '/race',
   label: 'Race plan',

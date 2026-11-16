@@ -225,7 +225,7 @@ describe('RacePage', () => {
   test.each([
     ['no-goal', /Add a goal race/],
     ['no-distance', /needs a distance/],
-    ['not-ultra', /for ultra distances/],
+    ['not-ultra', /covers 10 km, half marathons, marathons and ultras/],
     ['race-over', /race is over/],
   ] as const)('says why there is no plan: %s', async (reason, line) => {
     mockApi({
@@ -339,7 +339,7 @@ describe('MorePage: the Race plan row', () => {
     const nav = within(screen.getByRole('navigation', { name: 'More pages' }))
     const link = await nav.findByRole('link', { name: /^Race plan/ })
     expect(link).toHaveAttribute('href', '/race')
-    expect(link).toHaveTextContent('Effort, fuel, heat and the expected time for the goal race')
+    expect(link).toHaveTextContent('The expected time, fuel, heat and race week for the goal race')
     expectCleanCopy(link)
   })
 
@@ -370,6 +370,8 @@ function seededClient(plan: RacePlan, date: string) {
     }),
   )
   queryClient.setQueryData([keys.settings], SETTINGS)
+  // The race-day block reads the cached race plan answer to know there is a plan to link to.
+  queryClient.setQueryData([keys.race, 'plan'], { plan, reason: null })
   return { queryClient, summary }
 }
 
@@ -454,8 +456,17 @@ describe('the race-day block of the session sheet', () => {
   })
 
   test('is the link alone when Today has not been read', () => {
-    renderWithProviders(<RaceSessionSection session={RACE_SESSION} units="km" />)
+    const queryClient = makeTestQueryClient()
+    queryClient.setQueryData([keys.race, 'plan'], { plan: planWith(), reason: null })
+    renderWithProviders(<RaceSessionSection session={RACE_SESSION} units="km" />, { queryClient })
     expect(screen.getByRole('link', { name: 'Open the race plan' })).toBeInTheDocument()
+  })
+
+  test('shows nothing while the race plan answer loads, then the link', async () => {
+    mockApi({ 'GET /api/race/plan': () => ({ plan: planWith(), reason: null }) })
+    renderWithProviders(<RaceSessionSection session={RACE_SESSION} units="km" />)
+    expect(screen.queryByRole('link', { name: 'Open the race plan' })).toBeNull()
+    expect(await screen.findByRole('link', { name: 'Open the race plan' })).toBeInTheDocument()
   })
 })
 

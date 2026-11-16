@@ -77,8 +77,9 @@ describe('who reads the race plan', () => {
     expect(importers('shared/copy/racePlan.ts')).toEqual(COPY_ALLOWED)
   })
 
-  test('only the road copy, the shared types and the road pieces of the web import the road engine module', () => {
+  test('only the race service, the road copy, the shared types and the road pieces of the web import the road engine module', () => {
     expect(importers('shared/engine/racePlanRoad.ts')).toEqual([
+      'server/services/racePlan.ts',
       'shared/copy/racePlanRoad.ts',
       'shared/types.ts',
       'web/components/race/RaceSlot.tsx',

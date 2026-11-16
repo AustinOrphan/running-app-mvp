@@ -434,6 +434,25 @@ function zoneChangesOf(
   return changes
 }
 
+/**
+ * The prediction of a goal's course on a snapshot at a race WBGT: the one place the arguments are
+ * built. `context.prediction` calls it with the goal's own WBGT; the road race plan (rule H15) calls
+ * it with null for the time without race heat, so the heat minutes it states are the heat and
+ * nothing else (the same course, climb and snapshot).
+ */
+export function goalPrediction(
+  state: AthleteState,
+  model: Pick<GoalModel, 'distanceM' | 'gainM' | 'surface'>,
+  wbgtC: number | null,
+): Prediction | null {
+  return predictFromState(state, {
+    distanceM: model.distanceM,
+    gainM: model.gainM,
+    surface: model.surface,
+    wbgtC,
+  })
+}
+
 /** The goal model for one of the context's goals; null when the goal is unknown or has no distance. */
 export async function goalModelFor(
   ctx: Pick<AthleteContext, 'goals' | 'state' | 'climate'>,
@@ -651,16 +670,7 @@ async function buildContext(
       const known = predictions.get(goalId)
       if (known) return known
       const pending = goalModelFor(context, goalId, { climate: true }).then((model) =>
-        model === null
-          ? null
-          : deepFreeze(
-              predictFromState(state, {
-                distanceM: model.distanceM,
-                gainM: model.gainM,
-                surface: model.surface,
-                wbgtC: model.raceWbgtC,
-              }),
-            ),
+        model === null ? null : deepFreeze(goalPrediction(state, model, model.raceWbgtC)),
       )
       predictions.set(goalId, pending)
       // A failure is not remembered; the next caller tries again.

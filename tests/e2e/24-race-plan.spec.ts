@@ -75,14 +75,26 @@ test.afterAll(async () => {
   await page.context().close()
 })
 
-test('a marathon goal has no race plan: the page says so and More has no row', async () => {
+test('a 5 km goal has no race plan: the page says so and More has no row', async () => {
+  // A marathon, half marathon or 10 km has the road plan (rule H15, ADR 0023); the 5 km keeps its session.
+  const { today } = relativeDates()
+  await api.put(`/goals/${goalId}`, {
+    distanceM: 5000,
+    gainM: 0,
+    lossM: 0,
+    surface: 'road',
+    goalType: 'finish',
+    targetDate: addDays(today, 40),
+  })
   await page.goto('/more')
   const nav = page.getByRole('navigation', { name: 'More pages' })
   await expect(nav.getByRole('link', { name: /^Settings/ })).toBeVisible()
   await expect(nav.getByRole('link', { name: /^Race plan/ })).toHaveCount(0)
   await page.goto('/race')
   await expect(page.getByRole('heading', { level: 1, name: 'Race plan' })).toBeVisible()
-  await expect(page.getByText('The race plan is for ultra distances.')).toBeVisible()
+  await expect(
+    page.getByText(/^The race plan covers 10 km, half marathons, marathons and ultras\./),
+  ).toBeVisible()
   await page.goto('/')
   await expect(page.getByRole('article', { name: run.title })).toBeVisible()
   await expect(page.locator('[data-slot="race"]')).toHaveCount(0)
