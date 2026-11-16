@@ -15,12 +15,12 @@
   "findings": [
     "Carbohydrate intake during exercise should be scaled to the characteristics of the event.",
     "During sustained high-intensity sports lasting about 1 h, small amounts of carbohydrate, including mouth-rinsing, enhance performance via central nervous system effects.",
-    "30-60 g/h is an appropriate target for sports of longer duration; events longer than 2.5 h may benefit from up to 90 g/h, and products with blends of different carbohydrates may maximise absorption at such rates.",
+    "30-60 g/h is an appropriate target for sports of longer duration (the abstract states no lower bound, after its 'about 1 h' statement); events longer than 2.5 h may benefit from up to 90 g/h, and products with blends of different carbohydrates may maximise absorption at such rates.",
     "Whether additional 'train-low' strategies improve performance in well-trained individuals is unclear."
   ],
-  "limitations": "Narrative review for a consensus conference, so graded D here (the grade follows the design: an expert narrative, not a systematic search); the abstract does not define 'longer duration' lower bound beyond the 1 h and 2.5 h statements.",
+  "limitations": "Narrative review for a consensus conference, so graded D here (the grade follows the design: an expert narrative, not a systematic search); the abstract states no lower bound for 'longer duration'; it says only 'about 1 h' for small amounts and 'longer than 2.5 h' for up to 90 g/h.",
   "implications": [
-    "Names three carbohydrate bands by event length: about 1 h (small amounts, central effect), longer events (30 to 60 g/h) and above 2.5 h (up to 90 g/h). A half marathon under 2 h sits between the first two bands; the review gives it no rate."
+    "A grade D narrative review gives 30 to 60 g/h for events longer than about 1 h (lower bound not stated) and up to 90 g/h above 2.5 h. It names no band for 1 to 2 h specifically, so it gives no rate for a half marathon under 2 h."
   ],
   "verification": {
     "doiResolved": true,

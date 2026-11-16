@@ -13,20 +13,20 @@
   "evidenceLevel": "C",
   "topics": ["road-racing", "performance-prediction"],
   "findings": [
-    "In the high-performing group velocity peaked at 18.8 +/- 1.4 km/h in the first 400 m, above the average race velocity; this was not different from the low group's average racing velocity (14.5 +/- 0.7 km/h).",
-    "Velocity then fell non-significantly until 9,600 m, followed by an increase at the end (P < 0.05).",
+    "In the high-performing (HP) group velocity peaked at 18.8 +/- 1.4 km/h in the first 400 m, above the HP average race velocity (P < 0.05), then fell until 2,000 m (P < 0.05), stayed constant until 9,600 m and rose again at the end (P < 0.05).",
+    "The low-performing (LP) group ran the first 400 m at 15.6 +/- 1.6 km/h, a significantly lower velocity than HP; this was not different from the LP average race velocity (14.5 +/- 0.7 km/h). LP velocity then fell non-significantly until 9,600 m and rose at the end (P < 0.05).",
     "High and low performance runners adopted different pacing strategies; peak treadmill velocity, running economy and lactate threshold correlated with start, middle, last and average velocity."
   ],
-  "limitations": "24 men on a treadmill, not a road race; terciles of one small sample; the low group's strategy is not described in the abstract beyond 'different'.",
+  "limitations": "24 men on a treadmill, not a road race; terciles of one small sample; the abstract prints 'P > 0.05' beside the HP versus LP start velocity while its text says significantly lower, read here as the text states it.",
   "implications": [
-    "Laboratory 10 km pacing: a fast opening then a slow drift and an end spurt in better runners. It does not support a prescribed 10 km split pattern. Kept as the 10 km counterpart of the road-race pacing records, with the limit that it is a treadmill study."
+    "Laboratory 10 km pacing: the better runners opened above their own average, slowed to 2,000 m and held to 9,600 m; both groups rose at the end, and the slower group did not open above its own average. It does not support a prescribed 10 km split pattern. Kept as the 10 km counterpart of the road-race pacing records, with the limit that it is a treadmill study."
   ],
   "verification": {
     "doiResolved": true,
     "metadataMatches": true,
     "abstractSource": "europepmc",
     "findingsSupported": true,
-    "notes": "Crossref matches (online 2009-12-11, print volume 108, 2010; the stored year follows the print volume, within Crossref's one-year tolerance). Abstract read on Europe PMC. Crossref lists no correction, erratum or retraction notice (checked 2026-11-16).",
+    "notes": "Crossref matches (online 2009-12-11, print volume 108, 2010; the stored year follows the print volume, within Crossref's one-year tolerance). Abstract read on Europe PMC and re-read on PubMed (NCBI efetch), because the Europe PMC abstract drops the sentence on the low-performing group's start velocity. Crossref lists no correction, erratum or retraction notice (checked 2026-11-16).",
     "checkedAt": "2026-11-16"
   }
 }

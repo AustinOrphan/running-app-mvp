@@ -20,7 +20,7 @@
   ],
   "limitations": "Outcomes are medical encounters and non-finishes, not finishing time, so the paper does not give a time penalty; northern-latitude events with unacclimatised fields; retrospective race records.",
   "implications": [
-    "Safety side of road-race heat: unsuccessful starts climbed from a start WBGT of about 13 C and mass-casualty events occurred at 21 to 22 C. Supports a heat warning line at the existing I9 level; not a source of pace penalty."
+    "Safety side of road-race heat: unsuccessful starts climbed from a start WBGT of about 13 C and mass-casualty events occurred at 21 to 22 C. Gives no support for the existing I9 warning level of WBGT 25 C: it points lower for a marathon (unsuccessful starts rising from 13 C, a do-not-start WBGT of 20.5 C in one race on this model, for unacclimatised northern-latitude fields). A later engine rule that states a heat line must face this. Not a source of pace penalty."
   ],
   "verification": {
     "doiResolved": true,

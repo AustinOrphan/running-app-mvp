@@ -8,7 +8,7 @@
   "pmid": "16521844",
   "url": "https://doi.org/10.1123/ijsnem.15.6.573",
   "design": "controlled-trial",
-  "population": "18 highly trained runners who ran two half marathons 3 weeks apart in mild conditions (about 74 min to finish, from 40 s being 0.9%)",
+  "population": "18 highly trained runners who ran two half marathons 3 weeks apart in mild conditions (finish time not stated in the abstract; about 74 min is derived from the abstract's 0.9% = 40 s)",
   "sampleSize": 18,
   "evidenceLevel": "C",
   "topics": ["road-racing", "ultra-nutrition"],
@@ -18,16 +18,16 @@
     "Three runners complained of gastrointestinal discomfort in the gel trial, which produced a clear impairment of performance by 2.4% or 105 s (P = 0.03).",
     "The authors say benefits to half-marathon performance were not detected and that the theoretical improvement during 1 h exercise with carbohydrate merits further investigation."
   ],
-  "limitations": "Fast, highly trained runners (about 74 min), well under the 90 to 120 min of most recreational half marathons; 18 subjects; the second race was 0.9% faster whatever the drink (a learning order effect); one gel dose given as a single total.",
+  "limitations": "Fast, highly trained runners (about 74 min, derived, not stated), well under the 90 to 120 min of most recreational half marathons; 18 subjects; the second race was 0.9% faster whatever the drink (a learning order effect); one gel dose given as a single total.",
   "implications": [
-    "The one half-marathon carbohydrate trial in the corpus found no significant gain from about 1.1 g/kg of gel in a roughly 74-minute race, and a loss in the three runners who had stomach trouble. It supports leaving a rate off for a half marathon in this band; it does not test a 90 to 120 minute finisher."
+    "The one half-marathon carbohydrate trial in the corpus found no significant gain from about 1.1 g/kg of gel in a race of about 74 minutes (derived from the abstract's 0.9% = 40 s; the abstract states no time), and a loss in the three runners who had stomach trouble. It supports leaving a rate off for a half marathon in this band; it does not test a 90 to 120 minute finisher."
   ],
   "verification": {
     "doiResolved": true,
     "metadataMatches": true,
     "abstractSource": "europepmc",
     "findingsSupported": true,
-    "notes": "Crossref matches (IJSNEM 15:573-589). Abstract read on Europe PMC. The finish time is not stated in the abstract; 'about 74 min' is computed from 40 s equal to 0.9% and is flagged as derived. Crossref lists no correction, erratum or retraction notice (checked 2026-11-16).",
+    "notes": "Crossref matches (IJSNEM 15:573-589). Abstract read on Europe PMC. The abstract states no finish time; 'about 74 min' is derived from the abstract's 0.9% = 40 s. Crossref lists no correction, erratum or retraction notice (checked 2026-11-16).",
     "checkedAt": "2026-11-16"
   }
 }

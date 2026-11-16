@@ -56,12 +56,26 @@ finisher of six major marathons slowed in most races when it was hotter, with no
 rose from a start WBGT of about 13 C, mass-casualty events at 21 to 22 C)
 [roberts-2010-do-not-start-wbgt-marathon].
 
-The studies disagree on the shape. Ely 2008 finds the slower runners' larger loss comes from a slower
-speed throughout, not a greater late deceleration [ely-2008-pacing-temperature]; Trubee 2014 finds
-heat an independent element of late-race slowing in the field, and magnified for non-elite men
-against non-elite women, in one hot and one cold race [trubee-2014-heat-sex-pacing-marathon]. Both are
-observational and small in races, so the rule I5 (a uniform slow-down for mid-pack runners) is neither
-confirmed nor contradicted. The conservative reading is the existing one: no pacing shape.
+The two pacing papers report different things and do not test the same contrast. Ely 2008, three
+Japanese women's championship marathons, reports that warm air slowed pace more in the winner and the
+25th finisher (a later deceleration: last-5-km minus first-5-km pace differential 90 against 191 s
+for the 25th) than in the 50th and 100th, whose larger finishing-time loss came from a slower
+velocity from start to finish rather than a greater late deceleration
+[ely-2008-pacing-temperature]. Trubee 2014, two Chicago marathons (one hot, one cold), reports heat
+stress as a significant independent element of pacing (last 12.2 km against the first 30 km) beside
+age, sex and finish time, with a sex difference magnified in the warm race; the abstract gives no
+direction or size of the heat term [trubee-2014-heat-sex-pacing-marathon]. One compares ability groups
+within an elite-to-100th-place field across temperature bands; the other regresses a late-to-early
+speed ratio over a mass field in two races. Both are observational, so rule I5 (a uniform slow-down
+for mid-pack runners) is neither confirmed nor contradicted. The conservative reading is the
+existing one: no pacing shape.
+
+Roberts 2010 and the existing I9 line. The abstract puts rising unsuccessful starts from a start WBGT
+of 13 C in one race, mass-casualty events or cancellation in several races above 21 to 22 C, and a
+do-not-start WBGT of 20.5 C for one race on its model (unacclimatised northern-latitude fields)
+[roberts-2010-do-not-start-wbgt-marathon]. The existing I9 warning is at WBGT 25 C (`i9.warnWbgtC`).
+This paper gives no support for 25 C and points lower for a marathon; a later engine rule that states
+a heat line must face that.
 
 Half marathon. One record: at the Great North Run, 2006 to 2019, temperature and heat index
 significantly slowed amateur finishers, and the slowest amateurs more than the quickest
@@ -86,10 +100,13 @@ What a carbohydrate rate rests on, by race length:
   runners with stomach trouble [burke-2005-half-marathon-gel].
 - About 110 minutes (the under-2-hour half band): a crossover of 15 runners took 60 g/h (gel arms)
   or a 6% drink and finished in about 110 minutes; race time did not differ with fluid volume. No arm
-  went without carbohydrate [lee-2014-half-marathon-fluid-cho]. That is tolerance, not benefit.
-- Longer than 2 h: the review points to high delivery (above 90 g/h) when glycogen is stressed
-  [stellingwerff-2014-cho-supplementation-durations]; the consensus-conference review gives
-  30 to 60 g/h for longer events and up to 90 g/h above 2.5 h [burke-2011-cho-training-competition]; a
+  went without carbohydrate, and the abstract reports no symptom outcome, so it shows neither benefit
+  nor tolerance [lee-2014-half-marathon-fluid-cho].
+- Longer than about 1 h, lower bound not stated: a grade D narrative review gives 30 to 60 g/h for
+  "longer duration" events and up to 90 g/h above 2.5 h [burke-2011-cho-training-competition]. No
+  source names the 1 to 2 h band specifically.
+- Longer than 2 h: the systematic review points to high delivery (above 90 g/h) when glycogen is
+  stressed [stellingwerff-2014-cho-supplementation-durations]; a
   small treadmill trial of a 3 h 10 min marathon-length effort held speed and finished about 2% faster
   on a 5.5% drink [tsintzas-1995-cho-drinks-marathon]. Existing ultra papers set the tolerated
   ladder [jeukendrup-2014-cho-intake][tiller-2019-issn-ultra-nutrition].
@@ -100,8 +117,10 @@ What a carbohydrate rate rests on, by race length:
   race, with no association with intake in the diaries [pugh-2018-marathon-gi-symptoms-recreational].
 
 Answer to design question 5 (a half marathon under 2 hours): this pass finds no road study that
-supports a carbohydrate rate for the band. The nearest sources are a null result at about 74 minutes,
-a tolerance crossover at about 110 minutes and a review that has no statement between 1 h and 2 h.
+supports a carbohydrate rate for the band. The nearest sources are a null result at about 74 minutes
+(derived from the abstract's 0.9% = 40 s), a crossover at about 110 minutes with no no-carbohydrate arm
+and no symptom outcome, a systematic review with no statement between about 1 h and 2 h, and a grade D
+narrative review that gives 30 to 60 g/h for events longer than about 1 h without naming 1 to 2 h.
 The recommendation of the design stands: no rate for a half under two hours, and the engine PR adds
 no `Param` for it. What also stays unsupported: a marathon-pace rate for a 3 to 5 h finisher from a
 road trial, a dose-response in the 2 to 3 h band, fuel timing in a road marathon, and gut training
@@ -111,10 +130,10 @@ in road runners.
 
 Overdrinking drives most hyponatraemia, and thirst is the guide: the 2015 consensus and its 2017
 update are already in the corpus [hewbutler-2015-eah-consensus][hewbutler-2017-eah-update]. This pass
-adds the road numbers. In the 2002 Boston Marathon 13% of 488 sampled runners were hyponatraemic;
+adds a road cohort. In the 2002 Boston Marathon 13% of 488 sampled runners were hyponatraemic;
 weight gain (odds ratio 4.2) and a racing time over 4 hours (odds ratio 7.4 against under 3:30)
 were independent risks, and the composition of the fluid was not [almond-2005-boston-marathon-hyponatremia].
-In a warm half marathon of about 90 minutes, drinking to thirst (about 3% body-mass loss) matched
+In a treadmill half marathon of about 90 minutes at 30 C (10 runners, water only), drinking to thirst (about 3% body-mass loss) matched
 programmed drinking of about 1.4 L/h [dion-2013-half-marathon-thirst-fluid]. In an 11.3 km warm race a
 larger body-mass loss went with a faster finish [adams-2017-falmouth-pace-deviation]. The older ACSM
 stand's 2% limit [acsm-2007-fluid-replacement] is not supported by either result. Still unsupported:
@@ -123,26 +142,34 @@ a fluid volume for a road marathon that is safe and optimal for a given runner.
 ### 10 km
 
 Typical slowing is about 3 to 4% at 10 km in a city race [cuk-2021-pacing-10km-marathon]. A
-treadmill trial shows a fast opening, a slow drift and an end spurt in the better runners
-[lima-silva-2010-pacing-10km-performance-level]. In a warm 11.3 km road race the first two miles'
+treadmill trial of 24 men reports that the better runners opened above their own average, slowed to
+2,000 m and held to 9,600 m, that the slower group did not open above its own average, and that both
+rose at the end [lima-silva-2010-pacing-10km-performance-level]. In a warm 11.3 km road race the first two miles'
 deviation from predicted pace tracked the finish time [adams-2017-falmouth-pace-deviation]. Together
 that supports the owner's scope (question 1 of 2026-11-16: the 10 km gets the time, pace and heat
 blocks only) and no split pattern, no first-half line, no fuel.
 
 ## Established, contested, unknown
 
-Established (grade C or better):
+Established (replicated or large, grade C or better):
 
-- Marathon finishers slow in the second half at every level, and slower finishers vary more.
-- Heat slows marathon finishers, slower finishers more, and the safety risk rises from a start WBGT of
-  about 13 C.
-- A day-before carbohydrate intake above about 7 g/kg goes with a faster marathon.
-- Overdrinking, weight gain and a long race go with hyponatraemia; thirst is as fast as programmed
-  drinking in a half marathon in the warm.
+- Marathon finishers slow in the second half at every level, and slower finishers vary more (several
+  large finish-list samples, all observational).
+- Heat slows marathon finishers, slower finishers more (several race series).
+- Overdrinking, weight gain and a long race go with hyponatraemia (the 2015 consensus and one cohort).
+
+Single or small results, not established:
+
+- A start WBGT of about 13 C where unsuccessful starts rise, and 21 to 22 C for mass-casualty events
+  (one author's race records).
+- A day-before carbohydrate intake above about 7 g/kg goes with a faster marathon (one observational
+  cohort).
+- Thirst-driven drinking as fast as programmed drinking (10 runners on a treadmill, water only).
+- A carbohydrate drink holding speed over a 3 h 10 min effort (7 runners on a treadmill).
 
 Contested:
 
-- The shape of heat slowing: late deceleration (Trubee) or a slower pace throughout (Ely 2008).
+- The shape of heat slowing: the two papers report different contrasts and do not test the same one (see the heat section).
 - Whether any in-race carbohydrate dose helps a race of 1.5 to 2 hours.
 
 Unknown (not found in this pass; the plan states nothing on them):
