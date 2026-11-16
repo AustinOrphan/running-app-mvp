@@ -29,6 +29,7 @@ import { CourseImportButton } from '../components/race/CourseImportButton.tsx'
 import type { CourseImport } from '../components/race/courseImport.ts'
 import { RaceFuelBlock, RaceWeekBlock } from '../components/race/RaceBlocks.tsx'
 import { RaceCard } from '../components/race/RaceCard.tsx'
+import { RoadRaceBlocks } from '../components/race/RoadRaceBlocks.tsx'
 import cardStyles from '../components/race/Race.module.css'
 import { DisclaimerNote } from '../components/today/DisclaimerNote.tsx'
 import { usePhoneCopy } from '../components/today/phoneCopy.ts'
@@ -317,7 +318,9 @@ function PlanBody({
 /**
  * The race plan (`/race`, reached from More and from the race-week card): the expected time as a
  * range, one effort for the whole race in three parts, climbing, fuel and fluid, heat, race week
- * and the hours outside daylight, for the goal race of an ultra. Everything comes from one read of
+ * and the hours outside daylight, for the goal race of an ultra; for a 10 km, half marathon or
+ * marathon goal, the road blocks of `RoadRaceBlocks` (ADR 0023) from the view's `road`.
+ * Everything comes from one read of
  * `GET /api/race/plan`; the words are templates over its facts (`describeRacePlan`), so this page
  * works nothing out. The read is one the service worker keeps (ADR 0012, addendum), so with no
  * signal the page shows the phone's copy and says when it was saved.
@@ -329,6 +332,8 @@ export function RacePage() {
   const units = settings.data?.units ?? (settings.isError ? 'km' : undefined)
   const view = race.data
   const plan = view?.plan ?? null
+  // A road goal (ADR 0023) carries `road` beside `plan: null`; a copy kept before it has no key.
+  const road = view?.road ?? null
   const phoneCopy = usePhoneCopy(view)
   const online = useOnline()
   const servedFromCache = view?.servedFromCache === true
@@ -339,12 +344,13 @@ export function RacePage() {
     if (online && servedFromCache) void refetch()
   }, [online, servedFromCache, refetch])
   // A saved copy cannot know how many days are left, so it names the race and the date alone.
+  const named = plan ?? road
   const context =
-    plan === null
+    named === null
       ? undefined
       : phoneCopy
-        ? `${plan.name}, ${formatLongDate(plan.date)}.`
-        : `${plan.name}, ${formatLongDate(plan.date)}. ${daysToGoText(plan.daysToRace, units ?? 'km')}.`
+        ? `${named.name}, ${formatLongDate(named.date)}.`
+        : `${named.name}, ${formatLongDate(named.date)}. ${daysToGoText(named.daysToRace, units ?? 'km')}.`
 
   return (
     <>
@@ -366,10 +372,14 @@ export function RacePage() {
         />
       ) : view === undefined || units === undefined ? (
         <Skeleton lines={6} />
-      ) : plan === null ? (
-        <p className={cardStyles.text}>{raceEmptyText(view.reason ?? 'no-goal', units)}</p>
-      ) : (
+      ) : plan !== null ? (
         <PlanBody plan={plan} course={view.course} units={units} />
+      ) : road !== null ? (
+        <div className={styles.page}>
+          <RoadRaceBlocks plan={road} units={units} />
+        </div>
+      ) : (
+        <p className={cardStyles.text}>{raceEmptyText(view.reason ?? 'no-goal', units)}</p>
       )}
     </>
   )
