@@ -547,12 +547,13 @@ export async function weeklyDecisions(
       goalId: plan.goalId,
       options: parsePlanOptions(plan.options),
     },
-    { existing: true },
+    // The cached forecast, never fetched: the first hot days of rule J5 read it.
+    { existing: true, forecast: true },
   )
   // The tightened ramp of an injury or bone-stress profile caps the suggested week too, and so
-  // does the rebuild zone of a plan at standard or upper [rules g-8]. The first hot days
-  // (heatFirstDays) and the sleep-efficiency drop are not derived from the data yet, so those two
-  // holds of rule J5 do not fire.
+  // does the rebuild zone of a plan at standard or upper [rules g-8]. The sleep-efficiency
+  // drop is not derived from the data yet, so that hold of rule J5 does not fire; the first hot days
+  // are, from the cached forecast or the recent runs (`firstHotDays`).
   const state = estimateState(input)
   const ramp = weeklyRamp(state)
   const rebuild = rebuildZone(input, state)

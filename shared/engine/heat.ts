@@ -4,7 +4,9 @@
 import { addDays, daysBetween, mondayOf } from '../dates.ts'
 import type { HeatExposure } from '../types.ts'
 import { P } from './params/index.ts'
-import type { EngineInput, EngineWarning, SessionFlag, SessionSpec } from './types.ts'
+import { aggregateWeeks } from '../domain/weeks.ts'
+import { isLoadingWeek } from './startWeeks.ts'
+import type { EngineInput, EngineWarning, SessionFlag, SessionSpec, WeekDraft } from './types.ts'
 
 // ---------------------------------------------------------------------------------------------
 // Liljegren WBGT [rules I1]
@@ -529,4 +531,127 @@ export function acclimationCredit(exposureDays: string[], today: string): number
   const since = daysBetween(previous, today)
   if (since >= P.i8.zeroCreditDays.value) return 0
   return Math.max(0, credit - since * decayPerDay)
+}
+
+// ---------------------------------------------------------------------------------------------
+// The first hot days of a season hold a build week [rules J5, I8]
+// ---------------------------------------------------------------------------------------------
+
+/** The flag a week carries when the first hot days held it (rule J5). */
+export const HEAT_HOLD_FLAG = 'heat-hold'
+
+/** Why the first hot days hold the coming week: what showed them and how many days. */
+export interface FirstHotDays {
+  source: 'forecast' | 'runs'
+  days: number
+}
+
+/** Whether the week is one the first hot days may hold: a loading week of the build, never the taper. */
+function holdableWeek(week: WeekDraft): boolean {
+  return isLoadingWeek(week) && week.phase !== 'taper'
+}
+
+/**
+ * The forecast days of the week from `from` on whose warmest hour inside the training window
+ * (`i7.windowStartHour` to `i7.windowEndHour`) is at `acclim.exposureTempC` or more. Null when the
+ * forecast has no hour for the week at all, so a runner with no forecast is told apart from a cool one.
+ */
+function forecastHotDays(
+  forecast: NonNullable<EngineInput['forecast']>,
+  week: string,
+  from: string,
+): number | null {
+  const last = addDays(week, 6)
+  const warmest = new Map<string, number>()
+  let any = false
+  for (const hour of forecast) {
+    const date = hour.time.slice(0, 10)
+    if (date < week || date > last) continue
+    any = true
+    const h = Number(hour.time.slice(11, 13))
+    if (date < from || !Number.isInteger(h)) continue
+    if (h < P.i7.windowStartHour.value || h >= P.i7.windowEndHour.value) continue
+    warmest.set(date, Math.max(warmest.get(date) ?? -Infinity, hour.tempC))
+  }
+  if (!any) return null
+  return [...warmest.values()].filter((t) => t >= P.acclim.exposureTempC.value).length
+}
+
+/**
+ * The minutes run in the last loading week of the plan, from `weekStart` back over the weeks the
+ * stored plan holds (a recovery week is no level to hold at); null when it has none.
+ */
+export function lastLoadingMin(
+  input: Pick<EngineInput, 'activities' | 'existing'>,
+  weekStart: string,
+): number | null {
+  const last = (input.existing?.weeks ?? [])
+    .filter((w) => w.weekStart <= weekStart && isLoadingWeek(w))
+    .map((w) => w.weekStart)
+    .sort()
+    .at(-1)
+  return last === undefined ? null : aggregateWeeks(input.activities, [last])[0]!.runMin
+}
+
+/**
+ * The first hot days for the week `coming` [rules J5, I8]: the week is a loading week of the build
+ * (never a taper, race, recovery, post-race or start-programme week), none of the `j5.heatHoldGapWeeks`
+ * weeks before it was held for the same reason, the acclimation credit of rule I8 at `today` is under
+ * `j5.heatCreditBelow`, and the heat is near: the forecast shows `j5.heatHotDays` days of the week at
+ * `acclim.exposureTempC` or more, or, where the forecast has no hour for the week, a run at that
+ * temperature was made within `j5.heatRecentDays` days. A week that carries the flag already stays
+ * held while it is in progress, so a refreshed forecast or a hot run never lifts it back. Grade D.
+ * Pure: the forecast is read from the input, never fetched.
+ */
+export function firstHotDays(
+  input: Pick<EngineInput, 'today' | 'forecast' | 'activities' | 'existing'>,
+  coming: string,
+): FirstHotDays | null {
+  const weeks = input.existing?.weeks ?? []
+  const week = weeks.find((w) => w.weekStart === coming)
+  if (week === undefined || !holdableWeek(week)) return null
+  if (
+    week.flags.includes(HEAT_HOLD_FLAG) &&
+    input.today >= coming &&
+    input.today <= addDays(coming, 6)
+  ) {
+    return { source: 'forecast', days: 0 }
+  }
+  // Only the week in progress or the next one can be held: for an older week the forecast has no hour,
+  // and today's runs would stand for heat that is long past.
+  const thisMonday = mondayOf(input.today)
+  if (coming < thisMonday || coming > addDays(thisMonday, 7)) return null
+  for (let k = 1; k <= P.j5.heatHoldGapWeeks.value; k++) {
+    const earlier = weeks.find((w) => w.weekStart === addDays(coming, -7 * k))
+    if (earlier?.flags.includes(HEAT_HOLD_FLAG)) return null
+  }
+  const exposed = heatExposureDays(
+    input.activities,
+    addDays(input.today, -P.i8.zeroCreditDays.value),
+    input.today,
+    easySessionActivityIds(input.existing?.sessions),
+  )
+  if (acclimationCredit(exposed, input.today) >= P.j5.heatCreditBelow.value) return null
+
+  // A week planned at or under the last loading week as it was run has nothing to hold back.
+  const level = lastLoadingMin(input, addDays(coming, -7))
+  if (level !== null && week.targetRunMin <= level) return null
+
+  const hot = input.forecast === null ? null : forecastHotDays(input.forecast, coming, input.today)
+  if (hot !== null) {
+    return hot >= P.j5.heatHotDays.value ? { source: 'forecast', days: hot } : null
+  }
+  const since = addDays(input.today, -(P.j5.heatRecentDays.value - 1))
+  const days = new Set(
+    input.activities
+      .filter(
+        (a) =>
+          a.date >= since &&
+          a.date <= input.today &&
+          // the rule of the credit for a run at the exposure temperature: its minimum minutes too
+          isHeatExposure({ ...a, heatExposure: null }),
+      )
+      .map((a) => a.date),
+  )
+  return days.size > 0 ? { source: 'runs', days: days.size } : null
 }

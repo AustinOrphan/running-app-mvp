@@ -124,6 +124,11 @@ export const REVISION_VIEW_TEMPLATES = {
   'diff.week.flag.taper': tpl('a taper week', {}, { shape: 'label' }),
   'diff.week.flag.race-week': tpl('the race week', {}, { shape: 'label' }),
   'diff.week.flag.post-race': tpl('in the weeks after the race', {}, { shape: 'label' }),
+  'diff.week.flag.heat-hold': tpl(
+    'held at last week’s level for the first hot days',
+    {},
+    { shape: 'label' },
+  ),
   'diff.week.flag.disrupted': tpl('touched by a rest window', {}, { shape: 'label' }),
   // The label of a window already holds a colon ("Rest: illness"), so the dates follow a comma.
   'diff.hold': tpl(
@@ -363,6 +368,7 @@ const FLAG_IDS: Record<string, ViewId> = {
   'post-race': 'diff.week.flag.post-race',
   'post-race-restart': 'diff.week.flag.post-race',
   disrupted: 'diff.week.flag.disrupted',
+  'heat-hold': 'diff.week.flag.heat-hold',
   'disruption-return': 'diff.week.flag.disrupted',
 }
 

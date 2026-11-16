@@ -224,6 +224,12 @@ protection reads. The Docker image must still build (`docker build .`) after a c
   mild weather is not counted (stevens-2018). The mark is set only through the rating write; a day counts once. `suggestsHeatDays`
   (the same file) is the one test for Today's `heat.heatDays` and the Explain facts: an option with
   safety lines (`shared/copy/heatDays.ts`), never a target or a count of missing days.
+- First hot days (rule J5, HH1, owner decision D7 2026-11-14): `firstHotDays` (`shared/engine/heat.ts`) is the one
+  test; `weeklyDecision` reads it for the coming week from `input.forecast` (the cached forecast, never fetched:
+  `computeReplan`, `weeklyDecisions` and Explain gather it, and Explain's memo names carry `forecastStamp`) or,
+  with no forecast for that week, the recent runs. It holds a loading week of the build only (never taper, race,
+  recovery, post-race or a start programme), at the last loading week's minutes, with the long run kept
+  (`heatHeld` in `ReplanOptions`, `heatHoldWeek`) and no session trimmed; the week carries `heat-hold`.
 - My paces (ADR 0020, rule C9) is derived on read and stored nowhere: `myPaces` and `eventRow`
   (`shared/engine/myPaces.ts`) over the snapshot and `hrModelOf`, the memo `paces.view` behind
   `GET /api/paces`, and the zones shown through `ZoneSummary`, the one rendering the Profile shares. A
