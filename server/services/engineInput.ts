@@ -7,7 +7,7 @@
 // race climate are read from the weather cache (`weatherCache.ts`): nothing here waits on the
 // network, and a cell the weather job has not filled yet gives no forecast and no race heat.
 import type { Deps } from '../app.ts'
-import { localWallTime, todayIso } from '../../shared/dates.ts'
+import { localWallTime } from '../../shared/dates.ts'
 import type { EngineInput, EnteredRace, GoalModel, ZoneSet } from '../../shared/engine/types.ts'
 import type { AthleteProfile } from '../../shared/types.ts'
 import type { PrismaClient } from '../db.ts'
@@ -65,17 +65,6 @@ export async function loadForecast(
     })
   }
   return hours.length > 0 ? hours : null
-}
-
-/**
- * The local day of the newest accepted change of each zone boundary, read from the `zones.<boundary>`
- * changes of the accepted-proposal revisions, so zone proposals count fresh observations only.
- */
-export async function acceptedZoneChanges(
-  deps: Deps,
-  userId: string,
-): Promise<NonNullable<EngineInput['zoneChanges']>> {
-  return (await loadAthleteContext(deps, { userId, today: todayIso() })).zoneChanges
 }
 
 /**
@@ -187,14 +176,6 @@ export async function gatherContextInput(
   opts: GatherOptions = {},
 ): Promise<EngineInput> {
   return assemble(deps, args, { climate: false, ...opts })
-}
-
-/**
- * The REDs flag count of the latest screening, 0 without one. `assemble` puts it on the engine
- * input as `screeningFlags`, which `estimateState` turns into `risk.redsFlags`.
- */
-export async function latestRedsFlags(deps: Deps, userId: string): Promise<number> {
-  return (await loadAthleteContext(deps, { userId, today: todayIso() })).screeningFlags
 }
 
 /** The current zone set from the athlete's own data. */
