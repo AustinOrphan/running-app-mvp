@@ -4,6 +4,7 @@ import { parseGenericCsv } from '../../shared/importers/generic.ts'
 import { parseSmashrunCsv } from '../../shared/importers/smashrun.ts'
 import type { ImportRow, RowError } from '../../shared/importers/csv.ts'
 import { parseActivityFile } from '../../shared/importers/files/index.ts'
+import { offsetMinFor } from '../../shared/importers/files/summarize.ts'
 import { isIsoDate } from '../../shared/dates.ts'
 import { MAX_DISTANCE_M, MAX_DURATION_SEC, MAX_ELEVATION_GAIN_M } from '../../shared/limits.ts'
 import type { ActivitySource, ImportReportRow, ParsedActivity } from '../../shared/types.ts'
@@ -332,7 +333,9 @@ export function importsRouter(deps: Deps): Router {
     })
     const parsed = parseSmashrunCsv(body.text, {
       distanceUnit: body.distanceUnit ?? (user.units === 'km' ? 'km' : 'mi'),
-      utcOffsetMinutes: (instant) => -instant.getTimezoneOffset(),
+      // The runner's zone (`req.runnerDay.tz`, `runnerZone` of the stored one), so `startUtc` is the
+      // true instant and matches another source's copy of the run.
+      utcOffsetMinutes: (instant) => offsetMinFor(instant.toISOString(), req.runnerDay.tz) ?? 0,
     })
     res
       .status(201)

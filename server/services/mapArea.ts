@@ -13,6 +13,7 @@ import {
   type SurfaceTags,
 } from '../../shared/domain/surface.ts'
 import { encodePolyline, simplifyIndexes } from '../../shared/importers/files/track.ts'
+import { runnerZone } from '../runnerDay.ts'
 import { loadProfile } from '../serialize.ts'
 import type { MapAreaView } from '../../shared/types.ts'
 import { clearSurfaceBins } from './surfaceBackfill.ts'
@@ -315,7 +316,8 @@ export async function removeMapArea(prisma: Deps['prisma'], userId: string): Pro
 export async function loadMapArea(prisma: Deps['prisma'], userId: string): Promise<MapAreaView> {
   const row = await prisma.mapArea.findUnique({ where: { userId } })
   const busy = downloading.has(userId)
-  const { timezone: tz } = await loadProfile(prisma, userId)
+  // The zone the runner's days follow, so the labels name the zone the dates use.
+  const tz = runnerZone((await loadProfile(prisma, userId)).timezone)
   if (!row) return { tz, area: null, busy }
   const inside = {
     activity: { userId, type: { in: ['run', 'race'] } },

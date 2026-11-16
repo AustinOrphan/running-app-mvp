@@ -16,6 +16,7 @@ import {
   client,
   createTestCtx,
   expectNoRefusedFetches,
+  gmtOfServerHour,
   seedUser,
   type TestCtx,
   type TestUser,
@@ -171,17 +172,19 @@ function forecastRoute(calls: URL[], temperature = 33): FakeRoute {
 function hotAfternoonRoute(calls: URL[], sun: boolean): FakeRoute {
   return (req) => {
     calls.push(new URL(req.url))
-    const times = hoursOf(today, 7)
-    const hour = (time: string) => Number(time.slice(11, 13))
+    // The hours are the server's wall clock (D10 step 6), sent as Open-Meteo sends them, in GMT.
+    const wall = hoursOf(today, 7)
+    const times = wall.map((t) => gmtOfServerHour(t.slice(0, 10), Number(t.slice(11, 13))))
+    const hour = (index: number) => index % 24
     return Response.json({
       hourly: {
         time: times,
-        temperature_2m: times.map((t) => (hour(t) >= 12 && hour(t) <= 17 ? 32 : 20)),
+        temperature_2m: times.map((_, i) => (hour(i) >= 12 && hour(i) <= 17 ? 32 : 20)),
         relative_humidity_2m: times.map(() => 60),
         dew_point_2m: times.map(() => 22),
         wind_speed_10m: times.map(() => 5),
         ...(sun
-          ? { shortwave_radiation: times.map((t) => (hour(t) >= 11 && hour(t) <= 16 ? 800 : 0)) }
+          ? { shortwave_radiation: times.map((_, i) => (hour(i) >= 11 && hour(i) <= 16 ? 800 : 0)) }
           : {}),
       },
     })

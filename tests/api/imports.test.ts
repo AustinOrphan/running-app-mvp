@@ -7,6 +7,20 @@ import { client, createTestCtx, seedUser, type TestCtx, type TestUser } from './
 
 vi.mock('../../server/services/duplicates.ts')
 
+// D10 step 6: the zone the resolver answers with, injected until step 5 makes it the stored one.
+const injected = vi.hoisted(() => ({ zone: null as string | null }))
+vi.mock('../../server/runnerDay.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../server/runnerDay.ts')>()
+  return {
+    ...actual,
+    runnerZone: (stored: string | null | undefined) => injected.zone ?? actual.runnerZone(stored),
+    runnerDay: (now: Date, stored: string | null | undefined) => {
+      const tz = injected.zone ?? actual.runnerZone(stored)
+      return { tz, today: actual.runnerDay(now, stored).today, now }
+    },
+  }
+})
+
 const FIXTURE = readFileSync(new URL('../fixtures/smashrun-sample.csv', import.meta.url), 'utf8')
 const HEADER = FIXTURE.split('\n')[0] ?? ''
 
@@ -184,6 +198,28 @@ describe('POST /api/imports/smashrun', () => {
       `${local.getFullYear()}-${pad(local.getMonth() + 1)}-${pad(local.getDate())}`,
     )
     expect(utcRow.startTime).toBe(`${pad(local.getHours())}:${pad(local.getMinutes())}`)
+  })
+
+  test('dates a UTC-only start in the runner zone, which differs from the server zone', async () => {
+    injected.zone = 'Asia/Kathmandu'
+    try {
+      const utc = smashrunFile({
+        id: '4004',
+        distance: '5',
+        startDate: '',
+        utc: '2026-03-03T02:30:00Z',
+      })
+      const res = await upload('smashrun', { fileName: 'zone.csv', text: utc })
+      expect(res.body).toMatchObject({ accepted: 1, skippedInvalid: 0 })
+      const row = await ctx.prisma.activity.findFirstOrThrow({
+        where: { providerKey: 'smashrun:4004' },
+      })
+      // 02:30 UTC is 08:15 at +05:45.
+      expect(row.date).toBe('2026-03-03')
+      expect(row.startTime).toBe('08:15')
+    } finally {
+      injected.zone = null
+    }
   })
 
   test('Excel-style file: BOM, CRLF, quoted commas', async () => {

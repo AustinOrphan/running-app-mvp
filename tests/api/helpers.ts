@@ -20,7 +20,19 @@ import { syncProvider } from '../../server/services/sync.ts'
 import { publishForUser } from '../../server/services/publish.ts'
 import { backfillWatchRatings } from '../../server/services/watchRatingBackfill.ts'
 import { refreshWeatherCaches, settleWeatherCache } from '../../server/services/weatherCache.ts'
-import { todayIso } from '../../shared/dates.ts'
+import { instantAtWallTime, todayIso } from '../../shared/dates.ts'
+import { serverTimeZone } from '../../server/runnerDay.ts'
+
+/**
+ * The Open-Meteo GMT stamp (`YYYY-MM-DDTHH:00`) of the hour whose wall clock in the server's zone
+ * reads `hour` on `date`. The engine reads the forecast on the zone a runner's days follow, which
+ * is the server's for a runner with no zone chosen, so a fixture that means "the 12:00 hour" says
+ * so through this.
+ */
+export function gmtOfServerHour(date: string, hour: number): string {
+  const instant = instantAtWallTime(date, hour * 60, serverTimeZone())
+  return `${instant.toISOString().slice(0, 13)}:00`
+}
 
 /**
  * The app's deps plus the express app. `fetch` is the injected network client that the routes and

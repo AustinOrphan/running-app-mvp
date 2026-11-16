@@ -1,4 +1,5 @@
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test, vi } from 'vitest'
+import { serverTimeZone } from '../../server/runnerDay.ts'
 import { OVERPASS_URL, OVERPASS_USER_AGENT } from '../../server/services/mapArea.ts'
 import { trackRow } from '../../server/services/activityStore.ts'
 import { TRACK_VERSION, buildTrack, type RoutePoint } from '../../shared/importers/files/track.ts'
@@ -13,6 +14,20 @@ import {
   type TestCtx,
   type TestUser,
 } from './helpers.ts'
+
+// D10 step 6: the zone the resolver answers with, injected until step 5 makes it the stored one;
+// `stored` records what the service handed it, so a test shows the profile value was read.
+const injected = vi.hoisted(() => ({ zone: null as string | null, stored: [] as string[] }))
+vi.mock('../../server/runnerDay.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../server/runnerDay.ts')>()
+  return {
+    ...actual,
+    runnerZone: (stored: string | null | undefined) => {
+      if (typeof stored === 'string') injected.stored.push(stored)
+      return injected.zone ?? actual.runnerZone(stored)
+    },
+  }
+})
 
 let ctx: TestCtx
 let user: TestUser
@@ -110,7 +125,23 @@ describe('map area routes', () => {
   test('start empty', async () => {
     const res = await get()
     expect(res.status).toBe(200)
-    expect(res.body).toEqual({ tz: 'UTC', area: null, busy: false })
+    expect(res.body).toEqual({ tz: serverTimeZone(), area: null, busy: false })
+  })
+
+  test('name the zone the runner’s days follow, not the stored value (D10 step 6)', async () => {
+    await ctx.prisma.athleteProfile.upsert({
+      where: { userId: user.id },
+      create: { userId: user.id, timezone: 'Marker/Stored' },
+      update: { timezone: 'Marker/Stored' },
+    })
+    try {
+      injected.zone = 'Pacific/Kiritimati'
+      expect((await get()).body).toEqual({ tz: 'Pacific/Kiritimati', area: null, busy: false })
+      expect(injected.stored).toContain('Marker/Stored')
+    } finally {
+      injected.zone = null
+      await ctx.prisma.athleteProfile.delete({ where: { userId: user.id } })
+    }
   })
 
   test('the download needs a stored route', async () => {
@@ -373,7 +404,7 @@ describe('map area routes', () => {
     await addRun(user.id, line([-500, 0], [500, 0]))
     overpass()
     await post()
-    expect((await get(other)).body).toEqual({ tz: 'UTC', area: null, busy: false })
+    expect((await get(other)).body).toEqual({ tz: serverTimeZone(), area: null, busy: false })
     expect((await del(other)).status).toBe(200)
     expect(await ctx.prisma.mapWay.count({ where: { userId: user.id } })).toBe(3)
     expect(await ctx.prisma.mapArea.count({ where: { userId: user.id } })).toBe(1)
@@ -418,7 +449,7 @@ describe('map area routes', () => {
     })
     const res = await del()
     expect(res.status).toBe(200)
-    expect(res.body).toEqual({ tz: 'UTC', area: null, busy: false })
+    expect(res.body).toEqual({ tz: serverTimeZone(), area: null, busy: false })
     expect(await ctx.prisma.mapWay.count({ where: { userId: user.id } })).toBe(0)
     expect(await ctx.prisma.mapArea.count({ where: { userId: user.id } })).toBe(0)
     expect((await ctx.prisma.activity.findUniqueOrThrow({ where: { id } })).surfaceBins).toBeNull()

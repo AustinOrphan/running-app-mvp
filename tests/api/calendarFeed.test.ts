@@ -11,6 +11,7 @@ import type { SessionKind } from '../../shared/engine/types.ts'
 import type { PlanSessionStatus, PlanWithSessions, WristStatus } from '../../shared/types.ts'
 import { PUBLIC_TITLES } from '../../shared/workouts/labels.ts'
 import { dataVersionKey } from '../../server/dataVersion.ts'
+import { serverTimeZone } from '../../server/runnerDay.ts'
 import { buildDeliverables } from '../../server/services/workouts.ts'
 import { weekFixture, zoneSetFixture } from '../unit/engine/fixtures.ts'
 import {
@@ -32,6 +33,20 @@ import {
 vi.mock('../../server/services/workouts.ts', async (importOriginal) => {
   const original = await importOriginal<typeof import('../../server/services/workouts.ts')>()
   return { ...original, buildDeliverables: vi.fn(original.buildDeliverables) }
+})
+
+// D10 step 6: the zone the resolver answers with, injected until step 5 makes it the stored one;
+// `stored` records what the feed handed it, so a test shows the profile value was read.
+const injected = vi.hoisted(() => ({ zone: null as string | null, stored: [] as string[] }))
+vi.mock('../../server/runnerDay.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../server/runnerDay.ts')>()
+  return {
+    ...actual,
+    runnerZone: (stored: string | null | undefined) => {
+      if (typeof stored === 'string') injected.stored.push(stored)
+      return injected.zone ?? actual.runnerZone(stored)
+    },
+  }
 })
 
 // Every line the server logs, at every level (the real logger is silent under test), with the
@@ -74,6 +89,8 @@ beforeEach(async () => {
 })
 
 afterEach(async () => {
+  injected.zone = null
+  injected.stored.length = 0
   expectNoRefusedFetches(ctx)
   await ctx.close()
 })
@@ -745,25 +762,27 @@ describe('the events of the feed', () => {
     expect(after[0]!.stamp).toBe(icsStamp(NOW))
   })
 
-  test('carry the runner’s time zone from the profile as the calendar’s own', async () => {
+  test('name the zone the runner’s days follow as the calendar’s own (D10 step 6)', async () => {
     const { u, planId } = await runner()
     await onlyOn(planId, day(2), [{ kind: 'easy' }])
+    // The stored value is only the resolver's input: the header names what `runnerZone` answers,
+    // here a zone other than the server's.
     await ctx.prisma.athleteProfile.update({
       where: { userId: u.id },
-      data: { timezone: 'America/Chicago' },
+      data: { timezone: 'Marker/Stored' },
     })
+    injected.zone = 'Pacific/Kiritimati'
     const link = await makeLink(u)
     const text = (await open(link.path)).text
-    expect(text).toContain('\r\nX-WR-TIMEZONE:America/Chicago\r\n')
+    expect(text).toContain('\r\nX-WR-TIMEZONE:Pacific/Kiritimati\r\n')
+    expect(injected.stored).toContain('Marker/Stored')
     // events are dates: no time and no zone on a start or an end
     expect(text).not.toMatch(/DT(START|END)(;TZID|:\d{8}T)/)
 
-    // a name the runtime does not know is left out, not written
-    await ctx.prisma.athleteProfile.update({
-      where: { userId: u.id },
-      data: { timezone: 'Not/AZone' },
-    })
-    expect((await open(link.path)).text).not.toContain('X-WR-TIMEZONE')
+    // a runner with no zone chosen reads the server's zone, which the dates follow
+    injected.zone = null
+    await ctx.prisma.athleteProfile.update({ where: { userId: u.id }, data: { timezone: 'UTC' } })
+    expect((await open(link.path)).text).toContain(`\r\nX-WR-TIMEZONE:${serverTimeZone()}\r\n`)
   })
 
   test('give the same bytes every time for the same plan', async () => {

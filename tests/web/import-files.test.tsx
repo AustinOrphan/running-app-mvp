@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { gzipSync, strToU8, zipSync } from 'fflate'
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test, vi } from 'vitest'
 import type { ImportBatch, ParsedActivity } from '../../shared/types.ts'
 import { ToastProvider } from '../../web/components/Toast.tsx'
 import { processAppleExport } from '../../web/import/appleExport.ts'
@@ -23,6 +23,19 @@ import {
   renderWithProviders,
   type MockRoutes,
 } from './helpers.tsx'
+
+// The zone each Apple export was started with; the real reader still runs.
+const appleZones = vi.hoisted(() => [] as string[])
+vi.mock('../../web/import/appleHealthClient.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../web/import/appleHealthClient.ts')>()
+  return {
+    ...actual,
+    startAppleExport: (...args: Parameters<typeof actual.startAppleExport>) => {
+      appleZones.push(args[1])
+      return actual.startAppleExport(...args)
+    },
+  }
+})
 
 const exportXml = readFileSync(join(process.cwd(), 'tests/fixtures/apple/export.xml'), 'utf8')
 
@@ -63,7 +76,7 @@ const GPX = `<?xml version="1.0" encoding="UTF-8"?>
  </trkseg></trk>
 </gpx>`
 
-function renderDialog(routes: MockRoutes) {
+function renderDialog(routes: MockRoutes, runnerZone?: string) {
   const api = mockApi({
     'GET /api/settings': () => ({ units: 'mi' }),
     // The result links to the newest runs of the batch.
@@ -74,6 +87,7 @@ function renderDialog(routes: MockRoutes) {
     <ToastProvider>
       <ImportDialog open onClose={() => {}} />
     </ToastProvider>,
+    runnerZone === undefined ? {} : { runnerZone },
   )
   return api
 }
@@ -440,6 +454,29 @@ describe('Import dialog, Apple Health', () => {
       0,
     )
     expect(wellnessSent).toBeGreaterThan(0)
+  })
+
+  test('reads a time with no offset in the runner zone, not the device zone', async () => {
+    appleZones.length = 0
+    renderDialog(
+      {
+        'POST /api/imports/parsed': () => ({
+          status: 201,
+          body: batch({ source: 'apple-health' }),
+        }),
+      },
+      'Pacific/Kiritimati',
+    )
+    const dialog = await screen.findByRole('dialog', { name: 'Import activities' })
+    await userEvent.click(within(dialog).getByRole('radio', { name: 'Apple Health' }))
+    await userEvent.upload(
+      within(dialog).getByLabelText('Apple Health export (export.zip)'),
+      appleZip(),
+    )
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Import export' }))
+    await waitFor(() => {
+      expect(appleZones).toEqual(['Pacific/Kiritimati'])
+    })
   })
 
   test('an export that cannot be read says so, and that the files already imported are skipped', async () => {
