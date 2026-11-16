@@ -515,10 +515,10 @@ export function SessionSheet({ session, onClose }: SessionSheetProps) {
           </section>
 
           {session.kind === 'strength' ? <SessionStrengthSection session={session} /> : null}
-          {/* The race of an ultra goal is stored in zone 1 (rule H11); a shorter race has no plan. A race
-              the runner entered besides the goal race is not the goal race: the plan is not its. */}
+          {/* The race session of the goal race, an ultra's (zone 1, rule H11) or a road race's (rule
+              H15, ADR 0023). A race the runner entered besides the goal race is not the goal race:
+              the plan is not its. */}
           {session.kind === 'race' &&
-          session.target.zone === 'z1' &&
           !session.flags.includes('entered-race') &&
           units !== undefined ? (
             <RaceSessionSection session={session} units={units} />

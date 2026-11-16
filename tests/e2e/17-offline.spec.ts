@@ -552,3 +552,52 @@ test("the race plan opens with no connection from the phone's copy, and says whe
   await expect(page).toHaveURL(/\/login$/)
   await expect.poll(() => crewKeys()).toEqual([])
 })
+
+// The road race plan (rule H15, ADR 0023) rides the same kept read: no new URL, no worker change. It
+// comes after the case above, which signs out, so it signs in again.
+test("a road race plan opens with no connection from the phone's copy, and says when it was saved", async () => {
+  const { today } = relativeDates()
+  await signedInApi(page, origin)
+  await resetData()
+  const goal = (await api.post('/goals', {
+    name: 'Offline marathon',
+    priority: 'A',
+    targetDate: addDays(today, 7 * 20),
+    distanceM: 42_195,
+    gainM: 0,
+    lossM: 0,
+    surface: 'road',
+    goalType: 'finish',
+    startTime: '08:00',
+  })) as { id: string }
+  await api.post(`/goals/${goal.id}/activate`)
+  await api.post('/plan/generate', { goalId: goal.id, strengthPreference: 0 })
+
+  await page.goto('/race')
+  await expect(page.getByRole('heading', { level: 2, name: 'Expected time' })).toBeVisible()
+  await expect(page.getByRole('heading', { level: 2, name: 'Not in this plan' })).toBeVisible()
+  await expect.poll(() => kept(API_CACHE), { timeout: WARM_TIMEOUT }).toContain('/api/race/plan')
+
+  await page.context().setOffline(true)
+  const offline = await page.evaluate(async () => {
+    const response = await fetch('/api/race/plan')
+    return (await response.json()) as {
+      plan: unknown
+      road?: { distanceClass: string }
+      servedFromCache?: boolean
+    }
+  })
+  expect(offline.servedFromCache).toBe(true)
+  expect(offline.plan).toBeNull()
+  expect(offline.road?.distanceClass).toBe('marathon')
+
+  await page.reload()
+  await expect(page.getByRole('heading', { level: 2, name: 'Expected time' })).toBeVisible()
+  await expect(
+    page.getByText(/^Offline\. Showing the race plan saved at \d{2}:\d{2}\.$/),
+  ).toBeVisible()
+  await page.context().setOffline(false)
+  // The page reads the plan again when the connection returns; the worker may need a moment to
+  // leave its offline answer.
+  await expect(page.getByText(/^Offline\./)).toBeHidden({ timeout: 15_000 })
+})

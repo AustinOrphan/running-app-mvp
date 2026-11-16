@@ -131,7 +131,9 @@ const LIBRARY: Record<SessionKind, LibraryEntry> = {
   },
   race: {
     zone: 'race-pace',
-    // Only an ultra goal has a race plan (rule H14, `racePlanFor`); every other race promises none.
+    // The plan is not session text: an ultra goal's race plan (rule H14, `racePlanFor`) and a 10 km,
+    // half marathon or marathon goal's (rule H15, `roadRacePlanFor`) are separate pages, and rewording
+    // this purpose would move the history oracle's digests.
     purpose: 'Race day: run by effort.',
     rules: ['K6'],
   },

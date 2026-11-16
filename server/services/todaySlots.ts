@@ -1,7 +1,7 @@
 // The named slots of the Today payload (phase 3a design 7.4 and 7.6). Each owning epic gives its
 // slot a type in `TodaySlots` and a provider here: the disruption banner (E5), the fuel target
 // line and the fuel prompt (E6), the watch line (E1, `wristItems.ts`), the brief line (E4,
-// `brief.ts`), the strength workout (E14, `strength.ts`) and the race plan (RP2, `racePlan.ts`). Until its epic lands, a provider
+// `brief.ts`), the strength workout (E14, `strength.ts`) the race plan (RP2, `racePlan.ts`) and the road race plan (H15, `racePlan.ts`). Until its epic lands, a provider
 // answers null and the slot takes no height. The disruption slot (E5-5) holds the window in effect,
 // else an offer to set one (`disruptionSlot`).
 //
@@ -16,14 +16,12 @@ import type { AthleteContext } from './athleteState.ts'
 import { todayBriefSlot } from './brief.ts'
 import { disruptionSlot } from './disruptions.ts'
 import { todayFuelPromptSlot, todayFuelSlot } from './fuel.ts'
-import { todayRaceSlot } from './racePlan.ts'
+import { todayRaceSlot, todayRoadRaceSlot } from './racePlan.ts'
 import { todayStrengthSetupSlot, todayStrengthSlot } from './strength.ts'
 import { safeMessage } from './syncLog.ts'
 import { todayWatchSlot } from './wristItems.ts'
 
-// `roadRace` (rule H15, ADR 0023) is typed on the payload and has no provider until the server
-// switch of D11 lands (PR 4), which removes this exclusion.
-export type SlotName = Exclude<keyof TodaySlots, 'roadRace'>
+export type SlotName = keyof TodaySlots
 
 export interface SlotArgs {
   deps: Deps
@@ -73,6 +71,9 @@ export const slotProviders: { [K in SlotName]: SlotProvider<K> } = {
   // The race plan reads state only (the snapshot, the fuel ladder, the cached race climate, which
   // is a state table), so the data version in the page's ETag covers it: no stamp of its own.
   race: ({ deps, userId, date, today }) => todayRaceSlot(deps, { userId, today, date }),
+  // The road plan (rule H15, ADR 0023) is the `road` field of the same memo: the same data version
+  // covers it.
+  roadRace: ({ deps, userId, date, today }) => todayRoadRaceSlot(deps, { userId, today, date }),
 }
 
 /** Every slot with its provider's answer; a failed provider's slot is null. */

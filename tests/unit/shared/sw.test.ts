@@ -7,6 +7,7 @@ import { describe, expect, test } from 'vitest'
 import { isoDateInZone } from '../../../shared/dates.ts'
 import { renderSw, SW_SOURCE } from '../../../web/sw/buildSw.ts'
 import { API_CACHE_NAME, META_CACHE_NAME } from '../../../web/pwa/register.ts'
+import { roadPlan } from '../../web/road-fixtures.ts'
 
 const ORIGIN = 'https://run.example.com'
 const TEMPLATE = readFileSync(SW_SOURCE, 'utf8')
@@ -926,6 +927,22 @@ describe("Today's copy", () => {
     expect(await (await answer(sw.request('/api/race/plan'))).json()).toMatchObject({
       ...none,
       servedFromCache: true,
+    })
+  })
+
+  test('a road plan (rule H15, ADR 0023) rides the same kept read and is served with the saved-copy mark, unread by the worker', async () => {
+    const sw = loadWorker()
+    const road = JSON.parse(JSON.stringify(roadPlan('marathon-heat'))) as unknown
+    const view = { plan: null, reason: 'not-ultra', road }
+    sw.setNetwork(answering({ '/api/race/plan': view }))
+    await sw.request('/api/race/plan').settle()
+    sw.setNetwork(() => {
+      throw new TypeError('offline')
+    })
+    expect(await (await answer(sw.request('/api/race/plan'))).json()).toEqual({
+      ...view,
+      servedFromCache: true,
+      savedAt: new Date(START).toISOString(),
     })
   })
 

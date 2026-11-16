@@ -45,14 +45,14 @@ export const RACE_PLAN_TEMPLATES = {
   // ---- The page and the empty states ------------------------------------------------------------
   'race.plan.title': tpl('Race plan', {}, { shape: 'label' }),
   'race.plan.more-note': tpl(
-    'Effort, fuel, heat and the expected time for the goal race',
+    'The expected time, fuel, heat and race week for the goal race',
     {},
     { shape: 'label' },
   ),
   'race.plan.empty.no-goal': tpl('Add a goal race to see its plan.'),
   'race.plan.empty.no-distance': tpl('The goal needs a distance before it can have a race plan.'),
   'race.plan.empty.not-ultra': tpl(
-    'The race plan is for ultra distances. A shorter race keeps its session as planned.',
+    'The race plan covers 10 km, half marathons, marathons and ultras. A shorter race keeps its session as planned.',
   ),
   'race.plan.empty.race-over': tpl('This race is over, so there is no plan to show.'),
   // The note under the title while the page shows the phone's saved copy (ADR 0012, addendum): the

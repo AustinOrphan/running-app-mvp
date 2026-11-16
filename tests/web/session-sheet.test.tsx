@@ -1134,11 +1134,13 @@ describe('the race plan block (rule H14)', () => {
     )
   })
 
-  test('a race stored in the race-pace zone (a shorter race) has no race plan block', async () => {
+  test('a race stored in the race-pace zone (a road race, rule H15) links to the race plan too', async () => {
     renderSheet(raceSession('z3'), noTargets)
     const sheet = await screen.findByRole('dialog', { name: 'Race' })
-    await within(sheet).findByText('Prescription')
-    expect(within(sheet).queryByRole('link', { name: 'Open the race plan' })).toBeNull()
+    expect(await within(sheet).findByRole('link', { name: 'Open the race plan' })).toHaveAttribute(
+      'href',
+      '/race',
+    )
   })
 
   test('a road race session shows its purpose with no promise of a fuel or pacing plan (RT1)', async () => {
@@ -1159,7 +1161,8 @@ describe('the race plan block (rule H14)', () => {
     const sheet = await screen.findByRole('dialog', { name: 'Race' })
     expect(await within(sheet).findByText(purpose)).toBeVisible()
     expect(within(sheet).queryByText(/fuel and pacing plan/i)).toBeNull()
-    expect(within(sheet).queryByRole('link', { name: 'Open the race plan' })).toBeNull()
+    // The link to the plan page is the gate change of ADR 0023; the purpose itself promises nothing.
+    expect(await within(sheet).findByRole('link', { name: 'Open the race plan' })).toBeVisible()
     expectCleanCopy(sheet)
   })
 

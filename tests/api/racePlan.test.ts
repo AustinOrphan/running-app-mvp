@@ -3,6 +3,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, test } from 'vitest'
 import { addDays, todayIso } from '../../shared/dates.ts'
 import { P } from '../../shared/engine/params/index.ts'
 import { summaryOf } from '../../shared/engine/racePlan.ts'
+import { roadSummaryOf } from '../../shared/engine/racePlanRoad.ts'
 import type { RacePlanView, TodayView } from '../../shared/types.ts'
 import { dataVersionKey } from '../../server/dataVersion.ts'
 import { climateKeyFor } from '../../server/services/weatherCache.ts'
@@ -111,7 +112,14 @@ describe('GET /api/race/plan: access and shape', () => {
 
     const marathon = await newUser()
     await newGoal(marathon, { distanceM: 42_195 })
-    expect(await planOf(marathon)).toEqual({ plan: null, reason: 'not-ultra' })
+    // The marathon's plan is the road plan: `plan` and `reason` stay what a shell built before it reads.
+    const marathonView = await planOf(marathon)
+    expect(marathonView).toMatchObject({ plan: null, reason: 'not-ultra' })
+    expect(marathonView.road?.distanceClass).toBe('marathon')
+
+    const fiveK = await newUser()
+    await newGoal(fiveK, { distanceM: 5_000 })
+    expect(await planOf(fiveK)).toEqual({ plan: null, reason: 'not-ultra' })
 
     const over = await newUser()
     await newGoal(over, { daysAhead: -1 })
@@ -386,5 +394,191 @@ describe('GET /api/race/plan: rehearsal', () => {
     await newGoal(other, { daysAhead: 40 })
     await addRun(runner, 2, 7, true)
     expect((await planOf(other)).plan!.rehearsal!.runs).toBe(0)
+  })
+})
+
+describe('GET /api/race/plan and the Today slot roadRace: the road plan (rule H15, ADR 0023)', () => {
+  interface RoadSpec {
+    distanceM: number
+    surface?: 'road' | 'trail' | 'track' | 'mixed'
+    daysAhead?: number
+    gainM?: number
+    wbgtC?: number | null
+    withRace?: boolean
+  }
+
+  /** A goal on a road course with a place, and a recent 10 km race so that a prediction exists. */
+  async function roadRunner(spec: RoadSpec): Promise<TestUser> {
+    const user = await newUser()
+    const goal = await ctx.prisma.goal.create({
+      data: {
+        userId: user.id,
+        name: 'Synthetic road race',
+        priority: 'A',
+        isActive: true,
+        targetDate: addDays(today, spec.daysAhead ?? 3),
+        distanceM: spec.distanceM,
+        gainM: spec.gainM ?? 0,
+        lossM: spec.gainM ?? 0,
+        surface: spec.surface ?? 'road',
+        goalType: 'finish',
+        startTime: '08:00',
+        raceLat: 40.01,
+        raceLng: -105.27,
+      },
+    })
+    if (spec.wbgtC !== undefined && spec.wbgtC !== null) {
+      const key = climateKeyFor(goal, { lat: null, lng: null, use: false })
+      if (key === null) throw new Error('the goal has no place')
+      // The cache is shared by place and date: one runner's normal at a time, read before the next.
+      await ctx.prisma.climateCache.deleteMany()
+      await ctx.prisma.climateCache.create({
+        data: { ...key, wbgtC: spec.wbgtC, samples: 10, yearsRead: 3, complete: true },
+      })
+    }
+    if (spec.withRace !== false) {
+      await ctx.prisma.activity.create({
+        data: {
+          userId: user.id,
+          date: addDays(today, -30),
+          type: 'race',
+          durationSec: 3300,
+          movingSec: 3300,
+          distanceM: 10_000,
+          rpe: 9,
+          source: 'manual',
+        },
+      })
+    }
+    return user
+  }
+
+  test('a marathon and a half answer in `road`, and `plan` and `reason` stay what a shell from before D11 reads', async () => {
+    const marathon = await roadRunner({ distanceM: 42_195 })
+    const half = await roadRunner({ distanceM: 21_097 })
+    const before = await dataVersionKey(ctx.prisma)
+    for (const [user, distanceClass] of [
+      [marathon, 'marathon'],
+      [half, 'half'],
+    ] as const) {
+      const view = await planOf(user)
+      expect(view.plan).toBeNull()
+      // A member of the union a shell built before D11 knows: its empty state, never a throw.
+      expect(['no-goal', 'no-distance', 'not-ultra', 'race-over']).toContain(view.reason)
+      expect(view.reason).toBe('not-ultra')
+      expect(view.road?.distanceClass).toBe(distanceClass)
+      expect(view.road?.expected.basis).toBe('prediction')
+      expect(view.road?.pace).not.toBeNull()
+      expect(view.road?.fluid).not.toBeNull()
+      expect(view).not.toHaveProperty('course')
+    }
+    expect((await planOf(half)).road?.firstHalf).toBeNull()
+    expect(await dataVersionKey(ctx.prisma)).toEqual(before)
+  })
+
+  test('a 10 km gets the time, pace and heat blocks only; a 5 km and an ultra keep their answers', async () => {
+    const tenK = await roadRunner({ distanceM: 10_000 })
+    const { road, plan } = await planOf(tenK)
+    expect(plan).toBeNull()
+    expect(road?.distanceClass).toBe('10k')
+    expect(road?.pace).not.toBeNull()
+    expect(road?.fuel).toBeNull()
+    expect(road?.fluid).toBeNull()
+    expect(road?.raceWeek).toBeNull()
+    expect(road?.firstHalf).toBeNull()
+
+    const fiveK = await roadRunner({ distanceM: 5_000 })
+    expect(await planOf(fiveK)).toEqual({ plan: null, reason: 'not-ultra' })
+
+    const ultra = await newUser()
+    await newGoal(ultra)
+    const ultraView = await planOf(ultra)
+    expect(ultraView.plan).not.toBeNull()
+    expect(ultraView).not.toHaveProperty('road')
+  })
+
+  test('a trail or mixed course keeps the time, heat and fuel blocks and gives no pace line', async () => {
+    for (const surface of ['trail', 'mixed'] as const) {
+      const user = await roadRunner({ distanceM: 42_195, surface })
+      const { road } = await planOf(user)
+      expect(road?.pace).toBeNull()
+      expect(road?.firstHalf).toBeNull()
+      expect(road?.notices).toContain('course-not-flat')
+      expect(road?.expected.basis).toBe('prediction')
+    }
+  })
+
+  test('with no history the plan stands on the goal estimate and says so', async () => {
+    const user = await roadRunner({ distanceM: 42_195, withRace: false })
+    const { road } = await planOf(user)
+    expect(road?.expected.basis).toBe('estimate')
+    expect(road?.pace).toBeNull()
+    expect(road?.notices).toContain('no-prediction')
+  })
+
+  test('one helper builds both predictions: no climate gives no heat minutes, a cool day gives zero', async () => {
+    const noClimate = await roadRunner({ distanceM: 42_195, gainM: 600 })
+    const none = (await planOf(noClimate)).road
+    expect(none?.heat.wbgtC).toBeNull()
+    expect(none?.heat.inRangeSec).toBeNull()
+    expect(none?.notices).toContain('no-climate')
+
+    // At or below i3.slopeStartC the heat adjustment is zero; the course climb, which both the
+    // prediction and the cool time carry, must not leak into the heat figure.
+    const cool = await roadRunner({
+      distanceM: 42_195,
+      gainM: 600,
+      wbgtC: P.i3.slopeStartC.value - 2,
+    })
+    const coolRoad = (await planOf(cool)).road
+    expect(coolRoad?.heat.rangeHoldsHeat).toBe(true)
+    expect(coolRoad?.heat.inRangeSec).toBe(0)
+
+    const hot = await roadRunner({ distanceM: 42_195, gainM: 600, wbgtC: 24 })
+    const hotRoad = (await planOf(hot)).road
+    expect(hotRoad?.heat.warm).toBe(true)
+    expect(hotRoad?.heat.inRangeSec ?? 0).toBeGreaterThan(0)
+    expect(hotRoad?.heat.paceShapeFinding).toBe(true)
+  })
+
+  test('the tag moves with the data version and the day only', async () => {
+    const user = await roadRunner({ distanceM: 42_195 })
+    const first = await client(ctx, user).get('/api/race/plan')
+    const tag = first.headers['etag'] as string
+    expect((await client(ctx, user).get('/api/race/plan').set('If-None-Match', tag)).status).toBe(
+      304,
+    )
+  })
+
+  test('Today: roadRace is road-shaped in race week and null outside it, and race stays null', async () => {
+    const user = await roadRunner({ distanceM: 42_195, daysAhead: 2, wbgtC: 14 })
+    const view = await todayOf(user)
+    const { road } = await planOf(user)
+    if (road == null) throw new Error('expected a road plan')
+    expect(view.coach.slots.race).toBeNull()
+    expect(view.coach.slots.roadRace).toEqual(
+      JSON.parse(JSON.stringify(roadSummaryOf(road, today))),
+    )
+    expect(view.coach.slots.roadRace?.daysToRace).toBe(2)
+    expect(view.coach.slots.roadRace?.fuel).toEqual(road.fuel)
+    expect(view.coach.slots.roadRace?.raceWeek).toEqual(road.raceWeek)
+
+    const far = await roadRunner({ distanceM: 42_195, daysAhead: P.r1.raceWeekCardDays.value + 3 })
+    expect((await todayOf(far)).coach.slots.roadRace).toBeNull()
+
+    const preview = await todayOf(user, `?date=${addDays(today, 1)}`)
+    expect(preview.coach.slots.roadRace?.daysToRace).toBe(1)
+  })
+
+  test('Today: a 10 km, an ultra and a runner with no goal have a null roadRace', async () => {
+    const tenK = await roadRunner({ distanceM: 10_000, daysAhead: 2 })
+    expect((await todayOf(tenK)).coach.slots.roadRace).toBeNull()
+    const ultra = await newUser()
+    await newGoal(ultra, { daysAhead: 2 })
+    const ultraSlots = (await todayOf(ultra)).coach.slots
+    expect(ultraSlots.roadRace).toBeNull()
+    expect(ultraSlots.race).not.toBeNull()
+    const none = await newUser()
+    expect((await todayOf(none)).coach.slots.roadRace).toBeNull()
   })
 })
