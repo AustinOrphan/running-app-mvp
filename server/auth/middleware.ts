@@ -1,6 +1,7 @@
 import type { RequestHandler } from 'express'
 import type { Deps } from '../app.ts'
 import { unauthorized } from '../errors.ts'
+import { runnerDay, type RunnerDay } from '../runnerDay.ts'
 import { SESSION_COOKIE, verifySession } from './session.ts'
 
 declare global {
@@ -8,6 +9,8 @@ declare global {
   namespace Express {
     interface Request {
       userId: string
+      /** The runner's day, resolved once per request in `requireAuth` (D10, ADR 0022). */
+      runnerDay: RunnerDay
     }
   }
 }
@@ -45,7 +48,11 @@ export function sameOriginGuard(): RequestHandler {
   }
 }
 
-/** Resolves the session cookie to an existing user and sets `req.userId`; otherwise 401. */
+/**
+ * Resolves the session cookie to an existing user and sets `req.userId` and `req.runnerDay` (the
+ * zone is read with the user row, and `now` once, so one request never mixes two days); otherwise
+ * 401.
+ */
 export function requireAuth(deps: Deps): RequestHandler {
   return async (req, _res, next) => {
     try {
@@ -59,7 +66,7 @@ export function requireAuth(deps: Deps): RequestHandler {
       }
       const user = await deps.prisma.user.findUnique({
         where: { id: session.userId },
-        select: { id: true, sessionVersion: true },
+        select: { id: true, sessionVersion: true, profile: { select: { timezone: true } } },
       })
       // A cookie signed with another version than the account's is refused (the counter is raised
       // by a password change or reset).
@@ -68,6 +75,7 @@ export function requireAuth(deps: Deps): RequestHandler {
         return
       }
       req.userId = user.id
+      req.runnerDay = runnerDay(new Date(), user.profile?.timezone)
       next()
     } catch (error) {
       next(error)

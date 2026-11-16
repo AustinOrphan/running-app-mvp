@@ -5,7 +5,6 @@
 // sends the current tag is answered 304 before anything is built.
 import { Router } from 'express'
 import { z } from 'zod'
-import { todayIso } from '../../shared/dates.ts'
 import {
   PACES_CUSTOM_GAIN_MAX_M,
   PACES_CUSTOM_MAX_M,
@@ -47,7 +46,7 @@ export function pacesRouter(deps: Deps): Router {
 
   router.get('/', async (req, res) => {
     const { distanceM, gainM } = parse(query, req.query)
-    const today = todayIso()
+    const { today } = req.runnerDay
     res.vary('Cookie')
     res.set('Cache-Control', 'private, no-cache')
     res.set('ETag', etag(athleteKey(await dataVersionKey(deps.prisma), today), distanceM, gainM))
