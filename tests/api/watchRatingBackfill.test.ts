@@ -9,13 +9,13 @@ import { syntheticRun } from '../fixtures/syntheticRoute.ts'
 import {
   WATCH_RATING_BATCH,
   WATCH_RATING_DEFER_MS,
-  backfillWatchRatings,
 } from '../../server/services/watchRatingBackfill.ts'
 import { P } from '../../shared/engine/params/index.ts'
 import { fakeFetch } from '../fakeFetch.ts'
 import {
   client,
   createTestCtx,
+  backfillWatchRatingsToday as backfillWatchRatings,
   expectNoRefusedFetches,
   seedUser,
   type TestCtx,

@@ -177,11 +177,15 @@ export async function todayHealth(args: HealthNoteArgs): Promise<TodayHealth> {
  * has not run yet" when the weekly update is due (`weeklyUpdateStatus`, the same answer as
  * `GET /api/jobs`). The two sentences are templates; neither carries a slot.
  */
-export async function jobHealthNotes({ deps, userId }: HealthNoteArgs): Promise<HealthNote[]> {
+export async function jobHealthNotes({
+  deps,
+  userId,
+  context,
+}: HealthNoteArgs): Promise<HealthNote[]> {
   const { prisma } = deps
   const [jobs, weekly] = await Promise.all([
     latestJobRuns(prisma, userId),
-    weeklyUpdateStatus(prisma, userId, new Date()),
+    weeklyUpdateStatus(prisma, userId, new Date(), runnerZone(context.profile.timezone)),
   ])
   const notes: HealthNote[] = []
   if (jobs.some((job) => job.provider === 'sync' && job.status === 'paused')) {
@@ -213,16 +217,18 @@ export async function jobHealthNotes({ deps, userId }: HealthNoteArgs): Promise<
 export async function jobNotesStamp({
   deps,
   userId,
+  tz,
 }: {
   deps: Deps
   userId: string
+  tz: string
 }): Promise<string> {
   const latest = await deps.prisma.syncRun.findFirst({
     where: { userId, channel: 'job', provider: 'sync' },
     orderBy: [{ startedAt: 'desc' }, { id: 'desc' }],
     select: { status: true },
   })
-  const slot = weekSlotStart(new Date(), REPLAN_SLOT)
+  const slot = weekSlotStart(new Date(), REPLAN_SLOT, tz)
   return `jobs:${latest?.status === 'paused' ? 'paused' : 'ok'}:${slot === null ? 'none' : String(slot.getTime())}`
 }
 

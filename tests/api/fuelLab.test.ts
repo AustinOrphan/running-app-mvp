@@ -34,7 +34,7 @@ import type {
 } from '../../shared/types.ts'
 import { markDuplicates } from '../../server/services/duplicates.ts'
 import { buildDeliverables, type SendDeliverable } from '../../server/services/workouts.ts'
-import { refreshWeatherCaches, settleWeatherCache } from '../../server/services/weatherCache.ts'
+import { settleWeatherCache } from '../../server/services/weatherCache.ts'
 import { fakeFetch } from '../fakeFetch.ts'
 import { makeFuelPrompts, makeFuelSlot } from '../web/today-fixtures.ts'
 import {
@@ -42,6 +42,7 @@ import {
   createTestCtx,
   expectNoRefusedFetches,
   noNetwork,
+  refreshWeatherCachesToday as refreshWeatherCaches,
   seedUser,
   type TestCtx,
   type TestUser,

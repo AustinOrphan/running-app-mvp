@@ -6,7 +6,7 @@ import { settleWatchRatings } from './activityStore.ts'
 import { runExecutionQuietly } from './execution.ts'
 import { isSyncing, openIntegration, providerContext } from './sync.ts'
 import { safeMessage, secretValues } from './syncLog.ts'
-import { addDays, todayIso } from '../../shared/dates.ts'
+import { addDays } from '../../shared/dates.ts'
 import { P } from '../../shared/engine/params/index.ts'
 
 /**
@@ -88,12 +88,12 @@ function waiting(userId: string, from: string, skip: string[] = []) {
 export async function backfillWatchRatings(
   deps: Deps,
   userId: string,
-  opts: { limit?: number; now?: Date } = {},
+  opts: { limit?: number; now?: Date; today: string },
 ): Promise<WatchRatingBackfillResult> {
   const { prisma } = deps
   const now = opts.now ?? new Date()
-  // Step 3 of D10 gives this job the runner's day; until then it is the server's.
-  const today = todayIso(now)
+  // The runner's day (D10, ADR 0022); the job passes it.
+  const { today } = opts
   const from = addDays(today, -P.a5.historyWindowDays.value)
   const result: WatchRatingBackfillResult = {
     filled: 0,
