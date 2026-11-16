@@ -4,7 +4,7 @@ import { createPrisma, initSqlite } from './db.ts'
 import { startScheduler } from './jobs/scheduler.ts'
 import { createLogger } from './logger.ts'
 import { installProcessErrorHandlers } from './processErrors.ts'
-import { describeZoneCutover, zoneCutoverReport } from './runnerDay.ts'
+import { describeZoneCutover, setUnknownZoneReporter, zoneCutoverReport } from './runnerDay.ts'
 
 loadEnvFileIfPresent()
 const config = loadConfig(process.env)
@@ -13,7 +13,12 @@ installProcessErrorHandlers(logger)
 const prisma = createPrisma(config.databaseUrl)
 await initSqlite(prisma)
 
-// D10 step 1: read-only. Says whose day step 5 will move and who has no zone chosen.
+// A stored zone this server's ICU rejects reads as not chosen; the runner's id is logged once.
+setUnknownZoneReporter((userId) =>
+  logger.warn({ userId }, 'stored zone unknown to the server; the server zone applies'),
+)
+
+// D10: read-only. Says whose day follows a zone other than the server's and who has none chosen.
 try {
   logger.info(describeZoneCutover(await zoneCutoverReport(prisma)))
 } catch (error) {

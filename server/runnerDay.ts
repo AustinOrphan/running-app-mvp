@@ -31,17 +31,45 @@ export function chosenZone(stored: string | null | undefined): string | null {
 }
 
 /**
- * The zone a runner's days follow. Step 5 of D10 makes this `chosenZone(stored) ?? serverTimeZone()`;
- * until then every runner's day is the server's, so no day changes.
+ * Called once per process and runner for a stored zone the server's ICU rejects, with the runner's
+ * id and nothing else. `server/index.ts` points it at the logger; unset, nothing is reported.
  */
-export function runnerZone(stored: string | null | undefined): string {
-  void stored
+let unknownZoneReporter: ((userId: string) => void) | null = null
+const reportedUnknown = new Set<string>()
+
+export function setUnknownZoneReporter(report: ((userId: string) => void) | null): void {
+  unknownZoneReporter = report
+  reportedUnknown.clear()
+}
+
+/**
+ * The zone a runner's days follow (D10 step 5, ADR 0022): `chosenZone(stored)` when the runner has
+ * chosen one, the server's zone otherwise. A stored zone the server's ICU rejects reads as not
+ * chosen and is reported once per process (`userId` names whose, when the caller has it).
+ */
+export function runnerZone(stored: string | null | undefined, userId?: string): string {
+  const chosen = chosenZone(stored)
+  if (chosen !== null) return chosen
+  if (
+    userId !== undefined &&
+    stored !== null &&
+    stored !== undefined &&
+    stored !== 'UTC' &&
+    !reportedUnknown.has(userId)
+  ) {
+    reportedUnknown.add(userId)
+    unknownZoneReporter?.(userId)
+  }
   return serverTimeZone()
 }
 
 /** The runner's day at `now` for a stored zone. */
-export function runnerDay(now: Date, stored: string | null | undefined): RunnerDay {
-  const tz = runnerZone(stored)
+export function runnerDay(
+  now: Date,
+  stored: string | null | undefined,
+  userId?: string,
+): RunnerDay {
+  const tz = runnerZone(stored, userId)
   return { tz, today: isoDateInZone(now, tz), now }
 }
 
@@ -55,7 +83,7 @@ export async function loadRunnerDay(
     where: { userId },
     select: { timezone: true },
   })
-  return runnerDay(now, profile?.timezone)
+  return runnerDay(now, profile?.timezone, userId)
 }
 
 /** The day of each runner in `userIds` (every runner when omitted), from one query. */
@@ -68,7 +96,7 @@ export async function runnerDays(
     ...(userIds === undefined ? {} : { where: { id: { in: userIds } } }),
     select: { id: true, profile: { select: { timezone: true } } },
   })
-  return new Map(users.map((user) => [user.id, runnerDay(now, user.profile?.timezone)]))
+  return new Map(users.map((user) => [user.id, runnerDay(now, user.profile?.timezone, user.id)]))
 }
 
 const SAMPLE_START = Date.UTC(2026, 0, 1, 0, 7)
@@ -91,8 +119,8 @@ function sameClock(a: string, b: string): boolean {
 }
 
 /**
- * Which runners' days will move when D10's step 5 makes `runnerZone` follow the stored zone:
- * `moving` have chosen a zone other than the server's; `unset` have chosen none and keep the
+ * Which runners' days moved when D10's step 5 made `runnerZone` follow the stored zone (the
+ * start-up line): `moving` have chosen a zone other than the server's; `unset` have chosen none and keep the
  * server's. A runner who chose the server's own zone, under any alias of its name, is in neither.
  */
 export async function zoneCutoverReport(
@@ -119,5 +147,5 @@ export function describeZoneCutover(report: { moving: string[]; unset: number })
     report.moving.length === 0
       ? '0 runners'
       : `${report.moving.length} runner(s) (${report.moving.join(', ')})`
-  return `D10: ${moving} will follow a zone other than the server's; ${report.unset} runner(s) have no zone chosen and keep the server's day`
+  return `D10: ${moving} follow a zone other than the server's; ${report.unset} runner(s) have no zone chosen and keep the server's day`
 }

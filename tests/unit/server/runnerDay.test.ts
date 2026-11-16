@@ -7,6 +7,7 @@ import {
   runnerDays,
   runnerZone,
   serverTimeZone,
+  setUnknownZoneReporter,
   zoneCutoverReport,
 } from '../../../server/runnerDay.ts'
 import { createTestCtx, seedUser, type TestCtx } from '../../api/helpers.ts'
@@ -25,8 +26,18 @@ function inZone<T>(zone: string, run: () => T): T {
   }
 }
 
-describe('runnerZone (D10 step 1: every runner follows the server zone)', () => {
-  test.each([['Pacific/Kiritimati'], ['Etc/UTC'], ['UTC'], [null], [undefined], ['Nowhere/Land']])(
+describe('runnerZone (D10 step 5: the stored zone, or the server zone)', () => {
+  test.each([['Pacific/Kiritimati'], ['Pacific/Pago_Pago'], ['Europe/Berlin'], ['Etc/UTC']])(
+    'gives the stored zone as written for %s, whatever the process zone',
+    (stored) => {
+      expect(runnerZone(stored)).toBe(stored)
+      for (const zone of ['America/Chicago', 'Asia/Kolkata', 'Pacific/Kiritimati']) {
+        inZone(zone, () => expect(runnerZone(stored)).toBe(stored))
+      }
+    },
+  )
+
+  test.each([['UTC'], [null], [undefined], ['Nowhere/Land']])(
     'gives the server zone for %s',
     (stored) => {
       expect(runnerZone(stored)).toBe(serverTimeZone())
@@ -36,19 +47,56 @@ describe('runnerZone (D10 step 1: every runner follows the server zone)', () => 
     },
   )
 
+  describe('a stored zone the server does not know', () => {
+    afterEach(() => {
+      setUnknownZoneReporter(null)
+    })
+
+    test('is reported once per process and runner, with the runner id only', () => {
+      const reported: string[] = []
+      setUnknownZoneReporter((userId) => reported.push(userId))
+      runnerZone('Nowhere/Land', 'u1')
+      runnerZone('Nowhere/Land', 'u1')
+      runnerZone('Elsewhere/Land', 'u2')
+      expect(reported).toEqual(['u1', 'u2'])
+    })
+
+    test('is not reported for a zone that is valid, the literal UTC, or no zone', () => {
+      const reported: string[] = []
+      setUnknownZoneReporter((userId) => reported.push(userId))
+      runnerZone('Europe/Berlin', 'u1')
+      runnerZone('UTC', 'u1')
+      runnerZone(null, 'u1')
+      runnerZone(undefined, 'u1')
+      expect(reported).toEqual([])
+    })
+  })
+
   test('serverTimeZone follows the process zone', () => {
     inZone('Pacific/Auckland', () => expect(serverTimeZone()).toBe('Pacific/Auckland'))
     inZone('America/Chicago', () => expect(serverTimeZone()).toBe('America/Chicago'))
   })
 
-  test('runnerDay is the date of `now` in the server zone, with the instant it was given', () => {
+  test('runnerDay is the date of `now` in the runner zone, with the instant it was given', () => {
+    // 12:00 UTC on the 16th is 02:00 on the 17th at +14 and 01:00 on the 16th at -11.
+    for (const host of ['Pacific/Kiritimati', 'Pacific/Pago_Pago', 'Europe/Berlin']) {
+      inZone(host, () => {
+        const far = runnerDay(NOW, 'Pacific/Kiritimati')
+        expect(far).toEqual({ tz: 'Pacific/Kiritimati', today: '2026-11-17', now: NOW })
+        expect(far.now).toBe(NOW)
+        expect(runnerDay(NOW, 'Pacific/Pago_Pago')).toEqual({
+          tz: 'Pacific/Pago_Pago',
+          today: '2026-11-16',
+          now: NOW,
+        })
+      })
+    }
     inZone('Pacific/Kiritimati', () => {
-      const day = runnerDay(NOW, 'Pacific/Pago_Pago')
-      expect(day).toEqual({ tz: 'Pacific/Kiritimati', today: '2026-11-17', now: NOW })
-      expect(day.now).toBe(NOW)
-    })
-    inZone('Pacific/Pago_Pago', () => {
-      expect(runnerDay(NOW, 'Pacific/Kiritimati').today).toBe('2026-11-16')
+      expect(runnerDay(NOW, 'UTC')).toEqual({
+        tz: 'Pacific/Kiritimati',
+        today: '2026-11-17',
+        now: NOW,
+      })
     })
   })
 })
@@ -73,10 +121,10 @@ describe('chosenZone (the rule step 5 applies)', () => {
 describe('describeZoneCutover', () => {
   test('names ids and counts, nothing else', () => {
     expect(describeZoneCutover({ moving: ['a1', 'b2'], unset: 3 })).toBe(
-      "D10: 2 runner(s) (a1, b2) will follow a zone other than the server's; 3 runner(s) have no zone chosen and keep the server's day",
+      "D10: 2 runner(s) (a1, b2) follow a zone other than the server's; 3 runner(s) have no zone chosen and keep the server's day",
     )
     expect(describeZoneCutover({ moving: [], unset: 0 })).toBe(
-      "D10: 0 runners will follow a zone other than the server's; 0 runner(s) have no zone chosen and keep the server's day",
+      "D10: 0 runners follow a zone other than the server's; 0 runner(s) have no zone chosen and keep the server's day",
     )
   })
 })
@@ -111,19 +159,23 @@ describe('the readers of the stored zone', () => {
   }
 
   test(
-    'loadRunnerDay and runnerDays give the server day for a real zone, UTC and no row',
+    'loadRunnerDay and runnerDays give the stored zone, and the server day for UTC and no row',
     async () => {
       const { ctx, ids, idOf } = await ctxWith({
         far: 'Pacific/Kiritimati',
         utc: 'UTC',
         none: null,
       })
-      const expected = runnerDay(NOW, null)
-      expect(await loadRunnerDay(ctx.prisma, idOf('far'), NOW)).toEqual(expected)
-      expect(await loadRunnerDay(ctx.prisma, idOf('none'), NOW)).toEqual(expected)
+      const server = runnerDay(NOW, null)
+      const far = runnerDay(NOW, 'Pacific/Kiritimati')
+      expect(far.tz).toBe('Pacific/Kiritimati')
+      expect(await loadRunnerDay(ctx.prisma, idOf('far'), NOW)).toEqual(far)
+      expect(await loadRunnerDay(ctx.prisma, idOf('none'), NOW)).toEqual(server)
       const days = await runnerDays(ctx.prisma, NOW)
       expect([...days.keys()].sort()).toEqual(Object.values(ids).sort())
-      for (const day of days.values()) expect(day).toEqual(expected)
+      expect(days.get(idOf('far'))).toEqual(far)
+      expect(days.get(idOf('utc'))).toEqual(server)
+      expect(days.get(idOf('none'))).toEqual(server)
       const some = await runnerDays(ctx.prisma, NOW, [idOf('utc')])
       expect([...some.keys()]).toEqual([idOf('utc')])
     },

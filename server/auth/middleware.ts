@@ -75,7 +75,7 @@ export function requireAuth(deps: Deps): RequestHandler {
         return
       }
       req.userId = user.id
-      req.runnerDay = runnerDay(new Date(), user.profile?.timezone)
+      req.runnerDay = runnerDay(new Date(), user.profile?.timezone, user.id)
       next()
     } catch (error) {
       next(error)
