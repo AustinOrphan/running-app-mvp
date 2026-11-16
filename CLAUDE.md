@@ -231,6 +231,12 @@ protection reads. The Docker image must still build (`docker build .`) after a c
   `c8.ownLt1*` Params). Accepting writes `AthleteProfile.ownLt1Hr`, which `buildZones` reads ahead of the other
   anchors of that boundary (source `own-line`); the watch, H11 and My paces follow through the zones. The profile
   route clears it when the maximum or threshold heart rate changes. No observed maximum is proposed (C8).
+- First hot days (rule J5, HH1, owner decision D7 2026-11-14): `firstHotDays` (`shared/engine/heat.ts`) is the one
+  test; `weeklyDecision` reads it for the coming week from `input.forecast` (the cached forecast, never fetched:
+  `computeReplan`, `weeklyDecisions` and Explain gather it, and Explain's memo names carry `forecastStamp`) or,
+  with no forecast for that week, the recent runs. It holds a loading week of the build only (never taper, race,
+  recovery, post-race or a start programme), at the last loading week's minutes, with the long run kept
+  (`heatHeld` in `ReplanOptions`, `heatHoldWeek`) and no session trimmed; the week carries `heat-hold`.
 - My paces (ADR 0020, rule C9) is derived on read and stored nowhere: `myPaces` and `eventRow`
   (`shared/engine/myPaces.ts`) over the snapshot and `hrModelOf`, the memo `paces.view` behind
   `GET /api/paces`, and the zones shown through `ZoneSummary`, the one rendering the Profile shares. A
