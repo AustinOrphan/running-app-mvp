@@ -711,9 +711,9 @@ describe('ProfilePage', () => {
     test('a saved zone the server does not follow says the days follow the server zone', async () => {
       setup(makeProfile({ timezone: 'Nowhere/Land' }), {}, SERVER, SERVER)
       await loaded()
-      const line = screen.getByText(/^The zone saved here, Nowhere\/Land, is not known/)
+      const line = screen.getByText(/^This server does not know the saved zone/)
       expect(line).toHaveTextContent(
-        /^The zone saved here, Nowhere\/Land, is not known to this server, so days follow Pacific\/Kiritimati, the server's zone\. Today is \w{3} \d{1,2} \w{3} \d{4} there\. Days already logged keep their dates\.$/,
+        /^This server does not know the saved zone, so days follow Pacific\/Kiritimati, its own\. Today is \w{3} \d{1,2} \w{3} \d{4} there\. Days already logged keep their dates\.$/,
       )
       expect(screen.queryByText(/the zone saved here\. Today/)).not.toBeInTheDocument()
       expectCleanCopy(line)

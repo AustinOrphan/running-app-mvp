@@ -28,12 +28,9 @@ export const ZONE_TEMPLATES = {
   ),
   // A saved zone the server's ICU does not know: the days follow the server's zone instead.
   'zone.line.unknown': tpl(
-    "The zone saved here, {saved}, is not known to this server, so days follow {zone}, the server's zone. Today is {date} there.",
-    { saved: 'text', zone: 'text', date: 'date' },
-    {
-      fallback:
-        "The zone saved here is not known to this server, so days follow the server's zone.",
-    },
+    'This server does not know the saved zone, so days follow {zone}, its own. Today is {date} there.',
+    { zone: 'text', date: 'date' },
+    { fallback: 'This server does not know the saved zone, so days follow its own.' },
   ),
   'zone.line.logged': tpl('Days already logged keep their dates.'),
   // While the picker shows a zone other than the saved one (the browser's zone is pre-filled over an
@@ -74,7 +71,7 @@ export function zoneLineText(zone: string, today: string, saved: string): string
       ? render(ZONE_TEMPLATES['zone.line.unset'], { zone, date }, 'km')
       : saved === zone
         ? render(ZONE_TEMPLATES['zone.line.chosen'], { zone, date }, 'km')
-        : render(ZONE_TEMPLATES['zone.line.unknown'], { saved, zone, date }, 'km')
+        : render(ZONE_TEMPLATES['zone.line.unknown'], { zone, date }, 'km')
   return `${line} ${render(ZONE_TEMPLATES['zone.line.logged'], {}, 'km')}`
 }
 
