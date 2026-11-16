@@ -29,6 +29,7 @@ const FLAG_SET: Record<SessionFlag, true> = {
   'post-race': true,
   'injury-return': true,
   'rest-window': true,
+  'entered-race': true,
 }
 const FLAGS = Object.keys(FLAG_SET) as SessionFlag[]
 
@@ -43,11 +44,23 @@ function session(kind: SessionKind, minutes: number, over: Partial<SessionSpec> 
   return { ...prescribe(kind, minutes, zones, weekFixture()), date: '2026-07-10', ...over }
 }
 
-/** Every subset of the flags: 2^13 combinations. */
+/** The most flags a bounded subset holds. */
+const MAX_TOGETHER = 3
+
+/**
+ * The flag sets the title test tries: the empty set, every set of up to MAX_TOGETHER flags, and the
+ * full set. The bound covers the title logic because `publicTitle` reads only the kind, the length
+ * and the structure of a session, never a flag, the title or the purpose: no flag, and no order or
+ * mix of flags, can change it, so a set of one flag, a pair or a triple shows a leak of any flag
+ * into the title as well as all 2^13 subsets would. The full set stays as the extreme case.
+ */
 function* flagSubsets(): Generator<SessionFlag[]> {
-  for (let mask = 0; mask < 1 << FLAGS.length; mask += 1) {
-    yield FLAGS.filter((_, i) => (mask & (1 << i)) !== 0)
-  }
+  const pick = (from: number, chosen: SessionFlag[]): SessionFlag[][] =>
+    chosen.length === MAX_TOGETHER
+      ? [chosen]
+      : [chosen, ...FLAGS.slice(from).flatMap((flag, i) => pick(from + i + 1, [...chosen, flag]))]
+  yield* pick(0, [])
+  yield [...FLAGS]
 }
 
 describe('publicTitle', () => {

@@ -268,7 +268,7 @@ model PlanRevision {
   id           String    @id @default(cuid())
   planId       String
   createdAt    DateTime  @default(now())
-  reason       String // 'generate' | 'weekly' | 'review' | 'owner' | 'break' | 'disruption' | 'undo' | 'goal-switch' | 'method-change' | 'raise-to-match'
+  reason       String // 'generate' | 'weekly' | 'review' | 'owner' | 'break' | 'disruption' | 'undo' | 'goal-switch' | 'method-change' | 'raise-to-match' | 'races-changed'
   summary      String
   changes      String    @default("[]") // JSON text: PlanChange[]
   auto         Boolean   @default(false) // written by the scheduler, not by a request
@@ -494,6 +494,7 @@ model AthleteProfile {
   hrMaxSource           String? // 'measured' | 'estimated'
   hrRest                Int?
   lthr                  Int?
+  ownLt1Hr              Int? // the easy heart-rate ceiling accepted from the own HR-at-pace line (C4, C8)
   thresholdPaceSecPerKm Int?
   runningSinceYear      Int?
   injuries              String   @default("[]") // JSON text: Injury[]
@@ -518,6 +519,7 @@ model WellnessDay {
   hrvRmssd      Float?
   hrvSdnn       Float?
   sleepSec      Int?
+  inBedSec      Int? // time in bed, seconds; Apple Health only (rule J5)
   sleepScore    Int?
   weightKg      Float?
   vo2max        Float?

@@ -71,6 +71,7 @@ const FLAG_LABELS: Record<SessionFlag, string> = {
   'post-race': 'After the race: easy running only',
   'injury-return': 'Return-to-running step',
   'rest-window': 'Rest window',
+  'entered-race': 'A race you entered',
 }
 
 const COMPLETION_LABELS: Record<ExecutionAssessment['completion'], string> = {
@@ -514,8 +515,12 @@ export function SessionSheet({ session, onClose }: SessionSheetProps) {
           </section>
 
           {session.kind === 'strength' ? <SessionStrengthSection session={session} /> : null}
-          {/* The race of an ultra goal is stored in zone 1 (rule H11); a shorter race has no plan. */}
-          {session.kind === 'race' && session.target.zone === 'z1' && units !== undefined ? (
+          {/* The race of an ultra goal is stored in zone 1 (rule H11); a shorter race has no plan. A race
+              the runner entered besides the goal race is not the goal race: the plan is not its. */}
+          {session.kind === 'race' &&
+          session.target.zone === 'z1' &&
+          !session.flags.includes('entered-race') &&
+          units !== undefined ? (
             <RaceSessionSection session={session} units={units} />
           ) : null}
           <FuelSessionSection session={session} />

@@ -114,7 +114,7 @@ export function exportTables(prisma: PrismaClient, userId: string): Table[] {
       about: 'Your athlete profile: body, heart rate, availability, home place and time zone.',
       fields: [
         'heightCm, weightKg: centimetres and kilograms.',
-        'hrMax, hrRest, lthr: beats per minute. thresholdPaceSecPerKm: seconds per kilometre.',
+        'hrMax, hrRest, lthr: beats per minute. ownLt1Hr: the easy heart-rate ceiling accepted from your own heart-rate line, in beats per minute, or null. thresholdPaceSecPerKm: seconds per kilometre.',
         'birthYear, runningSinceYear: calendar years.',
         'homeLat, homeLng: degrees, rounded to 0.01.',
         'timezone: an IANA zone; every local day in the archive is a day in it.',
@@ -258,6 +258,7 @@ export function exportTables(prisma: PrismaClient, userId: string): Table[] {
       fields: [
         'date: the local day, YYYY-MM-DD.',
         'restingHr: beats per minute. hrvRmssd, hrvSdnn: milliseconds. sleepSec: seconds.',
+        'inBedSec: time in bed in seconds, from Apple Health only; empty on a night without it.',
         'weightKg: kilograms. vo2max: millilitres per kilogram per minute.',
         'fatigue, soreness, sleepQuality, mood, stress: check-in answers, 1 to 5, 3 is normal.',
         'painScore: 0 to 10. illness: true when the check-in said ill.',

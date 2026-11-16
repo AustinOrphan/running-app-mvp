@@ -96,6 +96,7 @@ export type SessionFlag =
   | 'post-race'
   | 'injury-return'
   | 'rest-window'
+  | 'entered-race'
 export interface SessionSpec {
   date: string
   order: number
@@ -150,7 +151,16 @@ export interface ResolvedTargets {
 export interface Boundary {
   value: number
   band: [number, number]
-  source: 'tested' | 'cs' | 'dfa' | 'rpe' | 'hrmax-observed' | 'hrmax-age' | 'hrr' | 'profile'
+  source:
+    | 'tested'
+    | 'cs'
+    | 'dfa'
+    | 'rpe'
+    | 'hrmax-observed'
+    | 'hrmax-age'
+    | 'hrr'
+    | 'profile'
+    | 'own-line'
   asOf: string
   /**
    * True on a boundary found from a critical speed that uses the stretches of training runs (rule
@@ -351,6 +361,16 @@ export interface GoalModel {
   crossesDarkness: boolean
   raceWbgtC: number | null
 }
+/**
+ * A race the runner entered besides the goal race, with priority B or C [rules K6, H12]. The plan
+ * gives it a race session, eases the days before it and plans the recovery after it. The server
+ * sends the goals with status `target`, dated after today and before the goal race; an A-priority
+ * goal other than the current one is not sent (one A goal).
+ */
+export interface EnteredRace {
+  priority: 'B' | 'C'
+  goal: GoalModel
+}
 export interface Feasibility {
   label: 'comfortable' | 'tight' | 'not-reachable'
   weeksNeeded: number
@@ -492,10 +512,27 @@ export interface StoredAssessment extends ExecutionFindings {
 export interface ExecutionAssessment extends ExecutionFindings {
   lines: string[]
 }
+/**
+ * A loading week of the stored plan that was run at or under `e3.breakWeekMaxShare` of its target,
+ * with no rest window over it, and so counts as the cycle's recovery week [rules E3, G-6, J7]. The
+ * weekly decision of that week finds it (`breakWeekOf`); the re-plan after it repeats the week.
+ */
+export interface BreakWeek {
+  /** The Monday of the week that counts as the recovery week. */
+  weekStart: string
+  /** The minutes that week was planned at: the figure the next week repeats. */
+  plannedMin: number
+  /** The minutes run in it. */
+  ranMin: number
+  /** The most the repeat may hold: the J7 share of `plannedMin` for the days since the last run. */
+  capMin: number
+}
 export interface WeeklyDecision {
   decision: 'progress' | 'hold' | 'reduce'
   signals: Array<{ code: string; detail: string; rules: string[] }>
   nextWeekTargetMin: number
+  /** Set when the reviewed week counts as the cycle's recovery week; `decision` is 'progress' then. */
+  breakRepeat?: BreakWeek
   /**
    * Set while the week lies inside a post-race window [rules H12]: the week reports its stage
    * instead of progress, hold or reduce (`decision` is 'hold' for callers that read only that).
@@ -515,6 +552,24 @@ export interface WeeklyDecision {
     extensionDays: number
   }
 }
+/** One cool run on the line behind an offer of the own easy ceiling (rule C8), oldest first. */
+export interface OwnCeilingRun {
+  date: string
+  speedMps: number
+  avgHr: number
+}
+/** The reading behind an offer of the own easy ceiling, shown beside it (rules C4, C8). */
+export interface OwnCeilingEvidence {
+  direction: 'lower' | 'higher'
+  /** The speed of the first threshold, m/s: where the line was read. */
+  lt1SpeedMps: number
+  /** The three estimates, bpm, from the line as each of the last three cool runs arrived. */
+  estimates: number[]
+  /** The cool runs the latest line stands on, oldest first. */
+  runs: OwnCeilingRun[]
+  /** The warmest weather a run could have been read at, C WBGT. */
+  maxWbgtC: number
+}
 export interface ZoneProposal {
   boundary: 'cs' | 'lt1Pace' | 'thresholdPace' | 'lt1Hr' | 'hrMax'
   from: number
@@ -522,6 +577,8 @@ export interface ZoneProposal {
   observations: number
   reason: string
   rules: string[]
+  /** The runs and readings behind the offer; present on an offer of the own easy ceiling. */
+  evidence?: OwnCeilingEvidence
 }
 export interface PlanChange {
   weekStart: string
@@ -558,6 +615,11 @@ export interface EngineInput {
   wellness: Array<WellnessDay & Partial<Checkin>>
   reviews: WeeklyReview[]
   goal: GoalModel
+  /**
+   * The B and C races entered before the goal race [rules K6, H12, task SR1]; absent or empty means
+   * none, and the plan is the plan it always was.
+   */
+  races?: EnteredRace[]
   forecast: Array<{
     time: string
     tempC: number
@@ -615,6 +677,13 @@ export interface EngineInput {
    * against the capped week.
    */
   weekCaps?: Record<string, number>
+  /**
+   * The week just before the current one when it counts as the cycle's recovery week (the weekly
+   * decision's `breakRepeat`) [rules E3, G-6, J7]: the current week repeats the loading week it was
+   * planned as, the loading weeks after it count from there, and the ramp is measured from the last
+   * loading week run before it. Absent, the plan is drawn as before.
+   */
+  breakWeek?: BreakWeek
   /**
    * Set by the runner's yes to the offer to raise the plan to match [rule E7]: a re-plan then starts
    * its loading sequence from the level a new plan would read from the recent weeks

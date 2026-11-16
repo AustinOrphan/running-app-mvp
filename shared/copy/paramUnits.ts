@@ -105,6 +105,7 @@ const UNIT_RULES: Readonly<Record<string, UnitRule>> = {
   'fraction of moving time': frac('{value} of moving time'),
   'fraction of expected race duration': frac('{value} of the expected race duration'),
   'fraction of planned minutes': frac('{value} of planned minutes'),
+  'acclimation credit, 0 to 1': frac('{value} of full heat acclimation'),
   'fraction of pre-break week': frac('{value} of the week before the break'),
   'fraction of recent runs': frac('{value} of recent runs'),
   'fraction of samples': frac('{value} of samples'),

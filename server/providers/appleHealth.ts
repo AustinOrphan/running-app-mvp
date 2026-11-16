@@ -3,6 +3,7 @@ import {
   climbAndDescent,
   emptySamples,
   haversineM,
+  inBedOf,
   KG_PER,
   nearestValues,
   parseAppleDate,
@@ -66,6 +67,7 @@ interface DayAcc {
   restingHr?: { ms: number; value: number }
   hrv: number[]
   sleepSec?: number
+  inBedSec?: number
   weight?: { ms: number; value: number }
   vo2?: { ms: number; value: number }
 }
@@ -115,10 +117,16 @@ function mapMetrics(
             : asleep === null && stageSum === null
               ? null
               : Math.max(asleep ?? 0, stageSum ?? 0)
+        // Time in bed is in the same unit as the sleep figures (the fixture's `inBed` is hours).
+        const inBed = num(point['inBed'])
         const factor = HOURS_TO_SEC[units || 'hr']
-        if (!when || total === null || factor === undefined || total <= 0) continue
+        if (!when || factor === undefined) continue
+        const hasSleep = total !== null && total > 0
+        const hasInBed = inBed !== null && inBed > 0
+        if (!hasSleep && !hasInBed) continue
         const acc = day(when.date)
-        acc.sleepSec = Math.max(acc.sleepSec ?? 0, Math.round(total * factor))
+        if (hasSleep) acc.sleepSec = Math.max(acc.sleepSec ?? 0, Math.round(total * factor))
+        if (hasInBed) acc.inBedSec = Math.max(acc.inBedSec ?? 0, Math.round(inBed * factor))
         continue
       }
       const when = parseAppleDate(str(point['date']), timezone)
@@ -150,6 +158,7 @@ function mapMetrics(
       hrvSdnn:
         acc.hrv.length > 0 ? round1(acc.hrv.reduce((s, v) => s + v, 0) / acc.hrv.length) : null,
       sleepSec: acc.sleepSec ?? null,
+      inBedSec: inBedOf(acc.inBedSec, acc.sleepSec),
       sleepScore: null,
       weightKg: acc.weight ? round1(acc.weight.value) : null,
       vo2max: acc.vo2 ? round1(acc.vo2.value) : null,

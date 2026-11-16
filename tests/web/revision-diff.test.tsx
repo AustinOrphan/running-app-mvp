@@ -348,6 +348,7 @@ describe('RevisionDiff', () => {
       'goal-switch': 'New plan for another goal',
       'method-change': 'Plan shape changed',
       'raise-to-match': 'Raised to match',
+      'races-changed': 'Entered races changed',
     }
     for (const [reason, label] of Object.entries(labels)) {
       const { unmount } = renderWithProviders(

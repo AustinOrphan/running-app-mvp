@@ -30,7 +30,7 @@ import {
 import { holdDownhill, quadPauseThrough } from './downhill.ts'
 import { feasibility } from './goal.ts'
 import { applyGuards } from './guards.ts'
-import { heatWarning } from './heat.ts'
+import { HEAT_HOLD_FLAG, heatWarning } from './heat.ts'
 import {
   completedReference,
   gainLimit,
@@ -54,6 +54,7 @@ import { isDuplicate } from './load.ts'
 import { rebuildZone, responseBasis } from './loadSetting.ts'
 import { macroPlanDraft, redsHold, startPath, strengthBlockPosition } from './macro.ts'
 import { resolveMethod } from './methods.ts'
+import { applyEnteredRaces } from './enteredRaces.ts'
 import { holdSessions, placeWeek, shakeOutFor, targetForNet } from './micro.ts'
 import { P, PARAMS_VERSION } from './params/index.ts'
 import { planWindows, postRaceWarnings } from './postRace.ts'
@@ -236,6 +237,10 @@ interface Keep {
   /** The kept sessions that a recorded activity stands for; its run is counted from the activity. */
   matched: ReadonlySet<KeptSession>
   decisions: NonNullable<ReplanOptions['decisions']>
+  /** The weeks whose hold has the first hot days among its signals (`ReplanOptions.heatHeld`). */
+  heatHeld: ReadonlySet<string>
+  /** Those held for the first hot days alone (`ReplanOptions.heatAlone`). */
+  heatAlone: ReadonlySet<string>
   /**
    * The Monday of a week whose sessions are all in `sessions` (a week held under the shape it was
    * drawn under, `replan`): nothing more is placed in it and its week row is not drawn again from
@@ -251,6 +256,17 @@ export interface ReplanOptions {
    * a hold trims the week's next quality session, a reduce makes the week a recovery week.
    */
   decisions?: Record<string, WeeklyDecision['decision']>
+  /**
+   * The Mondays of the weeks whose hold is the first hot days alone [rules J5, I8]: the cap leaves the
+   * week's long run in place (`holdWeek`), no session is trimmed, and the week carries `heat-hold`.
+   */
+  heatHeld?: readonly string[]
+  /**
+   * The subset of `heatHeld` whose only signal is the heat: only these keep the long run in place and
+   * trim no session; a hold with another signal beside the heat is capped and trimmed as that signal
+   * says, and still carries `heat-hold`.
+   */
+  heatAlone?: readonly string[]
 }
 
 const OWNER_EDITS: ReadonlySet<string> = new Set(['moved', 'skipped', 'adjusted'])
@@ -379,6 +395,39 @@ function capWeek(week: WeekDraft, cap: number | undefined): WeekDraft {
     gainTargetM:
       week.gainTargetM === null ? null : Math.round((week.gainTargetM * share) / 10) * 10,
   }
+}
+
+/**
+ * A loading week held for the first hot days [rules J5, I8]: the week at its cap, flagged, with the
+ * long run of the week the plan had (`stored`) in place where the cap leaves room for it. The
+ * macrocycle draws a held week from its cap, which scales every session of the week by one share,
+ * so the long run is put back from the stored week and the other sessions share what is left.
+ */
+function heatHoldWeek(
+  week: WeekDraft,
+  cap: number | undefined,
+  stored: WeekDraft | undefined,
+  alone: boolean,
+) {
+  const held = !alone
+    ? capWeek(week, cap)
+    : cap !== undefined && cap < week.targetRunMin
+      ? holdWeek(week, cap)
+      : week
+  // flagged only when the hold lowers the week the plan had (or already did, on a second re-plan)
+  const lowered =
+    stored !== undefined &&
+    (stored.flags.includes(HEAT_HOLD_FLAG) || stored.targetRunMin > held.targetRunMin)
+  const flags = lowered ? [...held.flags, HEAT_HOLD_FLAG] : held.flags
+  if (!alone || stored === undefined || stored.longRunMin <= held.longRunMin) {
+    return { ...held, flags }
+  }
+  const longRunMin = Math.min(stored.longRunMin, held.targetRunMin)
+  const longRunM =
+    stored.longRunM === null || stored.longRunMin <= 0
+      ? held.longRunM
+      : Math.round((stored.longRunM * longRunMin) / stored.longRunMin / 100) * 100
+  return { ...held, flags, longRunMin, longRunM }
 }
 
 /**
@@ -549,8 +598,19 @@ function generate(
   const windowed = windowedWeeks(dplan)
   const unwindowed = new Map<string, number>()
   for (const w of macroWeeks) {
+    const cap = input.weekCaps?.[w.weekStart]
+    // The first hot days flag a held loading week of the build; alone they also keep its long run in
+    // place [rules J5, I8], where any other cap shrinks every session by the same share.
+    const heatHeld = keep.heatHeld.has(w.weekStart) && isLoadingWeek(w) && !w.isTaper
     let week: WeekDraft = {
-      ...capWeek(w, input.weekCaps?.[w.weekStart]),
+      ...(heatHeld
+        ? heatHoldWeek(
+            w,
+            cap,
+            input.existing?.weeks.find((x) => x.weekStart === w.weekStart),
+            keep.heatAlone.has(w.weekStart),
+          )
+        : capWeek(w, cap)),
       index: w.index + weekOffset,
     }
     if (keep.decisions[w.weekStart] === 'reduce' && !week.isTaper && week.phase !== 'race') {
@@ -630,7 +690,13 @@ function generate(
   const rampCtx: RampContext = {
     volumes,
     skip,
-    partial: new Set(windowed),
+    // the week that counts as the recovery week is a part week too: the repeat is measured against
+    // the last loading week run before it [rule G-6]
+    partial: new Set(
+      input.breakWeek !== undefined && input.breakWeek.weekStart < currentMonday
+        ? [...windowed, input.breakWeek.weekStart]
+        : windowed,
+    ),
     floor:
       floorWeek === undefined
         ? null
@@ -651,7 +717,12 @@ function generate(
   const freeCtx: RampContext = {
     ...rampCtx,
     volumes: freeVolumes,
-    partial: new Set(windowed.filter((weekStart) => !shortTouched(weekStart))),
+    partial: new Set([
+      ...windowed.filter((weekStart) => !shortTouched(weekStart)),
+      ...(input.breakWeek !== undefined && input.breakWeek.weekStart < currentMonday
+        ? [input.breakWeek.weekStart]
+        : []),
+    ]),
   }
   const doneRow = state.weeks.find((w) => w.weekStart === currentMonday)
   const doneGain = gains.get(currentMonday) ?? 0
@@ -1168,7 +1239,13 @@ function generate(
     // A hold trims the week's next quality session, once a week [rules J5, design 4.3].
     const trimmedAlready = kept.some((s) => inWeek(s) && isTrimmed(s.rules))
     const holdTrimmed = (list: SessionSpec[]): SessionSpec[] => {
-      if (keep.decisions[week.weekStart] !== 'hold' || trimmedAlready) return list
+      if (
+        keep.decisions[week.weekStart] !== 'hold' ||
+        keep.heatAlone.has(week.weekStart) ||
+        trimmedAlready
+      ) {
+        return list
+      }
       const next = list.find((s) => s.date >= today && isQualityKind(s.kind))
       if (next === undefined) return list
       const trim = trimQuality(
@@ -1446,15 +1523,27 @@ function generate(
     fixed: kept.filter((s) => keep.toRun.has(s) && s.date >= today),
   })
 
+  // The races the runner entered before the goal race: their race sessions, the easing before them
+  // and the recovery after them, placed over the plan above and never adding to it [rules K6, H12].
+  const entered = applyEnteredRaces({
+    input,
+    zones,
+    macro,
+    sessions: guarded.sessions,
+    keptDates,
+    fixed: kept,
+    raceSession: (race, week) => raceSession({ ...input, goal: race.goal }, zones, week),
+  })
+
   // Race day.
   const raceWeek = macro.find((w) => w.weekStart === mondayOf(goal.date))
-  const sessions: SessionSpec[] = [...guarded.sessions]
+  const sessions: SessionSpec[] = [...entered.sessions]
   if (raceWeek !== undefined && goal.date >= today) {
     sessions.push(raceSession(input, zones, raceWeek))
   }
   const all = [...kept, ...sessions].sort(bySlot)
 
-  const warnings: EngineWarning[] = [...feas.notes, ...guarded.warnings]
+  const warnings: EngineWarning[] = [...feas.notes, ...guarded.warnings, ...entered.warnings]
   if (shortOfDays.length > 0) {
     const first = shortOfDays[0]!
     warnings.push({
@@ -1513,7 +1602,7 @@ function generate(
   }
 
   return {
-    weeks: macro,
+    weeks: entered.weeks,
     sessions: all,
     feasibility: feas,
     warnings,
@@ -1589,6 +1678,8 @@ export function buildPlan(input: EngineInput): PlanDraft {
       plannedOn: new Map(),
       matched: new Set(),
       decisions: {},
+      heatHeld: new Set(),
+      heatAlone: new Set(),
     },
     0,
   )
@@ -1739,6 +1830,20 @@ export function replan(
       stillPlanned.set(weekStart, planned)
     }
   }
+  // The week before counts as the recovery week, and this week repeats the loading week [rules E3,
+  // G-6, J7]: the figure of the plan being replaced (a recovery week's, where it had one) is no bound
+  // on a week that is drawn again as a loading week, so the repeat's own figure is the bound.
+  const broke = input.breakWeek
+  // A week a rest window touches keeps the bound of its sessions, which charge the held days (J9).
+  const untouched =
+    dayRulesIn(windowPlan, { from: currentMonday, to: addDays(currentMonday, 6) }).length === 0
+  if (broke !== undefined && broke.weekStart === addDays(currentMonday, -7) && untouched) {
+    const repeat = Math.min(broke.plannedMin, broke.capMin)
+    const still = stillPlanned.get(currentMonday)
+    if (still !== undefined) stillPlanned.set(currentMonday, Math.max(still, repeat))
+    const fig = figure.get(currentMonday)
+    if (fig !== undefined) figure.set(currentMonday, Math.max(fig, repeat))
+  }
   // the running minutes the replaced plan still has on each day from today on
   const plannedOn = new Map<string, number>()
   for (const s of oldSessions) {
@@ -1761,6 +1866,8 @@ export function replan(
     plannedOn,
     matched,
     decisions: options.decisions ?? {},
+    heatHeld: new Set(options.heatHeld ?? []),
+    heatAlone: new Set(options.heatAlone ?? []),
   }
   const { draft, heldWeek } = drawn(input, keep, oldWeeks, pastWeeks.length)
   const keptSet = new Set<SessionSpec>(kept)

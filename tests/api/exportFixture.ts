@@ -120,7 +120,15 @@ export async function seedEverything(
     data: { userId, sha256: 'b'.repeat(64), channel: 'upload', outcome: 'imported' },
   })
   await prisma.wellnessDay.create({
-    data: { userId, date: '2026-03-02', source: 'manual', fatigue: 4, notes: ownMarker },
+    data: {
+      userId,
+      date: '2026-03-02',
+      source: 'manual',
+      fatigue: 4,
+      sleepSec: 25_200,
+      inBedSec: 28_800,
+      notes: ownMarker,
+    },
   })
   await prisma.weeklyReview.create({ data: { userId, weekStart: '2026-02-23', notes: ownMarker } })
   await prisma.screening.create({

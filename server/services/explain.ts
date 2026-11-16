@@ -32,7 +32,8 @@ import {
   type AthleteContext,
 } from './athleteState.ts'
 import { explainBrief } from './brief.ts'
-import { inputFromContext } from './engineInput.ts'
+import { inputFromContext, loadForecast } from './engineInput.ts'
+import { forecastStamp } from './weatherCache.ts'
 import { explainActivity } from './insight.ts'
 import { executionRecordsByWeek } from './planEngine.ts'
 import { loadStrengthContext } from './strength.ts'
@@ -112,59 +113,72 @@ export async function explainView(
   const needs = explainNeeds(rules)
   const { last } = explainWeeks(request, shell)
   const memo = { userId, today }
+  // The weekly decision reads the cached forecast (the first hot days, rule J5), and `ForecastCache`
+  // is not state, so the forecast's stamp goes into the names of the memos that hold it.
+  const stamp = await forecastStamp(deps.prisma, userId)
 
-  return memoByVersion(deps, { ...memo, name: `explain:${JSON.stringify(request)}` }, async () => {
-    const hrModel = needs.hrModel ? await hrModelOf(deps, context) : null
+  return memoByVersion(
+    deps,
+    { ...memo, name: `explain:${JSON.stringify(request)}:${stamp}` },
+    async () => {
+      const hrModel = needs.hrModel ? await hrModelOf(deps, context) : null
 
-    // A decision exists only for a week the stored plan covers, as `weeklyDecisions` has it.
-    const plan = context.plan
-    const covered = input.existing?.weeks.some((week) => week.weekStart === last) ?? false
-    // The input with the plan's own goal, which the weekly decision and the load setting read: the
-    // goal race's own post-race window sets the weeks after it and decides whether a past race
-    // holds the setting at steady, so a read about the athlete would use the neutral goal and
-    // could differ from the Plan page (`loadPlanWithSessions`) and the stored plan.
-    const planInputFor = async (goalId: string): Promise<EngineInput> =>
-      inputFromContext(context, {
-        goal: await goalModelFor(context, goalId, { climate: false }),
-        existing: true,
-        options: context.planOptions,
+      // A decision exists only for a week the stored plan covers, as `weeklyDecisions` has it.
+      const plan = context.plan
+      const covered = input.existing?.weeks.some((week) => week.weekStart === last) ?? false
+      // The input with the plan's own goal, which the weekly decision and the load setting read: the
+      // goal race's own post-race window sets the weeks after it and decides whether a past race
+      // holds the setting at steady, so a read about the athlete would use the neutral goal and
+      // could differ from the Plan page (`loadPlanWithSessions`) and the stored plan.
+      const planInputFor = async (goalId: string): Promise<EngineInput> =>
+        inputFromContext(context, {
+          goal: await goalModelFor(context, goalId, { climate: false }),
+          forecast: await loadForecast(deps.prisma, userId, context.profile),
+          existing: true,
+          options: context.planOptions,
+        })
+      const planInput = needs.planInput && plan !== null ? await planInputFor(plan.goalId) : null
+      const decision =
+        needs.decision && plan !== null && covered
+          ? await memoByVersion(
+              deps,
+              { ...memo, name: `explain:decision:${last}:${stamp}` },
+              async () => {
+                const executions =
+                  (await executionRecordsByWeek(deps.prisma, plan.id, [last])).get(last) ?? []
+                const decisionInput = planInput ?? (await planInputFor(plan.goalId))
+                return weeklyDecision(decisionInput, last, {
+                  executions,
+                  redsFlags: input.screeningFlags,
+                  ramp: weeklyRamp(context.state),
+                  rebuild: rebuildZone(decisionInput, context.state),
+                })
+              },
+            )
+          : null
+
+      // Built once per picture by the snapshot; null without a goal, a distance or a usable source.
+      const prediction =
+        needs.prediction && goal !== null ? await context.prediction(goal.id) : null
+
+      // The goal as the engine models it, race-day climate included: read from the snapshot's goal
+      // and the cached climate (never fetched), as the prediction above is.
+      const race =
+        needs.race && goal !== null ? await goalModelFor(context, goal.id, { climate: true }) : null
+
+      // The state of the logs, the setup and the plan's weeks, with the readiness read of today.
+      const strength =
+        requested ?? (needs.strength ? await loadStrengthContext(deps, { userId, today }) : null)
+
+      return explainInputs(request, {
+        ...shell,
+        hrModel,
+        decision,
+        prediction,
+        race,
+        planInput,
+        strength,
       })
-    const planInput = needs.planInput && plan !== null ? await planInputFor(plan.goalId) : null
-    const decision =
-      needs.decision && plan !== null && covered
-        ? await memoByVersion(deps, { ...memo, name: `explain:decision:${last}` }, async () => {
-            const executions =
-              (await executionRecordsByWeek(deps.prisma, plan.id, [last])).get(last) ?? []
-            const decisionInput = planInput ?? (await planInputFor(plan.goalId))
-            return weeklyDecision(decisionInput, last, {
-              executions,
-              redsFlags: input.screeningFlags,
-              ramp: weeklyRamp(context.state),
-              rebuild: rebuildZone(decisionInput, context.state),
-            })
-          })
-        : null
-
-    // Built once per picture by the snapshot; null without a goal, a distance or a usable source.
-    const prediction = needs.prediction && goal !== null ? await context.prediction(goal.id) : null
-
-    // The goal as the engine models it, race-day climate included: read from the snapshot's goal
-    // and the cached climate (never fetched), as the prediction above is.
-    const race =
-      needs.race && goal !== null ? await goalModelFor(context, goal.id, { climate: true }) : null
-
-    // The state of the logs, the setup and the plan's weeks, with the readiness read of today.
-    const strength =
-      requested ?? (needs.strength ? await loadStrengthContext(deps, { userId, today }) : null)
-
-    return explainInputs(request, {
-      ...shell,
-      hrModel,
-      decision,
-      prediction,
-      race,
-      planInput,
-      strength,
-    })
-  })
+    },
+  )
 }

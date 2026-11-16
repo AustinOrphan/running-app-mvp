@@ -38,6 +38,7 @@ export const REVISION_VIEW_TEMPLATES = {
   'revision-view.reason.goal-switch': tpl('New plan for another goal', {}, { shape: 'label' }),
   'revision-view.reason.method-change': tpl('Plan shape changed', {}, { shape: 'label' }),
   'revision-view.reason.raise-to-match': tpl('Raised to match', {}, { shape: 'label' }),
+  'revision-view.reason.races-changed': tpl('Entered races changed', {}, { shape: 'label' }),
   /** For a reason a newer server may add. */
   'revision-view.reason.other': tpl('Plan update', {}, { shape: 'label' }),
   /** The one marker of a revision the runner has not opened yet. */
@@ -124,6 +125,16 @@ export const REVISION_VIEW_TEMPLATES = {
   'diff.week.flag.taper': tpl('a taper week', {}, { shape: 'label' }),
   'diff.week.flag.race-week': tpl('the race week', {}, { shape: 'label' }),
   'diff.week.flag.post-race': tpl('in the weeks after the race', {}, { shape: 'label' }),
+  'diff.week.flag.heat-hold': tpl(
+    'held at last week’s level for the first hot days',
+    {},
+    { shape: 'label' },
+  ),
+  'diff.week.flag.break-repeat': tpl(
+    'the repeat of the loading week after a recovery week',
+    {},
+    { shape: 'label' },
+  ),
   'diff.week.flag.disrupted': tpl('touched by a rest window', {}, { shape: 'label' }),
   // The label of a window already holds a colon ("Rest: illness"), so the dates follow a comma.
   'diff.hold': tpl(
@@ -211,6 +222,7 @@ const REASON_IDS = {
   'goal-switch': 'revision-view.reason.goal-switch',
   'method-change': 'revision-view.reason.method-change',
   'raise-to-match': 'revision-view.reason.raise-to-match',
+  'races-changed': 'revision-view.reason.races-changed',
 } as const satisfies Record<PlanRevisionReason, ViewId>
 
 /** "Weekly update", "Your edit": the label of what made a revision. */
@@ -363,6 +375,8 @@ const FLAG_IDS: Record<string, ViewId> = {
   'post-race': 'diff.week.flag.post-race',
   'post-race-restart': 'diff.week.flag.post-race',
   disrupted: 'diff.week.flag.disrupted',
+  'heat-hold': 'diff.week.flag.heat-hold',
+  'break-repeat': 'diff.week.flag.break-repeat',
   'disruption-return': 'diff.week.flag.disrupted',
 }
 

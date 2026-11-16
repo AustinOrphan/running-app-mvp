@@ -389,6 +389,12 @@ export const REVISION_TEMPLATES = {
     decision: 'text',
     minutes: 'weekMinutes',
   }),
+  // A loading week run at the volume of a recovery week counts as the cycle's recovery week; the
+  // week after it repeats the loading week (rules E3, G-6, J7).
+  'revision.break-repeat': tpl(
+    'Last week counts as the recovery week; this week repeats the loading week, up to {minutes}.',
+    { minutes: 'weekMinutes' },
+  ),
   // Zero minutes is "no running set", not "up to 0 min".
   'revision.decision-bare': tpl("Last week's decision: {decision}.", { decision: 'text' }),
 
@@ -590,6 +596,34 @@ export const REVISION_TEMPLATES = {
   ),
   'revision.plan-restored': tpl('Plan restored.'),
 
+  // The summary of a re-plan after the runner added, moved, changed or removed a race entered
+  // before the goal race [rules K6, H12, task SR1]. Nothing here suggests a race.
+  'revision.races.added': tpl(
+    'Plan drawn around the race {name} on {date}.',
+    { name: 'text', date: 'date' },
+    { fallback: 'Plan drawn around an entered race.' },
+  ),
+  'revision.races.moved': tpl(
+    'Plan drawn around the race {name}, now on {date}.',
+    { name: 'text', date: 'date' },
+    { fallback: 'Plan drawn around a race that moved.' },
+  ),
+  'revision.races.changed': tpl(
+    'Plan drawn again for the race {name} on {date}.',
+    { name: 'text', date: 'date' },
+    { fallback: 'Plan drawn again for an entered race.' },
+  ),
+  'revision.races.skipped': tpl(
+    'The race {name} on {date} is not drawn into the plan.',
+    { name: 'text', date: 'date' },
+    { fallback: 'An entered race is not drawn into the plan.' },
+  ),
+  'revision.races.removed': tpl(
+    'The race {name} is no longer in the plan.',
+    { name: 'text' },
+    { fallback: 'A race is no longer in the plan.' },
+  ),
+
   // The last line of a summary when the plan rules changed since the previous revision that
   // recorded them (RV1): the weeks may have moved because of the rules, not the runner's data.
   'revision.rules-changed': tpl('Drawn under updated plan rules ({version}).', { version: 'text' }),
@@ -662,6 +696,15 @@ export function changesSummary(changes: number, weeks: number): string {
   return render(
     REVISION_TEMPLATES['revision.changes.many'],
     { changes: count(changes), weeks: count(weeks) },
+    STORED_UNITS,
+  )
+}
+
+/** The sentence of a re-plan after a week that counts as the recovery week: the repeat and its most. */
+export function breakRepeatSummary(capMin: number): string {
+  return render(
+    REVISION_TEMPLATES['revision.break-repeat'],
+    { minutes: { kind: 'minutes', min: capMin } },
     STORED_UNITS,
   )
 }
@@ -1022,6 +1065,26 @@ export function goalSwitchSummary(goal: string, weeks: number, sessions: number)
   return render(
     REVISION_TEMPLATES['revision.goal-switch'],
     { goal, weeks: count(weeks), sessions: count(sessions) },
+    STORED_UNITS,
+  )
+}
+
+/** A change to a race entered before the goal race, as the runner made it [rules K6, H12]. */
+export interface RaceChangeLine {
+  kind: 'added' | 'moved' | 'changed' | 'removed' | 'skipped'
+  name: string
+  /** The race's date after the change; absent for a removal. */
+  date?: string
+}
+
+export function raceChangeSummary(line: RaceChangeLine): string {
+  const t = REVISION_TEMPLATES
+  if (line.kind === 'removed') {
+    return render(t['revision.races.removed'], { name: line.name }, STORED_UNITS)
+  }
+  return render(
+    t[`revision.races.${line.kind}`],
+    { name: line.name, date: day(line.date ?? '') },
     STORED_UNITS,
   )
 }

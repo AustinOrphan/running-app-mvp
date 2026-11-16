@@ -118,6 +118,8 @@ const wellnessInputSchema = z.strictObject({
   hrvRmssd: nullableNumber(0, 500),
   hrvSdnn: nullableNumber(0, 500),
   sleepSec: nullableNumber(0, 86_400),
+  // Absent from a client that predates the column: no time in bed.
+  inBedSec: nullableNumber(0, 86_400).default(null),
   sleepScore: nullableNumber(0, 100),
   weightKg: nullableNumber(30, 250),
   vo2max: nullableNumber(10, 100),

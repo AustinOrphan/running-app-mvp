@@ -17,21 +17,24 @@ import { createHash } from 'node:crypto'
 import { addDays, mondayOf } from '../../shared/dates.ts'
 import {
   changesSummary,
+  breakRepeatSummary,
   decisionSummary,
   loadSettingSummary,
   methodChangeSummary,
   methodFlipSummary,
   overshootsSummary,
+  raceChangeSummary,
   raiseSummary,
   rulesChangedSummary,
   stalePreviewMessage,
   targetsSummary,
   type OvershootLine,
+  type RaceChangeLine,
 } from '../../shared/copy/revision.ts'
 import { runMinutesAhead } from '../../shared/domain/runMinutes.ts'
 import { estimateState } from '../../shared/engine/athlete.ts'
 import { draftRamp } from '../../shared/engine/checklist.ts'
-import type { ExecutionRecord } from '../../shared/engine/adapt.ts'
+import { hasHeatHold, isHeatOnlyHold, type ExecutionRecord } from '../../shared/engine/adapt.ts'
 import { disruptionPlan, heldDates } from '../../shared/engine/disruption.ts'
 import { diffPlans, type PlanWrites, type RowWrites } from '../../shared/engine/diff.ts'
 import { backdatedSkips, replan, weeklyDecision, weeklyRamp } from '../../shared/engine/index.ts'
@@ -614,6 +617,25 @@ export interface ReplanArgs {
    * the scheduler.
    */
   raise?: boolean
+  /**
+   * Set by a write to a goal the runner entered before the goal race [rules K6, H12, task SR1]: the
+   * revision then takes the summary of that change as its lead. The engine input already carries
+   * the entered races as they are; the re-plan is an ordinary one.
+   */
+  race?: RaceChangeLine
+}
+
+/**
+ * The change as the engine drew it: an added, moved or changed race the draft holds no race session
+ * for (its day holds a kept session) is worded as not drawn into the plan, never as placed.
+ */
+function raceLine(
+  race: RaceChangeLine,
+  sessions: ReadonlyArray<{ kind: string; date: string }>,
+): RaceChangeLine {
+  if (race.kind === 'removed' || race.date === undefined) return race
+  const placed = sessions.some((s) => s.kind === 'race' && s.date === race.date)
+  return placed ? race : { ...race, kind: 'skipped' }
 }
 
 /** A past session that a rest window skips, written before the re-plan's own rows. */
@@ -946,7 +968,9 @@ export async function computeReplan(deps: Deps, args: ReplanArgs): Promise<Repla
   const gathered = await gatherEngineInput(
     deps,
     { userId, goalId: plan.goalId, today, options },
-    { existing: true },
+    // The cached forecast, read and never fetched, lets the weekly decision see the first hot days
+    // coming [rule J5]; a cold cell gives none and the decision reads the recent runs instead.
+    { existing: true, forecast: true },
   )
   const hypothetical = args.transform ? args.transform(gathered) : gathered
   const [weekRows, sessionRows] = await Promise.all([
@@ -976,9 +1000,16 @@ export async function computeReplan(deps: Deps, args: ReplanArgs): Promise<Repla
   // The week a hold or a reduce caps: the week that follows the one the decision reviewed.
   const decidedWeek =
     decision !== null && decision.decision !== 'progress' ? addDays(lastWeek, 7) : null
+  // A week that counts as the cycle's recovery week caps the week after it at the J7 share of the
+  // loading week it repeats, in place of the step from the minutes run [rules E3, G-6, J7]. With no
+  // other hold the decision is a progress, so no hold trims a session of the repeat.
+  const breakWeek = decision?.breakRepeat
   const weekCaps: Record<string, number> = {}
   if (decision !== null && decidedWeek !== null) {
     weekCaps[decidedWeek] = decision.nextWeekTargetMin
+  }
+  if (breakWeek !== undefined && decidedWeek === null) {
+    weekCaps[addDays(lastWeek, 7)] = decision!.nextWeekTargetMin
   }
   for (const week of weekRows) {
     if (
@@ -1009,8 +1040,19 @@ export async function computeReplan(deps: Deps, args: ReplanArgs): Promise<Repla
       }))
     : null
   const { draft, changes, heldWeek } = replan(
-    { ...input, weekCaps, ...(args.raise ? { raiseToLevel: true } : {}) },
-    { decisions },
+    {
+      ...input,
+      weekCaps,
+      ...(breakWeek === undefined ? {} : { breakWeek }),
+      ...(args.raise ? { raiseToLevel: true } : {}),
+    },
+    {
+      decisions,
+      heatHeld:
+        decision !== null && decidedWeek !== null && hasHeatHold(decision) ? [decidedWeek] : [],
+      heatAlone:
+        decision !== null && decidedWeek !== null && isHeatOnlyHold(decision) ? [decidedWeek] : [],
+    },
   )
   const rise =
     raiseCheck === null ? null : firstRise(input.existing?.weeks ?? [], draft.weeks, today, changes)
@@ -1028,17 +1070,19 @@ export async function computeReplan(deps: Deps, args: ReplanArgs): Promise<Repla
   const lead =
     args.raise && rise !== null
       ? raiseSummary(rise)
-      : args.method !== undefined
-        ? methodChangeSummary({
-            requested: args.method,
-            reason: position.reason,
-            weeks: shape?.weeks ?? 0,
-            from: shape?.from ?? currentMonday,
-            held: heldWeek !== null,
-          })
-        : args.loadAppetite === undefined
-          ? describeChanges(changes)
-          : loadSettingSummary(loadPosition(input, state))
+      : args.race !== undefined
+        ? raceChangeSummary(raceLine(args.race, draft.sessions))
+        : args.method !== undefined
+          ? methodChangeSummary({
+              requested: args.method,
+              reason: position.reason,
+              weeks: shape?.weeks ?? 0,
+              from: shape?.from ?? currentMonday,
+              held: heldWeek !== null,
+            })
+          : args.loadAppetite === undefined
+            ? describeChanges(changes)
+            : loadSettingSummary(loadPosition(input, state))
   const flip =
     args.method === undefined && shape !== null
       ? methodFlipSummary({
@@ -1055,7 +1099,11 @@ export async function computeReplan(deps: Deps, args: ReplanArgs): Promise<Repla
       ? [
           lead,
           flip,
-          decision ? decisionSummary(decision.decision, decision.nextWeekTargetMin) : null,
+          decision === null
+            ? null
+            : breakWeek === undefined
+              ? decisionSummary(decision.decision, decision.nextWeekTargetMin)
+              : breakRepeatSummary(decision.nextWeekTargetMin),
         ]
           .filter((line): line is string => line !== null)
           .join(' ')
@@ -1258,7 +1306,7 @@ async function writeSettled(
  */
 export async function replanActivePlan(
   deps: Deps,
-  args: { userId: string; reason: PlanRevisionReason; today: string },
+  args: Pick<ReplanArgs, 'userId' | 'reason' | 'today' | 'race'>,
 ): Promise<PlanRevisionView> {
   for (let attempt = 1; ; attempt += 1) {
     try {

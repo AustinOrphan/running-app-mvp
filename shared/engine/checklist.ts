@@ -9,6 +9,8 @@ import { addDays, daysBetween, mondayOf } from '../dates.ts'
 import type { Weekday } from '../types.ts'
 import { afterBreak, breakRestart } from './adapt.ts'
 import { estimateState } from './athlete.ts'
+import { BREAK_REPEAT_FLAG } from './breakWeek.ts'
+import { plannedRaces, raceCutMinutes } from './enteredRaces.ts'
 import {
   dayRuleOn,
   disruptionPlan,
@@ -177,7 +179,11 @@ export function draftRamp(
     volumes: volume,
     skip,
     // a week a window took days from is a part week, a baseline beside another week and never alone
-    partial: new Set(windowedWeeks(windows)),
+    partial: new Set(
+      input.breakWeek === undefined
+        ? windowedWeeks(windows)
+        : [...windowedWeeks(windows), input.breakWeek.weekStart],
+    ),
     floor:
       floorWeek === undefined
         ? null
@@ -192,7 +198,9 @@ export function draftRamp(
     const done = weekStart === currentMonday ? (volume.get(weekStart) ?? 0) : 0
     const planned = weekMinutes(ahead, weekStart, input.today)
     const total = done + planned
-    volume.set(weekStart, total)
+    // a week an entered race cut is a baseline at the minutes it held before the cut [SR1]
+    const cut = raceCutMinutes(draft.weeks.find((w) => w.weekStart === weekStart)?.flags ?? [])
+    volume.set(weekStart, cut === null ? total : total + cut)
     weeks.push({ weekStart, done, planned, total })
   }
   // The restart week after a long hold is a baseline for the weeks after it when the J7 share holds
@@ -336,6 +344,21 @@ function recoveryCadence(
       lastLoad = null
       if (week.flags.includes('restart-floor')) first = false
       continue
+    }
+    // a week an entered race cut down made its own cut [rule SR1]
+    if (week.flags.includes('race-recovery')) {
+      run = 0
+      lastLoad = null
+      first = false
+      continue
+    }
+    // The week that repeats the loading week after one that counted as the recovery week opens a
+    // block: the week before it, run at a recovery week's volume, is the recovery week of the cycle
+    // [rules E3, G-6, J7].
+    if (week.flags.includes(BREAK_REPEAT_FLAG)) {
+      run = 0
+      first = false
+      lastLoad = null
     }
     if (week.isRecovery) {
       if (lastLoad !== null) {
@@ -788,12 +811,24 @@ function raceDay(draft: PlanDraft, input: EngineInput): ChecklistResult {
     return result('race-day', true, 'The goal date has passed; nothing to plan.', rules)
   }
   const failures: string[] = []
+  // The races the runner entered before the goal race are planned around, never in its place [SR1]:
+  // one on a day after today is a race session the plan drew; one dated before today is a kept
+  // session of an earlier plan; any other race session is a stray.
+  const entered = new Set(plannedRaces(input).map((r) => r.goal.date))
   const races = draft.sessions.filter((s) => s.kind === 'race')
-  if (races.length !== 1 || races[0]!.date !== input.goal.date) {
+  const goalRaces = races.filter((s) => s.date === input.goal.date)
+  const strays = races.filter(
+    (s) => s.date !== input.goal.date && s.date > input.today && !entered.has(s.date),
+  )
+  if (goalRaces.length !== 1 || strays.length > 0) {
     failures.push(`expected one race on ${input.goal.date}`)
   }
+  const enteredDays = new Set(races.filter((s) => entered.has(s.date)).map((s) => s.date))
   const sameDay = draft.sessions.filter(
-    (s) => s.date === input.goal.date && s.kind !== 'race' && VOLUME_KINDS.has(s.kind),
+    (s) =>
+      (s.date === input.goal.date || enteredDays.has(s.date)) &&
+      s.kind !== 'race' &&
+      VOLUME_KINDS.has(s.kind),
   )
   if (sameDay.length > 0)
     failures.push(

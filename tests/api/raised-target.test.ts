@@ -644,8 +644,11 @@ describe('a week the plan takes back is the plan’s again', () => {
 })
 
 describe('the weekly decision wins over a raised target', () => {
-  /** A week of the plan run at half its minutes, then the Monday re-plan that reviews it. */
-  async function reviewedHalfWeek(f: Fixture, target: number): Promise<PlanRevisionView> {
+  /**
+   * A week of the plan run at 60% of its minutes (over the share at which a week counts as the
+   * recovery week, E3), then the Monday re-plan that reviews it.
+   */
+  async function reviewedShortWeek(f: Fixture, target: number): Promise<PlanRevisionView> {
     for (const s of f.plan.sessions.filter((x) => x.weekStart === thisMonday)) {
       if (['strength', 'mobility', 'rest'].includes(s.kind)) continue
       await ctx.prisma.activity.create({
@@ -653,8 +656,8 @@ describe('the weekly decision wins over a raised target', () => {
           userId: f.u.id,
           date: s.date,
           type: 'run',
-          durationSec: Math.round(s.durationMin * 60 * 0.5),
-          movingSec: Math.round(s.durationMin * 60 * 0.5),
+          durationSec: Math.round(s.durationMin * 60 * 0.6),
+          movingSec: Math.round(s.durationMin * 60 * 0.6),
           distanceM: 8000,
           rpe: 3,
           source: 'manual',
@@ -669,22 +672,22 @@ describe('the weekly decision wins over a raised target', () => {
   test('a hold caps the week it names, and a higher target is lowered to that cap', async () => {
     const f = await fourWeekPlan('raised-decision@example.com')
 
-    const made = await reviewedHalfWeek(f, 230)
+    const made = await reviewedShortWeek(f, 230)
 
-    // 95 of 190 planned minutes were run, so the decision holds and caps this week at 104.
-    expect(made.decision).toMatchObject({ decision: 'hold', nextWeekTargetMin: 104 })
+    // 114 of 190 planned minutes were run (60%), so the decision holds and caps this week at 125.
+    expect(made.decision).toMatchObject({ decision: 'hold', nextWeekTargetMin: 125 })
     expect(made.diff?.targets).toEqual([
       expect.objectContaining({
         weekStart: nextMonday,
         outcome: 'clipped',
         askedMin: 230,
-        keptMin: 104,
-        engineMin: 104,
+        keptMin: 125,
+        engineMin: 125,
         limit: 'decision',
         ramp: null,
       }),
     ])
-    expect(await weekRow(f, nextMonday)).toMatchObject({ targetRunMin: 104 })
+    expect(await weekRow(f, nextMonday)).toMatchObject({ targetRunMin: 125 })
     expect(made.summary).toContain("the plan's own figure after last week's decision.")
     assertCleanCopy(made.summary, 'revision summary')
   })
@@ -692,9 +695,9 @@ describe('the weekly decision wins over a raised target', () => {
   test('a target under the cap stays and caps the week, as before', async () => {
     const f = await fourWeekPlan('raised-decision-lower@example.com')
 
-    const made = await reviewedHalfWeek(f, 90)
+    const made = await reviewedShortWeek(f, 90)
 
-    expect(made.decision).toMatchObject({ decision: 'hold', nextWeekTargetMin: 104 })
+    expect(made.decision).toMatchObject({ decision: 'hold', nextWeekTargetMin: 125 })
     expect(made.diff?.targets).toBeUndefined()
     expect(await weekRow(f, nextMonday)).toMatchObject({
       targetRunMin: 90,

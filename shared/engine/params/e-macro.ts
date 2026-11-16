@@ -130,6 +130,17 @@ export const eMacro = {
         note: 'Default: recovery-week volume drops 20-30% while keeping some intensity and frequency; 25 is the midpoint of the range.',
       },
     ),
+    breakWeekMaxShare: param(
+      'e3.breakWeekMaxShare',
+      0.5,
+      'D',
+      'E3',
+      ['coyle-1984-detraining-time-course', 'zheng-2022-detraining-vo2max'],
+      {
+        unit: 'fraction of planned minutes',
+        note: "Default: a loading week run at or under this share of its target, with no rest window over it, counts as the cycle's recovery week (an owner decision, dated in rule E3). Half is a choice, not a finding: at or under half the week is a break from running, deeper than the 20-30% cut of a recovery week (e3.recoveryWeekCutPct), and the hold of J5 keeps the weeks from half to 80% as it was. No study sets the number; the cited papers state only that a short stop loses little.",
+      },
+    ),
   },
   e4: {
     z1Floor: param('e4.z1Floor', 70, 'B', 'E4', TID_FLOOR, {

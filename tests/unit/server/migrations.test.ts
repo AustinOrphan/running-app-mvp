@@ -2066,6 +2066,63 @@ function verifyActivityWatchRpeV(db: DatabaseSync, before: Snapshot): void {
   ])
 }
 
+function seedProfileRelease(db: DatabaseSync): void {
+  insert(db, 'User', {
+    id: 'u1',
+    email: 'runner@example.com',
+    passwordHash: 'not-a-real-hash',
+    updatedAt: STAMP,
+  })
+  insert(db, 'AthleteProfile', {
+    userId: 'u1',
+    hrMax: 188,
+    hrMaxSource: 'measured',
+    lthr: 168,
+    thresholdPaceSecPerKm: 300,
+    updatedAt: STAMP,
+  })
+}
+
+function verifyOwnLt1Hr(db: DatabaseSync, before: Snapshot): void {
+  expectNothingLost(before, db)
+  expectConsistent(db)
+  // No profile of the previous release holds an own easy ceiling, and the other heart-rate fields stay.
+  expect(
+    rowsOf(db, 'SELECT "hrMax", "lthr", "thresholdPaceSecPerKm", "ownLt1Hr" FROM "AthleteProfile"'),
+  ).toEqual([{ hrMax: 188, lthr: 168, thresholdPaceSecPerKm: 300, ownLt1Hr: null }])
+  db.prepare(`UPDATE "AthleteProfile" SET "ownLt1Hr" = 140 WHERE "userId" = 'u1'`).run()
+  expect(rowsOf(db, 'SELECT "ownLt1Hr" FROM "AthleteProfile"')).toEqual([{ ownLt1Hr: 140 }])
+}
+
+function seedWellnessRelease(db: DatabaseSync): void {
+  insert(db, 'User', {
+    id: 'u1',
+    email: 'runner@example.com',
+    passwordHash: 'not-a-real-hash',
+    updatedAt: STAMP,
+  })
+  insert(db, 'WellnessDay', {
+    id: 'w1',
+    userId: 'u1',
+    date: '2026-03-02',
+    sleepSec: 25_200,
+    restingHr: 52,
+    source: 'apple-health',
+    updatedAt: STAMP,
+  })
+}
+
+function verifyWellnessInBed(db: DatabaseSync, before: Snapshot): void {
+  expectNothingLost(before, db)
+  expectConsistent(db)
+  // A night of the previous release has no time in bed, and its other values stay.
+  expect(rowsOf(db, 'SELECT "sleepSec", "restingHr", "inBedSec" FROM "WellnessDay"')).toEqual([
+    { sleepSec: 25_200, restingHr: 52, inBedSec: null },
+  ])
+  db.prepare(`UPDATE "WellnessDay" SET "inBedSec" = 28800 WHERE id = 'w1'`).run()
+  expect(rowsOf(db, 'SELECT "inBedSec" FROM "WellnessDay"')).toEqual([{ inBedSec: 28_800 }])
+}
+
 function verifyActivityHeatExposure(db: DatabaseSync, before: Snapshot): void {
   // Rows, including the sessions linked to activities, are all kept.
   expectNothingLost(before, db)
@@ -2393,6 +2450,16 @@ const CASES: FixtureCase[] = [
     migration: 'activity_watch_rpe_v',
     seed: seedTerrainRelease,
     verify: verifyActivityWatchRpeV,
+  },
+  {
+    migration: 'own_lt1_hr',
+    seed: seedProfileRelease,
+    verify: verifyOwnLt1Hr,
+  },
+  {
+    migration: 'wellness_in_bed',
+    seed: seedWellnessRelease,
+    verify: verifyWellnessInBed,
   },
 ]
 

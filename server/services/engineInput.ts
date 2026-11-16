@@ -8,7 +8,7 @@
 // network, and a cell the weather job has not filled yet gives no forecast and no race heat.
 import type { Deps } from '../app.ts'
 import { localWallTime, todayIso } from '../../shared/dates.ts'
-import type { EngineInput, GoalModel, ZoneSet } from '../../shared/engine/types.ts'
+import type { EngineInput, EnteredRace, GoalModel, ZoneSet } from '../../shared/engine/types.ts'
 import type { AthleteProfile } from '../../shared/types.ts'
 import type { PrismaClient } from '../db.ts'
 import {
@@ -88,6 +88,7 @@ export function inputFromContext(
   context: AthleteContext,
   parts: {
     goal?: GoalModel | null
+    races?: EnteredRace[]
     forecast?: EngineInput['forecast']
     existing?: boolean
     options?: EngineInput['options']
@@ -100,6 +101,8 @@ export function inputFromContext(
     wellness: context.wellness,
     reviews: context.reviews,
     goal: parts.goal ?? neutralGoal(context.asOf),
+    // Absent without an entered race, so a plan without one is the plan it always was.
+    ...(parts.races === undefined || parts.races.length === 0 ? {} : { races: parts.races }),
     forecast: parts.forecast ?? null,
     existing: parts.existing === true ? context.existing() : null,
     options: parts.options ?? {},
@@ -110,6 +113,33 @@ export function inputFromContext(
       ? {}
       : { disruptions: context.disruptions.map(toEngineWindow) }),
   }
+}
+
+/**
+ * The races the runner entered besides `goal`, for a plan of that goal [rules K6, H12, task SR1]:
+ * goals with priority B or C and status `target`, with a distance, dated after today and before the
+ * goal race. A goal still being considered, done or dropped is not entered; an A-priority goal
+ * other than the plan's own is not read (one A goal), and no climate is read for a tune-up.
+ */
+export async function enteredRacesFor(
+  context: Pick<AthleteContext, 'goals' | 'state' | 'climate' | 'asOf'>,
+  goal: Pick<GoalModel, 'goalId' | 'date'>,
+): Promise<EnteredRace[]> {
+  const out: EnteredRace[] = []
+  for (const candidate of context.goals) {
+    if (
+      candidate.id === goal.goalId ||
+      candidate.status !== 'target' ||
+      (candidate.priority !== 'B' && candidate.priority !== 'C') ||
+      candidate.targetDate <= context.asOf ||
+      candidate.targetDate >= goal.date
+    ) {
+      continue
+    }
+    const model = await goalModelFor(context, candidate.id, { climate: false })
+    if (model !== null) out.push({ priority: candidate.priority, goal: model })
+  }
+  return out
 }
 
 async function assemble(
@@ -126,6 +156,7 @@ async function assemble(
 
   return inputFromContext(context, {
     goal,
+    races: goal === null ? [] : await enteredRacesFor(context, goal),
     forecast: opts.forecast ? await loadForecast(deps.prisma, userId, context.profile) : null,
     existing: opts.existing === true,
     ...(args.options === undefined ? {} : { options: args.options }),

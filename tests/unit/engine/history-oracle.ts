@@ -143,6 +143,14 @@
 // `downhill`. Only flags move: the date, kind, minutes, distance and gain of every session are as
 // before. 78 of the 142 digests move (the runners and re-plan chains whose goal descends).
 //
+// Regenerated 2026-11-16 (task RT1, owner decision D11, 2026-11-14): the race session of a goal that
+// is not an ultra no longer says "follow the fuel and pacing plan", because only an ultra goal has a
+// race plan (rule H14). Its purpose is now "Race day: run by effort, with the goal pace band as a
+// guide." for a time goal and "Race day: run by effort." for a finish goal. 64 of the 142 digests
+// move, the plans of the classes up to the marathon (the same 64 that did not move at RP1); the 78
+// of the two ultra classes are those of the regeneration before. Only the purpose text of that one
+// session differs: `plan:report` gave the same output before and after.
+//
 // The close of the load-progression plan (task L7) may remove this file with its test: from there
 // the owner validation is the oracle.
 import { createHash } from 'node:crypto'

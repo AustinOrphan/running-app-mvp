@@ -408,6 +408,12 @@ export interface AthleteProfile {
   hrMaxSource: 'measured' | 'estimated' | null
   hrRest: number | null
   lthr: number | null
+  /**
+   * The easy heart-rate ceiling the runner accepted from their own heart-rate line (rules C4, C8);
+   * absent or null means none. Written only by accepting that proposal; the zones read it ahead of
+   * the other anchors of the first threshold.
+   */
+  ownLt1Hr?: number | null
   thresholdPaceSecPerKm: number | null
   runningSinceYear: number | null
   injuries: Injury[]
@@ -426,6 +432,11 @@ export interface WellnessInput {
   hrvRmssd: number | null
   hrvSdnn: number | null
   sleepSec: number | null
+  /**
+   * Time in bed in seconds; only Apple Health supplies it (rule J5). Absent reads as null, so the
+   * providers that never carry it (intervals.icu, Garmin) leave it out.
+   */
+  inBedSec?: number | null
   sleepScore: number | null
   weightKg: number | null
   vo2max: number | null
@@ -909,6 +920,7 @@ export type PlanRevisionReason =
   | 'goal-switch'
   | 'method-change'
   | 'raise-to-match'
+  | 'races-changed'
 export interface PlanRevision {
   id: string
   planId: string

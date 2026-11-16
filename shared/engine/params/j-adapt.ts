@@ -229,15 +229,86 @@ export const jAdapt = {
         note: 'About 7 days; grade B, low confidence.',
       },
     ),
+    heatHotDays: param('j5.heatHotDays', 2, 'D', 'J5', ['racinais-2015-heat-consensus'], {
+      unit: 'days',
+      note: 'Default: the forecast shows this many days of the coming week at or above acclim.exposureTempC (the warmest hour inside the training window) for the first hot days to count. No study sets the number.',
+    }),
+    heatCreditBelow: param('j5.heatCreditBelow', 0.3, 'D', 'J5', ['racinais-2015-heat-consensus'], {
+      unit: 'acclimation credit, 0 to 1',
+      note: 'Default: the first hot days hold the week only while the credit of rule I8 is under this value (3 heat days of the 10 of the block). No study sets the value.',
+    }),
+    heatRecentDays: param('j5.heatRecentDays', 7, 'D', 'J5', ['racinais-2015-heat-consensus'], {
+      unit: 'days',
+      note: 'Default: with no forecast for the coming week, a run at or above acclim.exposureTempC within this many days up to the decision stands for the hot days having arrived.',
+    }),
+    heatHoldGapWeeks: param('j5.heatHoldGapWeeks', 4, 'D', 'J5', [], {
+      unit: 'weeks',
+      note: 'Default: a week is not held for the first hot days when one of this many weeks before it was, so a hot spell with unrecorded temperatures cannot hold week after week.',
+    }),
     sleepEfficiencyDropPp: param(
       'j5.sleepEfficiencyDropPp',
       2,
-      'B',
+      'D',
       'J5',
       ['murphy-2024-overreaching-sleep'],
       {
         unit: 'percentage points',
-        note: 'A sleep-efficiency drop of about 2 pp counts as one signal.',
+        note: "Default: a drop of about 2 pp in the mean sleep efficiency of the last j5.reducePersistDays nights below the runner's own baseline counts as one signal. The review finds it consistent with overreaching and not a validated trigger.",
+      },
+    ),
+    sleepEffFloorPct: param(
+      'j5.sleepEffFloorPct',
+      50,
+      'D',
+      'J5',
+      ['murphy-2024-overreaching-sleep'],
+      {
+        unit: '%',
+        note: 'Default: a night with an efficiency under this is read as a bad pair of values (two devices, a split night) and left out; no study sets the number. Above 100 % is excluded because sleep cannot exceed time in bed.',
+      },
+    ),
+    sleepEffMinNights: param(
+      'j5.sleepEffMinNights',
+      4,
+      'D',
+      'J5',
+      ['murphy-2024-overreaching-sleep'],
+      {
+        unit: 'nights',
+        note: 'Default: the window of j5.reducePersistDays nights needs at least this many nights with both sleep and time in bed (the same count as j5.sleepMinNights); below it the signal is inactive.',
+      },
+    ),
+    sleepEffBaselineNights: param(
+      'j5.sleepEffBaselineNights',
+      10,
+      'D',
+      'J5',
+      ['murphy-2024-overreaching-sleep'],
+      {
+        unit: 'nights',
+        note: 'Default: the baseline is the mean efficiency of the newest nights with both values before the window, this many at most (the 10 readings of the J4 baseline).',
+      },
+    ),
+    sleepEffLookbackDays: param(
+      'j5.sleepEffLookbackDays',
+      21,
+      'D',
+      'J5',
+      ['murphy-2024-overreaching-sleep'],
+      {
+        unit: 'days',
+        note: 'Default: the baseline nights come from this many days before the window (the 21 days of j4.lookbackDays).',
+      },
+    ),
+    sleepEffMinBaselineNights: param(
+      'j5.sleepEffMinBaselineNights',
+      7,
+      'D',
+      'J5',
+      ['murphy-2024-overreaching-sleep'],
+      {
+        unit: 'nights',
+        note: 'Default: the baseline needs at least this many nights with both values; below it the signal is inactive. No study sets the number.',
       },
     ),
   },
