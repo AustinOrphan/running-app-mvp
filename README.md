@@ -80,8 +80,9 @@ Read from the process environment, or from `.env` in development. Nothing else i
 Rotating `SESSION_SECRET` invalidates every session cookie, so the next request sends you to the
 sign-in page. Nothing else is lost; sign in again with the same password.
 
-The server derives "today" and the current week from its own clock. In Docker, set `TZ` to your
-time zone (an operating-system setting, not an application variable).
+Each runner's "today" and current week come from the time zone saved on their Profile page. An
+account with none saved follows the server's clock, so in Docker set `TZ` to your time zone (an
+operating-system setting, not an application variable); `TZ` also sets the backup slot below.
 
 ## Importing activities
 
@@ -638,7 +639,8 @@ password signs the account's other devices out and keeps the one in use. Wrong c
 limited to 5 per 15 minutes (see the rate limits under First run). A second account with the same email is refused.
 
 `--units` (`km` or `mi`), `--weight` (`kg` or `lb`) and `--tz` (an IANA zone such as
-`America/Chicago`) set the account's own settings. Whatever is left out is taken from the browser
+`America/Chicago`) set the account's own settings. The account's days follow its zone, whatever the
+server's, so people in different zones can share one server. Whatever is left out is taken from the browser
 on the first load after sign-in: the zone is saved if the account still has the UTC default, and
 a browser set to `en-US` gives miles and pounds, any other locale kilometres and kilograms. Both
 stay changeable in Settings and on the Profile page. Giving either of `--units` and `--weight`

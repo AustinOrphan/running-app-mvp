@@ -396,6 +396,14 @@ added by this change.
   and is treated as not waiting until its first failed send.
 - The strength sheet's own save of "without sets" still posts an activity and needs a connection.
 
+## Addendum 2026-11-16: the runner's zone in the kept reads (ADR 0022)
+
+`tz` in the `/api/today` payload is the runner's zone (the profile's, else the server's), and
+`/api/auth/me` carries `tz` and `serverTz`. The worker's rules, the allowlist and the time limits
+are unchanged: it reads the payload's own `tz` and never the device's zone. A Today copy kept before
+a zone change is still picked by its own `tz` until the next online read, and a `me` copy without
+`serverTz` leaves the Profile picker's unset entry unnamed.
+
 ## Addendum 2026-11-16: the road race plan rides the two kept reads it already has
 
 The road race plan (ADR 0023) travels in optional fields of reads the worker already keeps: `road` on

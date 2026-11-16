@@ -1,6 +1,6 @@
 # 0022. A runner's day is the calendar date in the runner's own zone
 
-Status: Proposed 2026-11-16. Accepted when step 5 of the rollout merges.
+Status: Accepted 2026-11-16 (#754).
 
 Supersedes two consequences of ADR 0003: "Code that needs today calls `todayIso`, the only function
 that reads local time" and "A server running in a different timezone from the runner computes the

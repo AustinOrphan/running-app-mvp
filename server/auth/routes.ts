@@ -4,7 +4,7 @@ import { toWeightUnit } from '../serialize.ts'
 import type { SessionUser, Units } from '../../shared/types.ts'
 import type { Deps } from '../app.ts'
 import { conflict, parse, unauthorized, validationError } from '../errors.ts'
-import { runnerZone } from '../runnerDay.ts'
+import { runnerZone, serverTimeZone } from '../runnerDay.ts'
 import { requireAuth } from './middleware.ts'
 import { DUMMY_PASSWORD_HASH, hashPassword, passwordSchema, verifyPassword } from './password.ts'
 import {
@@ -60,6 +60,7 @@ function toSessionUser(row: UserRow, tz: string): SessionUser {
     unitsFromBrowser: row.unitsFromBrowser,
     zoneFromBrowser: row.zoneFromBrowser,
     tz,
+    serverTz: serverTimeZone(),
   }
 }
 
@@ -131,7 +132,7 @@ export function authRouter(deps: Deps): Router {
       signSession(user.id, config.sessionSecret, user.sessionVersion),
       isSecure(req),
     )
-    res.json(toSessionUser(user, runnerZone(user.profile?.timezone)))
+    res.json(toSessionUser(user, runnerZone(user.profile?.timezone, user.id)))
   })
 
   router.post('/auth/logout', (_req, res) => {

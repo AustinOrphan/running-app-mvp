@@ -119,6 +119,15 @@ export function useRunnerZone(): string | null {
 }
 
 /**
+ * The server's own zone, which the Profile picker's "Not set" entry names, from the session user
+ * (`SessionUser.serverTz`). Null until it loads, and for a payload cached before the field existed.
+ */
+export function useServerZone(): string | null {
+  const me = useQuery<SessionUser | null>({ queryKey: [keys.me], enabled: false })
+  return me.data?.serverTz ?? null
+}
+
+/**
  * The day of `now` in `tz`. The one read of the device's day under `web/`: used while no zone is
  * known, or when this device's ICU rejects the zone (the scanner in `noProcessZone.test.ts` allows
  * this file one call).

@@ -314,6 +314,14 @@ protection reads. The Docker image must still build (`docker build .`) after a c
 - Env vars are exactly `DATABASE_URL`, `SESSION_SECRET`, `PORT`, `NODE_ENV`, `ALLOW_REGISTRATION`
   and `LOG_LEVEL` (plus `TZ` as an OS setting in Docker).
 - Migrations under `prisma/migrations` are committed; never ignore them.
+- A runner's day (D10, ADR 0022) is the date in `runnerZone(AthleteProfile.timezone)` (`server/runnerDay.ts`):
+  the stored zone as stored, the server's zone for the stored `UTC`, no row or an unknown zone (logged
+  once). A request reads `req.runnerDay` (`{ tz, today, now }`, set in `requireAuth`); a job reads
+  `runnerDays`; a service takes `today` from its caller and never resolves it. Nothing under `server/`
+  reads the process zone except the backup slot, the log clock and the named UTC windows;
+  `tests/unit/server/noProcessZone.test.ts` scans for `todayIso`, local-clock getters and
+  `toISOString().slice(0, 10)`, and its allowlists only shrink. The backup stays on the server clock.
+  Imports date an offset-less time in the stored zone, `UTC` literally, never in `runnerZone`.
 - Callers never bump the data version: `server/dataVersion.ts` raises it after every write to a
   state model and at the end of every `$transaction`, and exports no way to raise it. No raw SQL
   writes a state table (`tests/unit/server/noRawWrites.test.ts` enforces it).
@@ -378,6 +386,12 @@ protection reads. The Docker image must still build (`docker build .`) after a c
   (`?view=card`, `describeRaceCard`) is a view of the same rows, kept offline as the sixth read of
   ADR 0012; its crew notes are `race-crew:` keys in `web/pwa/drafts.ts`, on the device only, and
   `RaceCard.module.css` holds the print layout.
+- The road race plan (rule H15, ADR 0023) is the ultra plan's counterpart for a 10 km, half marathon or
+  marathon goal: `shared/engine/racePlanRoad.ts` (the 10 km gets the time, pace and heat blocks only), words in
+  `shared/copy/racePlanRoad.ts`, derived on read and stored nowhere. It travels in the `road` field of
+  `GET /api/race/plan` (`loadRacePlan`) and the `roadRace` slot of Today (both optional, so a kept copy
+  without them still renders). It has the same isolation as the ultra plan: no forecast, not on the watch,
+  the feed or the brief, and `racePlanIsolation.test.ts` scans for a stray import.
 - Run tracks (M1a): a parsed run carries `route` (every recorded position, not stored as it is). `buildTrack`
   (`shared/importers/files/track.ts`) simplifies it with Douglas-Peucker at 5 m, caps it at 2,000 points and
   encodes a precision-5 polyline with the cumulative metres per kept point; these constants are data
@@ -414,7 +428,7 @@ protection reads. The Docker image must still build (`docker build .`) after a c
   the drafts) is emptied only through `purgeDeviceData()` in `web/pwa/outbox.ts`, which sign-out,
   sign-in, account creation and every 401 call; extend it rather than adding a second purge. The
   page's own cached answers go with `dropUserQueries()` in `web/api/client.ts`. The worker is
-  registered in a production build only. A date in the worker is the server's (`tz` of the
+  registered in a production build only. A date in the worker is the runner's (`tz` of the
   payload), never the phone's. `createQueryClient()` runs queries and mutations in
   `networkMode: 'always'`, so a request made while the browser says it is offline still reaches the
   worker or the outbox.

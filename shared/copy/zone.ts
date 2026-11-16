@@ -2,9 +2,8 @@
 // picker on the Profile page. `ZONE_TEMPLATES` is spread into `TEMPLATES`, so the G5 lint renders
 // each one.
 //
-// Before step 5 every runner's days follow the server's zone (`runnerZone` returns it), so the line
-// says that, whatever zone is saved. Step 5 replaces `zone.line.server` and `zone.save.note` with the
-// per-runner wording (ADR 0022, rollout) in the PR that makes `runnerZone` return the stored zone.
+// A runner's days follow the zone saved on the Profile page; with none saved (the stored 'UTC') they
+// follow the server's zone (`runnerZone`, ADR 0022).
 import { render, tpl } from './template.ts'
 
 export const ZONE_TEMPLATES = {
@@ -17,21 +16,23 @@ export const ZONE_TEMPLATES = {
   ),
   'zone.option.utc': tpl('UTC', {}, { shape: 'label' }),
   // The line: which zone the days follow now, and the date it gives.
-  'zone.line.server': tpl(
-    "Days follow the server's zone, {zone}, whatever zone is saved here. Today is {date} there.",
+  'zone.line.chosen': tpl(
+    'Days follow {zone}, the zone saved here. Today is {date} there.',
     { zone: 'text', date: 'date' },
-    { fallback: "Days follow the server's zone, whatever zone is saved here." },
+    { fallback: 'Days follow the zone saved here.' },
+  ),
+  'zone.line.unset': tpl(
+    "Days follow {zone}, the server's zone, until a zone is saved here. Today is {date} there.",
+    { zone: 'text', date: 'date' },
+    { fallback: "Days follow the server's zone until a zone is saved here." },
   ),
   'zone.line.logged': tpl('Days already logged keep their dates.'),
   // While the picker shows a zone other than the saved one (the browser's zone is pre-filled over an
   // unset zone), what saving does.
   'zone.save.note': tpl(
-    "Saving sets the zone that dates imported runs to {zone}. Days still follow the server's zone.",
+    'Saving makes days follow {zone}.',
     { zone: 'text' },
-    {
-      fallback:
-        "Saving sets the zone that dates imported runs. Days still follow the server's zone.",
-    },
+    { fallback: 'Saving makes days follow the zone chosen here.' },
   ),
 } as const
 
@@ -52,18 +53,24 @@ export const zoneUtcLabel = (): string => render(ZONE_TEMPLATES['zone.option.utc
 
 /**
  * The line under the picker: the zone the days follow and today's date there, then that days
- * already logged keep their dates. `zone` is the session user's zone, never the picker's draft.
+ * already logged keep their dates. `zone` is the session user's zone, never the picker's draft;
+ * `chosen` is false while the saved zone is the unset entry, so the days follow the server's.
  */
-export function zoneLineText(zone: string, today: string): string {
+export function zoneLineText(zone: string, today: string, chosen: boolean): string {
   const line = render(
-    ZONE_TEMPLATES['zone.line.server'],
+    ZONE_TEMPLATES[chosen ? 'zone.line.chosen' : 'zone.line.unset'],
     { zone, date: { kind: 'date', iso: today, style: 'long' } },
     'km',
   )
   return `${line} ${render(ZONE_TEMPLATES['zone.line.logged'], {}, 'km')}`
 }
 
-/** What saving does while the picker's zone differs from the saved one. */
-export function zoneSaveNoteText(draftZone: string): string {
-  return render(ZONE_TEMPLATES['zone.save.note'], { zone: draftZone }, 'km')
+/**
+ * What saving does while the picker's zone differs from the saved one: days follow the draft, or
+ * the server's zone when the draft is the unset entry. Null when that zone is not known (the
+ * unset entry before the session user has loaded).
+ */
+export function zoneSaveNoteText(draftZone: string, serverZone: string | null): string | null {
+  const zone = draftZone === ZONE_UNSET_VALUE ? serverZone : draftZone
+  return zone === null ? null : render(ZONE_TEMPLATES['zone.save.note'], { zone }, 'km')
 }

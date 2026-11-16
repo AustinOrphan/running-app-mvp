@@ -34,7 +34,7 @@ import { usePlanNotice } from '../api/planNotice.ts'
 import { useProfile, useUpdateProfile } from '../api/profile.ts'
 import { useSaveScreening, useScreenings } from '../api/screenings.ts'
 import { useSettings } from '../api/settings.ts'
-import { useRunnerToday, useRunnerZone } from '../api/today.ts'
+import { useRunnerToday, useRunnerZone, useServerZone } from '../api/today.ts'
 import { useZones } from '../api/zones.ts'
 import { Button } from '../components/Button.tsx'
 import { PlanNoticeStanding } from '../components/PlanNotice.tsx'
@@ -486,12 +486,14 @@ function ProfileForm({ initial, units, weightUnit }: { initial: AthleteProfile }
     )
   }
 
-  // The zone the days follow, from the session user and never from the draft. Until step 5 of D10
-  // this is the server's zone for every runner, so it also names the unset entry; step 5 must take
-  // the server's zone from another source, since the session zone then is the runner's own.
+  // The zone the days follow, from the session user and never from the draft. It is the runner's
+  // own zone once one is saved, so the unset entry names the server's zone from `serverTz`.
   const daysZone = useRunnerZone()
+  const serverZone = useServerZone()
   const runnerToday = useRunnerToday()
-  const zones = timezoneOptions(draft.timezone, daysZone)
+  const zones = timezoneOptions(draft.timezone, serverZone)
+  const saveNote =
+    draft.timezone !== initial.timezone ? zoneSaveNoteText(draft.timezone, serverZone) : null
 
   return (
     <>
@@ -920,11 +922,11 @@ function ProfileForm({ initial, units, weightUnit }: { initial: AthleteProfile }
             </Field>
           </div>
           {daysZone !== null ? (
-            <p className={styles.note}>{zoneLineText(daysZone, runnerToday)}</p>
+            <p className={styles.note}>
+              {zoneLineText(daysZone, runnerToday, initial.timezone !== ZONE_UNSET_VALUE)}
+            </p>
           ) : null}
-          {draft.timezone !== initial.timezone ? (
-            <p className={styles.note}>{zoneSaveNoteText(draft.timezone)}</p>
-          ) : null}
+          {saveNote !== null ? <p className={styles.note}>{saveNote}</p> : null}
         </section>
 
         {otherError !== undefined ? (
