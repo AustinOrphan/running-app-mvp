@@ -5,9 +5,13 @@
 // same re-plan without the race passes.
 import { describe, expect, it } from 'vitest'
 import { addDays, daysBetween, mondayOf } from '../../../shared/dates.ts'
-import { buildPlan, replan } from '../../../shared/engine/index.ts'
+import { weeklyDecision } from '../../../shared/engine/adapt.ts'
+import { estimateState } from '../../../shared/engine/athlete.ts'
+import { buildPlan, replan, weeklyRamp } from '../../../shared/engine/index.ts'
+import { rebuildZone } from '../../../shared/engine/loadSetting.ts'
 import { runningMinutes } from '../../../shared/engine/limits.ts'
 import type { EngineInput, EnteredRace, GoalModel } from '../../../shared/engine/types.ts'
+import { activity } from './e8-fixtures.ts'
 import { athletes } from './matrix-fixtures.ts'
 
 const CLASSES: Record<string, Partial<GoalModel>> = {
@@ -210,6 +214,155 @@ describe('a race on every weekday, re-planned around its day', () => {
         [],
       )
       expect(cases).toBeGreaterThan(400)
+    }, 300_000)
+  }
+})
+
+// A break week (BR1: a finished loading week run at about 28% of its target, `input.breakWeek` set as
+// the weekly update sets it) one, two and three weeks before an entered race, and a re-plan on each
+// day from 7 days before the race to 3 days after it (the days from the Monday of the week that
+// repeats the loading week on). The same two assertions as the weekday block.
+const NOT_RUNS = new Set(['strength', 'mobility', 'rest', 'cross', 'race'])
+
+describe('a break week before an entered race', () => {
+  for (const id of ['half', 'half-capped']) {
+    it(`${id}: the re-plans around the race fail no check the plan without it passes`, () => {
+      const matrix = athletes().find((a) => a.id === 'half')!.input
+      const base: EngineInput =
+        id === 'half-capped'
+          ? {
+              ...matrix,
+              profile: {
+                ...matrix.profile,
+                availability: {
+                  ...matrix.profile.availability,
+                  mon: { available: false, maxMin: null },
+                  wed: { available: false, maxMin: null },
+                  thu: { available: true, maxMin: 50 },
+                  fri: { available: true, maxMin: 45 },
+                },
+              },
+            }
+          : matrix
+      const plain = buildPlan(base)
+      // the first recovery week has a loading week before it: that week is the break week
+      const scheduled = plain.weeks.find((w, i) => i >= 1 && w.isRecovery && !w.isTaper)!
+      const monday = scheduled.weekStart
+      const breakMonday = addDays(monday, -7)
+      const runs = plain.sessions
+        .filter((x) => !NOT_RUNS.has(x.kind) && x.durationMin > 0 && x.date < monday)
+        .map((x, i) =>
+          activity(x.date, {
+            id: `run-${String(i)}`,
+            durationSec: Math.round(
+              x.durationMin * 60 * (mondayOf(x.date) === breakMonday ? 0.28 : 1),
+            ),
+            tempC: 12,
+          }),
+        )
+      const stored = (plan: typeof plain, prefix: string) => ({
+        weeks: plan.weeks,
+        sessions: plan.sessions.map((x, i) => ({
+          ...x,
+          id: `${prefix}${String(i)}`,
+          status: x.date < monday ? 'completed' : 'planned',
+          activityId: null,
+        })),
+      })
+      /** The re-plan as the weekly update runs it: the decision of the break week, its repeat capped. */
+      const weekly = (today: string, existing: ReturnType<typeof stored>, races: EnteredRace[]) => {
+        const input: EngineInput = {
+          ...base,
+          today,
+          activities: [...base.activities, ...runs],
+          existing,
+          races,
+        }
+        const state = estimateState(input)
+        const d = weeklyDecision(input, breakMonday, {
+          ramp: weeklyRamp(state),
+          rebuild: rebuildZone(input, state),
+        })
+        const caps =
+          d.decision === 'progress' && d.breakRepeat === undefined
+            ? {}
+            : { [monday]: d.nextWeekTargetMin }
+        return replan(
+          {
+            ...input,
+            weekCaps: caps,
+            ...(d.breakRepeat === undefined ? {} : { breakWeek: d.breakRepeat }),
+          },
+          { decisions: d.decision === 'progress' ? {} : { [monday]: d.decision } },
+        ).draft
+      }
+      const weekMinutes = (sessions: typeof plain.sessions) => {
+        const byWeek = new Map<string, number>()
+        for (const x of sessions) {
+          byWeek.set(mondayOf(x.date), (byWeek.get(mondayOf(x.date)) ?? 0) + runningMinutes([x]))
+        }
+        return byWeek
+      }
+      const plainMinutes = weekMinutes(plain.sessions)
+      const plainExisting = stored(plain, 'p')
+      const without = new Map<
+        string,
+        { failed: string[]; minutes: Map<string, number>; broke: boolean }
+      >()
+      const reference = (today: string) => {
+        let known = without.get(today)
+        if (known === undefined) {
+          const draft = weekly(today, plainExisting, [])
+          known = {
+            failed: failing(draft.checklist),
+            minutes: weekMinutes(draft.sessions),
+            broke: draft.weeks.some((w) => w.flags.includes('break-repeat')),
+          }
+          without.set(today, known)
+        }
+        return known
+      }
+      let cases = 0
+      let withBreak = 0
+      const problems: string[] = []
+      for (const weeksBefore of [1, 2, 3]) {
+        const date = addDays(breakMonday, 7 * weeksBefore + 5)
+        if (date >= base.goal.date) continue
+        for (const cls of Object.keys(CLASSES)) {
+          for (const priority of ['B', 'C'] as const) {
+            const entered = race(base, priority, date, cls)
+            const existing = stored(buildPlan({ ...base, races: [entered] }), 's')
+            for (let offset = -7; offset <= 3; offset++) {
+              const today = addDays(date, offset)
+              if (today < monday || today >= base.goal.date) continue
+              const draft = weekly(today, existing, offset < 0 ? [entered] : [])
+              const known = reference(today)
+              if (known.broke) withBreak += 1
+              const fresh = failing(draft.checklist).filter((item) => !known.failed.includes(item))
+              const label = `${cls} ${priority} race ${date} (${String(weeksBefore)} wk after the break), re-plan ${today}`
+              if (fresh.length > 0) problems.push(`${label}: ${fresh.join()}`)
+              for (const [weekStart, minutes] of offset < 0 ? weekMinutes(draft.sessions) : []) {
+                const limit = Math.max(
+                  known.minutes.get(weekStart) ?? 0,
+                  plainMinutes.get(weekStart) ?? 0,
+                )
+                if (minutes > limit) {
+                  problems.push(
+                    `${label}: week ${weekStart} holds ${String(minutes)} min, above ${String(limit)}`,
+                  )
+                }
+              }
+              cases += 1
+            }
+          }
+        }
+      }
+      expect(problems.slice(0, 12), `${String(problems.length)} of ${String(cases)} cases`).toEqual(
+        [],
+      )
+      expect(cases).toBeGreaterThan(80)
+      // the scenario is a break week: the re-plans without the race carry the repeat
+      expect(withBreak).toBeGreaterThan(0)
     }, 300_000)
   }
 })
