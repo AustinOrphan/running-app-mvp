@@ -1,9 +1,10 @@
 import { useId, useState } from 'react'
-import { addDays, mondayOf, todayIso } from '../../shared/dates.ts'
+import { addDays, mondayOf } from '../../shared/dates.ts'
 import type { Units } from '../../shared/types.ts'
 import { formatDistance, formatDuration, formatPace, minutesToHours1 } from '../../shared/units.ts'
 import { useSettings } from '../api/settings.ts'
 import { useStats } from '../api/stats.ts'
+import { useRunnerToday } from '../api/today.ts'
 import { useWeeks } from '../api/weeks.ts'
 import { MonthlyHoursChart, WeeklyHoursChart } from '../components/charts/lazyCharts.tsx'
 import { Button } from '../components/Button.tsx'
@@ -47,7 +48,7 @@ function distanceOrDash(distanceM: number, units: Units): string {
 }
 
 export function StatsPage() {
-  const today = todayIso()
+  const today = useRunnerToday()
   const thisWeek = mondayOf(today)
   const stats = useStats()
   const weeks = useWeeks({ from: addDays(thisWeek, -7 * (HISTORY_WEEKS - 1)), to: thisWeek })

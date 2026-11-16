@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
-import { useEffect } from 'react'
-import { isoDateInZone } from '../../shared/dates.ts'
-import type { TodayView } from '../../shared/types.ts'
+import { useCallback, useEffect, useState } from 'react'
+import { isoDateInZone, todayIso } from '../../shared/dates.ts'
+import type { SessionUser, TodayView } from '../../shared/types.ts'
 import { api, keys } from './client.ts'
 
 /**
@@ -95,4 +95,80 @@ export function useServerToday() {
   }, [date, tz, preview, refetch])
 
   return query
+}
+
+/**
+ * The zone the runner's days follow, read without a request: the session user's `tz`, then the zone
+ * of a cached Today payload (a `me` payload cached before the field existed), then null, which the
+ * callers read as the device's own day. Never the device zone by name, so a phone in another zone
+ * than the server shows the server's day (D10, ADR 0022).
+ */
+export function useRunnerZone(): string | null {
+  // Observers that never fetch: the session user is read once by the app shell, and a page asking
+  // for a day must not add a request (nor an unmocked one to a test).
+  const me = useQuery<SessionUser | null>({ queryKey: [keys.me], enabled: false })
+  const today = useQuery<TodayView>({ queryKey: [keys.today], enabled: false })
+  return me.data?.tz ?? today.data?.tz ?? null
+}
+
+/**
+ * The day of `now` in `tz`. The one read of the device's day under `web/`: used while no zone is
+ * known, or when this device's ICU rejects the zone (the scanner in `noProcessZone.test.ts` allows
+ * this file one call).
+ */
+function dayIn(now: Date, tz: string | null): string {
+  if (tz !== null) {
+    try {
+      return isoDateInZone(now, tz)
+    } catch {
+      // fall through to the device's day
+    }
+  }
+  return todayIso(now)
+}
+
+/**
+ * The calendar day of an instant (a revision's time, a link's creation) in the runner's zone: the
+ * day the runner lived it, whichever zone the device is in. Falls back to the device's day only
+ * while no zone is known.
+ */
+export function useRunnerDayOf(): (at: Date) => string {
+  const tz = useRunnerZone()
+  return useCallback((at: Date) => dayIn(at, tz), [tz])
+}
+
+/**
+ * Today as the runner's day, `YYYY-MM-DD`: the page that reads it shows the same day as Today does,
+ * on any device. The component renders again when the runner's day ends, so a page left open past
+ * midnight moves on without a reload. Falls back to the device's day only while no zone is known.
+ */
+export function useRunnerToday(): string {
+  const tz = useRunnerZone()
+  const [, setTick] = useState(0)
+  const today = dayIn(new Date(), tz)
+  useEffect(() => {
+    if (tz === null) return
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const arm = () => {
+      let wait: number | null
+      try {
+        wait = msUntilDayEnds(new Date(), tz, today)
+      } catch {
+        return
+      }
+      // Null: the day in `tz` is earlier than `today`, which cannot happen for a day just read.
+      if (wait === null) return
+      timer = setTimeout(
+        () => {
+          setTick((n) => n + 1)
+        },
+        Math.max(Math.min(wait, MAX_TIMER_MS), 1_000),
+      )
+    }
+    arm()
+    return () => {
+      clearTimeout(timer)
+    }
+  }, [tz, today])
+  return today
 }

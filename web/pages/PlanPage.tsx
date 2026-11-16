@@ -29,7 +29,7 @@ import {
   type PlanWeekPatch,
 } from '../api/plan.ts'
 import { useSettings } from '../api/settings.ts'
-import { useToday } from '../api/today.ts'
+import { useRunnerToday, useToday } from '../api/today.ts'
 import { useWeeks } from '../api/weeks.ts'
 import { useWristStatus, weekZipHref } from '../api/wrist.ts'
 import type { PlanRevisionView } from '../../shared/types.ts'
@@ -65,13 +65,7 @@ import {
 } from '../components/format.ts'
 import { UndoControl } from '../components/revisions/UndoControl.tsx'
 import { planStripSentence, planStripText } from '../../shared/copy/planStrip.ts'
-import {
-  addDays,
-  formatWeekdayName,
-  isoDateInZone,
-  mondayOf,
-  todayIso,
-} from '../../shared/dates.ts'
+import { addDays, formatWeekdayName, isoDateInZone, mondayOf } from '../../shared/dates.ts'
 import { isVisibleLine } from '../../shared/engine/diff.ts'
 import { weekClimbLabel, weekClimbNone } from '../../shared/copy/season.ts'
 import { actualRange, planSpan } from '../components/season.ts'
@@ -1349,7 +1343,7 @@ function PlanTable({
 }) {
   const units = useSettings().data?.units
   const [editing, setEditing] = useState<PlanWeek | null>(null)
-  const currentMonday = mondayOf(todayIso())
+  const currentMonday = mondayOf(useRunnerToday())
   const isV2 = plan.generatorVersion >= 2
   const { first, last } = planSpan(plan)
   const weeks = useWeeks(actualRange(plan, currentMonday))

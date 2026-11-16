@@ -1,7 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useId, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { addDays, todayIso } from '../../shared/dates.ts'
+import { addDays } from '../../shared/dates.ts'
 import { MAX_DURATION_SEC } from '../../shared/limits.ts'
 import type { Activity, ActivityListItem, ActivityType, Feel, Units } from '../../shared/types.ts'
 import { formatDuration, kmToM, mToKm, mToMiles, milesToM } from '../../shared/units.ts'
@@ -13,6 +13,7 @@ import {
 } from '../api/activities.ts'
 import { ApiError, fieldErrors, keys } from '../api/client.ts'
 import { useSettings } from '../api/settings.ts'
+import { useRunnerToday } from '../api/today.ts'
 import { Button } from '../components/Button.tsx'
 import { ConfirmSheet } from '../components/ConfirmSheet.tsx'
 import { TrashGlyph } from '../components/Glyphs.tsx'
@@ -66,8 +67,7 @@ export const DURATION_HINT = 'Enter minutes like 45, or 0:45:00'
  * plan, then the rating). An older day is a back-fill, entered one run after another, which stays
  * on the list.
  */
-export function opensItsPage(date: string): boolean {
-  const today = todayIso()
+export function opensItsPage(date: string, today: string): boolean {
   return date === today || date === addDays(today, -1)
 }
 
@@ -175,6 +175,7 @@ export function ActivityForm(props: ActivityFormProps) {
 
 function ActivityFormSheet({ onClose, activity }: ActivityFormProps) {
   const formId = useId()
+  const today = useRunnerToday()
   const settings = useSettings()
   const units: Units = settings.data?.units ?? 'mi'
   const toast = useToast()
@@ -189,7 +190,7 @@ function ActivityFormSheet({ onClose, activity }: ActivityFormProps) {
     distance: distanceText(activity?.distanceM, units),
     elevation: elevationText(activity?.elevationGainM, units),
   }
-  const [date, setDate] = useState(activity?.date ?? todayIso())
+  const [date, setDate] = useState(activity?.date ?? today)
   const [type, setType] = useState<ActivityType>(activity?.type ?? 'run')
   const [duration, setDuration] = useState(activity ? formatDuration(activity.durationSec) : '')
   const [distance, setDistance] = useState(initial.distance)
@@ -306,7 +307,7 @@ function ActivityFormSheet({ onClose, activity }: ActivityFormProps) {
       setFormError(`Activity not saved. ${reason} Your entries are still in the form; try again.`)
       return
     }
-    const landsOnPage = created !== null && opensItsPage(built.input.date)
+    const landsOnPage = created !== null && opensItsPage(built.input.date, today)
     if (landsOnPage) {
       // The save has linked the run to its session on the server, and the plan this page may hold
       // is from before it: nothing on the list watches the plan, so it was only marked old. Read it

@@ -912,8 +912,9 @@ describe('invalidation of engine data', () => {
 
   async function refetchedBy(
     mutate: (r: ReturnType<typeof mountEngineReaders>['result']['current']) => Promise<unknown>,
+    over: MockRoutes = {},
   ): Promise<string[]> {
-    const { calls } = mockApi(engineRoutes())
+    const { calls } = mockApi({ ...engineRoutes(), ...over })
     const { result } = mountEngineReaders()
     await waitFor(() => {
       expect(result.current.profile.isSuccess).toBe(true)
@@ -945,6 +946,30 @@ describe('invalidation of engine data', () => {
   test('a profile save refetches zones, the plan, today, the zone proposals and the Trends load view', async () => {
     expect(await refetchedBy((r) => r.saveProfile.mutateAsync({}))).toEqual([
       '/api/plan',
+      '/api/today',
+      '/api/trends/load',
+      '/api/zones',
+      '/api/zones/proposals',
+    ])
+  })
+
+  test('a profile save that moves the zone refetches every query, the session user included', async () => {
+    let saved = false
+    const urls = await refetchedBy(
+      async (r) => {
+        saved = true
+        await r.saveProfile.mutateAsync({ timezone: 'Pacific/Kiritimati' })
+      },
+      {
+        'GET /api/profile': () => ({ timezone: saved ? 'Pacific/Kiritimati' : 'UTC' }),
+        'PUT /api/profile': () => ({ timezone: 'Pacific/Kiritimati' }),
+      },
+    )
+    // Every mounted reader asks again, and the profile reader too (the others are in the first test).
+    expect(urls).toEqual([
+      '/api/plan',
+      '/api/plan/revisions',
+      '/api/profile',
       '/api/today',
       '/api/trends/load',
       '/api/zones',

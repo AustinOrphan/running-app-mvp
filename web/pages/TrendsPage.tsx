@@ -13,7 +13,7 @@ import {
   weightAria,
   weightCaption,
 } from '../../shared/copy/trends.ts'
-import { addDays, mondayOf, todayIso } from '../../shared/dates.ts'
+import { addDays, mondayOf } from '../../shared/dates.ts'
 import {
   cropStart,
   firstRecordWeek,
@@ -26,6 +26,7 @@ import { DEFAULT_WEIGHT_UNIT, formatBodyWeight, isWeightUnit } from '../../share
 import { P } from '../../shared/engine/params/index.ts'
 import type { TrendsView, TrendWeek, Units, WeekRow, WeightUnit } from '../../shared/types.ts'
 import { useSettings } from '../api/settings.ts'
+import { useRunnerToday } from '../api/today.ts'
 import { useTrends } from '../api/trends.ts'
 import { useWeeks } from '../api/weeks.ts'
 import { RecoveryChart, TrendsRunChart, WeightChart } from '../components/charts/lazyCharts.tsx'
@@ -327,7 +328,7 @@ function WeightSection({ view, unit, months, weekCount }: WeightSectionProps) {
 export function TrendsPage() {
   const online = useOnline()
   const [range, setRange] = useState<RangeKey>(savedRange)
-  const thisWeek = mondayOf(todayIso())
+  const thisWeek = mondayOf(useRunnerToday())
   const weeks = useWeeks({ from: addDays(thisWeek, -7 * (MAX_WEEKS - 1)), to: thisWeek })
   const settings = useSettings()
   const trends = useTrends()

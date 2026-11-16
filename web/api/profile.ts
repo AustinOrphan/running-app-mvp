@@ -22,7 +22,13 @@ export function useUpdateProfile() {
     mutationFn: (profile: Partial<AthleteProfile>) =>
       api<AthleteProfile>('PUT', '/profile', profile),
     onSuccess: (saved) => {
+      const before = queryClient.getQueryData<AthleteProfile>([keys.profile])
       queryClient.setQueryData([keys.profile], saved)
+      // Every cached answer carries a day, and the zone decides which day it is (D10, ADR 0022):
+      // a save that moves the zone reads everything again, the session user included.
+      if (before !== undefined && before.timezone !== saved.timezone) {
+        return queryClient.invalidateQueries()
+      }
       return Promise.all(
         [keys.zones, keys.plan, keys.today, keys.zoneProposals, keys.paces, keys.trends].map(
           (key) => queryClient.invalidateQueries({ queryKey: [key] }),

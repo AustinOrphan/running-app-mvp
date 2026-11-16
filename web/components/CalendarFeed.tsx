@@ -1,5 +1,4 @@
 import { useId, useRef, useState } from 'react'
-import { todayIso } from '../../shared/dates.ts'
 import {
   calendarOnSentence,
   calendarWindowSentence,
@@ -8,6 +7,7 @@ import {
 import type { CalendarTokenIssued } from '../../shared/types.ts'
 import { CALENDAR_DAYS, PUBLISH_HORIZON_DAYS } from '../../shared/workouts/horizon.ts'
 import { useCreateCalendarLink, useRevokeCalendarLink, useWristStatus } from '../api/wrist.ts'
+import { useRunnerDayOf } from '../api/today.ts'
 import { Button } from './Button.tsx'
 import { Sheet } from './Sheet.tsx'
 import { useToast } from './Toast.tsx'
@@ -19,12 +19,12 @@ function webcalHref(path: string): string {
 }
 
 /** "The calendar link works. It was made on 13 Jan." (the day where the runner is). */
-function stateLine(enabled: boolean, madeAt: string | null): string {
+function stateLine(enabled: boolean, madeAt: string | null, dayOf: (at: Date) => string): string {
   if (!enabled) return wristPlain('publish.calendar.off')
   const at = madeAt === null ? new Date(Number.NaN) : new Date(madeAt)
   return Number.isNaN(at.getTime())
     ? wristPlain('publish.calendar.on-plain')
-    : calendarOnSentence(todayIso(at))
+    : calendarOnSentence(dayOf(at))
 }
 
 /**
@@ -45,6 +45,7 @@ function stateLine(enabled: boolean, madeAt: string | null): string {
 export function CalendarFeed({ className }: { className?: string }) {
   const headingId = useId()
   const toast = useToast()
+  const dayOf = useRunnerDayOf()
   const { status } = useWristStatus()
   const create = useCreateCalendarLink()
   const revoke = useRevokeCalendarLink()
@@ -98,7 +99,7 @@ export function CalendarFeed({ className }: { className?: string }) {
           {wristPlain('publish.calendar.heading')}
         </h2>
         <p className={styles.state}>
-          {stateLine(status.calendar.enabled, status.calendar.tokenCreatedAt)}
+          {stateLine(status.calendar.enabled, status.calendar.tokenCreatedAt, dayOf)}
         </p>
         <p className={styles.note}>
           {wristPlain('publish.calendar.privacy')}{' '}

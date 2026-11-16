@@ -4,9 +4,9 @@ import {
   newMarker,
   reasonLabel,
 } from '../../../shared/copy/revisionView.ts'
-import { todayIso } from '../../../shared/dates.ts'
 import { entryCauses, presentDiff } from '../../../shared/engine/revisionDiff.ts'
 import type { PlanRevisionView, Units } from '../../../shared/types.ts'
+import { useRunnerDayOf } from '../../api/today.ts'
 import { Button } from '../Button.tsx'
 import { RemoveWindowInstead, windowToRemoveInstead } from '../disruption/RemoveWindowInstead.tsx'
 import { localiseEngineText } from '../engineText.ts'
@@ -59,6 +59,7 @@ const CAUSES_SHOWN = 2
  * diff and shows its week-level changes the way they were stored.
  */
 export function RevisionDiff({ revision, units, onWhy, isNew, summary = true }: RevisionDiffProps) {
+  const dayOf = useRunnerDayOf()
   const rules = rulesOf(revision)
   const marked = isNew ?? revision.seenAt === null
   const { diff } = revision
@@ -91,9 +92,7 @@ export function RevisionDiff({ revision, units, onWhy, isNew, summary = true }: 
     <div className={styles.revision} data-revision={revision.id}>
       <p className={styles.head}>
         <strong>{reasonLabel(revision.reason, units)}</strong>{' '}
-        <span className={styles.muted}>
-          {formatShortDate(todayIso(new Date(revision.createdAt)))}
-        </span>
+        <span className={styles.muted}>{formatShortDate(dayOf(new Date(revision.createdAt)))}</span>
         {marked ? <span className={styles.marker}>{newMarker(units)}</span> : null}
       </p>
       {summary ? (
