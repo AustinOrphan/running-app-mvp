@@ -323,6 +323,8 @@ function emptyInjury(): InjuryDraft {
   return { area: '', side: '', year: '', month: '', kind: 'other', notes: '' }
 }
 
+type LocationNoteId = Extract<keyof typeof TEMPLATES, `profile.location.${string}`>
+
 function ProfileForm({ initial, units, weightUnit }: { initial: AthleteProfile } & BodyUnits) {
   const body: BodyUnits = { units, weightUnit }
   const toast = useToast()
@@ -330,6 +332,7 @@ function ProfileForm({ initial, units, weightUnit }: { initial: AthleteProfile }
   const [draft, setDraft] = useState<Draft>(() => toDraft(initial, body))
   const [localErrors, setLocalErrors] = useState<Record<string, string>>({})
   const [locationNote, setLocationNote] = useState<string | undefined>()
+  const [locating, setLocating] = useState(false)
 
   const serverErrors = fieldErrors(update.error)
   const errors: Record<string, string> = { ...serverErrors, ...localErrors }
@@ -370,22 +373,44 @@ function ProfileForm({ initial, units, weightUnit }: { initial: AthleteProfile }
   }
 
   function useMyLocation() {
+    const say = (id: LocationNoteId) => {
+      setLocationNote(render(TEMPLATES[id], {}, 'km'))
+    }
+    // Browsers expose geolocation only in a secure context; over plain http the call fails at once
+    // with a refusal the runner never made.
+    if (window.isSecureContext === false) {
+      say('profile.location.insecure')
+      return
+    }
     if (!('geolocation' in navigator)) {
-      setLocationNote('This browser cannot share a location. Enter the coordinates instead.')
+      say('profile.location.no-api')
       return
     }
     setLocationNote(undefined)
+    setLocating(true)
     navigator.geolocation.getCurrentPosition(
       (position) => {
+        setLocating(false)
         setDraft((current) => ({
           ...current,
           homeLat: String(round2(position.coords.latitude)),
           homeLng: String(round2(position.coords.longitude)),
         }))
       },
-      () => {
-        setLocationNote('The location was not shared. Enter the coordinates instead.')
+      (failure) => {
+        setLocating(false)
+        // 1 PERMISSION_DENIED, 2 POSITION_UNAVAILABLE, 3 TIMEOUT.
+        say(
+          failure.code === 1
+            ? 'profile.location.denied'
+            : failure.code === 3
+              ? 'profile.location.timeout'
+              : 'profile.location.unavailable',
+        )
       },
+      // The home location is kept to 0.01 degrees (about 1 km), so a coarse, cached fix is enough
+      // and high accuracy would only slow the answer.
+      { timeout: 15000, maximumAge: 600000, enableHighAccuracy: false },
     )
   }
 
@@ -778,7 +803,9 @@ function ProfileForm({ initial, units, weightUnit }: { initial: AthleteProfile }
             runs without a recorded start.
           </p>
           <div>
-            <Button onClick={useMyLocation}>Use my location</Button>
+            <Button busy={locating} onClick={useMyLocation}>
+              Use my location
+            </Button>
           </div>
           {locationNote !== undefined ? <p className={styles.note}>{locationNote}</p> : null}
           <div className={styles.grid}>

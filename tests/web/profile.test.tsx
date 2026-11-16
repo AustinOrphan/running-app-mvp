@@ -413,25 +413,113 @@ describe('ProfilePage', () => {
     expect(puts(api)).toHaveLength(0)
   })
 
-  test('"Use my location" fills coordinates rounded to 0.01 degrees', async () => {
-    const getCurrentPosition = vi.fn((ok: (p: unknown) => void) => {
-      ok({ coords: { latitude: 12.3456, longitude: -65.4321 } })
-    })
-    Object.defineProperty(navigator, 'geolocation', {
-      value: { getCurrentPosition },
-      configurable: true,
-    })
-    const { api, user } = setup(makeProfile())
-    await loaded()
-    await user.click(screen.getByRole('button', { name: 'Use my location' }))
-    expect(screen.getByRole('textbox', { name: 'Home latitude' })).toHaveValue('12.35')
-    expect(screen.getByRole('textbox', { name: 'Home longitude' })).toHaveValue('-65.43')
+  describe('"Use my location"', () => {
+    type Success = (p: unknown) => void
+    type Failure = (e: { code: number }) => void
 
-    await user.click(screen.getByRole('button', { name: 'Save profile' }))
-    await waitFor(() => {
-      expect(puts(api)).toHaveLength(1)
+    function stubLocation(opts: {
+      secure: boolean
+      api?: (ok: Success, fail: Failure, options?: PositionOptions) => void
+    }) {
+      Object.defineProperty(window, 'isSecureContext', { value: opts.secure, configurable: true })
+      if (opts.api !== undefined) {
+        Object.defineProperty(navigator, 'geolocation', {
+          value: { getCurrentPosition: opts.api },
+          configurable: true,
+        })
+      } else {
+        Reflect.deleteProperty(navigator, 'geolocation')
+      }
+    }
+
+    afterEach(() => {
+      Reflect.deleteProperty(navigator, 'geolocation')
+      Reflect.deleteProperty(window, 'isSecureContext')
     })
-    expect(puts(api)[0]?.body).toMatchObject({ homeLat: 12.35, homeLng: -65.43 })
+
+    async function press() {
+      const { api, user } = setup(makeProfile())
+      await loaded()
+      await user.click(screen.getByRole('button', { name: 'Use my location' }))
+      return { api, user }
+    }
+
+    test('fills coordinates rounded to 0.01 degrees, with the options passed', async () => {
+      const getCurrentPosition = vi.fn(
+        (ok: Success, _fail?: Failure, _options?: PositionOptions) => {
+          ok({ coords: { latitude: 12.3456, longitude: -65.4321 } })
+        },
+      )
+      stubLocation({ secure: true, api: getCurrentPosition })
+      const { api, user } = await press()
+      expect(getCurrentPosition).toHaveBeenCalledTimes(1)
+      expect(getCurrentPosition.mock.calls[0]?.[2]).toEqual({
+        timeout: 15000,
+        maximumAge: 600000,
+        enableHighAccuracy: false,
+      })
+      expect(screen.getByRole('textbox', { name: 'Home latitude' })).toHaveValue('12.35')
+      expect(screen.getByRole('textbox', { name: 'Home longitude' })).toHaveValue('-65.43')
+      expect(screen.getByRole('button', { name: 'Use my location' })).not.toHaveAttribute(
+        'aria-busy',
+      )
+
+      await user.click(screen.getByRole('button', { name: 'Save profile' }))
+      await waitFor(() => {
+        expect(puts(api)).toHaveLength(1)
+      })
+      expect(puts(api)[0]?.body).toMatchObject({ homeLat: 12.35, homeLng: -65.43 })
+    })
+
+    test('names an insecure page as the cause and does not call the API', async () => {
+      const getCurrentPosition = vi.fn()
+      stubLocation({ secure: false, api: getCurrentPosition })
+      await press()
+      expect(
+        screen.getByText(
+          'Location needs a secure (https) address, and this page was opened over http, so the browser will not share it. Enter the coordinates instead.',
+        ),
+      ).toBeInTheDocument()
+      expect(getCurrentPosition).not.toHaveBeenCalled()
+    })
+
+    test('says so when the browser has no location API', async () => {
+      stubLocation({ secure: true })
+      await press()
+      expect(
+        screen.getByText('This browser cannot share a location. Enter the coordinates instead.'),
+      ).toBeInTheDocument()
+    })
+
+    test.each([
+      [
+        1,
+        'The browser or device did not allow location for this site. Allow it in the browser’s site settings, or enter the coordinates instead.',
+      ],
+      [2, 'No location could be found. Enter the coordinates instead.'],
+      [3, 'No location arrived within the wait. Enter the coordinates instead.'],
+    ])('error code %i gets its own line', async (code, line) => {
+      stubLocation({
+        secure: true,
+        api: (_ok, fail) => {
+          fail({ code })
+        },
+      })
+      await press()
+      expect(screen.getByText(line)).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Use my location' })).not.toHaveAttribute(
+        'aria-busy',
+      )
+    })
+
+    test('the button is busy until the browser answers', async () => {
+      stubLocation({ secure: true, api: () => undefined })
+      await press()
+      expect(screen.getByRole('button', { name: 'Use my location' })).toHaveAttribute(
+        'aria-busy',
+        'true',
+      )
+    })
   })
 
   test('timezone defaults to the browser zone when the profile still has UTC', async () => {
