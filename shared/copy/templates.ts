@@ -31,6 +31,7 @@ import { PAGE_TEMPLATES, PROVIDER_TEMPLATES } from './pageCopy.ts'
 import { PLAN_NOTICE_TEMPLATES } from './planNotice.ts'
 import { PLAN_STRIP_TEMPLATES } from './planStrip.ts'
 import { RACE_PLAN_TEMPLATES } from './racePlan.ts'
+import { RACE_PLAN_ROAD_TEMPLATES } from './racePlanRoad.ts'
 import { RAISE_TEMPLATES } from './raise.ts'
 import { REVIEW_PREFILL_TEMPLATES } from './reviewPrefill.ts'
 import { ADJUST_TEMPLATES, REVISION_TEMPLATES, WINDOW_TEMPLATES } from './revision.ts'
@@ -91,6 +92,7 @@ export const TEMPLATES = {
   ...BRIEF_TEMPLATES,
   ...STRENGTH_TEMPLATES,
   ...RACE_PLAN_TEMPLATES,
+  ...RACE_PLAN_ROAD_TEMPLATES,
   ...SETTINGS_TEMPLATES,
   ...ACCOUNT_TEMPLATES,
   ...EXPORT_TEMPLATES,
