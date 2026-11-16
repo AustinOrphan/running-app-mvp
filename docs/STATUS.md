@@ -3,9 +3,9 @@
 Current state only; rewritten at every boundary. History lives in `git log`, the specs and
 plans under `docs/superpowers/`, the research corpus under `research/` and `docs/adr/`.
 
-Last update: 2026-11-13.
+Last update: 2026-11-16.
 
-## Waiting on the owner (2026-11-13)
+## Waiting on the owner (2026-11-16)
 
 Each item names the default that holds until the owner answers.
 
@@ -21,69 +21,71 @@ Each item names the default that holds until the owner answers.
    2026-11-09), whose claims rest on the abstract: Warden 2014, Doherty 2020, Keogh 2016, Mountjoy
    2023 with its correction, Bourdon 2017, Ely 2007, and the erratum of Tyler 2016. Default: the
    rules that cite them keep their present grades.
-2. **Move the live copy to the home server.** Decided 2026-11-09: after this round. The service
+2. **Move the live copy to the home server.** Decided 2026-11-09: after this round (D2, 2026-11-14: the beta invitations wait for the move). The service
    files and the cutover runbook (`docs/runbooks/running-log.md`) are in the owner's private homelab
    repository, still uncommitted there; the runbook's steps are stop and back up on the laptop,
    deploy and set the secret, copy the backup in, restore and start, verify, re-add the phone
    clients, retire the laptop copy. Default: the live copy stays on the laptop, and its scheduled
    jobs stop whenever the laptop sleeps.
+3. **Enter the spring race as a goal.** Answered 2026-11-14 (D6): the plan draws around a race
+   entered with priority B or C (#731), but no race is entered yet. Default: the plan has no spring
+   race in it.
+4. **The sftp target machine for the off-host backups** (D1). The owner names it at the move
+   (item 2); the job is switched on only after the move. Default: the app's own daily copies only,
+   on the same disk.
+5. **The Apple Watch companion, phase 0 spike** (design #701, plan
+   `docs/superpowers/plans/2026-11-10-companion-phase0-spike.md`, #702): waiting on the owner's
+   Task 1 steps in Xcode. Default: nothing is built.
+6. **Two designs in progress** (owner decisions of 2026-11-14, below): time zones per runner (D10)
+   and a full road-race plan (D11). Neither is built; each is queued after the engine work that
+   June needs.
 
-Open decisions from the review of 2026-11-12 (D1 to D11), each with its recommendation:
+Answered on 2026-11-14, one item at a time (the owner's answers to D1 to D11 of the review of
+2026-11-12, and the Strava question):
 
-- **D1. Off-host backups and who holds the key.** An off-host copy of `backups/` is prepared in
-  the owner's private homelab repository as a proposed ADR, switched off, waiting on this answer.
-  Options: a nightly encrypted job (restic) with the key in a password manager and an offline copy;
-  continuous replication to object storage; copies stay on the host. Recommended: the first.
-  Against: up to a day of entries can be lost, one more key whose loss voids every copy, and the
-  off-host copies hold every tester's data, which the data notice must then say. Default: the app's
-  own daily copies only, on the same disk.
-- **D2. The beta gate.** Invite now, after the Next tier and the move (item 2), or after the Soon
-  tier. Recommended: after Next and the move, with invites limited to the server's time zone.
-  Against: weeks of delay to the feedback the beta exists for. Default: no invitations.
-- **D3. Trust in watch ratings.** Fill empty ratings with a source marker (a column and a
-  migration), without a marker, or store them for display only. Recommended: the marker, and J5 and
-  sRPE load use watch ratings only after their spread shows they are not a tapped-through default.
-  Against: a migration for one column, and in-app ratings are too rare to compare with. Default:
-  watch ratings are not used.
-- **D4. An own easy ceiling above the age default.** Offer changes in both directions through C8,
-  only lower, or keep the age formula and a typed LTHR. Recommended: both directions, offered,
-  never applied silently. Against: G6 moves nothing toward more load on weak evidence, and heat
-  drifts the heart-rate line, so a summer proposal can overshoot. Default: the age formula or the
-  typed LTHR.
-- **D5. How far to take downhill work.** Ordering and cues only (mild first, 5-10% grades, none in
-  the last 10 days, a pause on soreness), a descent target in metres, or keep the label.
-  Recommended: ordering and cues. Against: still grade D defaults dressed as structure, and the
-  plan digests move. Default: the label stays.
-- **D6. Races before the goal race.** Whether a spring race is entered at all; if so, the plan
-  honours it (slot, easing, a recovery window) or leaves it to hand edits. Recommended: honour it.
-  Against: grade D easing, more engine surface seven months out, and copy that must not slide into
-  suggesting tune-ups. Default: not planned for.
-- **D7. J5's two dead signals.** Heat: build the hold or strike it. Sleep efficiency: retire,
-  repoint at the total-sleep trend, or collect time in bed. Recommended: build the heat hold and
-  retire sleep efficiency. Against: daily heat easing (I9) exists and a hold can cost a loading week
-  before a June race; retiring leaves two reduce signals. Default: neither signal fires.
-- **D8. Release cadence for testers.** A weekly tag with a hotfix path, or a tag per tester-facing
-  update after the image builds and `plan:report` is read. Recommended: a tag per update. Against:
-  without a calendar it drifts back to "main is live". Default: main is live.
-- **D9. `@axe-core/playwright`** as a devDependency (a new kind of check, not a second runner).
-  Recommended: yes. Against: a backlog of findings to triage, and scans find only part of the real
-  problems. Default: not added.
-- **D10. Time zones.** An ADR 0003 addendum and invites only in the server's zone, or per-runner
-  days now. Recommended: the addendum now, and the day resolved per request from the profile's zone
-  about 4 weeks before a race in another zone. Against: a tester elsewhere is a flat no, and a trip
-  shifts Today by hours for days. Default: the server's day.
-- **D11. Road races** (ADR 0018, question 4). Keep the race plan ultra-only and fix its purpose
-  text, add a read-only race-morning card, or build a full road plan. Recommended: the text now, the
-  card when a tester has a road goal of 90 minutes or more. Against: until then a marathon morning
-  offers a pace band of +-5% and nothing on fuel or heat. Default: ultra-only, text unchanged.
-
-Also waiting:
-
-- **A shared Strava registration.** Recommended: build only when a tester needs Strava. Default:
-  none.
-- **The Apple Watch companion, phase 0 spike** (design #701, plan
-  `docs/superpowers/plans/2026-11-10-companion-phase0-spike.md`, #702): waiting on the owner's
-  Task 1 steps in Xcode. Default: nothing is built.
+- **D1. Off-host backups.** The owner chose a nightly pull on the laptop, then restic from the
+  laptop to another machine over sftp first and an object storage bucket later (a restic copy to a
+  second repository). The key is generated once and kept in a password manager plus one paper copy
+  away from the laptop, with the laptop keychain for the job. Retention is 30 daily snapshots. The
+  job is switched on after the move, and the cutover takes a copy that leaves the laptop before
+  then (a runbook note in the owner's private homelab repository). The tester notice states that
+  the person who runs the server can read every account's data, that an encrypted copy of the whole
+  database is kept at another location for up to 30 days, and that a deleted account leaves the
+  backup copies as they age out, within 30 days. The target machine stays open (item 4).
+- **D2. The beta gate.** Invite after the move to the home server, with the off-site backups on, the
+  data notice shown and the network change applied.
+- **D3. Ratings from the watch.** An empty rating is filled from intervals.icu with a source marker,
+  an in-app rating wins, and the engine reads watch ratings only after a spread check (#725, #727).
+- **D4. The runner's own easy ceiling.** Offered in both directions through C8, never applied
+  silently, from cool runs only because heat drifts the heart rate (#734).
+- **D5. Downhill.** Ordering and cues, with no metre target: moderate exposure at least 3 weeks
+  before a heavy one, a controlled-descent cue, none in the last 10 days, a pause on quad soreness
+  (#728).
+- **Repeated pain (Soon item 5).** 3 reports of one area in 7 days at pain 2 or more, 7 quiet days
+  after a window; "Not now" is not stored; the cross-training line on niggle windows only; the
+  pain-monitoring model as one background sentence on the Warning signs page (#722, #723).
+- **D6. Races before the goal race.** A spring race is entered, and the plan honours entered races
+  with a race-day slot, easing before it and a recovery window after it; it never suggests adding
+  one (#731).
+- **D7. J5's two dead signals.** The "first hot days" hold is built, in build weeks only (#733).
+  Sleep efficiency is computed from time in bed, collected from Apple Health only (the owner's
+  re-decision after the source check on 2026-11-14: intervals.icu and Garmin carry no in-bed
+  field), on nights with both values (#739).
+- **D8. Release cadence.** A version tag per tester-facing update, after `docker build` and
+  `plan:report` are read; the server runs the tag, not main; a short "what changed" note per tag.
+- **D9. Accessibility scan.** `@axe-core/playwright` as a devDependency, a scan of the main pages in
+  e2e, the backlog triaged and then a failure on new violations (#724). A VoiceOver pass is still
+  needed for what scanners miss.
+- **D10. Time zones.** Per-runner days now, queued after the engine work that June needs; lifts the
+  same-zone limit on invites once built.
+- **D11. Road races.** A full road-race plan, sequenced after the same work, with a research pass
+  (road pacing, fuel, heat) and a change to ADR 0018; the wording fix for non-ultra goals landed
+  first (#738).
+- **Break week.** A week run by choice at a fraction of its target counts as the cycle's recovery
+  week, and the next week repeats the loading week (#736, #737).
+- **Strava.** One shared install-wide registration, built only when a tester needs Strava; until
+  then Strava users go through intervals.icu. Strava's athlete-capacity review is to be checked at
+  build time.
 
 Answered on 2026-11-09, one item at a time with options:
 
@@ -106,6 +108,52 @@ Answered on 2026-11-09, one item at a time with options:
 - **Watched folder:** the install owner only, on one fixed root (#699).
 
 ## Where things stand
+
+- **State-of-the-art Soon items and the owner's answers of 2026-11-14 (2026-11-13 to 2026-11-16,
+  #720 to #739).** `PARAMS_VERSION` is `2026-11-16.5` (it was
+  `2026-11-09.6`). #729 and #730 are open Dependabot bumps, not part of this round.
+  - Soon items of the state-of-the-art review:
+    - #720: a "What the plan can see" page (rule T2), the counts of the data the engine reads for
+      each runner, facts only.
+    - #721: "Long runs by the hour" on Trends (DR1), a report-only read-out of runs of 3 h or
+      more that no engine rule reads.
+    - #722: three papers on pain monitoring and cross-training added to the corpus (445).
+    - #723: Today offers a rest window when one sore area repeats (rule J11, four grade D Params);
+      cross-training no longer counts toward the acute and chronic load.
+    - #724: an axe accessibility scan of 12 pages at two widths in e2e, with a list of known
+      violations; a run row's accessible name now starts with its visible text.
+  - Owner decisions of 2026-11-14, built:
+    - #725: an empty rating is filled from the watch's `icu_rpe` with a source marker
+      (`Activity.rpeSource`), read by the engine only after a spread check (rule B1, three grade D
+      Params); #727: a `watch-rating` job fills it for stored runs.
+    - #728: downhill work is ordered and cued (rule H5): lead weeks, a controlled-descent cue, a
+      10-day cut-off before the race and a pause on quad soreness, flags and words only.
+    - #731: the plan draws around B and C races entered before the goal race (rule K6, H12, four
+      grade D Params), never more load than the plan without them.
+    - #733: a build week holds at the last loading week's level for the first hot days (rule J5,
+      four grade D Params).
+    - #734: the runner's own easy ceiling is offered from cool runs, in both directions, through
+      the C8 proposal flow (`AthleteProfile.ownLt1Hr`, nine grade D Params).
+    - #738: the race-day text no longer promises a fuel and pacing plan on a goal that is not an
+      ultra (D11).
+    - #739: time in bed is stored from Apple Health (`WellnessDay.inBedSec`) and sleep efficiency
+      feeds J5 for runners who have it (D7).
+  - The break-week fix of 2026-11-15:
+    - #736: a loading week run at about a quarter of its target by choice, with no rest window
+      over it, counts as the cycle's recovery week, and the next week repeats the loading week
+      (rules E3, G-6, J7; `e3.breakWeekMaxShare` 0.5, grade D).
+    - #737: review fixes to the repeat: its own reasons in the review and Explain, and no repeat
+      when the next week is a taper, a race, a post-race or a programme week or sits beside the
+      first hot days hold.
+  - CI and test fixes:
+    - #726: the backup catch-up scheduler tests no longer time out under load or fail in time
+      zones where two copies share a UTC day.
+    - #732: the rating-card test builds its date in the runner's local day.
+    - #735: the Plan week table stays inside the column at 1280 px on two-digit Mondays.
+  - The PR bodies of #725, #728, #733, #734, #736 and #738 report a `plan:report` that differs only
+    in the Params version line (the matrix and the sweeps hold no watch rating, forecast, time in
+    bed or short week). #728 moved 78 of 142 oracle digests (flags only) and #738 moved 64 (the
+    race-day purpose text).
 
 - **The beta-readiness round (2026-11-09 to 2026-11-13, #697 to #705 and #707 to #717).** Each
   reviewed before merge; `PARAMS_VERSION` stays `2026-11-09.6` (no Param changed). #706 was closed
@@ -1480,8 +1528,9 @@ things stand" gives counts and percentages without a weekly total or a date.
 
 ## Open follow-ups (none blocks a merge)
 
-1. The weekly decision's "first days of heat" and "sleep efficiency drop" holds are not derived
-   from data yet, so those two J5 signals never fire.
+1. The weekly decision's "sleep efficiency drop" signal fires only for a runner with time in bed,
+   which only Apple Health supplies: intervals.icu and Garmin carry none and there is no manual
+   entry, so those runners stay inactive by design (#739). "First days of heat" is built (#733).
 2. Contrived re-plans (sessions marked completed for weeks with no activity behind them) can
    ramp from a zero baseline and collapse to zero-minute weeks or a zero taper (19 of 2310 fuzzed
    re-plans); the app marks a session completed only through activity matching, so no real path
@@ -2415,6 +2464,32 @@ things stand" gives counts and percentages without a weekly total or a date.
     the session (#704); it over-refuses inside that window by design.
 39. The e2e job's image tag in `ci.yml` is not touched by Dependabot's npm update, so a Playwright
     bump changes it by hand (#707).
+40. A watch rating given after the first pull is not picked up (the sync skips a stored activity),
+    and a rating stored from the watch is never refreshed when intervals.icu later holds another
+    value (#725, #727). A stored standout and the stored execution assessments are not recomputed
+    when the spread check first passes; they follow the next rating, edit or re-assessment. The
+    three thresholds of the spread check are defaults, not measured on real data.
+41. A plan that starts inside the downhill window gets no lead weeks for the weeks already past (the
+    lead is anchored to the calendar), the cue is on the session sheet only and not on Today's
+    hero, and "heavy" has no metre dose because no study gives one (#728).
+42. The commit subject of #723's first commit ("leave cross-training out of the acute and chronic
+    load") understates it: the commit holds the whole repeated-pain feature (a staging slip). The
+    pain-repeat Params are defaults with no paper behind a count, window or score.
+43. The own easy ceiling reads three nested refits of one line, not three independent readings;
+    disjoint blocks were weighed and left out because 24 or 36 cool runs with weather in 8 weeks is
+    rarely reachable. An observed maximum from strap runs is not read. There is no e2e spec for the
+    offer (API and page tests cover it) (#734).
+44. Entered races: the minutes check of a re-plan is narrowed after the race day, no browser check
+    of the Plan page with an entered race was done, and an A-priority goal other than the plan's
+    own is not read (#731). A probe of 12 athletes, 3 classes and every day found no failure.
+45. The axe scan covers only states the seeded data reaches (no sheets, dialogs or error states).
+    One known violation remains: the faint empty-state preview headings on Trends read 3.24:1 and
+    need a visual PR (#724).
+46. The first-hot-days hold reads the cached forecast, so a refresh can change a re-plan's draw
+    between a preview and its commit; the commit then answers 409 `stale-preview` by design. A cap
+    deeper than the long-run share allows still shortens the long run through F3 and G-1 (#733).
+47. Time in bed and sleep efficiency were tried on synthetic fixtures only: no real Health Auto
+    Export payload or `export.xml` was read, and the five new Params are defaults (#739).
 
 ## Clean-up after the merges
 
