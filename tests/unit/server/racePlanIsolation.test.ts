@@ -34,11 +34,16 @@ function importers(target: string): string[] {
   }).sort()
 }
 
+/** What no delivery file may mention: the plans, their copy and their wire types, case-sensitive. */
+const DELIVERY_GUARD =
+  /racePlan|raceSplits|raceCheckpoint|RaceCheckpoint|race\.plan\.|courseSilhouette|loadRaceCourse|race\.course|raceProfile|labelLayout|RaceProfile|RacePlanView|RoadRace|roadRace/
+
 const ENGINE_ALLOWED = [
   // the engine module itself is imported by the copy, the server and the web that show it
   'server/services/racePlan.ts',
   'shared/copy/racePlan.ts',
   'shared/domain/raceProfile.ts',
+  'shared/engine/racePlanRoad.ts',
   'shared/types.ts',
   'web/components/race/CheckpointSheet.tsx',
   'web/components/race/CheckpointTable.tsx',
@@ -48,6 +53,7 @@ const ENGINE_ALLOWED = [
 ]
 
 const COPY_ALLOWED = [
+  'shared/copy/racePlanRoad.ts',
   'shared/copy/templates.ts',
   'web/components/charts/CourseProfileChart.tsx',
   'web/components/charts/RaceProfileChart.tsx',
@@ -69,6 +75,17 @@ describe('who reads the race plan', () => {
 
   test('only the template registry and the race pieces of the web import the race copy', () => {
     expect(importers('shared/copy/racePlan.ts')).toEqual(COPY_ALLOWED)
+  })
+
+  test('only the road copy and the shared types import the road engine module', () => {
+    expect(importers('shared/engine/racePlanRoad.ts')).toEqual([
+      'shared/copy/racePlanRoad.ts',
+      'shared/types.ts',
+    ])
+  })
+
+  test('only the template registry imports the road copy', () => {
+    expect(importers('shared/copy/racePlanRoad.ts')).toEqual(['shared/copy/templates.ts'])
   })
 
   test('only the Today slot table, Today, the route and the app read the race service', () => {
@@ -116,18 +133,33 @@ describe('who reads the race plan', () => {
     )
     expect(delivery.length).toBeGreaterThan(8)
     const offences = delivery.filter((file) =>
-      /racePlan|raceSplits|raceCheckpoint|RaceCheckpoint|race\.plan\.|courseSilhouette|loadRaceCourse|race\.course|raceProfile|labelLayout|RaceProfile|RacePlanView/.test(
-        readFileSync(join(ROOT, file), 'utf8'),
-      ),
+      DELIVERY_GUARD.test(readFileSync(join(ROOT, file), 'utf8')),
     )
     expect(offences).toEqual([])
+  })
+
+  test('the delivery guard matches every name of the road plan', () => {
+    for (const name of [
+      'racePlanRoad',
+      'RoadRacePlan',
+      'roadRacePlanFor',
+      'roadRace',
+      'RoadRacePlanSummary',
+      'race.plan.road.',
+    ]) {
+      expect(DELIVERY_GUARD.test(name), name).toBe(true)
+    }
   })
 
   test('the race templates are named only where they are written and where a page shows them', () => {
     const named = FILES.filter((file) =>
       readFileSync(join(ROOT, file), 'utf8').includes("'race.plan."),
     ).sort()
-    expect(named).toEqual(['shared/copy/racePlan.ts', 'web/components/destinations.tsx'])
+    expect(named).toEqual([
+      'shared/copy/racePlan.ts',
+      'shared/copy/racePlanRoad.ts',
+      'web/components/destinations.tsx',
+    ])
   })
 })
 

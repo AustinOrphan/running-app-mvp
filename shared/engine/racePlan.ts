@@ -16,7 +16,7 @@ import { addDays, daysBetween } from '../dates.ts'
 import type { Activity, RangeLabel, SupportLevel } from '../types.ts'
 import { eahCard, isHotForFuel, raceFuelFor, type RaceFuel } from './fuel.ts'
 import { startMinutes } from './goal.ts'
-import { isHotForSteering } from './heat.ts'
+import { isHotForSteering, type WeatherIndex } from './heat.ts'
 import { shakeOutFor } from './micro.ts'
 import { P } from './params/index.ts'
 import { rangeLabel } from './predict.ts'
@@ -352,6 +352,47 @@ function thirdsOf(midSec: number, start: string | null, fuel: RaceFuel): RaceThi
 
 const hourOfDayText = (hour: number): string => `${pad2(hour)}:00`
 
+/**
+ * The race heat as the weather index the heat predicates read: the climate normal of the goal's race
+ * date as a WBGT, or null while none is cached. Shared by the ultra plan (steering and fuel) and the
+ * road plan (fuel).
+ */
+export function raceWbgtIndex(goal: Pick<GoalModel, 'raceWbgtC'>): WeatherIndex | null {
+  return goal.raceWbgtC === null ? null : { value: goal.raceWbgtC, index: 'wbgt' }
+}
+
+/**
+ * The K6 race-week block (rule K6): null for a race under `k6.carbLoadMinRaceMin` minutes (decided by
+ * `shakeOutFor`, the plan's own shake-out), else the carbohydrate range, its days, the shake-out, the
+ * I8 heat top-up and the credit. `expectedMin` is the duration the caller measures the race by: the
+ * ultra plan passes the prediction's middle, the road plan the goal's expected duration (the quantity
+ * the generated plan's own shake-out reads).
+ */
+export function raceWeekFor(args: {
+  goal: Pick<GoalModel, 'date'>
+  expectedMin: number
+  weightKg: number | null
+  wbgtC: number | null
+  acclimationCredit: number
+}): RaceWeek | null {
+  const shakeOut = shakeOutFor(args.goal.date, args.expectedMin)
+  if (shakeOut === undefined) return null
+  const [carbLow, carbHigh] = P.k6.carbLoadGPerKgDay.value
+  const finalHours = [...P.k6.carbLoadFinalHours.value] as [number, number]
+  return {
+    carbGPerKgDay: [carbLow, carbHigh],
+    finalHours,
+    from: addDays(args.goal.date, -Math.ceil(finalHours[1] / HOURS_PER_DAY)),
+    to: addDays(args.goal.date, -1),
+    weightKg: args.weightKg,
+    carbG: args.weightKg === null ? null : [args.weightKg * carbLow, args.weightKg * carbHigh],
+    shakeOut,
+    heatTopUp: args.wbgtC !== null && args.wbgtC >= P.i8.triggerWbgtC.value,
+    acclimationCredit: args.acclimationCredit,
+    rules: ['K6', 'I8', 'H8'],
+  }
+}
+
 /** The race plan for an ultra goal (rule H14). Throws RangeError for a goal that is not an ultra. */
 export function racePlanFor(input: RacePlanInput): RacePlan {
   const { goal } = input
@@ -360,7 +401,7 @@ export function racePlanFor(input: RacePlanInput): RacePlan {
   const expected = expectedOf(input)
   const hoursExpected = expected.midSec / SEC_PER_HOUR
   const wbgt = goal.raceWbgtC
-  const wbgtIndex = wbgt === null ? null : ({ value: wbgt, index: 'wbgt' } as const)
+  const wbgtIndex = raceWbgtIndex(goal)
   const hot = isHotForSteering(wbgtIndex, [])
   const hotForFuel = isHotForFuel(wbgtIndex)
 
@@ -419,25 +460,13 @@ export function racePlanFor(input: RacePlanInput): RacePlan {
             goal.lossM / (goal.distanceM / 1000) >= P.h12.hillyDescentMPerKm.value,
         })
 
-  const shakeOut = shakeOutFor(goal.date, expected.midSec / SEC_PER_MIN)
-  const [carbLow, carbHigh] = P.k6.carbLoadGPerKgDay.value
-  const finalHours = [...P.k6.carbLoadFinalHours.value] as [number, number]
-  const raceWeek: RaceWeek | null =
-    shakeOut === undefined
-      ? null
-      : {
-          carbGPerKgDay: [carbLow, carbHigh],
-          finalHours,
-          from: addDays(goal.date, -Math.ceil(finalHours[1] / HOURS_PER_DAY)),
-          to: addDays(goal.date, -1),
-          weightKg: input.weightKg,
-          carbG:
-            input.weightKg === null ? null : [input.weightKg * carbLow, input.weightKg * carbHigh],
-          shakeOut,
-          heatTopUp: wbgt !== null && wbgt >= P.i8.triggerWbgtC.value,
-          acclimationCredit: input.acclimationCredit,
-          rules: ['K6', 'I8', 'H8'],
-        }
+  const raceWeek = raceWeekFor({
+    goal,
+    expectedMin: expected.midSec / SEC_PER_MIN,
+    weightKg: input.weightKg,
+    wbgtC: wbgt,
+    acclimationCredit: input.acclimationCredit,
+  })
 
   const notices: RaceNotice[] = []
   if (input.prediction === null) notices.push('no-prediction')
