@@ -21,7 +21,9 @@ import { todayStrengthSetupSlot, todayStrengthSlot } from './strength.ts'
 import { safeMessage } from './syncLog.ts'
 import { todayWatchSlot } from './wristItems.ts'
 
-export type SlotName = keyof TodaySlots
+// `roadRace` (rule H15, ADR 0023) is typed on the payload and has no provider until the server
+// switch of D11 lands (PR 4), which removes this exclusion.
+export type SlotName = Exclude<keyof TodaySlots, 'roadRace'>
 
 export interface SlotArgs {
   deps: Deps

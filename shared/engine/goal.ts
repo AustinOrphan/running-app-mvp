@@ -29,6 +29,19 @@ export function distanceClassOf(distanceM: number): DistanceClass {
   return 'beyond'
 }
 
+/**
+ * The pace of a time goal in whole seconds per kilometre (the target time over the distance), the
+ * one derivation behind the race session's band and the race plan's goal line; null for a goal that
+ * is a finish, has no target time or no distance.
+ */
+export function goalPaceSecPerKm(
+  goal: Pick<GoalModel, 'goalType' | 'targetTimeSec' | 'distanceM'>,
+): number | null {
+  return goal.goalType === 'time' && goal.targetTimeSec !== null && goal.distanceM > 0
+    ? Math.round(goal.targetTimeSec / (goal.distanceM / M_PER_KM))
+    : null
+}
+
 /** Minutes after midnight for 'HH:MM', or null when the string is not a valid start time. */
 export function startMinutes(startTime: string | null): number | null {
   if (startTime === null) return null

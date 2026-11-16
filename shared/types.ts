@@ -5,6 +5,7 @@ import type { LoadPosition } from './engine/loadSetting.ts'
 import type { MethodPosition } from './engine/methods.ts'
 import type { EventRow, MyPaces } from './engine/myPaces.ts'
 import type { RacePlan, RacePlanSummary } from './engine/racePlan.ts'
+import type { RoadRacePlan, RoadRacePlanSummary } from './engine/racePlanRoad.ts'
 import type { CheckpointInput } from './engine/raceSplits.ts'
 import type { HistorySession, LiftHistory, WeekHistory } from './engine/strength.ts'
 import type {
@@ -1681,13 +1682,26 @@ export interface TodaySlots {
    * the fold.
    */
   race: RacePlanSummary | null
+  /**
+   * The road race plan for the viewed day (rule H15, ADR 0023): the half marathon's and the
+   * marathon's counterpart of `race`, cut from `RacePlanView.road`. Optional because a Today payload
+   * kept before it has no such key; `race` stays null for a road goal, so a shell built before it
+   * shows what it showed.
+   */
+  roadRace?: RoadRacePlanSummary | null
 }
-/** Why `GET /api/race/plan` has no plan to give. */
+/** Why `GET /api/race/plan` has no plan (the ultra plan, `plan`) to give. */
 export type RacePlanReason = 'no-goal' | 'no-distance' | 'not-ultra' | 'race-over'
 /** The answer of `GET /api/race/plan`: the plan, or null with the reason. */
 export interface RacePlanView {
   plan: RacePlan | null
   reason: RacePlanReason | null
+  /**
+   * The road race plan (rule H15, ADR 0023) of a 10 km, half marathon or marathon goal. Absent in a
+   * copy the phone kept before it and for an ultra; null when the goal has none. `reason` explains
+   * `plan` (the ultra plan) only, so a road goal keeps `plan: null` and `reason: 'not-ultra'`.
+   */
+  road?: RoadRacePlan | null
   /**
    * The course's relative elevation at the runner's course points and the finish
    * (`courseSilhouettePoints`), for the profile on the Race page; null when the course has no climb
