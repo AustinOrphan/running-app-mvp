@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import {
   daysToGoText,
@@ -20,7 +20,6 @@ import { ErrorState } from '../components/ErrorState.tsx'
 import { ExplainButton } from '../components/ExplainButton.tsx'
 import { useLoadView } from '../components/loadView.ts'
 import { PageHeader } from '../components/PageHeader.tsx'
-import { useOnline } from '../components/useOnline.ts'
 import { Segmented } from '../components/Segmented.tsx'
 import { Skeleton } from '../components/Skeleton.tsx'
 import { CheckpointSheet } from '../components/race/CheckpointSheet.tsx'
@@ -335,14 +334,6 @@ export function RacePage() {
   // A road goal (ADR 0023) carries `road` beside `plan: null`; a copy kept before it has no key.
   const road = view?.road ?? null
   const phoneCopy = usePhoneCopy(view)
-  const online = useOnline()
-  const servedFromCache = view?.servedFromCache === true
-  const { refetch } = race
-  // A page that opened on the phone's copy never saw the browser go offline, so the library does not
-  // read the return of the connection as a reconnect: ask again when the browser says it is back.
-  useEffect(() => {
-    if (online && servedFromCache) void refetch()
-  }, [online, servedFromCache, refetch])
   // A saved copy cannot know how many days are left, so it names the race and the date alone.
   const named = plan ?? road
   const context =

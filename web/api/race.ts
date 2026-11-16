@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { RaceCheckpointRow, RaceCheckpointsView, RacePlanView } from '../../shared/types.ts'
 import { api, keys } from './client.ts'
+import { copyRetryInterval, useAskAgainOnReconnect } from './copyRetry.ts'
 
 /**
  * The race plan of the runner's current goal (rule H14, ADR 0018), or why there is none. The
@@ -9,24 +10,18 @@ import { api, keys } from './client.ts'
  * (`staleTime: 0`) because a fuel log, a goal edit or a profile save elsewhere changes it and none
  * of those writes know this key. It is one of the reads the service worker keeps (ADR 0012,
  * addendum): with no signal the answer is the phone's copy, marked `servedFromCache` with `savedAt`.
- *
- * While the browser says it is online and the answer is still the phone's copy, the read repeats
- * every `COPY_RETRY_MS`: the `online` event can come before the first request can get out, and the
- * worker then answers that request from the copy again, so one ask on reconnect is not enough.
+ * It asks again when the connection returns and repeats until the server answers (`copyRetry.ts`).
  */
-const COPY_RETRY_MS = 2_000
-
 export function useRacePlan(options: { enabled?: boolean } = {}) {
-  return useQuery({
+  const query = useQuery({
     queryKey: [keys.race, 'plan'],
     queryFn: () => api<RacePlanView>('GET', '/race/plan'),
     staleTime: 0,
-    refetchInterval: (query) =>
-      query.state.data?.servedFromCache === true && navigator.onLine !== false
-        ? COPY_RETRY_MS
-        : false,
+    refetchInterval: copyRetryInterval,
     enabled: options.enabled ?? true,
   })
+  useAskAgainOnReconnect(query.data, query.refetch)
+  return query
 }
 
 /**
