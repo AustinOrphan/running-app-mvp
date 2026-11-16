@@ -263,7 +263,7 @@ export const jAdapt = {
       'J5',
       ['murphy-2024-overreaching-sleep'],
       {
-        unit: '% efficiency',
+        unit: '%',
         note: 'Default: a night with an efficiency under this is read as a bad pair of values (two devices, a split night) and left out; no study sets the number. Above 100 % is excluded because sleep cannot exceed time in bed.',
       },
     ),
