@@ -23,6 +23,7 @@ import {
   poorSubjective,
   readinessSnapshot,
   sleepAverageH,
+  sleepEfficiencyDrop,
 } from './readiness.ts'
 import { breakWeekOf } from './breakWeek.ts'
 import { firstHotDays, lastLoadingMin } from './heat.ts'
@@ -54,7 +55,10 @@ export interface WeeklyContext {
   redsFlags?: number
   /** The first hot days of a season [rules I9]. */
   heatFirstDays?: boolean
-  /** Drop in sleep efficiency over the week, in percentage points. */
+  /**
+   * Drop in sleep efficiency over the week, in percentage points. Absent: read from the stored time
+   * in bed (`sleepEfficiencyDrop`); null: the signal is inactive.
+   */
   sleepEfficiencyDropPp?: number | null
   /** Weekly ramp; defaults to the soft ramp, and the caller passes a tightened one by profile. */
   ramp?: number
@@ -563,13 +567,16 @@ export function weeklyDecision(
       rules: ['A8', 'J5'],
     })
   }
-  if (
-    ctx.sleepEfficiencyDropPp != null &&
-    ctx.sleepEfficiencyDropPp >= P.j5.sleepEfficiencyDropPp.value
-  ) {
+  // From the stored time in bed (Apple Health only) unless the caller passes the figure; null while
+  // the signal is inactive, so a runner without time in bed never meets it.
+  const sleepDrop =
+    ctx.sleepEfficiencyDropPp !== undefined
+      ? ctx.sleepEfficiencyDropPp
+      : sleepEfficiencyDrop(input.wellness, asOf)
+  if (sleepDrop != null && sleepDrop >= P.j5.sleepEfficiencyDropPp.value) {
     independent.push({
       code: 'sleep-efficiency-drop',
-      detail: `Sleep efficiency dropped about ${ctx.sleepEfficiencyDropPp.toFixed(1)} percentage points.`,
+      detail: `Sleep efficiency dropped about ${sleepDrop.toFixed(1)} percentage points.`,
       rules: ['J5'],
     })
   }

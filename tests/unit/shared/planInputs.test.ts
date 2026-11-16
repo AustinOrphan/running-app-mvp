@@ -159,6 +159,46 @@ describe('planInputs: resting heart rate and sleep', () => {
   })
 })
 
+describe('planInputs: sleep efficiency (rule J5)', () => {
+  const bed = (daysAgo: number): Wellness =>
+    night(daysAgo, { sleepSec: 7 * 3600, inBedSec: 8 * 3600 })
+
+  test('a runner without time in bed has no nights and the plan does not read it', () => {
+    const wellness = Array.from({ length: 30 }, (_, i) => night(i, { sleepSec: 7 * 3600 }))
+    const { efficiency } = planInputs(input({ wellness })).sleep
+    expect(efficiency).toMatchObject({ nights: 0, baselineNights: 0, read: false })
+    expect(efficiency.windowNights).toBe(P.j5.reducePersistDays.value)
+    expect(efficiency.minNights).toBe(P.j5.sleepEffMinNights.value)
+    expect(efficiency.baselineMinNights).toBe(P.j5.sleepEffMinBaselineNights.value)
+  })
+
+  test('counts the nights with both values in the window and before it, and reads once both are met', () => {
+    const window = P.j5.reducePersistDays.value
+    const wellness = [
+      ...Array.from({ length: P.j5.sleepEffMinNights.value }, (_, i) => bed(i)),
+      ...Array.from({ length: P.j5.sleepEffMinBaselineNights.value - 1 }, (_, i) =>
+        bed(window + i),
+      ),
+    ]
+    const short = planInputs(input({ wellness })).sleep.efficiency
+    expect(short).toMatchObject({
+      nights: P.j5.sleepEffMinNights.value,
+      baselineNights: P.j5.sleepEffMinBaselineNights.value - 1,
+      read: false,
+    })
+    const enough = planInputs(input({ wellness: [...wellness, bed(window + 20)] })).sleep.efficiency
+    expect(enough).toMatchObject({
+      baselineNights: P.j5.sleepEffMinBaselineNights.value,
+      read: true,
+    })
+  })
+
+  test('a night with more sleep than time in bed is not counted', () => {
+    const wellness = [night(0, { sleepSec: 9 * 3600, inBedSec: 8 * 3600 }), bed(1)]
+    expect(planInputs(input({ wellness })).sleep.efficiency.nights).toBe(1)
+  })
+})
+
 describe('planInputs: runs', () => {
   test('streams, altitude, heart-rate sources and the checks are counted per run', () => {
     const activities = [

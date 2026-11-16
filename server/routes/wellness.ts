@@ -55,7 +55,13 @@ export function wellnessRouter(deps: Deps): Router {
   router.put('/:date', async (req, res) => {
     const date = parse(isoDate, req.params.date)
     const body = parse(daySchema, req.body)
-    const data = { ...body, source: 'manual' }
+    // Sleep and time in bed are a pair from one import (rule J5): a hand-entered sleep time never
+    // sits beside a time in bed that another source recorded.
+    const data = {
+      ...body,
+      ...(body.sleepSec !== undefined ? { inBedSec: null } : {}),
+      source: 'manual',
+    }
     const row = await prisma.wellnessDay.upsert({
       where: { userId_date: { userId: req.userId, date } },
       create: { userId: req.userId, date, ...data },

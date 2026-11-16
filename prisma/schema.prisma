@@ -519,6 +519,7 @@ model WellnessDay {
   hrvRmssd      Float?
   hrvSdnn       Float?
   sleepSec      Int?
+  inBedSec      Int? // time in bed, seconds; Apple Health only (rule J5)
   sleepScore    Int?
   weightKg      Float?
   vo2max        Float?

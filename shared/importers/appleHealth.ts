@@ -317,6 +317,18 @@ const T_HEART_RATE = 'HKQuantityTypeIdentifierHeartRate'
  */
 export const KG_PER: Record<string, number> = { kg: 1, lb: 0.45359237, lbs: 0.45359237, g: 0.001 }
 
+/**
+ * The night's time in bed (rule J5), or null. Sources disagree when more sleep than time in bed
+ * is recorded for one night (a watch writing asleep segments beside a phone writing in-bed ones,
+ * or a night split over two devices): neither figure can be trusted to sit on the other, so no
+ * time in bed is stored and the night has no sleep efficiency. Both importers share this rule.
+ */
+export function inBedOf(inBedSec: number | undefined, sleepSec: number | undefined): number | null {
+  if (inBedSec === undefined || inBedSec <= 0) return null
+  if (sleepSec !== undefined && sleepSec > inBedSec) return null
+  return inBedSec
+}
+
 interface DayFields {
   restingHr?: { ms: number; value: number }
   hrv: number[]
@@ -354,6 +366,7 @@ export function createAppleExportReducer(opts: { timezone: string }): AppleExpor
   const passOne = new Map<string, ParsedActivity>()
   const days = new Map<string, DayFields>()
   const sleep = new Map<string, Array<[number, number]>>()
+  const inBed = new Map<string, Array<[number, number]>>()
 
   const day = (date: string): DayFields => {
     let fields = days.get(date)
@@ -372,14 +385,23 @@ export function createAppleExportReducer(opts: { timezone: string }): AppleExpor
   function recordPassOne(attrs: Record<string, string>): void {
     const type = attrs['type']
     if (type === T_SLEEP) {
-      if (!/SleepAnalysisAsleep/.test(attrs['value'] ?? '')) return
+      // Asleep samples build the sleep time; InBed samples build the time in bed (rule J5). Awake
+      // samples count toward neither.
+      const value = attrs['value'] ?? ''
+      const target = /SleepAnalysisAsleep/.test(value)
+        ? sleep
+        : /SleepAnalysisInBed/.test(value)
+          ? inBed
+          : null
+      if (!target) return
       const start = parseAppleDate(attrs['startDate'], timezone)
       const end = parseAppleDate(attrs['endDate'], timezone)
       if (!start || !end || end.ms <= start.ms) return
+      // The same night key for both: the wake-up day, from the end of the segment.
       const key = new Date(end.localMs + 6 * 3_600_000).toISOString().slice(0, 10)
-      const list = sleep.get(key) ?? []
+      const list = target.get(key) ?? []
       list.push([start.ms, end.ms])
-      sleep.set(key, list)
+      target.set(key, list)
       return
     }
     if (type !== T_RESTING && type !== T_HRV && type !== T_MASS && type !== T_VO2) return
@@ -458,17 +480,20 @@ export function createAppleExportReducer(opts: { timezone: string }): AppleExpor
     },
 
     passOneResult() {
-      const dates = new Set<string>([...days.keys(), ...sleep.keys()])
+      const dates = new Set<string>([...days.keys(), ...sleep.keys(), ...inBed.keys()])
       const wellness: WellnessInput[] = [...dates].sort().map((date) => {
         const fields = days.get(date)
         const segments = sleep.get(date)
         const sleepSec = segments ? unionSeconds(segments) : 0
+        const bedSegments = inBed.get(date)
+        const inBedSec = bedSegments ? unionSeconds(bedSegments) : 0
         return {
           date,
           restingHr: fields?.restingHr ? Math.round(fields.restingHr.value) : null,
           hrvRmssd: null,
           hrvSdnn: fields && fields.hrv.length > 0 ? round1(mean(fields.hrv)) : null,
           sleepSec: sleepSec > 0 ? sleepSec : null,
+          inBedSec: inBedOf(inBedSec, sleepSec),
           sleepScore: null,
           weightKg: fields?.weight ? round1(fields.weight.value) : null,
           vo2max: fields?.vo2 ? round1(fields.vo2.value) : null,

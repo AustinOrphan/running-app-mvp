@@ -281,6 +281,12 @@ describe('GET /api/export', () => {
       })
     })
 
+    test('wellness days carry the time in bed and the README names it', () => {
+      const days = JSON.parse(text(entries, 'wellness.json')) as Record<string, unknown>[]
+      expect(days[0]).toMatchObject({ sleepSec: 25_200, inBedSec: 28_800 })
+      expect(text(entries, 'README.txt')).toMatch(/inBedSec: time in bed in seconds/)
+    })
+
     test('the refused activities of a session come out as an array, not a quoted string', () => {
       const sessions = JSON.parse(text(entries, 'plan-sessions.json')) as Record<string, unknown>[]
       expect(sessions.length).toBeGreaterThan(0)

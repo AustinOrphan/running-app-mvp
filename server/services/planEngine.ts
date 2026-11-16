@@ -570,8 +570,8 @@ export async function weeklyDecisions(
   )
   // The tightened ramp of an injury or bone-stress profile caps the suggested week too, and so
   // does the rebuild zone of a plan at standard or upper [rules g-8]. The sleep-efficiency
-  // drop is not derived from the data yet, so that hold of rule J5 does not fire; the first hot days
-  // are, from the cached forecast or the recent runs (`firstHotDays`).
+  // drop and the first hot days of rule J5 are read inside `weeklyDecision`, the first from the
+  // stored time in bed, the second from the cached forecast or the recent runs (`firstHotDays`).
   const state = estimateState(input)
   const ramp = weeklyRamp(state)
   const rebuild = rebuildZone(input, state)

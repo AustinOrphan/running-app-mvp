@@ -22,6 +22,28 @@ describe('PUT /api/wellness/:date', () => {
     await client(ctx).put('/api/wellness/2026-03-02').send({ restingHr: 50 }).expect(401)
   })
 
+  test('a manual sleep edit clears the time in bed of another source; other edits keep it', async () => {
+    await ctx.prisma.wellnessDay.create({
+      data: {
+        userId: user.id,
+        date: '2026-03-03',
+        source: 'apple-health',
+        sleepSec: 25_200,
+        inBedSec: 28_800,
+      },
+    })
+    const kept = await client(ctx, user)
+      .put('/api/wellness/2026-03-03')
+      .send({ restingHr: 50 })
+      .expect(200)
+    expect(kept.body).toMatchObject({ sleepSec: 25_200, inBedSec: 28_800 })
+    const cleared = await client(ctx, user)
+      .put('/api/wellness/2026-03-03')
+      .send({ sleepSec: 26_000 })
+      .expect(200)
+    expect(cleared.body).toMatchObject({ sleepSec: 26_000, inBedSec: null })
+  })
+
   test('creates a manual day and returns it', async () => {
     const res = await client(ctx, user)
       .put('/api/wellness/2026-03-02')

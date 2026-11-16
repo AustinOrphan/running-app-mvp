@@ -37,6 +37,7 @@ describe('appleHealthPush.parsePush: metrics', () => {
         hrvRmssd: null,
         hrvSdnn: null,
         sleepSec: null,
+        inBedSec: null,
         sleepScore: null,
         weightKg: null,
         vo2max: null,
@@ -47,6 +48,7 @@ describe('appleHealthPush.parsePush: metrics', () => {
         hrvRmssd: null,
         hrvSdnn: 41.5,
         sleepSec: 26_100,
+        inBedSec: 28_800,
         sleepScore: null,
         weightKg: 83.2,
         vo2max: 45.3,
@@ -76,6 +78,43 @@ describe('appleHealthPush.parsePush: metrics', () => {
     })
     expect(night({ core: 4, deep: 1, rem: 1.5 })?.sleepSec).toBe(6.5 * 3600)
     expect(night({})).toBeUndefined()
+  })
+
+  describe('time in bed (rule J5)', () => {
+    const sleep = (units: string, ...points: Array<Record<string, unknown>>) =>
+      appleHealthPush.parsePush(
+        { data: { metrics: [{ name: 'sleep_analysis', units, data: points }] } },
+        ctx,
+      ).wellness
+    const END = '2026-03-04 06:45:00 -0500'
+
+    it('maps inBed in the unit of the metric to the night that sleepEnd names', () => {
+      expect(sleep('hr', { sleepEnd: END, asleep: 7, inBed: 8 })).toMatchObject([
+        { date: '2026-03-04', sleepSec: 7 * 3600, inBedSec: 8 * 3600 },
+      ])
+      expect(sleep('min', { sleepEnd: END, asleep: 420, inBed: 480 })).toMatchObject([
+        { date: '2026-03-04', sleepSec: 420 * 60, inBedSec: 480 * 60 },
+      ])
+    })
+
+    it('merges the points of one night by the longest span, so overlapping sources do not add', () => {
+      const [night] = sleep(
+        'hr',
+        { sleepEnd: END, asleep: 5, inBed: 6, source: 'Synthetic Watch' },
+        { sleepEnd: END, asleep: 4, inBed: 7.5, source: 'Synthetic Phone' },
+      )
+      expect(night).toMatchObject({ sleepSec: 5 * 3600, inBedSec: 7.5 * 3600 })
+    })
+
+    it('stores no time in bed when the night holds more sleep than time in bed', () => {
+      const [night] = sleep('hr', { sleepEnd: END, asleep: 7.5, inBed: 7 })
+      expect(night).toMatchObject({ sleepSec: 7.5 * 3600, inBedSec: null })
+    })
+
+    it('leaves a night without inBed, or with zero, without time in bed', () => {
+      expect(sleep('hr', { sleepEnd: END, asleep: 7 })[0]?.inBedSec).toBeNull()
+      expect(sleep('hr', { sleepEnd: END, asleep: 7, inBed: 0 })[0]?.inBedSec).toBeNull()
+    })
   })
 
   it('counts unknown metrics and unreadable workouts instead of failing', () => {

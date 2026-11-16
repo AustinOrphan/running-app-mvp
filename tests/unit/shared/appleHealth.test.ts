@@ -93,6 +93,7 @@ describe('Apple Health export reducer, pass one', () => {
         hrvRmssd: null,
         hrvSdnn: 45,
         sleepSec: null,
+        inBedSec: null,
         sleepScore: null,
         weightKg: 83.2,
         vo2max: 45.3,
@@ -103,6 +104,7 @@ describe('Apple Health export reducer, pass one', () => {
         hrvRmssd: null,
         hrvSdnn: null,
         sleepSec: 27_000,
+        inBedSec: 29_700,
         sleepScore: null,
         weightKg: null,
         vo2max: null,
@@ -110,10 +112,55 @@ describe('Apple Health export reducer, pass one', () => {
     ])
   })
 
-  it('sums asleep stages once per night, on the wake date, and skips in-bed and awake time', () => {
+  it('sums asleep stages once per night, on the wake date, and keeps in-bed and awake time out', () => {
     const night = one.wellness.find((day) => day.date === '2026-03-03')
-    // 23:00-06:30 asleep (an overlapping second source adds nothing); 22:45-07:00 in bed excluded.
+    // 23:00-06:30 asleep (an overlapping second source adds nothing); 22:45-07:00 in bed is not asleep.
     expect(night?.sleepSec).toBe(7.5 * 3600)
+  })
+
+  it('takes the time in bed from the InBed samples of the same night (rule J5)', () => {
+    const night = one.wellness.find((day) => day.date === '2026-03-03')
+    expect(night?.inBedSec).toBe(8.25 * 3600)
+  })
+
+  describe('time in bed over several sources', () => {
+    const record = (value: string, start: string, end: string, source = 'Synthetic Watch') =>
+      ` <Record type="HKCategoryTypeIdentifierSleepAnalysis" sourceName="${source}" creationDate="2026-03-03 07:00:00 -0500" startDate="${start}" endDate="${end}" value="HKCategoryValueSleepAnalysis${value}"/>`
+    const wellnessOf = (records: string[]) =>
+      runExport(`<HealthData>\n${records.join('\n')}\n</HealthData>`).one.wellness
+    const BED = 'InBed'
+
+    it('merges overlapping InBed samples of two sources into one span', () => {
+      const [night] = wellnessOf([
+        record(BED, '2026-03-02 22:00:00 -0500', '2026-03-03 02:00:00 -0500'),
+        record(BED, '2026-03-03 01:00:00 -0500', '2026-03-03 06:00:00 -0500', 'Synthetic Phone'),
+        record('AsleepCore', '2026-03-02 23:00:00 -0500', '2026-03-03 05:00:00 -0500'),
+      ])
+      expect(night).toMatchObject({ date: '2026-03-03', sleepSec: 6 * 3600, inBedSec: 8 * 3600 })
+    })
+
+    it('stores no time in bed when more sleep than time in bed is recorded', () => {
+      const [night] = wellnessOf([
+        record(BED, '2026-03-02 23:00:00 -0500', '2026-03-03 04:00:00 -0500'),
+        record('AsleepCore', '2026-03-02 23:00:00 -0500', '2026-03-03 06:00:00 -0500'),
+      ])
+      expect(night).toMatchObject({ date: '2026-03-03', sleepSec: 7 * 3600, inBedSec: null })
+    })
+
+    it('leaves a night with sleep and no InBed sample without time in bed', () => {
+      const [night] = wellnessOf([
+        record('AsleepCore', '2026-03-02 23:00:00 -0500', '2026-03-03 06:00:00 -0500'),
+      ])
+      expect(night).toMatchObject({ sleepSec: 7 * 3600, inBedSec: null })
+    })
+
+    it('does not count awake time as time in bed', () => {
+      const [night] = wellnessOf([
+        record(BED, '2026-03-02 23:00:00 -0500', '2026-03-03 06:00:00 -0500'),
+        record('Awake', '2026-03-03 06:00:00 -0500', '2026-03-03 07:00:00 -0500'),
+      ])
+      expect(night?.inBedSec).toBe(7 * 3600)
+    })
   })
 })
 
