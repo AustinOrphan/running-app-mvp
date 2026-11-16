@@ -29,6 +29,7 @@ const FLAG_SET: Record<SessionFlag, true> = {
   'post-race': true,
   'injury-return': true,
   'rest-window': true,
+  'entered-race': true,
 }
 const FLAGS = Object.keys(FLAG_SET) as SessionFlag[]
 

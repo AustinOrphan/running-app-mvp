@@ -161,6 +161,22 @@ export const kTaper = {
       unit: 'days',
       note: 'Default: no study tests the last day for a quality session or a long run. The days before a race of k6.carbLoadMinRaceMin or more (the day before included) hold easy running only: no quality session and no long run.',
     }),
+    tuneUpBEasyDays: param('k6.tuneUpBEasyDays', 2, 'D', 'K6', LAST_DAYS, {
+      unit: 'days',
+      note: 'Default: coach practice for a B-priority race the runner entered before the goal race; no study tests it. The days before the race (the day before included) hold easy running only: no quality session and no long run. The value is the goal race rule (k6.easyDaysBefore) applied to a race the plan treats as a stepping stone.',
+    }),
+    tuneUpBDayBeforeMaxMin: param('k6.tuneUpBDayBeforeMaxMin', 20, 'D', 'K6', LAST_DAYS, {
+      unit: 'min',
+      note: 'Default: a shake-out the day before a B-priority entered race, as for the goal race (k6.dayBeforeMaxMin). The minutes it removes are not made up.',
+    }),
+    tuneUpCEasyDays: param('k6.tuneUpCEasyDays', 1, 'D', 'K6', LAST_DAYS, {
+      unit: 'days',
+      note: 'Default: a C-priority entered race is eased lighter than a B: only the day before holds easy running only (no quality session, no long run). No study tests it.',
+    }),
+    tuneUpCDayBeforeMaxMin: param('k6.tuneUpCDayBeforeMaxMin', 40, 'D', 'K6', LAST_DAYS, {
+      unit: 'min',
+      note: 'Default: the day before a C-priority entered race holds at most this many minutes of easy running, longer than the B shake-out. The minutes it removes are not made up.',
+    }),
     firstHalfWarningCsFraction: param(
       'k6.firstHalfWarningCsFraction',
       0.94,
