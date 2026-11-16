@@ -136,13 +136,35 @@ describe('the readers of the stored zone', () => {
       const server = serverTimeZone()
       const { ctx, idOf } = await ctxWith({
         far: server === 'Pacific/Kiritimati' ? 'Pacific/Pago_Pago' : 'Pacific/Kiritimati',
-        same: server,
+        // A server in 'UTC' reads its own name as unset, so the chosen same-zone runner uses the alias.
+        same: server === 'UTC' ? 'Etc/UTC' : server,
         utc: 'UTC',
         none: null,
         bad: 'Nowhere/Land',
       })
       const report = await zoneCutoverReport(ctx.prisma)
       expect(report).toEqual({ moving: [idOf('far')], unset: 3 })
+    },
+    SLOW,
+  )
+
+  test(
+    'zoneCutoverReport reads an alias of the server zone as the server zone',
+    async () => {
+      const { ctx, idOf } = await ctxWith({ calcutta: 'Asia/Calcutta', utc: 'Etc/UTC' })
+      const original = process.env.TZ
+      try {
+        process.env.TZ = 'Asia/Kolkata'
+        expect(await zoneCutoverReport(ctx.prisma)).toEqual({ moving: [idOf('utc')], unset: 0 })
+        process.env.TZ = 'UTC'
+        expect(await zoneCutoverReport(ctx.prisma)).toEqual({
+          moving: [idOf('calcutta')],
+          unset: 0,
+        })
+      } finally {
+        if (original === undefined) delete process.env.TZ
+        else process.env.TZ = original
+      }
     },
     SLOW,
   )

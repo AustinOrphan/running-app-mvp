@@ -116,7 +116,23 @@ const WEB_TODAY_ISO: Record<string, number> = {
 const TODAY_ISO_CALL = /\btodayIso\(/g
 const LOCAL_CLOCK =
   /\.(?:getDay|getHours|getMinutes|getDate|getMonth|getFullYear|setHours|setDate|getTimezoneOffset)\(/g
-const UTC_DAY = /toISOString\(\)\.slice\(0, 10\)/g
+/** The chain may be split over lines by prettier, and `.slice(0,10)` may be written compact. */
+const UTC_DAY = /toISOString\(\)\s*\.slice\(\s*0\s*,\s*10\s*\)/g
+/**
+ * A Date built from an ISO time with no `Z` or offset reads the process zone: a template or string
+ * literal ending in `T00:00:00` inside `new Date(`.
+ */
+const OFFSETLESS_DATE = /new Date\(\s*(?:`[^`]*|'[^']*|"[^"]*)T\d\d:\d\d(?::\d\d)?(?:\.\d+)?[`'"]/g
+/**
+ * An aliased import of `todayIso` would hide its calls from `TODAY_ISO_CALL`. The scan does not see
+ * a bare reference passed along (`map(todayIso)`) or a call through another name; review catches those.
+ */
+const TODAY_ISO_ALIAS = /\btodayIso\s+as\b/g
+
+/** Server files building a Date from an offset-less ISO time (process zone). */
+const SERVER_OFFSETLESS_DATE: Record<string, number> = {
+  'server/services/brief.ts': 2,
+}
 
 describe('the process zone under server/', () => {
   const files = sourceFiles('server', ['.ts'])
@@ -136,6 +152,15 @@ describe('the process zone under server/', () => {
   test('toISOString().slice(0, 10) appears only in its four named exceptions', () => {
     expect(matchCounts(files, UTC_DAY)).toEqual(SERVER_UTC_DAY)
   })
+
+  test('a Date built from an offset-less ISO time appears only where the allowlist says', () => {
+    expect(matchCounts(files, OFFSETLESS_DATE)).toEqual(SERVER_OFFSETLESS_DATE)
+  })
+
+  test('todayIso is never imported under another name', () => {
+    expect(matchCounts(files, TODAY_ISO_ALIAS)).toEqual({})
+    expect(matchCounts(sourceFiles('web', ['.ts', '.tsx']), TODAY_ISO_ALIAS)).toEqual({})
+  })
 })
 
 describe('the device day under web/', () => {
@@ -147,6 +172,30 @@ describe('the device day under web/', () => {
 
   test('todayIso is called only where the allowlist says, and the list only shrinks', () => {
     expect(matchCounts(files, TODAY_ISO_CALL)).toEqual(WEB_TODAY_ISO)
+  })
+})
+
+describe('the patterns', () => {
+  const count = (pattern: RegExp, source: string) => source.match(pattern)?.length ?? 0
+
+  test('UTC_DAY matches the compact, spaced and line-split forms', () => {
+    expect(count(UTC_DAY, 'd.toISOString().slice(0, 10)')).toBe(1)
+    expect(count(UTC_DAY, 'd.toISOString().slice(0,10)')).toBe(1)
+    expect(count(UTC_DAY, 'new Date(ms)\n    .toISOString()\n    .slice(0, 10)')).toBe(1)
+    expect(count(UTC_DAY, 'd.toISOString().slice(0, 16)')).toBe(0)
+  })
+
+  test('OFFSETLESS_DATE matches a local time and not one with Z or an offset', () => {
+    expect(count(OFFSETLESS_DATE, 'new Date(`${day}T00:00:00`)')).toBe(1)
+    expect(count(OFFSETLESS_DATE, "new Date('2026-01-01T06:30:00')")).toBe(1)
+    expect(count(OFFSETLESS_DATE, 'new Date(`${day}T00:00:00Z`)')).toBe(0)
+    expect(count(OFFSETLESS_DATE, 'new Date(`${day}T00:00:00+02:00`)')).toBe(0)
+    expect(count(OFFSETLESS_DATE, 'new Date(`${day}T00:00:00.000Z`)')).toBe(0)
+  })
+
+  test('TODAY_ISO_ALIAS matches an aliased import', () => {
+    expect(count(TODAY_ISO_ALIAS, "import { todayIso as t } from '../shared/dates.ts'")).toBe(1)
+    expect(count(TODAY_ISO_ALIAS, "import { todayIso } from '../shared/dates.ts'")).toBe(0)
   })
 })
 

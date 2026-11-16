@@ -18,16 +18,21 @@ the server's zone.
 
 ## Decision
 
+- Owner decisions of 2026-11-16 on the design's questions: a stored `'UTC'` reads as unset (question
+  1); a new ADR records this (question 6); offset-less imports keep UTC dating (question 7).
 - A runner's day is the calendar date in `runnerZone(AthleteProfile.timezone)` (`server/runnerDay.ts`).
   The stored zone is used when it is a zone the server's ICU knows and is not the literal `'UTC'`;
   `'UTC'`, no profile row and an unknown zone mean the server's zone. A stored zone is never
   canonicalised: `Etc/UTC` is how a runner asks for UTC days.
 - Requests carry `req.runnerDay` (`{ tz, today, now }`, read once in `requireAuth`) and jobs read
   `runnerDays`. `today` is a required argument of the services, so the type checker finds a caller
-  that was not given a day. Nothing under `server/` reads the process zone except the backup slot,
-  the log clock and the named UTC exceptions (the Garmin and intervals.icu pull windows, the backup's
-  retention buckets, the duplicate pass's date shift, the climate archive bound); two scanner tests
-  hold this and their allowlists only shrink.
+  that was not given a day. After step 6, nothing under `server/` reads the process zone except the
+  backup slot, the log clock and the named UTC exceptions (the Garmin and intervals.icu pull windows,
+  the backup's retention buckets, the duplicate pass's date shift, the climate archive bound). Until
+  then the scanner allowlists name what remains, among them the Smashrun offset
+  (`server/routes/imports.ts`, step 6) and the two offset-less `Date` constructions in
+  `server/services/brief.ts` (the brief's week bounds, owned by the step that makes the brief take a
+  runner's day). The scanner tests hold this and their allowlists only shrink.
 - Matching, the Monday re-plan and the forced publish run on the runner's clock; the backup runs on
   the server's. The week's update is guarded by the week's brief and by a weekly revision written
   since the runner's Monday 00:00. A brief that failed to write, in a week with a move of more than

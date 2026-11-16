@@ -1,9 +1,9 @@
-import { isoDateInZone } from '../shared/dates.ts'
+import { clockInZone, isoDateInZone } from '../shared/dates.ts'
 import { isValidTimezone } from '../shared/domain/timezone.ts'
 import type { PrismaClient } from './db.ts'
 
 /**
- * A runner's day (D10, ADR 0021): the calendar date in the runner's zone. `now` is read once, so a
+ * A runner's day (D10, ADR 0022): the calendar date in the runner's zone. `now` is read once, so a
  * request or a job that straddles midnight never mixes two days.
  */
 export interface RunnerDay {
@@ -71,10 +71,29 @@ export async function runnerDays(
   return new Map(users.map((user) => [user.id, runnerDay(now, user.profile?.timezone)]))
 }
 
+const SAMPLE_START = Date.UTC(2026, 0, 1, 0, 7)
+const SAMPLE_DAYS = 366
+
+/**
+ * True when two zone names keep the same wall clock at every sample instant of a year (one a day,
+ * at an odd minute), so aliases (`Asia/Kolkata` and `Asia/Calcutta`, `Etc/UTC` and `UTC`) read as
+ * one zone while zones that differ in offset or in daylight saving do not.
+ */
+function sameClock(a: string, b: string): boolean {
+  if (a === b) return true
+  for (let day = 0; day < SAMPLE_DAYS; day += 1) {
+    const at = new Date(SAMPLE_START + day * 86_400_000 + (day % 24) * 3_600_000)
+    const x = clockInZone(at, a)
+    const y = clockInZone(at, b)
+    if (x.date !== y.date || x.minute !== y.minute) return false
+  }
+  return true
+}
+
 /**
  * Which runners' days will move when D10's step 5 makes `runnerZone` follow the stored zone:
  * `moving` have chosen a zone other than the server's; `unset` have chosen none and keep the
- * server's. A runner who chose the server's own zone is in neither.
+ * server's. A runner who chose the server's own zone, under any alias of its name, is in neither.
  */
 export async function zoneCutoverReport(
   prisma: PrismaClient,
@@ -89,7 +108,7 @@ export async function zoneCutoverReport(
   for (const user of users) {
     const zone = chosenZone(user.profile?.timezone)
     if (zone === null) unset += 1
-    else if (zone !== server) moving.push(user.id)
+    else if (!sameClock(zone, server)) moving.push(user.id)
   }
   return { moving, unset }
 }
