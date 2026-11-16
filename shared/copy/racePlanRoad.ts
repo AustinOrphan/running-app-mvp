@@ -228,7 +228,8 @@ export interface RoadRacePlanText {
   notIn: { heading: string; items: string[] }
 }
 
-function noticeText(notice: RoadRaceNotice, units: Units): RoadNoticeText {
+/** A notice this build has no words for (a newer server's) is dropped by the caller, never shown blank. */
+function noticeText(notice: RoadRaceNotice, units: Units): RoadNoticeText | null {
   switch (notice) {
     case 'no-prediction':
       return {
@@ -274,6 +275,8 @@ function noticeText(notice: RoadRaceNotice, units: Units): RoadNoticeText {
         link: null,
         to: null,
       }
+    default:
+      return null
   }
 }
 
@@ -511,7 +514,9 @@ export function describeRoadRacePlan(plan: RoadRacePlan, units: Units): RoadRace
     sketch: say(U['race.plan.sketch'], {}, units),
     firmHeading: say(U['race.plan.firm.heading'], {}, units),
     aboutRanges: say(U['race.plan.firm.about'], {}, units),
-    notices: plan.notices.map((notice) => noticeText(notice, units)),
+    notices: plan.notices
+      .map((notice) => noticeText(notice, units))
+      .filter((notice): notice is RoadNoticeText => notice !== null),
     expected: expectedText(plan, units),
     pace: paceText(plan, units),
     firstHalf: firstHalfText(plan, units),

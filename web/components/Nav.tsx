@@ -1,6 +1,6 @@
 import { useCallback, useSyncExternalStore, type ReactNode } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { useRacePlan } from '../api/race.ts'
+import { hasRacePlan, useRacePlan } from '../api/race.ts'
 import { destinationGroups, MORE_PATHS } from './destinations.tsx'
 import styles from './Nav.module.css'
 import { useMediaQuery } from './useMediaQuery.ts'
@@ -166,9 +166,9 @@ export function Nav() {
   const { pathname } = useLocation()
   const { theme, setTheme } = useTheme()
   const railed = useMediaQuery(RAIL_QUERY)
-  // The race plan joins the Training group only for an ultra goal with a race still to come; the
+  // The race plan joins the Training group only for a goal with a plan and a race still to come; the
   // rail asks only when it is on screen, so a phone does not spend a request on every page.
-  const hasRacePlan = useRacePlan({ enabled: railed }).data?.plan != null
+  const hasPlan = hasRacePlan(useRacePlan({ enabled: railed }).data)
   const nextTheme = themeOrder[(themeOrder.indexOf(theme) + 1) % themeOrder.length] ?? 'system'
 
   return (
@@ -198,7 +198,7 @@ export function Nav() {
         </ul>
       </nav>
       <nav aria-label="Other pages" className={styles.secondary}>
-        {destinationGroups(hasRacePlan).map((group) => (
+        {destinationGroups(hasPlan).map((group) => (
           <div
             key={group.id}
             role="group"

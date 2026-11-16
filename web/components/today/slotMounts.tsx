@@ -7,7 +7,7 @@ import { BriefLine, briefLeads } from '../BriefLine.tsx'
 import { useWristLine, WristLineText } from '../WristLine.tsx'
 import { FuelPromptCard } from '../fuel/FuelPromptCard.tsx'
 import { FuelTargetLine } from '../fuel/FuelTargetLine.tsx'
-import { RaceSlot } from '../race/RaceSlot.tsx'
+import { RaceSlot, RoadRaceSlot } from '../race/RaceSlot.tsx'
 import { StrengthSetupCard } from '../strength/StrengthSetupCard.tsx'
 import { DisruptionSlot } from './DisruptionSlot.tsx'
 import { dayState, usePhoneCopy } from './phoneCopy.ts'
@@ -93,12 +93,17 @@ function FuelPromptMount() {
 function RaceMount() {
   const today = useLoaded<TodayView>(keys.today)
   const settings = useLoaded<UserSettings>(keys.settings)
+  // A road goal (ADR 0023) fills `roadRace` and leaves `race` null; a payload kept before the key
+  // has none, which reads as no road card.
   const summary = today?.coach.slots.race ?? null
+  const road = today?.coach.slots.roadRace ?? null
   return (
     <SlotFrame name="race">
-      {summary === null || settings === undefined ? null : (
+      {settings === undefined ? null : summary !== null ? (
         <RaceSlot summary={summary} units={settings.units} />
-      )}
+      ) : road !== null ? (
+        <RoadRaceSlot summary={road} units={settings.units} />
+      ) : null}
     </SlotFrame>
   )
 }
