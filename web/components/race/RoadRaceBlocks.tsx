@@ -98,7 +98,7 @@ export function RoadRaceBlocks({ plan, units }: { plan: RoadRacePlan; units: Uni
           <h2 id="road-pace" className={styles.heading}>
             {pace.heading}
           </h2>
-          <p className={`${styles.figure} figure-type`}>{pace.range}</p>
+          <p className={styles.text}>{pace.range}</p>
           <p className={styles.text}>{pace.finding}</p>
           {pace.notes.map((note) => (
             <p key={note} className={styles.note}>
