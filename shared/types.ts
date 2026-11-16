@@ -813,6 +813,11 @@ export interface SessionUser extends UserSettings {
   unitsFromBrowser: boolean
   /** True until the browser's zone has been saved to the profile, once (create-user). */
   zoneFromBrowser: boolean
+  /**
+   * The IANA zone the runner's days follow (D10, ADR 0022): the one `TodayView.tz` carries. Until
+   * the cutover (step 5) it is the server's for every runner.
+   */
+  tz: string
 }
 export type GoalPriority = 'A' | 'B' | 'C'
 export type GoalStatus = 'target' | 'considering' | 'done' | 'dropped'
@@ -1445,7 +1450,7 @@ export interface TodayHeat {
 export interface TodayView {
   /** The viewed day: today, or a day ahead for a preview (`coach.preview`). */
   date: string
-  /** The server's IANA zone: "today" is its calendar day, whatever the device clock says. */
+  /** The runner's IANA zone: "today" is its calendar day, whatever the device clock says. */
   tz: string
   sessions: Array<{ session: PlanSessionView; advice: TodayAdvice; reasons: string[] }>
   heat: TodayHeat

@@ -47,7 +47,6 @@ import type {
 import type { Deps } from '../app.ts'
 import { dataVersionKey } from '../dataVersion.ts'
 import { validationError } from '../errors.ts'
-import { serverTimeZone } from '../runnerDay.ts'
 import { isDuplicate } from '../../shared/engine/load.ts'
 import {
   athleteKey,
@@ -90,7 +89,12 @@ export function assertViewable(date: string, today: string): void {
 // The validator of the payload
 // ---------------------------------------------------------------------------------------------
 
-type ChangeStamp = (args: { deps: Deps; userId: string; today: string }) => Promise<string> | string
+type ChangeStamp = (args: {
+  deps: Deps
+  userId: string
+  today: string
+  tz: string
+}) => Promise<string> | string
 
 const stamps: ChangeStamp[] = []
 
@@ -125,17 +129,21 @@ registerTodayStamp((args) => briefStamp(args))
  */
 export async function todayKey(
   deps: Deps,
-  args: { userId: string; today: string; date: string },
+  args: { userId: string; today: string; tz: string; date: string },
 ): Promise<string> {
   const { prisma } = deps
   const [version, forecast, others] = await Promise.all([
     dataVersionKey(prisma),
     forecastStamp(prisma, args.userId),
     Promise.all(
-      stamps.map(async (stamp) => stamp({ deps, userId: args.userId, today: args.today })),
+      stamps.map(async (stamp) =>
+        stamp({ deps, userId: args.userId, today: args.today, tz: args.tz }),
+      ),
     ),
   ])
-  return [athleteKey(version, args.today), args.date, forecast, ...others].join('~')
+  // The payload carries `tz`, so the tag does too: a zone change that leaves the date alone
+  // still changes the body.
+  return [athleteKey(version, args.today), args.tz, args.date, forecast, ...others].join('~')
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -297,9 +305,9 @@ function readinessWithScreening(
  */
 export async function todayView(
   deps: Deps,
-  args: { userId: string; today: string; date?: string },
+  args: { userId: string; today: string; tz: string; date?: string },
 ): Promise<TodayView> {
-  const { userId, today } = args
+  const { userId, today, tz } = args
   const date = args.date ?? today
   assertViewable(date, today)
   const preview = date > today
@@ -426,7 +434,7 @@ export async function todayView(
 
   return {
     date,
-    tz: serverTimeZone(),
+    tz,
     sessions: advice,
     heat,
     checkin: preview ? null : readiness.checkin,

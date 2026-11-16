@@ -4,6 +4,7 @@ import { toWeightUnit } from '../serialize.ts'
 import type { SessionUser, Units } from '../../shared/types.ts'
 import type { Deps } from '../app.ts'
 import { conflict, parse, unauthorized, validationError } from '../errors.ts'
+import { runnerZone } from '../runnerDay.ts'
 import { requireAuth } from './middleware.ts'
 import { DUMMY_PASSWORD_HASH, hashPassword, passwordSchema, verifyPassword } from './password.ts'
 import {
@@ -45,7 +46,8 @@ interface UserRow {
   sessionVersion: number
 }
 
-function toSessionUser(row: UserRow): SessionUser {
+/** `tz` is the runner's resolved zone: `req.runnerDay.tz` on an authenticated request. */
+function toSessionUser(row: UserRow, tz: string): SessionUser {
   return {
     id: row.id,
     email: row.email,
@@ -57,6 +59,7 @@ function toSessionUser(row: UserRow): SessionUser {
     mustChangePassword: row.mustChangePassword,
     unitsFromBrowser: row.unitsFromBrowser,
     zoneFromBrowser: row.zoneFromBrowser,
+    tz,
   }
 }
 
@@ -109,12 +112,16 @@ export function authRouter(deps: Deps): Router {
       signSession(user.id, config.sessionSecret, user.sessionVersion),
       isSecure(req),
     )
-    res.status(201).json(toSessionUser(user))
+    // A new account has no profile row, so no zone chosen.
+    res.status(201).json(toSessionUser(user, runnerZone(null)))
   })
 
   router.post('/auth/login', accountLimiter.limit, addressLimiter, async (req, res) => {
     const body = parse(loginSchema, req.body)
-    const user = await prisma.user.findUnique({ where: { email: body.email } })
+    const user = await prisma.user.findUnique({
+      where: { email: body.email },
+      include: { profile: { select: { timezone: true } } },
+    })
     // Always one compare, so an unknown email takes as long as a wrong password.
     const matches = await verifyPassword(body.password, user?.passwordHash ?? DUMMY_PASSWORD_HASH)
     if (!user || !matches) throw unauthorized('Invalid email or password')
@@ -124,7 +131,7 @@ export function authRouter(deps: Deps): Router {
       signSession(user.id, config.sessionSecret, user.sessionVersion),
       isSecure(req),
     )
-    res.json(toSessionUser(user))
+    res.json(toSessionUser(user, runnerZone(user.profile?.timezone)))
   })
 
   router.post('/auth/logout', (_req, res) => {
@@ -137,7 +144,9 @@ export function authRouter(deps: Deps): Router {
   // The cookie of this request is replaced by one with the new value, so this device stays in.
   router.put('/auth/password', requireAuth(deps), passwordLimiter, async (req, res) => {
     const body = parse(changePasswordSchema, req.body)
-    const user = await prisma.user.findUnique({ where: { id: req.userId } })
+    const user = await prisma.user.findUnique({
+      where: { id: req.userId },
+    })
     if (!user) throw unauthorized()
     if (!(await verifyPassword(body.currentPassword, user.passwordHash))) {
       throw validationError('The current password is not right.', [
@@ -162,13 +171,15 @@ export function authRouter(deps: Deps): Router {
       signSession(updated.id, config.sessionSecret, updated.sessionVersion),
       isSecure(req),
     )
-    res.json(toSessionUser(updated))
+    res.json(toSessionUser(updated, req.runnerDay.tz))
   })
 
   router.get('/auth/me', requireAuth(deps), async (req, res) => {
-    const user = await prisma.user.findUnique({ where: { id: req.userId } })
+    const user = await prisma.user.findUnique({
+      where: { id: req.userId },
+    })
     if (!user) throw unauthorized()
-    res.json(toSessionUser(user))
+    res.json(toSessionUser(user, req.runnerDay.tz))
   })
 
   return router

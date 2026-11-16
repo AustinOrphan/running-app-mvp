@@ -7,6 +7,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest'
 import { setPasswordByEmail } from '../../server/auth/password.ts'
 import { createSignInAccountLimiter } from '../../server/auth/rateLimit.ts'
 import { errorHandler } from '../../server/errors.ts'
+import { serverTimeZone } from '../../server/runnerDay.ts'
 import { client, createTestCtx, seedUser, type TestCtx } from './helpers.ts'
 
 const PASSWORD = 'correct horse battery staple'
@@ -63,6 +64,7 @@ test(
       mustChangePassword: false,
       unitsFromBrowser: false,
       zoneFromBrowser: false,
+      tz: serverTimeZone(),
     })
     expect(JSON.stringify(res.body)).not.toContain('passwordHash')
 
@@ -476,6 +478,7 @@ test('me', async () => {
     mustChangePassword: false,
     unitsFromBrowser: false,
     zoneFromBrowser: false,
+    tz: serverTimeZone(),
   })
 
   const noneToken = [
