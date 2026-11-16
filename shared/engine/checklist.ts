@@ -360,7 +360,6 @@ function recoveryCadence(
       first = false
       lastLoad = null
     }
-    }
     if (week.isRecovery) {
       if (lastLoad !== null) {
         const allowed = lastLoad.targetRunMin * (1 - P.e3.recoveryWeekCutPct.range![0] / 100)
