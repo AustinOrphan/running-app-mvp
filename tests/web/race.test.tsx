@@ -462,9 +462,11 @@ describe('the race-day block of the session sheet', () => {
     expect(screen.getByRole('link', { name: 'Open the race plan' })).toBeInTheDocument()
   })
 
-  test('shows nothing while the race plan answer is not cached', () => {
+  test('shows nothing while the race plan answer loads, then the link', async () => {
+    mockApi({ 'GET /api/race/plan': () => ({ plan: planWith(), reason: null }) })
     renderWithProviders(<RaceSessionSection session={RACE_SESSION} units="km" />)
     expect(screen.queryByRole('link', { name: 'Open the race plan' })).toBeNull()
+    expect(await screen.findByRole('link', { name: 'Open the race plan' })).toBeInTheDocument()
   })
 })
 

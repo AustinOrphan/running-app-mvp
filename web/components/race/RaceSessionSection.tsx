@@ -17,13 +17,14 @@ import styles from './Race.module.css'
  * fluid lines, and the link. The lines are the `race` or `roadRace` slot of the Today payload the
  * page already holds (read without asking again, so the block shows from a copy of Today kept
  * offline), and they appear only on the race day itself, when the payload's race is this session's
- * day. Opened from another page or day, the block is the link alone. It shows only when the cached
- * race plan answer holds a plan (`hasRacePlan`): none for a 5 km, and none while the cache is empty.
+ * day. Opened from another page or day, the block is the link alone. It shows only when the race
+ * plan answer holds a plan (`hasRacePlan`): none for a 5 km, and none while the answer is loading.
  */
 export function RaceSessionSection({ session, units }: { session: PlanSession; units: Units }) {
-  // The cached race plan answer, never a request (`enabled: false`): a goal with no plan (a 5 km)
-  // or a cache that does not hold the answer yet shows nothing, not a link to an empty page.
-  const plan = useRacePlan({ enabled: false }).data
+  // The race plan answer (one shared request when a race sheet opens, then the cache, and a read the
+  // worker keeps offline): a goal with no plan (a 5 km) shows nothing, not a link to an empty page,
+  // and so does the sheet while the answer is loading.
+  const plan = useRacePlan().data
   const today = useQuery<TodayView>({ queryKey: [keys.today], enabled: false }).data
   const summary = today?.coach.slots.race ?? null
   const road = today?.coach.slots.roadRace ?? null

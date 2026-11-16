@@ -66,7 +66,7 @@ const nearby = [
   makeActivity({ id: 'act2', date: '2027-01-12', durationSec: 1800, distanceM: 5000 }),
 ]
 
-/** `racePlan` seeds the cached race plan answer the race-day block reads (it never asks for it). */
+/** `racePlan` seeds the cached race plan answer the race-day block reads, and is what the route answers. */
 function renderSheet(session: PlanSessionView, extra: MockRoutes = {}, racePlan?: unknown) {
   const onClose = vi.fn()
   const queryClient = makeTestQueryClient()
@@ -74,6 +74,7 @@ function renderSheet(session: PlanSessionView, extra: MockRoutes = {}, racePlan?
   const api = mockApi({
     'GET /api/settings': () => settings,
     'GET /api/activities': () => activityPage(nearby),
+    ...(racePlan === undefined ? {} : { 'GET /api/race/plan': () => racePlan }),
     ...sheetRoutes([session]),
     ...extra,
   })
@@ -1163,13 +1164,30 @@ describe('the race plan block (rule H14)', () => {
     expect(within(sheet).queryByRole('link', { name: 'Open the race plan' })).toBeNull()
   })
 
-  test('with no race plan answer cached the block shows nothing and asks for nothing', async () => {
-    const { calls } = renderSheet(raceSession('z3'), noTargets)
-    const sheet = await screen.findByRole('dialog', { name: 'Race' })
-    await within(sheet).findByText('Prescription')
-    expect(within(sheet).queryByRole('link', { name: 'Open the race plan' })).toBeNull()
-    expect(calls.some((call) => call.url === '/api/race/plan')).toBe(false)
-  })
+  test.each([
+    ['an ultra', 'z1', ultraView, true],
+    ['a marathon', 'z3', marathonView, true],
+    ['a 5 km', 'z3', fiveKView, false],
+  ] as const)(
+    'with no race plan answer cached, %s sheet asks once and then shows the block: %s',
+    async (_name, zone, view, linked) => {
+      const { calls } = renderSheet(raceSession(zone), {
+        ...noTargets,
+        'GET /api/race/plan': () => view,
+      })
+      const sheet = await screen.findByRole('dialog', { name: 'Race' })
+      await within(sheet).findByText('Prescription')
+      await waitFor(() => {
+        expect(calls.filter((call) => call.url === '/api/race/plan')).toHaveLength(1)
+      })
+      const link = within(sheet).queryByRole('link', { name: 'Open the race plan' })
+      if (linked) {
+        expect(await within(sheet).findByRole('link', { name: 'Open the race plan' })).toBeVisible()
+      } else {
+        expect(link).toBeNull()
+      }
+    },
+  )
 
   test('a road race session shows its purpose with no promise of a fuel or pacing plan (RT1)', async () => {
     const purpose = 'Race day: run by effort, with the goal pace band as a guide.'
