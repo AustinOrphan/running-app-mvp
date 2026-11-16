@@ -1,5 +1,5 @@
 import { basename } from 'node:path'
-import { clockInZone, todayIso } from '../../shared/dates.ts'
+import { clockInZone, instantAtWallTime, todayIso } from '../../shared/dates.ts'
 import { runnerDays, type RunnerDay } from '../runnerDay.ts'
 import { FOLDER_SCAN_MINUTES } from '../../shared/limits.ts'
 import type { SyncStatus, SyncTrigger } from '../../shared/types.ts'
@@ -581,6 +581,26 @@ export async function runBackupCatchUp(
   return true
 }
 
+/** A runner a per-runner slot serves, and when what makes it serve the runner came into being. */
+export interface ServedRunner {
+  userId: string
+  since: Date
+}
+
+/** The runners with an active version-2 plan, each with the creation time of the newest one. */
+async function activePlanRunners(prisma: PrismaClient): Promise<ServedRunner[]> {
+  const plans = await prisma.plan.findMany({
+    where: { status: 'active', generatorVersion: { gte: 2 } },
+    select: { userId: true, createdAt: true },
+  })
+  const since = new Map<string, Date>()
+  for (const { userId, createdAt } of plans) {
+    const known = since.get(userId)
+    if (known === undefined || createdAt > known) since.set(userId, createdAt)
+  }
+  return [...since].map(([userId, at]) => ({ userId, since: at }))
+}
+
 /** Users with an active version-2 plan: whom the nightly matching and the Monday re-plan serve. */
 async function activePlanUsers(prisma: PrismaClient): Promise<string[]> {
   const plans = await prisma.plan.findMany({
@@ -813,6 +833,59 @@ export function dueRunners(
   return due
 }
 
+/** What `dueAtCheck` remembers for one per-runner slot: the date each runner's slot last ran. */
+export interface SlotState {
+  last: Map<string, string>
+  /** The runners seen at an earlier check. */
+  seen: Set<string>
+}
+
+export function newSlotState(): SlotState {
+  return { last: new Map(), seen: new Set() }
+}
+
+/**
+ * One check of a per-runner slot: the due runners with the local date, and the new `last` entries
+ * for them (D10, ADR 0022).
+ *
+ * - A runner absent from this check is forgotten (`last` and `seen`), so one who leaves and comes
+ *   back is treated as new.
+ * - A runner seen for the first time whose slot is already past is marked as done when this is the
+ *   start-up check (a restart never repeats a slot) or when what serves the runner (`since`, the
+ *   plan) came into being at or after that slot instant (it was made from that day's data). A
+ *   runner who existed before the slot instant stays due and runs in this pass, as a job that
+ *   lists every plan at the slot would have run it.
+ * - `atStart` only seeds; nothing is due from it.
+ */
+export function dueAtCheck(
+  state: SlotState,
+  now: Date,
+  runners: ReadonlyArray<{ userId: string; tz: string; since: Date }>,
+  slot: DailySlot,
+  atStart: boolean,
+): Array<{ userId: string; date: string }> {
+  const present = new Set(runners.map((runner) => runner.userId))
+  for (const id of [...state.seen]) {
+    if (!present.has(id)) state.seen.delete(id)
+  }
+  for (const id of [...state.last.keys()]) {
+    if (!present.has(id)) state.last.delete(id)
+  }
+  for (const runner of runners.filter((r) => !state.seen.has(r.userId))) {
+    state.seen.add(runner.userId)
+    const [pastSlot] = dueRunners(now, [runner], new Map(), slot)
+    if (pastSlot === undefined) continue
+    const slotAt = instantAtWallTime(pastSlot.date, slot.hour * 60 + slot.minute, runner.tz)
+    if (atStart || runner.since.getTime() >= slotAt.getTime()) {
+      state.last.set(runner.userId, pastSlot.date)
+    }
+  }
+  if (atStart) return []
+  const due = dueRunners(now, runners, state.last, slot)
+  for (const { userId, date } of due) state.last.set(userId, date)
+  return due
+}
+
 /** How often the daily jobs check whether their slot has come. */
 export const SLOT_CHECK_MS = 10 * MINUTE_MS
 /** The database copy comes first, before the night's matching and the Monday re-plan write. */
@@ -887,27 +960,25 @@ export function startScheduler(deps: Deps, opts: { fetch: typeof fetch }): () =>
   function dailyPerRunner(
     name: string,
     slot: DailySlot,
-    serves: () => Promise<string[]>,
+    serves: () => Promise<ServedRunner[]>,
     job: (userIds: string[], days: Map<string, RunnerDay>) => Promise<void>,
   ): void {
-    const last = new Map<string, string>()
-    const seeded = new Set<string>()
+    const state = newSlotState()
     let active = false
-    const check = async (seedOnly: boolean): Promise<void> => {
+    const check = async (atStart: boolean): Promise<void> => {
       const now = new Date()
-      const ids = await serves()
-      const days = await runnerDays(deps.prisma, now, ids)
-      const runners = ids.flatMap((userId) => {
+      const served = await serves()
+      const days = await runnerDays(
+        deps.prisma,
+        now,
+        served.map((runner) => runner.userId),
+      )
+      const runners = served.flatMap(({ userId, since }) => {
         const day = days.get(userId)
-        return day === undefined ? [] : [{ userId, tz: day.tz }]
+        return day === undefined ? [] : [{ userId, tz: day.tz, since }]
       })
-      const fresh = runners.filter((runner) => !seeded.has(runner.userId))
-      for (const { userId, date } of dueRunners(now, fresh, new Map(), slot)) last.set(userId, date)
-      for (const { userId } of fresh) seeded.add(userId)
-      if (seedOnly) return
-      const due = dueRunners(now, runners, last, slot)
+      const due = dueAtCheck(state, now, runners, slot, atStart)
       if (due.length === 0) return
-      for (const { userId, date } of due) last.set(userId, date)
       await job(
         due.map((runner) => runner.userId),
         days,
@@ -961,7 +1032,7 @@ export function startScheduler(deps: Deps, opts: { fetch: typeof fetch }): () =>
   }, FIRST_RUN_DELAY_MS)
   catchUp.unref()
   timers.add(catchUp)
-  const planUsers = (): Promise<string[]> => activePlanUsers(deps.prisma)
+  const planUsers = (): Promise<ServedRunner[]> => activePlanRunners(deps.prisma)
   dailyPerRunner('matching', MATCHING_SLOT, planUsers, (userIds, days) =>
     runMatchingJob(deps, { userIds, days }, log),
   )
@@ -981,7 +1052,7 @@ export function startScheduler(deps: Deps, opts: { fetch: typeof fetch }): () =>
           where: { channel: PUBLISH_CHANNEL, enabled: true },
           select: { userId: true },
         })
-      ).map((channel) => channel.userId),
+      ).map((channel) => ({ userId: channel.userId, since: new Date(0) })),
     (userIds, days) => runPublishJob(deps, { ...opts, force: true, userIds, days }, log),
   )
 

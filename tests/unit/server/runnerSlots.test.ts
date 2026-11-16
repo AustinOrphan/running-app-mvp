@@ -1,7 +1,9 @@
 import { describe, expect, test } from 'vitest'
 import {
+  dueAtCheck,
   dueRunners,
   MATCHING_SLOT,
+  newSlotState,
   REPLAN_SLOT,
   weekSlotStart,
 } from '../../../server/jobs/scheduler.ts'
@@ -189,5 +191,62 @@ describe('weekSlotStart', () => {
     expect(() => weekSlotStart(utc('2026-10-19T12:00:00'), REPLAN_SLOT, 'Not/AZone')).toThrow(
       RangeError,
     )
+  })
+})
+
+describe('dueAtCheck', () => {
+  // Monday 2026-10-19 03:00 in Berlin (UTC+2) is 01:00 UTC.
+  const berlin = 'Europe/Berlin'
+  const old = utc('2026-10-10T12:00:00')
+  const runner = (userId: string, since: Date) => ({ userId, tz: berlin, since })
+  const ids = (due: Array<{ userId: string }>) => due.map((d) => d.userId)
+
+  test('the start-up check marks a runner past the slot as done and returns nothing', () => {
+    const state = newSlotState()
+    const a = runner('a', old)
+    expect(dueAtCheck(state, utc('2026-10-19T02:00:00'), [a], REPLAN_SLOT, true)).toEqual([])
+    expect(dueAtCheck(state, utc('2026-10-19T02:10:00'), [a], REPLAN_SLOT, false)).toEqual([])
+    // The next Monday it is due again.
+    expect(ids(dueAtCheck(state, utc('2026-10-26T02:10:00'), [a], REPLAN_SLOT, false))).toEqual([
+      'a',
+    ])
+  })
+
+  test('a runner whose plan was made before the slot, first listed after it, runs in that pass', () => {
+    const state = newSlotState()
+    dueAtCheck(state, utc('2026-10-19T00:00:00'), [], REPLAN_SLOT, true)
+    // Made 02:55 Berlin (00:55 UTC), listed at the 03:05 check (01:05 UTC).
+    const made = runner('a', utc('2026-10-19T00:55:00'))
+    expect(ids(dueAtCheck(state, utc('2026-10-19T01:05:00'), [made], REPLAN_SLOT, false))).toEqual([
+      'a',
+    ])
+    // Once only.
+    expect(dueAtCheck(state, utc('2026-10-19T01:15:00'), [made], REPLAN_SLOT, false)).toEqual([])
+  })
+
+  test('a runner whose plan was made after the slot, first listed after it, is marked done', () => {
+    const state = newSlotState()
+    dueAtCheck(state, utc('2026-10-19T00:00:00'), [], REPLAN_SLOT, true)
+    // Made 03:02 Berlin (01:02 UTC): built from that day's data, nothing left to update.
+    const made = runner('a', utc('2026-10-19T01:02:00'))
+    expect(dueAtCheck(state, utc('2026-10-19T01:05:00'), [made], REPLAN_SLOT, false)).toEqual([])
+    expect(dueAtCheck(state, utc('2026-10-19T01:15:00'), [made], REPLAN_SLOT, false)).toEqual([])
+  })
+
+  test('a runner who leaves for a check and returns after the slot is treated as new, not as stale', () => {
+    const state = newSlotState()
+    const a = runner('a', old)
+    // Ran the Monday before.
+    dueAtCheck(state, utc('2026-10-12T00:00:00'), [a], REPLAN_SLOT, true)
+    expect(ids(dueAtCheck(state, utc('2026-10-12T01:10:00'), [a], REPLAN_SLOT, false))).toEqual([
+      'a',
+    ])
+    expect(state.last.get('a')).toBe('2026-10-12')
+    // The following Monday: absent at the 02:50 check (00:50 UTC), back at 03:10 with a plan made 03:02.
+    dueAtCheck(state, utc('2026-10-19T00:50:00'), [], REPLAN_SLOT, false)
+    expect(state.seen.size).toBe(0)
+    expect(state.last.size).toBe(0)
+    const back = runner('a', utc('2026-10-19T01:02:00'))
+    expect(dueAtCheck(state, utc('2026-10-19T01:10:00'), [back], REPLAN_SLOT, false)).toEqual([])
   })
 })
