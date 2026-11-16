@@ -26,9 +26,9 @@ import {
 import { runNightlyMatching } from '../../server/services/execution.ts'
 import {
   runExecutionForActivityToday as runExecutionForActivity,
+  refreshWeatherCachesToday as refreshWeatherCaches,
   storeParsedToday as storeParsed,
 } from './helpers.ts'
-import { refreshWeatherCaches } from '../../server/services/weatherCache.ts'
 import { fakeFetch } from '../fakeFetch.ts'
 import { SESSION_KINDS } from '../unit/engine/fixtures.ts'
 import {
@@ -597,7 +597,7 @@ describe('an owner unlink', () => {
       .send({ activityId: null })
     expect(res.status).toBe(200)
 
-    await runNightlyMatching(deps, { today })
+    await runNightlyMatching(deps, { todays: new Map([[u.id, today]]) })
     await runExecutionForActivity(deps, { userId: u.id, activityId: run.id })
     const row = await ctx.prisma.planSession.findUniqueOrThrow({ where: { id: rows[0]!.id } })
     expect(row.activityId).toBeNull()
@@ -633,7 +633,7 @@ describe('an owner unlink', () => {
     await ctx.prisma.planSession.update({ where: { id: strides!.id }, data: { date: sessionDay } })
 
     // The refused run is within a day of the moved session and is still not linked to it.
-    await runNightlyMatching(deps, { today })
+    await runNightlyMatching(deps, { todays: new Map([[u.id, today]]) })
     await runExecutionForActivity(deps, { userId: u.id, activityId: wrong.id })
     expect(
       await ctx.prisma.planSession.findUniqueOrThrow({ where: { id: strides!.id } }),
@@ -648,7 +648,7 @@ describe('an owner unlink', () => {
     const next = await ctx.prisma.planSession.findUniqueOrThrow({ where: { id: nextDay!.id } })
     expect(next).toMatchObject({ activityId: null, status: 'planned' })
     // The refused run stays unlinked from it, whatever runs after.
-    await runNightlyMatching(deps, { today })
+    await runNightlyMatching(deps, { todays: new Map([[u.id, today]]) })
     expect(await ctx.prisma.planSession.findFirst({ where: { activityId: wrong.id } })).toBeNull()
   })
 
@@ -670,7 +670,7 @@ describe('an owner unlink', () => {
     const stored = await ctx.prisma.planSession.findUniqueOrThrow({ where: { id: rows[0]!.id } })
     expect(JSON.parse(stored.refusedActivityIds!)).toEqual([x.id, y.id])
 
-    await runNightlyMatching(deps, { today })
+    await runNightlyMatching(deps, { todays: new Map([[u.id, today]]) })
     expect(
       (await ctx.prisma.planSession.findUniqueOrThrow({ where: { id: rows[0]!.id } })).activityId,
     ).toBeNull()
@@ -697,7 +697,7 @@ describe('an owner unlink', () => {
       data: { duplicateOfId: original.id, duplicateStatus: 'confirmed' },
     })
     await runExecutionForActivity(deps, { userId: u.id, activityId: original.id })
-    await runNightlyMatching(deps, { today })
+    await runNightlyMatching(deps, { todays: new Map([[u.id, today]]) })
     const row = () => ctx.prisma.planSession.findUniqueOrThrow({ where: { id: rows[0]!.id } })
     expect((await row()).activityId).toBeNull()
 
@@ -706,7 +706,7 @@ describe('an owner unlink', () => {
       where: { id: copy.id },
       data: { duplicateOfId: null, duplicateStatus: 'none' },
     })
-    await runNightlyMatching(deps, { today })
+    await runNightlyMatching(deps, { todays: new Map([[u.id, today]]) })
     expect((await row()).activityId).not.toBe(copy.id)
   })
 
@@ -747,7 +747,7 @@ describe('an owner unlink', () => {
     ).toBe(200)
     const better = await addRun(u.id, today, { durationSec: 60 * 60 })
     await runExecutionForActivity(deps, { userId: u.id, activityId: better.id })
-    await runNightlyMatching(deps, { today })
+    await runNightlyMatching(deps, { todays: new Map([[u.id, today]]) })
     expect(
       await ctx.prisma.planSession.findUniqueOrThrow({ where: { id: rows[0]!.id } }),
     ).toMatchObject({ activityId: chosen.id, linkSource: 'owner' })
@@ -795,7 +795,7 @@ describe('activities already linked elsewhere', () => {
     const errors: unknown[] = []
     await runNightlyMatching(
       { prisma: ctx.prisma, config: ctx.config },
-      { today, onError: (error) => errors.push(error) },
+      { todays: new Map([[u.id, today]]), onError: (error) => errors.push(error) },
     )
     expect(errors).toEqual([])
     const kept = await ctx.prisma.planSession.findUniqueOrThrow({ where: { id: rows[0]!.id } })

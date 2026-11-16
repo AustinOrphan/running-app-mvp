@@ -15,7 +15,7 @@ export function jobsRouter(deps: Deps): Router {
   router.get('/', async (req, res) => {
     const view: JobsView = {
       jobs: await latestJobRuns(prisma, req.userId),
-      weeklyUpdate: await weeklyUpdateStatus(prisma, req.userId, new Date()),
+      weeklyUpdate: await weeklyUpdateStatus(prisma, req.userId, new Date(), req.runnerDay.tz),
     }
     res.json(view)
   })

@@ -32,17 +32,16 @@ export function matchCounts(files: readonly string[], pattern: RegExp): Record<s
 
 /** Server files reading the process zone through `todayIso`, with the number of calls. */
 const SERVER_TODAY_ISO: Record<string, number> = {
-  'server/jobs/scheduler.ts': 6,
-  'server/jobs/weeklyUpdate.ts': 1,
-  'server/services/publish.ts': 5,
-  'server/services/watchRatingBackfill.ts': 1,
-  'server/services/weatherCache.ts': 2,
+  // `dueSlot`, the backup's slot on the server clock.
+  'server/jobs/scheduler.ts': 1,
 }
 
-/** Server files calling a local-clock getter or setter (the backup slot, the Smashrun offset). */
+/**
+ * Server files calling a local-clock getter or setter: the backup slot functions (`dueSlot`,
+ * `lastSlotStart`) and the Smashrun offset.
+ */
 const SERVER_LOCAL_CLOCK: Record<string, number> = {
   'server/jobs/scheduler.ts': 6,
-  'server/jobs/weeklyUpdate.ts': 4,
   'server/routes/imports.ts': 1,
 }
 
@@ -83,9 +82,7 @@ const OFFSETLESS_DATE = /new Date\(\s*(?:`[^`]*|'[^']*|"[^"]*)T\d\d:\d\d(?::\d\d
 const TODAY_ISO_ALIAS = /\btodayIso\s+as\b/g
 
 /** Server files building a Date from an offset-less ISO time (process zone). */
-const SERVER_OFFSETLESS_DATE: Record<string, number> = {
-  'server/services/brief.ts': 2,
-}
+const SERVER_OFFSETLESS_DATE: Record<string, number> = {}
 
 describe('the process zone under server/', () => {
   const files = sourceFiles('server', ['.ts'])

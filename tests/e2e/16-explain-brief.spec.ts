@@ -12,6 +12,9 @@ import type { Deps } from '../../server/app.ts'
 import { loadConfig } from '../../server/config.ts'
 import { createPrisma, initSqlite } from '../../server/db.ts'
 import { runReplanJob } from '../../server/jobs/scheduler.ts'
+import { serverTimeZone } from '../../server/runnerDay.ts'
+import { generateBrief } from '../../server/services/brief.ts'
+import { replanActivePlan } from '../../server/services/planEngine.ts'
 import { E2E_DATABASE_URL } from './env.ts'
 import {
   E2E_SESSION_SECRET,
@@ -124,6 +127,26 @@ async function planState(): Promise<string> {
 /** The Monday update, run as the scheduler runs it on `monday` at 03:00, writing its revision and brief. */
 async function runWeeklyUpdate(monday: string): Promise<void> {
   await runReplanJob(deps, { now: new Date(`${monday}T03:00:00`) })
+}
+
+/**
+ * A fresh weekly update for the week of `monday` after an earlier one was undone: the job counts an
+ * undone weekly revision as the week's update and does not redo it, so this makes the revision and
+ * the brief the way the job does, for the runner of the spec, on `monday` in the server's zone.
+ */
+async function runFreshWeeklyUpdate(monday: string): Promise<void> {
+  const user = await deps.prisma.user.findFirstOrThrow({ orderBy: { createdAt: 'asc' } })
+  const revision = await replanActivePlan(deps, {
+    userId: user.id,
+    reason: 'weekly',
+    today: monday,
+  })
+  await generateBrief(deps, {
+    userId: user.id,
+    today: monday,
+    tz: serverTimeZone(),
+    revisionId: revision.id,
+  })
 }
 
 /** The brief of the week that opens on `monday`, which the update just described. */
@@ -429,9 +452,9 @@ test('undo shows what it would change back before it does, and restores the plan
 test('undo is refused once a run is linked to a session the update changed', async () => {
   const { today, thisMonday } = relativeDates()
   const monday = addDays(thisMonday, 7)
-  // The undone update is made again by the next run of the job, on the same report of illness.
+  // The undone update is made again as a fresh weekly update, on the same report of illness.
   await reportIllness(thisMonday, true)
-  await runWeeklyUpdate(monday)
+  await runFreshWeeklyUpdate(monday)
   await reportIllness(thisMonday, false)
   const { revision } = await briefOf(monday)
   expect(revision.undo.available).toBe(true)

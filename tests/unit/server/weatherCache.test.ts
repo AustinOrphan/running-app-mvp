@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, beforeEach, describe, expect, inject, test, vi } from 'vitest'
+import { todayIso } from '../../../shared/dates.ts'
 import { weatherIndex } from '../../../shared/engine/heat.ts'
 import type { Deps } from '../../../server/app.ts'
 import type { Config } from '../../../server/config.ts'
@@ -24,7 +25,7 @@ import {
   getForecastView,
   NO_FORECAST,
   readClimate,
-  refreshWeatherCaches,
+  refreshWeatherCaches as refreshWeatherCachesOn,
   settleWeatherCache,
   warmWeatherCaches,
 } from '../../../server/services/weatherCache.ts'
@@ -36,6 +37,10 @@ const MINUTE = 60_000
 // A Friday, local noon; the race below is on 2027-06-26.
 const NOW = new Date(2026, 9, 23, 12)
 const later = (ms: number): Date => new Date(NOW.getTime() + ms)
+
+/** `refreshWeatherCaches` with the server's day at `now` as the runner's. */
+const refreshWeatherCaches = (d: Deps, userId: string, opts: { now: Date; fetch?: typeof fetch }) =>
+  refreshWeatherCachesOn(d, userId, { ...opts, today: todayIso(opts.now) })
 
 let dir: string
 let prisma: PrismaClient
@@ -924,7 +929,7 @@ describe('warmWeatherCaches', () => {
       [`GET ${ARCHIVE}`]: archiveRoute(calls, 503),
     })
 
-    warmWeatherCaches(deps, user.id)
+    warmWeatherCaches(deps, user.id, todayIso(NOW))
     await settleWeatherCache()
 
     expect(await prisma.forecastCache.count()).toBe(1)
