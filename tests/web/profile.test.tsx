@@ -91,7 +91,7 @@ function makeScreening(over: Partial<Screening> = {}): Screening {
   }
 }
 
-function setup(profile: AthleteProfile, extra: MockRoutes = {}) {
+function setup(profile: AthleteProfile, extra: MockRoutes = {}, runnerZone?: string) {
   const api = mockApi({
     'GET /api/settings': settings('km'),
     'GET /api/zones': () => emptyZones(),
@@ -101,7 +101,7 @@ function setup(profile: AthleteProfile, extra: MockRoutes = {}) {
     ...extra,
   })
   const user = userEvent.setup()
-  renderWithProviders(<ProfilePage />)
+  renderWithProviders(<ProfilePage />, runnerZone === undefined ? {} : { runnerZone })
   return { api, user }
 }
 
@@ -573,6 +573,124 @@ describe('ProfilePage', () => {
     setup(makeProfile({ timezone: 'Europe/London' }))
     await loaded()
     expect(screen.getByRole('combobox', { name: 'Timezone' })).toHaveValue('Europe/London')
+  })
+
+  describe('the zone the days follow', () => {
+    const SERVER = 'Pacific/Kiritimati'
+
+    test('the picker names the server zone in its unset entry and has a UTC entry', async () => {
+      setup(makeProfile({ timezone: 'Europe/London' }), {}, SERVER)
+      await loaded()
+      const picker = screen.getByRole('combobox', { name: 'Timezone' })
+      const unset = within(picker).getByRole('option', {
+        name: "Not set (the server's zone, Pacific/Kiritimati)",
+      })
+      expect(unset).toHaveValue('UTC')
+      expect(within(picker).getByRole('option', { name: 'UTC' })).toHaveValue('Etc/UTC')
+      expect(within(picker).getAllByRole('option')[0]).toBe(unset)
+    })
+
+    test('choosing the UTC entry saves Etc/UTC; choosing the unset entry saves UTC', async () => {
+      const { api, user } = setup(makeProfile({ timezone: 'Europe/London' }), {}, SERVER)
+      await loaded()
+      const picker = screen.getByRole('combobox', { name: 'Timezone' })
+      await user.selectOptions(picker, within(picker).getByRole('option', { name: 'UTC' }))
+      await user.click(screen.getByRole('button', { name: 'Save profile' }))
+      await waitFor(() => {
+        expect(puts(api)).toHaveLength(1)
+      })
+      expect(puts(api)[0]?.body).toMatchObject({ timezone: 'Etc/UTC' })
+      await user.selectOptions(picker, "Not set (the server's zone, Pacific/Kiritimati)")
+      await user.click(screen.getByRole('button', { name: 'Save profile' }))
+      await waitFor(() => {
+        expect(puts(api)).toHaveLength(2)
+      })
+      expect(puts(api)[1]?.body).toMatchObject({ timezone: 'UTC' })
+    })
+
+    test('a stored Etc/UTC shows the UTC entry', async () => {
+      setup(makeProfile({ timezone: 'Etc/UTC' }), {}, SERVER)
+      await loaded()
+      expect(screen.getByRole('combobox', { name: 'Timezone' })).toHaveDisplayValue('UTC')
+    })
+
+    test('the line names the server zone and its date whatever zone is saved', async () => {
+      setup(makeProfile({ timezone: 'Europe/London' }), {}, SERVER)
+      await loaded()
+      const line = screen.getByText(/^Days follow the server's zone, Pacific\/Kiritimati/)
+      expect(line).toHaveTextContent(
+        /^Days follow the server's zone, Pacific\/Kiritimati, whatever zone is saved here\. Today is \w{3} \d{1,2} \w{3} \d{4} there\. Days already logged keep their dates\.$/,
+      )
+      expect(screen.queryByText(/^Saving sets the zone/)).not.toBeInTheDocument()
+      expectCleanCopy(line)
+    })
+
+    test('the line is the same with the zone unset', async () => {
+      setup(makeProfile({ timezone: 'Etc/UTC' }), {}, SERVER)
+      await loaded()
+      expect(screen.getByText(/^Days follow the server's zone, Pacific\/Kiritimati/)).toBeVisible()
+    })
+
+    test('a zone pre-filled from the browser over an unset zone says what saving does', async () => {
+      vi.spyOn(Intl.DateTimeFormat.prototype, 'resolvedOptions').mockReturnValue({
+        locale: 'en-US',
+        calendar: 'gregory',
+        numberingSystem: 'latn',
+        timeZone: 'Pacific/Auckland',
+      })
+      setup(makeProfile({ timezone: 'UTC' }), {}, SERVER)
+      await loaded()
+      const note = screen.getByText(/^Saving sets the zone/)
+      expect(note).toHaveTextContent(
+        "Saving sets the zone that dates imported runs to Pacific/Auckland. Days still follow the server's zone.",
+      )
+      expectCleanCopy(note)
+    })
+
+    test('choosing Not set and saving keeps the unset entry and hides the save note', async () => {
+      vi.spyOn(Intl.DateTimeFormat.prototype, 'resolvedOptions').mockReturnValue({
+        locale: 'en-US',
+        calendar: 'gregory',
+        numberingSystem: 'latn',
+        timeZone: 'Pacific/Auckland',
+      })
+      // The server keeps what was saved, so the profile read that a zone change triggers sees it.
+      let stored = makeProfile({ timezone: 'Europe/London' })
+      const { api, user } = setup(
+        stored,
+        {
+          'GET /api/profile': () => stored,
+          'PUT /api/profile': ({ body }) => {
+            stored = { ...stored, ...(body as Partial<AthleteProfile>) }
+            return stored
+          },
+        },
+        SERVER,
+      )
+      await loaded()
+      const picker = screen.getByRole('combobox', { name: 'Timezone' })
+      await user.selectOptions(picker, "Not set (the server's zone, Pacific/Kiritimati)")
+      await user.click(screen.getByRole('button', { name: 'Save profile' }))
+      await waitFor(() => {
+        expect(puts(api)).toHaveLength(1)
+      })
+      expect(puts(api)[0]?.body).toMatchObject({ timezone: 'UTC' })
+      await waitFor(() => {
+        expect(picker).toHaveDisplayValue("Not set (the server's zone, Pacific/Kiritimati)")
+      })
+      expect(screen.queryByText(/^Saving sets the zone/)).not.toBeInTheDocument()
+    })
+
+    test('there is no line while the session zone is unknown', async () => {
+      setup(makeProfile({ timezone: 'Europe/London' }))
+      await loaded()
+      expect(screen.queryByText(/^Days follow/)).not.toBeInTheDocument()
+      expect(
+        within(screen.getByRole('combobox', { name: 'Timezone' })).getByRole('option', {
+          name: "Not set (the server's zone)",
+        }),
+      ).toBeInTheDocument()
+    })
   })
 
   test('shows a load failure', async () => {

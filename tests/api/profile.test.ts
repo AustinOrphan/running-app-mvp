@@ -82,6 +82,18 @@ describe('PUT /api/profile', () => {
     expect(get.body).toEqual(body)
   })
 
+  test('stores Etc/UTC as written, apart from the unset UTC', async () => {
+    const put = await client(ctx, user)
+      .put('/api/profile')
+      .send({ timezone: 'Etc/UTC' })
+      .expect(200)
+    expect(put.body).toMatchObject({ timezone: 'Etc/UTC' })
+    const row = await ctx.prisma.athleteProfile.findUnique({ where: { userId: user.id } })
+    expect(row?.timezone).toBe('Etc/UTC')
+    const get = await client(ctx, user).get('/api/profile').expect(200)
+    expect(get.body).toMatchObject({ timezone: 'Etc/UTC' })
+  })
+
   test('merges a partial body into the saved profile', async () => {
     await client(ctx, user)
       .put('/api/profile')
