@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { isoDateInZone, todayIso } from '../../shared/dates.ts'
 import type { SessionUser, TodayView } from '../../shared/types.ts'
 import { api, keys } from './client.ts'
+import { copyRetryInterval, useAskAgainOnReconnect } from './copyRetry.ts'
 
 /**
  * Today as one coach payload: the session of the day with its targets, the readiness read, the
@@ -11,15 +12,21 @@ import { api, keys } from './client.ts'
  * is cheap while nothing has changed. A stale payload is read again when the window regains
  * focus: a phone that was locked overnight shows the new day's session, not yesterday's. A surface
  * that needs only the server's date, and only once a control is open, passes `enabled: false`
- * until then.
+ * until then. While the answer is the phone's copy and the browser is online, it is asked again
+ * until the server answers (`copyRetry.ts`).
  */
 export function useToday(options: { enabled?: boolean } = {}) {
-  return useQuery({
-    queryKey: [keys.today],
+  const queryKey = [keys.today]
+  const enabled = options.enabled ?? true
+  const query = useQuery({
+    queryKey,
     queryFn: () => api<TodayView>('GET', '/today'),
     refetchOnWindowFocus: true,
-    enabled: options.enabled ?? true,
+    refetchInterval: copyRetryInterval,
+    enabled,
   })
+  useAskAgainOnReconnect({ queryKey, data: query.data, refetch: query.refetch, enabled })
+  return query
 }
 
 /** The longest delay a timer takes: browsers keep it in 32 bits. */

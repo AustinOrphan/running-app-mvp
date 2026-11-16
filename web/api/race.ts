@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { RaceCheckpointRow, RaceCheckpointsView, RacePlanView } from '../../shared/types.ts'
 import { api, keys } from './client.ts'
+import { copyRetryInterval, useAskAgainOnReconnect } from './copyRetry.ts'
 
 /**
  * The race plan of the runner's current goal (rule H14, ADR 0018), or why there is none. The
@@ -9,14 +10,29 @@ import { api, keys } from './client.ts'
  * (`staleTime: 0`) because a fuel log, a goal edit or a profile save elsewhere changes it and none
  * of those writes know this key. It is one of the reads the service worker keeps (ADR 0012,
  * addendum): with no signal the answer is the phone's copy, marked `servedFromCache` with `savedAt`.
+ * It asks again when the connection returns and repeats until the server answers (`copyRetry.ts`).
  */
 export function useRacePlan(options: { enabled?: boolean } = {}) {
-  return useQuery({
-    queryKey: [keys.race, 'plan'],
+  const queryKey = [keys.race, 'plan']
+  const enabled = options.enabled ?? true
+  const query = useQuery({
+    queryKey,
     queryFn: () => api<RacePlanView>('GET', '/race/plan'),
     staleTime: 0,
-    enabled: options.enabled ?? true,
+    refetchInterval: copyRetryInterval,
+    enabled,
   })
+  useAskAgainOnReconnect({ queryKey, data: query.data, refetch: query.refetch, enabled })
+  return query
+}
+
+/**
+ * Whether the answer holds a race plan to open: the ultra plan or the road plan (ADR 0023). The
+ * More row and the rail read this one test, so a new kind of plan changes one place. Nothing
+ * while the answer is not in.
+ */
+export function hasRacePlan(view: RacePlanView | undefined): boolean {
+  return view?.plan != null || view?.road != null
 }
 
 /**

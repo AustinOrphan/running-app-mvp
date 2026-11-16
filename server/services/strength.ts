@@ -8,7 +8,7 @@
 // strength models are state (`server/dataVersion.ts`). The read side (the strength state through
 // `memoByVersion`, the workouts, the page view, the Today slot, the suggestions after a save) is at
 // the end of the file (E14-6).
-import { addDays, mondayOf, todayIso } from '../../shared/dates.ts'
+import { addDays, mondayOf } from '../../shared/dates.ts'
 import { isToRun } from '../../shared/domain/sessionStatus.ts'
 import { isExerciseId, type ExerciseId } from '../../shared/domain/strengthLibrary.ts'
 import { aggregateWeeks } from '../../shared/domain/weeks.ts'
@@ -242,7 +242,12 @@ function notStrength(): never {
   throw conflict('Sets can be logged only on a strength activity.')
 }
 
-async function readResult(deps: Deps, userId: string, logId: string): Promise<StrengthLogResult> {
+async function readResult(
+  deps: Deps,
+  userId: string,
+  logId: string,
+  today: string,
+): Promise<StrengthLogResult> {
   const row = await deps.prisma.strengthLog.findFirstOrThrow({
     where: { id: logId, userId },
     include: { sets: true, activity: true },
@@ -251,7 +256,7 @@ async function readResult(deps: Deps, userId: string, logId: string): Promise<St
   return {
     log,
     activity: toActivity(row.activity),
-    next: await suggestionsAfterSave(deps, userId, log),
+    next: await suggestionsAfterSave(deps, userId, log, today),
   }
 }
 
@@ -261,6 +266,7 @@ async function attemptSave(
   userId: string,
   logId: string,
   input: StrengthLogInput,
+  today: string,
 ): Promise<SavedStrengthLog> {
   const { prisma } = deps
   const existing = await prisma.strengthLog.findUnique({ where: { id: logId } })
@@ -295,12 +301,13 @@ async function attemptSave(
         notes: input.notes ?? null,
       },
       {
+        today,
         ...(input.sessionId === undefined ? {} : { sessionId: input.sessionId }),
         within: (tx, activity) =>
           createLogRows(tx, { userId, logId, activityId: activity.id, input }),
       },
     )
-    return { result: await readResult(deps, userId, logId), created: true }
+    return { result: await readResult(deps, userId, logId, today), created: true }
   }
 
   const activity = await prisma.activity.findFirst({ where: { id: activityId, userId } })
@@ -338,8 +345,8 @@ async function attemptSave(
     }
   })
   if (matchChanged) await rematchDuplicates(prisma, userId, activityId)
-  await tieToPlan(deps, userId, activity, input)
-  return { result: await readResult(deps, userId, logId), created: !existing }
+  await tieToPlan(deps, userId, activity, input, today)
+  return { result: await readResult(deps, userId, logId, today), created: !existing }
 }
 
 /**
@@ -351,14 +358,21 @@ async function tieToPlan(
   userId: string,
   activity: ActivityRow,
   input: StrengthLogInput,
+  today: string,
 ): Promise<void> {
   if (input.sessionId !== undefined) {
-    await linkPlanSession(deps, { userId, sessionId: input.sessionId, activityId: activity.id })
+    await linkPlanSession(deps, {
+      userId,
+      sessionId: input.sessionId,
+      activityId: activity.id,
+      today,
+    })
     return
   }
   await runExecutionQuietly(deps, {
     userId,
     activityId: activity.id,
+    today,
     ...(input.date === activity.date ? {} : { reconsider: 'date' as const }),
   })
 }
@@ -376,14 +390,15 @@ export async function saveStrengthLog(
   userId: string,
   logId: string,
   input: StrengthLogInput,
+  today: string,
 ): Promise<SavedStrengthLog> {
   try {
-    return await attemptSave(deps, userId, logId, input)
+    return await attemptSave(deps, userId, logId, input, today)
   } catch (error) {
     // Two sends of one save at once: the loser's write hit the winner's row. By now the log
     // exists, so the second try is a replacement.
     if (!isUniqueViolation(error)) throw error
-    return attemptSave(deps, userId, logId, input)
+    return attemptSave(deps, userId, logId, input, today)
   }
 }
 
@@ -853,8 +868,8 @@ async function nextLoads(
   deps: Deps,
   userId: string,
   log: StrengthLog,
+  today: string,
 ): Promise<StrengthNextLoad[]> {
-  const today = todayIso()
   const [athlete, context] = await Promise.all([
     loadAthleteContext(deps, { userId, today }),
     loadStrengthContext(deps, { userId, today }),
@@ -886,9 +901,10 @@ async function suggestionsAfterSave(
   deps: Deps,
   userId: string,
   log: StrengthLog,
+  today: string,
 ): Promise<StrengthNextLoad[]> {
   try {
-    return await nextLoads(deps, userId, log)
+    return await nextLoads(deps, userId, log, today)
   } catch (error) {
     createLogger(deps.config).warn(
       { reason: safeMessage(error) },

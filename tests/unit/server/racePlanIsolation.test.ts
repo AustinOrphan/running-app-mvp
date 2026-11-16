@@ -77,15 +77,22 @@ describe('who reads the race plan', () => {
     expect(importers('shared/copy/racePlan.ts')).toEqual(COPY_ALLOWED)
   })
 
-  test('only the road copy and the shared types import the road engine module', () => {
+  test('only the road copy, the shared types and the road pieces of the web import the road engine module', () => {
     expect(importers('shared/engine/racePlanRoad.ts')).toEqual([
       'shared/copy/racePlanRoad.ts',
       'shared/types.ts',
+      'web/components/race/RaceSlot.tsx',
+      'web/components/race/RoadRaceBlocks.tsx',
     ])
   })
 
-  test('only the template registry imports the road copy', () => {
-    expect(importers('shared/copy/racePlanRoad.ts')).toEqual(['shared/copy/templates.ts'])
+  test('only the template registry and the road pieces of the web import the road copy', () => {
+    expect(importers('shared/copy/racePlanRoad.ts')).toEqual([
+      'shared/copy/templates.ts',
+      'web/components/race/RaceSessionSection.tsx',
+      'web/components/race/RaceSlot.tsx',
+      'web/components/race/RoadRaceBlocks.tsx',
+    ])
   })
 
   test('only the Today slot table, Today, the route and the app read the race service', () => {

@@ -12,13 +12,11 @@ import {
   type RemoteActivityRef,
 } from '../../server/providers/types.ts'
 import { runFolderJob, runSyncJob } from '../../server/jobs/scheduler.ts'
-import { scanFolderIntegration } from '../../server/services/folder.ts'
+import { SECRET_CHANGED, sealSecret, settleBackground } from '../../server/services/sync.ts'
 import {
-  SECRET_CHANGED,
-  sealSecret,
-  settleBackground,
-  syncProvider,
-} from '../../server/services/sync.ts'
+  scanFolderIntegrationToday as scanFolderIntegration,
+  syncProviderToday as syncProvider,
+} from './helpers.ts'
 import {
   MAX_FAILURES_STORED,
   MAX_MESSAGE_CHARS,

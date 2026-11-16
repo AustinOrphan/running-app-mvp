@@ -1,6 +1,5 @@
 import { Router } from 'express'
 import { z } from 'zod'
-import { todayIso } from '../../shared/dates.ts'
 import type { TrendsDurabilityView } from '../../shared/domain/durabilityByHour.ts'
 import type { Deps } from '../app.ts'
 import { parse } from '../errors.ts'
@@ -25,7 +24,7 @@ export function trendsDurabilityRouter(deps: Deps): Router {
   router.get('/', async (req, res) => {
     parse(query, req.query)
     const { userId } = req
-    const today = todayIso()
+    const { today } = req.runnerDay
     const view = await memoByVersion(
       deps,
       { userId, name: TRENDS_DURABILITY_MEMO, today },

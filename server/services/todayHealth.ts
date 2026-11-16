@@ -5,7 +5,8 @@
 // counts read the athlete snapshot only; a producer receives the snapshot too and may read a table
 // of its own. The producers of the job-log notes and of the source notes are registered at the end
 // of this file, and their ETag stamps in `today.ts`.
-import { addDays, daysBetween, mondayOf, todayIso } from '../../shared/dates.ts'
+import { addDays, daysBetween, isoDateInZone, mondayOf } from '../../shared/dates.ts'
+import { runnerZone } from '../runnerDay.ts'
 import { isToRun } from '../../shared/domain/sessionStatus.ts'
 import { aggregateWeeks } from '../../shared/domain/weeks.ts'
 import { P } from '../../shared/engine/params/index.ts'
@@ -176,11 +177,15 @@ export async function todayHealth(args: HealthNoteArgs): Promise<TodayHealth> {
  * has not run yet" when the weekly update is due (`weeklyUpdateStatus`, the same answer as
  * `GET /api/jobs`). The two sentences are templates; neither carries a slot.
  */
-export async function jobHealthNotes({ deps, userId }: HealthNoteArgs): Promise<HealthNote[]> {
+export async function jobHealthNotes({
+  deps,
+  userId,
+  context,
+}: HealthNoteArgs): Promise<HealthNote[]> {
   const { prisma } = deps
   const [jobs, weekly] = await Promise.all([
     latestJobRuns(prisma, userId),
-    weeklyUpdateStatus(prisma, userId, new Date()),
+    weeklyUpdateStatus(prisma, userId, new Date(), runnerZone(context.profile.timezone)),
   ])
   const notes: HealthNote[] = []
   if (jobs.some((job) => job.provider === 'sync' && job.status === 'paused')) {
@@ -212,16 +217,18 @@ export async function jobHealthNotes({ deps, userId }: HealthNoteArgs): Promise<
 export async function jobNotesStamp({
   deps,
   userId,
+  tz,
 }: {
   deps: Deps
   userId: string
+  tz: string
 }): Promise<string> {
   const latest = await deps.prisma.syncRun.findFirst({
     where: { userId, channel: 'job', provider: 'sync' },
     orderBy: [{ startedAt: 'desc' }, { id: 'desc' }],
     select: { status: true },
   })
-  const slot = weekSlotStart(new Date(), REPLAN_SLOT)
+  const slot = weekSlotStart(new Date(), REPLAN_SLOT, tz)
   return `jobs:${latest?.status === 'paused' ? 'paused' : 'ok'}:${slot === null ? 'none' : String(slot.getTime())}`
 }
 
@@ -335,7 +342,8 @@ export async function sourceHealthNotes({
         orderBy: { date: 'desc' },
         select: { date: true },
       })
-      const since = newest?.date ?? todayIso(row.createdAt)
+      const since =
+        newest?.date ?? isoDateInZone(row.createdAt, runnerZone(context.profile.timezone))
       if (daysBetween(since, today) <= silentDays) return null
       if (plannedRuns.filter((date) => date > since && date <= today).length < 2) return null
       return {

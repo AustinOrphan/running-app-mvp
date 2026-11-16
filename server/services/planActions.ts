@@ -290,7 +290,7 @@ function assertCurrent(computed: ComputedAction, expectHash: string | undefined)
 /** Re-plans the active plan on request. 409 `stale-preview` when `expectHash` no longer matches. */
 export async function commitReplan(
   deps: Deps,
-  args: { userId: string; today: string; expectHash?: string },
+  args: { userId: string; today: string; tz: string; expectHash?: string },
 ): Promise<PlanRevisionView> {
   const computed = await computeAction(deps, {
     userId: args.userId,
@@ -312,7 +312,12 @@ export async function commitReplan(
       }),
     )
   }
-  return viewRevision(deps, { userId: args.userId, revisionId: written.id })
+  return viewRevision(deps, {
+    userId: args.userId,
+    revisionId: written.id,
+    today: args.today,
+    tz: args.tz,
+  })
 }
 
 /**
@@ -325,9 +330,9 @@ export async function commitReplan(
  */
 export async function commitLoadSetting(
   deps: Deps,
-  args: { userId: string; loadAppetite: LoadAppetite; today: string },
+  args: { userId: string; loadAppetite: LoadAppetite; today: string; tz: string },
 ): Promise<LoadSettingResult> {
-  const { userId, loadAppetite, today } = args
+  const { userId, loadAppetite, today, tz } = args
   const plan = await deps.prisma.plan.findFirst({
     where: { userId, status: 'active' },
     orderBy: { createdAt: 'desc' },
@@ -343,7 +348,7 @@ export async function commitLoadSetting(
       const written = await applyReplan(deps, result, { checkHead: true })
       return {
         loadAppetite,
-        revision: await viewRevision(deps, { userId, revisionId: written.id }),
+        revision: await viewRevision(deps, { userId, revisionId: written.id, today, tz }),
       }
     } catch (error) {
       if (!(error instanceof StaleWrite)) throw error
@@ -365,9 +370,9 @@ export async function commitLoadSetting(
  */
 export async function commitMethod(
   deps: Deps,
-  args: { userId: string; method: PresetId; today: string },
+  args: { userId: string; method: PresetId; today: string; tz: string },
 ): Promise<MethodChangeResult> {
-  const { userId, method, today } = args
+  const { userId, method, today, tz } = args
   const plan = await deps.prisma.plan.findFirst({
     where: { userId, status: 'active' },
     orderBy: { createdAt: 'desc' },
@@ -381,7 +386,10 @@ export async function commitMethod(
     const result = await computeReplan(deps, { userId, reason: 'method-change', today, method })
     try {
       const written = await applyReplan(deps, result, { checkHead: true })
-      return { method, revision: await viewRevision(deps, { userId, revisionId: written.id }) }
+      return {
+        method,
+        revision: await viewRevision(deps, { userId, revisionId: written.id, today, tz }),
+      }
     } catch (error) {
       if (!(error instanceof StaleWrite)) throw error
       if (attempt >= 2) throw conflict(stalePreviewMessage())
@@ -407,9 +415,10 @@ export async function commitRaise(
     currentMin: number
     raisedMin: number
     today: string
+    tz: string
   },
 ): Promise<RaiseResult> {
-  const { userId, weekStart, today } = args
+  const { userId, weekStart, today, tz } = args
   if (weekStart !== raiseWeekOf(today) || (await raiseAnsweredWithin(deps, { userId, today }))) {
     throw conflict(stalePreviewMessage())
   }
@@ -435,7 +444,7 @@ export async function commitRaise(
     try {
       const written = await applyReplan(deps, result, { checkHead: true })
       await saveRaiseAnswer(deps, { userId, weekStart, answer: 'raised', today })
-      return { revision: await viewRevision(deps, { userId, revisionId: written.id }) }
+      return { revision: await viewRevision(deps, { userId, revisionId: written.id, today, tz }) }
     } catch (error) {
       if (!(error instanceof StaleWrite)) throw error
       if (attempt >= 2) throw conflict(stalePreviewMessage())
@@ -451,9 +460,15 @@ export async function commitRaise(
  */
 export async function commitDisruption(
   deps: Deps,
-  args: { userId: string; action: DisruptionAction; today: string; expectHash?: string },
+  args: {
+    userId: string
+    action: DisruptionAction
+    today: string
+    tz: string
+    expectHash?: string
+  },
 ): Promise<DisruptionResult> {
-  const { userId, action, today } = args
+  const { userId, action, today, tz } = args
   const computed = await computeAction(deps, { userId, action, today })
   assertCurrent(computed, args.expectHash)
   const { planned } = computed.work
@@ -467,7 +482,7 @@ export async function commitDisruption(
     if (!(error instanceof StaleWrite)) throw error
     throw stalePreview(await computeAction(deps, { userId, action, today }))
   }
-  const revision = await viewRevision(deps, { userId, revisionId: written.id })
+  const revision = await viewRevision(deps, { userId, revisionId: written.id, today, tz })
   const disruption = await viewDisruption(deps, {
     userId,
     id: revision.disruptionId!,
@@ -521,10 +536,11 @@ export async function commitAdjust(
     sessionId: string
     adjustment: PlanAdjustment
     today: string
+    tz: string
     expectHash?: string
   },
 ): Promise<AdjustResult> {
-  const { userId, today } = args
+  const { userId, today, tz } = args
   const action = { type: 'adjust', sessionId: args.sessionId, adjustment: args.adjustment } as const
   const computed = await computeAction(deps, { userId, action, today })
   assertCurrent(computed, args.expectHash)
@@ -545,7 +561,12 @@ export async function commitAdjust(
     if (!(error instanceof StaleAdjust)) throw error
     throw stalePreview(await computeAction(deps, { userId, action, today }))
   }
-  const revision = await viewRevision(deps, { userId, revisionId: written.revision.id })
+  const revision = await viewRevision(deps, {
+    userId,
+    revisionId: written.revision.id,
+    today,
+    tz,
+  })
   return adjustResult(computed, { revision, session: toPlanSession(written.session) })
 }
 
@@ -686,6 +707,7 @@ async function applyUndo(
       const revision = await recordPlanWrite(tx, {
         planId,
         userId,
+        today: args.today,
         reason: 'undo',
         summary: plan.summary,
         changes: [],
@@ -714,9 +736,9 @@ async function applyUndo(
  */
 export async function commitUndo(
   deps: Deps,
-  args: { userId: string; revisionId: string; today: string; expectHash?: string },
+  args: { userId: string; revisionId: string; today: string; tz: string; expectHash?: string },
 ): Promise<UndoResult> {
-  const { userId, revisionId, today } = args
+  const { userId, revisionId, today, tz } = args
   const action = { type: 'undo', revisionId } as const
   const computed = await computeAction(deps, { userId, action, today })
   assertCurrent(computed, args.expectHash)
@@ -736,8 +758,8 @@ export async function commitUndo(
     throw stalePreview(await computeAction(deps, { userId, action, today }))
   }
   const [revision, target] = await Promise.all([
-    viewRevision(deps, { userId, revisionId: undoRevisionId }),
-    viewRevision(deps, { userId, revisionId }),
+    viewRevision(deps, { userId, revisionId: undoRevisionId, today, tz }),
+    viewRevision(deps, { userId, revisionId, today, tz }),
   ])
   return { revision, target }
 }

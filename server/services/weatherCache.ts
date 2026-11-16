@@ -5,7 +5,7 @@
 // forecast route when its cell is empty (5 s) and plan generation on a cold race climate (8 s).
 // Every request goes through the injected `fetch` (`Deps.fetch`, else the global one, looked up at
 // each call), so a test hands in synthetic responses and none touches the network.
-import { addDays, todayIso } from '../../shared/dates.ts'
+import { addDays, isoDateInZone } from '../../shared/dates.ts'
 import { weatherIndex } from '../../shared/engine/heat.ts'
 import type { ForecastView } from '../../shared/types.ts'
 import type { Deps } from '../app.ts'
@@ -423,7 +423,8 @@ function isLeapYear(year: number): boolean {
 /**
  * The race dates of the last three years whose window the archive already holds, newest first.
  * They count back from today, not from the goal's year, so one row serves every goal that shares
- * its place, date and clock window.
+ * its place, date and clock window. `today` is the UTC date (D10, ADR 0022): the archive's lag is
+ * counted on the provider's clock and the cache is keyed by place, not by runner.
  */
 function archiveDates(monthDay: string, today: string): string[] {
   const latest = addDays(today, -(ARCHIVE_LAG_DAYS + CLIMATE_SPREAD_DAYS))
@@ -478,7 +479,7 @@ function refreshClimate(
     const values: number[] = []
     let yearsRead = 0
     let firstError: unknown = null
-    for (const date of archiveDates(key.monthDay, todayIso(now))) {
+    for (const date of archiveDates(key.monthDay, isoDateInZone(now, 'UTC'))) {
       try {
         const hours = await fetchClimateHours(fetchFn, {
           ...place,
@@ -610,11 +611,13 @@ export interface RefreshOutcome {
 export async function refreshWeatherCaches(
   deps: Deps,
   userId: string,
-  opts: { fetch?: typeof fetch; now?: Date } = {},
+  opts: { fetch?: typeof fetch; now?: Date; today: string },
 ): Promise<RefreshOutcome> {
   const { prisma } = deps
   const fetchFn = opts.fetch ?? fetchOf(deps)
   const now = opts.now ?? new Date()
+  // The runner's day (D10, ADR 0022) bounds the goals; the caller passes it.
+  const { today } = opts
   const outcome: RefreshOutcome = { refreshed: 0, failed: 0, error: null }
   const fail = (error: unknown): void => {
     outcome.failed += 1
@@ -652,7 +655,7 @@ export async function refreshWeatherCaches(
     where: {
       userId,
       status: { in: ['target', 'considering'] },
-      targetDate: { gte: todayIso(now) },
+      targetDate: { gte: today },
       distanceM: { not: null },
     },
     orderBy: [{ targetDate: 'asc' }, { id: 'asc' }],
@@ -685,6 +688,6 @@ export async function refreshWeatherCaches(
  * the new values need, without making the request wait. A failure stays on the cache row, where
  * the weather job's back-off finds it.
  */
-export function warmWeatherCaches(deps: Deps, userId: string): void {
-  inBackground(refreshWeatherCaches(deps, userId))
+export function warmWeatherCaches(deps: Deps, userId: string, today: string): void {
+  inBackground(refreshWeatherCaches(deps, userId, { today }))
 }

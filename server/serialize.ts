@@ -54,7 +54,7 @@ import { isLoadAppetite, isPresetId } from '../shared/engine/types.ts'
 import { undoReasonMessage } from '../shared/copy/revision.ts'
 import { DEFAULT_WEIGHT_UNIT, isWeightUnit } from '../shared/domain/weight.ts'
 import { renderFact } from '../shared/copy/templates.ts'
-import { mondayOf, todayIso } from '../shared/dates.ts'
+import { isoDateInZone, mondayOf } from '../shared/dates.ts'
 import { plannedWeek } from '../shared/domain/plannedWeek.ts'
 import { parseRefusedIds } from '../shared/domain/refusals.ts'
 import { countsLine } from '../shared/engine/fuelCopy.ts'
@@ -614,13 +614,23 @@ export type PlanRevisionListRow = Omit<PlanRevisionRow, 'undo'>
 export function revisionView(
   row: PlanRevisionListRow,
   undo: UndoState,
+  tz: string,
+  ownerWeeks?: ReadonlySet<string>,
+): PlanRevisionView {
+  return viewWrittenOn(row, undo, isoDateInZone(row.createdAt, tz), ownerWeeks)
+}
+
+/** `revisionView` with the day of the write given: the zone of the read has already been applied. */
+function viewWrittenOn(
+  row: PlanRevisionListRow,
+  undo: UndoState,
+  writtenOn: string,
   ownerWeeks?: ReadonlySet<string>,
 ): PlanRevisionView {
   const reason = row.reason as PlanRevisionReason
   const decision = parseJson<WeeklyDecision | null>(row.decision, null)
   const changes = parseJson<PlanChange[]>(row.changes, [])
   const diff = parseJson<PlanDiff | null>(row.diff, null)
-  const writtenOn = todayIso(row.createdAt)
   return {
     id: row.id,
     planId: row.planId,
@@ -656,10 +666,14 @@ export function revisionView(
  * A full revision row as the API serves it. The undo payload never leaves the server, and only the
  * revision's own reasons are known without the rows it touched: this is the view right after a
  * write, inside its transaction. `viewRevisions` in `services/revisions.ts` adds the structural
- * checks.
+ * checks. `today` is the runner's day of the write, which is the day the row was written on.
  */
-export function toPlanRevision(row: PlanRevisionRow, now: Date = new Date()): PlanRevisionView {
-  return revisionView(row, ownUndoState(row, now))
+export function toPlanRevision(
+  row: PlanRevisionRow,
+  today: string,
+  now: Date = new Date(),
+): PlanRevisionView {
+  return viewWrittenOn(row, ownUndoState(row, now), today)
 }
 
 /** A stored rest or limited-running window as the API serves it. */

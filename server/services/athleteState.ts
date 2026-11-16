@@ -3,7 +3,8 @@
 // value is valid for one key, `<boot>.<writes>.<external>` from `server/dataVersion.ts` plus the
 // day and the parameter version, so a write by any caller, another connection or another process,
 // and midnight, all make the next read build a fresh picture. Nothing here raises the data version.
-import { addDays, mondayOf, todayIso } from '../../shared/dates.ts'
+import { addDays, isoDateInZone, mondayOf } from '../../shared/dates.ts'
+import { runnerZone } from '../runnerDay.ts'
 import { estimateState, INDOOR_OR_TRACK } from '../../shared/engine/athlete.ts'
 import { computeBestEfforts } from '../../shared/engine/bestEfforts.ts'
 import { pausedOnRead } from '../../shared/engine/downhill.ts'
@@ -422,11 +423,12 @@ async function cachedByVersion<V>(
 /** The local day of the newest accepted change of each zone boundary, so proposals count fresh data. */
 function zoneChangesOf(
   revisions: Array<{ changes: string; createdAt: Date }>,
+  tz: string,
 ): NonNullable<EngineInput['zoneChanges']> {
   const changes: NonNullable<EngineInput['zoneChanges']> = {}
   for (const revision of revisions) {
     for (const { boundary, outcome } of zoneDecisionsOf(revision.changes)) {
-      if (outcome === 'accepted') changes[boundary] = todayIso(revision.createdAt)
+      if (outcome === 'accepted') changes[boundary] = isoDateInZone(revision.createdAt, tz)
     }
   }
   return changes
@@ -561,7 +563,7 @@ async function buildContext(
   }))
   const reviews = reviewRows.map(toWeeklyReview)
   const screeningFlags = screening?.flags ?? 0
-  const zoneChanges = zoneChangesOf(revisions)
+  const zoneChanges = zoneChangesOf(revisions, runnerZone(profile.timezone))
   const disruptions = disruptionRows.map(toDisruption)
   const storedSessions = planRow ? planRow.sessions.map(toPlanSession) : []
   const existing = deepFreeze(

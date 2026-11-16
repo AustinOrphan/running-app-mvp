@@ -7,7 +7,7 @@
 //
 // Writes go through the data-versioned client and never raise the version themselves: the three
 // models are state (`server/dataVersion.ts`).
-import { addDays, daysBetween, mondayOf, todayIso } from '../../shared/dates.ts'
+import { addDays, daysBetween, isoDateInZone, mondayOf } from '../../shared/dates.ts'
 import {
   eahCard,
   fuelEligible,
@@ -75,7 +75,8 @@ import type {
 import type { Deps } from '../app.ts'
 import type { FuelLog as FuelLogRow, PrismaClient } from '../db.ts'
 import { conflict, notFound, validationError } from '../errors.ts'
-import { toFuelLogView, toFuelProduct, toFuelSettings } from '../serialize.ts'
+import { runnerZone } from '../runnerDay.ts'
+import { loadProfile, toFuelLogView, toFuelProduct, toFuelSettings } from '../serialize.ts'
 import { loadAthleteContext, memoByVersion, type AthleteContext } from './athleteState.ts'
 import { loadForecast, sessionSpec } from './engineInput.ts'
 
@@ -173,7 +174,8 @@ export function loadFuelState(deps: FuelDeps, userId: string): Promise<FuelState
 
 async function replayState(deps: FuelDeps, userId: string): Promise<FuelState> {
   const { prisma } = deps
-  const [settings, rows, weekRows] = await Promise.all([
+  // The profile is state, so a zone change drops this memo like any other write.
+  const [settings, rows, weekRows, profile] = await Promise.all([
     loadFuelSettings(prisma, userId),
     prisma.fuelLog.findMany({
       where: { userId, activity: { type: { in: [...FUEL_RUN_TYPES] } } },
@@ -187,6 +189,7 @@ async function replayState(deps: FuelDeps, userId: string): Promise<FuelState> {
       },
       select: { weekStart: true, flags: true, plan: { select: { status: true, updatedAt: true } } },
     }),
+    loadProfile(prisma, userId),
   ])
   // A session keeps its activity link in the plan that was active when it was linked. Without a
   // log there is no run to look up.
@@ -204,7 +207,7 @@ async function replayState(deps: FuelDeps, userId: string): Promise<FuelState> {
       sessionFlagsByRun.set(session.activityId, parseFlags<SessionFlag>(session.flags))
     }
   }
-  const gutTrainingWeeks = gutTrainingWeeksOf(weekRows)
+  const gutTrainingWeeks = gutTrainingWeeksOf(weekRows, runnerZone(profile.timezone))
 
   const runs: FuelRunInput[] = rows
     .filter((row) => row.activity.duplicateStatus !== 'confirmed')
@@ -282,6 +285,7 @@ function gutTrainingWeeksOf(
     flags: string
     plan: { status: string; updatedAt: Date }
   }[],
+  tz: string,
 ): string[] {
   const held = new Set(weeks.filter((w) => w.plan.status === 'active').map((w) => w.weekStart))
   const result = new Set<string>()
@@ -290,7 +294,7 @@ function gutTrainingWeeksOf(
     if (week.plan.status === 'active') result.add(week.weekStart)
     else if (
       !held.has(week.weekStart) &&
-      week.weekStart <= mondayOf(todayIso(week.plan.updatedAt))
+      week.weekStart <= mondayOf(isoDateInZone(week.plan.updatedAt, tz))
     ) {
       result.add(week.weekStart)
     }

@@ -14,7 +14,10 @@ import { gzipSync, zipSync } from 'fflate'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test, vi } from 'vitest'
 import { installOwnerId, isInstallOwner } from '../../server/installOwner.ts'
 import { runFolderJob, startScheduler } from '../../server/jobs/scheduler.ts'
-import { scanFolder, scanFolderIntegration } from '../../server/services/folder.ts'
+import {
+  scanFolderToday as scanFolder,
+  scanFolderIntegrationToday as scanFolderIntegration,
+} from './helpers.ts'
 import { sealSecret, settleBackground } from '../../server/services/sync.ts'
 import { buildFit } from '../fixtures/fit/buildFit.ts'
 import { client, createTestCtx, seedUser, type TestCtx, type TestUser } from './helpers.ts'

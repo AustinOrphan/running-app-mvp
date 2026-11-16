@@ -32,48 +32,17 @@ export function matchCounts(files: readonly string[], pattern: RegExp): Record<s
 
 /** Server files reading the process zone through `todayIso`, with the number of calls. */
 const SERVER_TODAY_ISO: Record<string, number> = {
-  'server/jobs/scheduler.ts': 4,
-  'server/jobs/weeklyUpdate.ts': 1,
-  'server/routes/activities.ts': 1,
-  'server/routes/calendar.ts': 1,
-  'server/routes/export.ts': 1,
-  'server/routes/fuel.ts': 2,
-  'server/routes/goals.ts': 5,
-  'server/routes/plan.ts': 19,
-  'server/routes/predictions.ts': 1,
-  'server/routes/reviews.ts': 3,
-  'server/routes/screenings.ts': 1,
-  'server/routes/strength.ts': 6,
-  'server/routes/trends.ts': 1,
-  'server/routes/trendsDurability.ts': 1,
-  'server/routes/trendsLoad.ts': 1,
-  'server/routes/trendsRuns.ts': 1,
-  'server/routes/weeks.ts': 2,
-  'server/routes/wrist.ts': 1,
-  'server/routes/zones.ts': 4,
-  'server/serialize.ts': 1,
-  'server/services/athleteState.ts': 1,
-  'server/services/brief.ts': 2,
-  'server/services/execution.ts': 2,
-  'server/services/explain.ts': 1,
-  'server/services/fuel.ts': 1,
-  'server/services/insight.ts': 3,
-  'server/services/planEngine.ts': 1,
-  'server/services/planNotice.ts': 1,
-  'server/services/publish.ts': 5,
-  'server/services/revisions.ts': 1,
-  'server/services/strength.ts': 1,
-  'server/services/todayHealth.ts': 1,
-  'server/services/watchRatingBackfill.ts': 1,
-  'server/services/weatherCache.ts': 2,
+  // `dueSlot`, the backup's slot on the server clock.
+  'server/jobs/scheduler.ts': 1,
 }
 
-/** Server files calling a local-clock getter or setter (the backup slot, the Smashrun offset). */
+/**
+ * Server files calling a local-clock getter or setter: the backup slot functions (`dueSlot`,
+ * `lastSlotStart`) and the Smashrun offset.
+ */
 const SERVER_LOCAL_CLOCK: Record<string, number> = {
   'server/jobs/scheduler.ts': 6,
-  'server/jobs/weeklyUpdate.ts': 4,
   'server/routes/imports.ts': 1,
-  'server/routes/profile.ts': 1,
 }
 
 /**
@@ -113,9 +82,7 @@ const OFFSETLESS_DATE = /new Date\(\s*(?:`[^`]*|'[^']*|"[^"]*)T\d\d:\d\d(?::\d\d
 const TODAY_ISO_ALIAS = /\btodayIso\s+as\b/g
 
 /** Server files building a Date from an offset-less ISO time (process zone). */
-const SERVER_OFFSETLESS_DATE: Record<string, number> = {
-  'server/services/brief.ts': 2,
-}
+const SERVER_OFFSETLESS_DATE: Record<string, number> = {}
 
 describe('the process zone under server/', () => {
   const files = sourceFiles('server', ['.ts'])

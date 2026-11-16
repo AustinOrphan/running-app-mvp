@@ -1,5 +1,6 @@
 import { basename } from 'node:path'
-import { todayIso } from '../../shared/dates.ts'
+import { clockInZone, instantAtWallTime, todayIso } from '../../shared/dates.ts'
+import { runnerDays, type RunnerDay } from '../runnerDay.ts'
 import { FOLDER_SCAN_MINUTES } from '../../shared/limits.ts'
 import type { SyncStatus, SyncTrigger } from '../../shared/types.ts'
 import type { Deps } from '../app.ts'
@@ -34,7 +35,12 @@ import { backfillTracks } from '../services/trackBackfill.ts'
 import { backfillWatchRatings } from '../services/watchRatingBackfill.ts'
 import { enrichWeather } from '../services/weather.ts'
 import { refreshWeatherCaches } from '../services/weatherCache.ts'
-import { REPLAN_SLOT, usersDueForWeeklyUpdate, type DailySlot } from './weeklyUpdate.ts'
+import {
+  REPLAN_SLOT,
+  usersDueForWeeklyUpdate,
+  weekUpdated,
+  type DailySlot,
+} from './weeklyUpdate.ts'
 
 export { REPLAN_SLOT, weekSlotStart, weeklyUpdateStatus, type DailySlot } from './weeklyUpdate.ts'
 
@@ -64,6 +70,22 @@ const WEATHER_BATCH = 50
 const FIRST_RUN_DELAY_MS = 30_000
 
 type Log = ReturnType<typeof createLogger>
+
+/**
+ * The day of each runner in `ids` for a job (D10, ADR 0022): the `days` a test passes, with any
+ * runner it leaves out read from the profiles, so a job always has one `today` per runner.
+ */
+async function daysFor(
+  deps: Deps,
+  now: Date,
+  ids: readonly string[],
+  given?: ReadonlyMap<string, RunnerDay>,
+): Promise<Map<string, RunnerDay>> {
+  if (given === undefined) return runnerDays(deps.prisma, now, [...ids])
+  const missing = ids.filter((id) => !given.has(id))
+  const read = missing.length === 0 ? [] : [...(await runnerDays(deps.prisma, now, missing))]
+  return new Map([...read, ...given])
+}
 
 /**
  * Writes the `job` run of one scheduled job for one user (spec 4.7). The job name is the
@@ -118,7 +140,7 @@ function worstStatus(statuses: readonly string[]): SyncStatus {
  */
 export async function runSyncJob(
   deps: Deps,
-  opts: { fetch: typeof fetch; now?: Date },
+  opts: { fetch: typeof fetch; now?: Date; days?: ReadonlyMap<string, RunnerDay> },
   log?: Log,
 ): Promise<void> {
   const now = opts.now ?? new Date()
@@ -135,14 +157,21 @@ export async function runSyncJob(
   })
   const byUser = new Map<string, string[]>()
   for (const row of rows) byUser.set(row.userId, [...(byUser.get(row.userId) ?? []), row.provider])
+  const days = await daysFor(deps, now, [...byUser.keys()], opts.days)
   for (const [userId, providers] of byUser) {
+    const day = days.get(userId)
+    if (day === undefined) continue
     const startedAt = new Date()
     let thrown: unknown = null
     for (const provider of providers) {
       try {
         // syncProvider records its own failures on the row and in the log; this only keeps the
         // loop going.
-        await syncProvider(deps, userId, provider, { fetch: opts.fetch, trigger: 'schedule' })
+        await syncProvider(deps, userId, provider, {
+          today: day.today,
+          fetch: opts.fetch,
+          trigger: 'schedule',
+        })
       } catch (error) {
         thrown ??= error
         log?.warn({ reason: safeMessage(error), provider }, 'scheduled sync failed')
@@ -175,16 +204,28 @@ export async function runSyncJob(
  * other account is skipped and records nothing. Each scan writes its own `folder` run, so the job
  * adds no row of its own.
  */
-export async function runFolderJob(deps: Deps, log?: Log): Promise<void> {
+export async function runFolderJob(
+  deps: Deps,
+  log?: Log,
+  opts: { now?: Date; days?: ReadonlyMap<string, RunnerDay> } = {},
+): Promise<void> {
   const rows = await deps.prisma.integration.findMany({
     where: { provider: 'folder', status: { in: ['connected', 'error'] } },
     orderBy: { createdAt: 'asc' },
   })
   const owner = await installOwnerId(deps.prisma)
+  const days = await daysFor(
+    deps,
+    opts.now ?? new Date(),
+    rows.map((row) => row.userId).filter((id) => id === owner),
+    opts.days,
+  )
   for (const row of rows) {
     if (row.userId !== owner) continue
+    const day = days.get(row.userId)
+    if (day === undefined) continue
     try {
-      await scanFolderIntegration(deps, row.userId, { trigger: 'schedule' })
+      await scanFolderIntegration(deps, row.userId, { today: day.today, trigger: 'schedule' })
     } catch (error) {
       // The row already holds the message; the next scan retries.
       log?.warn({ reason: safeMessage(error) }, 'folder scan failed')
@@ -201,13 +242,21 @@ export async function runFolderJob(deps: Deps, log?: Log): Promise<void> {
  */
 export async function runWeatherJob(
   deps: Deps,
-  opts: { fetch: typeof fetch; now?: Date },
+  opts: { fetch: typeof fetch; now?: Date; days?: ReadonlyMap<string, RunnerDay> },
   log?: Log,
 ): Promise<void> {
   const users = await deps.prisma.user.findMany({ select: { id: true } })
+  const days = await daysFor(
+    deps,
+    opts.now ?? new Date(),
+    users.map((user) => user.id),
+    opts.days,
+  )
   for (const user of users) {
     const startedAt = new Date()
     const now = opts.now ?? new Date()
+    const day = days.get(user.id)
+    if (day === undefined) continue
     let filled = 0
     let error: unknown = null
     try {
@@ -216,9 +265,11 @@ export async function runWeatherJob(
       log?.warn({ reason: safeMessage(failure) }, 'weather backfill failed')
       error = failure
     }
-    const caches = await refreshWeatherCaches(deps, user.id, { fetch: opts.fetch, now }).catch(
-      (failure: unknown) => ({ refreshed: 0, failed: 1, error: failure }),
-    )
+    const caches = await refreshWeatherCaches(deps, user.id, {
+      fetch: opts.fetch,
+      now,
+      today: day.today,
+    }).catch((failure: unknown) => ({ refreshed: 0, failed: 1, error: failure }))
     if (caches.error !== null) {
       log?.warn({ reason: safeMessage(caches.error) }, 'weather cache refresh failed')
     }
@@ -369,13 +420,24 @@ export async function runTrackJob(deps: Deps, log?: Log, opts: { now?: Date } = 
 export async function runWatchRatingJob(
   deps: Deps,
   log?: Log,
-  opts: { now?: Date } = {},
+  opts: { now?: Date; days?: ReadonlyMap<string, RunnerDay> } = {},
 ): Promise<void> {
   const users = await deps.prisma.user.findMany({ select: { id: true } })
+  const days = await daysFor(
+    deps,
+    opts.now ?? new Date(),
+    users.map((user) => user.id),
+    opts.days,
+  )
   for (const user of users) {
     const startedAt = new Date()
+    const day = days.get(user.id)
+    if (day === undefined) continue
     try {
-      const result = await backfillWatchRatings(deps, user.id, opts)
+      const result = await backfillWatchRatings(deps, user.id, {
+        ...(opts.now === undefined ? {} : { now: opts.now }),
+        today: day.today,
+      })
       const status = result.authRefused
         ? 'error'
         : result.pause && result.requests > 0
@@ -405,15 +467,22 @@ export async function runWatchRatingJob(
  */
 export async function runPredictionJob(
   deps: Deps,
-  opts: { now?: Date } = {},
+  opts: { now?: Date; days?: ReadonlyMap<string, RunnerDay> } = {},
   log?: Log,
 ): Promise<void> {
-  const today = todayIso(opts.now ?? new Date())
   const users = await deps.prisma.user.findMany({ select: { id: true } })
+  const days = await daysFor(
+    deps,
+    opts.now ?? new Date(),
+    users.map((user) => user.id),
+    opts.days,
+  )
   for (const user of users) {
     const startedAt = new Date()
+    const day = days.get(user.id)
+    if (day === undefined) continue
     try {
-      const outcome = await ensureWeeklyPrediction(deps, user.id, today)
+      const outcome = await ensureWeeklyPrediction(deps, user.id, day.today)
       await recordJob(deps, 'predictions', user.id, startedAt, {
         accepted: outcome === 'created' ? 1 : 0,
       })
@@ -512,6 +581,26 @@ export async function runBackupCatchUp(
   return true
 }
 
+/** A runner a per-runner slot serves, and when what makes it serve the runner came into being. */
+export interface ServedRunner {
+  userId: string
+  since: Date
+}
+
+/** The runners with an active version-2 plan, each with the creation time of the newest one. */
+async function activePlanRunners(prisma: PrismaClient): Promise<ServedRunner[]> {
+  const plans = await prisma.plan.findMany({
+    where: { status: 'active', generatorVersion: { gte: 2 } },
+    select: { userId: true, createdAt: true },
+  })
+  const since = new Map<string, Date>()
+  for (const { userId, createdAt } of plans) {
+    const known = since.get(userId)
+    if (known === undefined || createdAt > known) since.set(userId, createdAt)
+  }
+  return [...since].map(([userId, at]) => ({ userId, since: at }))
+}
+
 /** Users with an active version-2 plan: whom the nightly matching and the Monday re-plan serve. */
 async function activePlanUsers(prisma: PrismaClient): Promise<string[]> {
   const plans = await prisma.plan.findMany({
@@ -522,21 +611,40 @@ async function activePlanUsers(prisma: PrismaClient): Promise<string[]> {
 }
 
 /**
+ * What the per-runner jobs share: `now`, the runners the slot found due (`userIds`, every one with
+ * a plan when absent) and each runner's day (`days`, read from the profiles for any runner left
+ * out; tests fill it with other zones).
+ */
+interface RunnerJobOptions {
+  now?: Date
+  userIds?: readonly string[]
+  days?: ReadonlyMap<string, RunnerDay>
+}
+
+/**
  * Nightly: links the last 7 days of unlinked activities to planned sessions and re-assesses the
- * linked ones, for every user with a version-2 plan [design 4.1].
+ * linked ones, for every user with a version-2 plan [design 4.1], each on the runner's own day.
  */
 export async function runMatchingJob(
   deps: Deps,
-  opts: { now?: Date } = {},
+  opts: RunnerJobOptions = {},
   log?: Log,
 ): Promise<void> {
-  const users = await activePlanUsers(deps.prisma)
+  const planned = await activePlanUsers(deps.prisma)
+  const users =
+    opts.userIds === undefined ? planned : planned.filter((id) => opts.userIds?.includes(id))
+  const days = await daysFor(deps, opts.now ?? new Date(), users, opts.days)
+  const todays = new Map<string, string>()
+  for (const id of users) {
+    const day = days.get(id)
+    if (day !== undefined) todays.set(id, day.today)
+  }
   const startedAt = new Date()
   const errors = new Map<string, unknown>()
   let thrown: Error | null = null
   try {
     await runNightlyMatching(deps, {
-      today: todayIso(opts.now ?? new Date()),
+      todays,
       onError: (error, userId) => {
         errors.set(userId, error)
         log?.warn({ reason: safeMessage(error), userId }, 'nightly matching failed')
@@ -560,20 +668,33 @@ export async function runMatchingJob(
  */
 export async function runPublishJob(
   deps: Deps,
-  opts: { fetch: typeof fetch; now?: Date; force?: boolean },
+  opts: { fetch: typeof fetch; force?: boolean } & RunnerJobOptions,
   log?: Log,
 ): Promise<void> {
   const now = opts.now ?? new Date()
   const channels = await deps.prisma.deliveryChannel.findMany({
-    where: { channel: PUBLISH_CHANNEL, enabled: true },
+    where: {
+      channel: PUBLISH_CHANNEL,
+      enabled: true,
+      ...(opts.userIds === undefined ? {} : { userId: { in: [...opts.userIds] } }),
+    },
     orderBy: { id: 'asc' },
   })
+  const days = await daysFor(
+    deps,
+    now,
+    channels.map((channel) => channel.userId),
+    opts.days,
+  )
   for (const channel of channels) {
+    const day = days.get(channel.userId)
+    if (day === undefined) continue
     try {
-      if (!opts.force && !(await isPublishDue(deps, channel, now))) continue
+      if (!opts.force && !(await isPublishDue(deps, channel, now, day.today))) continue
       await publishForUser(deps, channel.userId, {
         trigger: 'schedule',
         fetch: opts.fetch,
+        today: day.today,
         ...(opts.now === undefined ? {} : { now: opts.now }),
       })
     } catch (error) {
@@ -581,6 +702,19 @@ export async function runPublishJob(
       log?.warn({ reason: safeMessage(error) }, 'scheduled publishing failed')
     }
   }
+}
+
+/** Whether the active plan of `userId` already has its update for the week of `day`. */
+async function weekAlreadyUpdated(
+  prisma: PrismaClient,
+  userId: string,
+  day: RunnerDay,
+): Promise<boolean> {
+  const plan = await prisma.plan.findFirst({
+    where: { userId, status: 'active', generatorVersion: { gte: 2 } },
+    select: { id: true },
+  })
+  return plan !== null && (await weekUpdated(prisma, { userId, planId: plan.id, day }))
 }
 
 /** Users being re-planned now, so the 03:00 slot and the catch-up never re-plan one twice at once. */
@@ -599,17 +733,29 @@ const replanning = new Set<string>()
  */
 export async function runReplanJob(
   deps: Deps,
-  opts: { now?: Date; catchUp?: boolean } = {},
+  opts: { catchUp?: boolean } & RunnerJobOptions = {},
   log?: Log,
 ): Promise<void> {
   const now = opts.now ?? new Date()
-  const today = todayIso(now)
-  const users = opts.catchUp
-    ? await usersDueForWeeklyUpdate(deps.prisma, now)
-    : await activePlanUsers(deps.prisma)
+  let users: string[]
+  if (opts.catchUp) {
+    const everyone = await runnerDays(deps.prisma, now)
+    const days = new Map([...everyone, ...(opts.days ?? [])])
+    users = await usersDueForWeeklyUpdate(deps.prisma, now, undefined, days)
+  } else {
+    users = await activePlanUsers(deps.prisma)
+  }
+  if (opts.userIds !== undefined) users = users.filter((id) => opts.userIds?.includes(id))
+  const days = await daysFor(deps, now, users, opts.days)
   const trigger: SyncTrigger = opts.catchUp ? 'catchup' : 'schedule'
   for (const userId of users) {
+    const day = days.get(userId)
+    if (day === undefined) continue
+    const { today } = day
     if (replanning.has(userId)) continue
+    // The slot and the catch-up never make a second update in one local week: a runner who moved
+    // zone across Monday's slot, or whose zone differs from the server's, would otherwise get one.
+    if (!opts.catchUp && (await weekAlreadyUpdated(deps.prisma, userId, day))) continue
     replanning.add(userId)
     const startedAt = new Date()
     // What the brief describes: the revision the re-plan wrote, or the error that stopped it.
@@ -627,7 +773,7 @@ export async function runReplanJob(
       }
       // The brief comes after the re-plan returns and has a try/catch of its own: a brief that
       // cannot be written never fails the re-plan (design 8.7).
-      if (outcome !== undefined) await writeBrief(deps, { userId, today, ...outcome }, log)
+      if (outcome !== undefined) await writeBrief(deps, { userId, day, ...outcome }, log)
     } finally {
       replanning.delete(userId)
     }
@@ -638,26 +784,106 @@ export async function runReplanJob(
 async function writeBrief(
   deps: Deps,
   args:
-    | { userId: string; today: string; revisionId: string }
-    | { userId: string; today: string; failure: unknown },
+    | { userId: string; day: RunnerDay; revisionId: string }
+    | { userId: string; day: RunnerDay; failure: unknown },
   log?: Log,
 ): Promise<void> {
   try {
-    await generateBrief(deps, args)
+    const { day, ...rest } = args
+    await generateBrief(deps, { ...rest, today: day.today, tz: day.tz })
   } catch (error) {
     log?.warn({ reason: safeMessage(error), userId: args.userId }, 'weekly brief failed')
   }
 }
 
 /**
- * The local date (`YYYY-MM-DD`) of the slot that is due at `now`, or null when today's slot has
- * not come yet, is not today's weekday, or was already run (`last`).
+ * The date (`YYYY-MM-DD`, the server's zone) of the slot that is due at `now`, or null when today's
+ * slot has not come yet, is not today's weekday, or was already run (`last`). The backup's slot
+ * only: the per-runner slots use `dueRunners`.
  */
 export function dueSlot(now: Date, last: string | null, slot: DailySlot): string | null {
   if (slot.weekday !== undefined && now.getDay() !== slot.weekday) return null
   if (now.getHours() * 60 + now.getMinutes() < slot.hour * 60 + slot.minute) return null
   const key = todayIso(now)
   return key === last ? null : key
+}
+
+/**
+ * The runners whose `slot` is due at `now`, each with the local date of the slot (D10, ADR 0022).
+ * A runner is due when the wall clock of the runner's zone is on the slot's weekday, at or past its
+ * minute, and the slot's date is not the one in `last` (the date the runner's slot last ran). Pure:
+ * the clock is `now` and the zones are the runners'. On a spring-forward night the slot is due at
+ * the first check after the skipped wall time; on a fall-back night the date in `last` stops a
+ * repeat.
+ */
+export function dueRunners(
+  now: Date,
+  runners: ReadonlyArray<{ userId: string; tz: string }>,
+  last: ReadonlyMap<string, string>,
+  slot: DailySlot,
+): Array<{ userId: string; date: string }> {
+  const due: Array<{ userId: string; date: string }> = []
+  for (const { userId, tz } of runners) {
+    const clock = clockInZone(now, tz)
+    if (slot.weekday !== undefined && clock.weekday !== slot.weekday) continue
+    if (clock.minute < slot.hour * 60 + slot.minute) continue
+    if (last.get(userId) === clock.date) continue
+    due.push({ userId, date: clock.date })
+  }
+  return due
+}
+
+/** What `dueAtCheck` remembers for one per-runner slot: the date each runner's slot last ran. */
+export interface SlotState {
+  last: Map<string, string>
+  /** The runners seen at an earlier check. */
+  seen: Set<string>
+}
+
+export function newSlotState(): SlotState {
+  return { last: new Map(), seen: new Set() }
+}
+
+/**
+ * One check of a per-runner slot: the due runners with the local date, and the new `last` entries
+ * for them (D10, ADR 0022).
+ *
+ * - A runner absent from this check is forgotten (`last` and `seen`), so one who leaves and comes
+ *   back is treated as new.
+ * - A runner seen for the first time whose slot is already past is marked as done when this is the
+ *   start-up check (a restart never repeats a slot) or when what serves the runner (`since`, the
+ *   plan) came into being at or after that slot instant (it was made from that day's data). A
+ *   runner who existed before the slot instant stays due and runs in this pass, as a job that
+ *   lists every plan at the slot would have run it.
+ * - `atStart` only seeds; nothing is due from it.
+ */
+export function dueAtCheck(
+  state: SlotState,
+  now: Date,
+  runners: ReadonlyArray<{ userId: string; tz: string; since: Date }>,
+  slot: DailySlot,
+  atStart: boolean,
+): Array<{ userId: string; date: string }> {
+  const present = new Set(runners.map((runner) => runner.userId))
+  for (const id of [...state.seen]) {
+    if (!present.has(id)) state.seen.delete(id)
+  }
+  for (const id of [...state.last.keys()]) {
+    if (!present.has(id)) state.last.delete(id)
+  }
+  for (const runner of runners.filter((r) => !state.seen.has(r.userId))) {
+    state.seen.add(runner.userId)
+    const [pastSlot] = dueRunners(now, [runner], new Map(), slot)
+    if (pastSlot === undefined) continue
+    const slotAt = instantAtWallTime(pastSlot.date, slot.hour * 60 + slot.minute, runner.tz)
+    if (atStart || runner.since.getTime() >= slotAt.getTime()) {
+      state.last.set(runner.userId, pastSlot.date)
+    }
+  }
+  if (atStart) return []
+  const due = dueRunners(now, runners, state.last, slot)
+  for (const { userId, date } of due) state.last.set(userId, date)
+  return due
 }
 
 /** How often the daily jobs check whether their slot has come. */
@@ -724,6 +950,57 @@ export function startScheduler(deps: Deps, opts: { fetch: typeof fetch }): () =>
     timers.add(timer)
   }
 
+  /**
+   * Runs `job` once per runner and local day after the slot, on each runner's own clock (D10,
+   * ADR 0022). `serves` lists the runners the job is for. `last` holds the date each runner's slot
+   * last ran; a runner seen for the first time (at start, or later when a plan appears) is seeded
+   * with the date `dueRunners` would give, so a restart, or a plan made after the slot, never runs
+   * that day's slot. The job gets the due runners and everyone's day.
+   */
+  function dailyPerRunner(
+    name: string,
+    slot: DailySlot,
+    serves: () => Promise<ServedRunner[]>,
+    job: (userIds: string[], days: Map<string, RunnerDay>) => Promise<void>,
+  ): void {
+    const state = newSlotState()
+    let active = false
+    const check = async (atStart: boolean): Promise<void> => {
+      const now = new Date()
+      const served = await serves()
+      const days = await runnerDays(
+        deps.prisma,
+        now,
+        served.map((runner) => runner.userId),
+      )
+      const runners = served.flatMap(({ userId, since }) => {
+        const day = days.get(userId)
+        return day === undefined ? [] : [{ userId, tz: day.tz, since }]
+      })
+      const due = dueAtCheck(state, now, runners, slot, atStart)
+      if (due.length === 0) return
+      await job(
+        due.map((runner) => runner.userId),
+        days,
+      )
+    }
+    const ready = check(true).catch((error: unknown) =>
+      log.error({ err: error, job: name }, 'scheduled job failed'),
+    )
+    const timer = setInterval(() => {
+      if (stopped || active) return
+      active = true
+      ready
+        .then(() => check(false))
+        .catch((error: unknown) => log.error({ err: error, job: name }, 'scheduled job failed'))
+        .finally(() => {
+          active = false
+        })
+    }, SLOT_CHECK_MS)
+    timer.unref()
+    timers.add(timer)
+  }
+
   every('sync', SYNC_INTERVAL_MS, () => runSyncJob(deps, opts, log))
   every('folder', FOLDER_INTERVAL_MS, () => runFolderJob(deps, log))
   every('weather', WEATHER_INTERVAL_MS, () => runWeatherJob(deps, opts, log))
@@ -755,14 +1032,28 @@ export function startScheduler(deps: Deps, opts: { fetch: typeof fetch }): () =>
   }, FIRST_RUN_DELAY_MS)
   catchUp.unref()
   timers.add(catchUp)
-  daily('matching', MATCHING_SLOT, () => runMatchingJob(deps, {}, log))
-  daily('replan', REPLAN_SLOT, () => runReplanJob(deps, {}, log))
+  const planUsers = (): Promise<ServedRunner[]> => activePlanRunners(deps.prisma)
+  dailyPerRunner('matching', MATCHING_SLOT, planUsers, (userIds, days) =>
+    runMatchingJob(deps, { userIds, days }, log),
+  )
+  dailyPerRunner('replan', REPLAN_SLOT, planUsers, (userIds, days) =>
+    runReplanJob(deps, { userIds, days }, log),
+  )
   // The daily slot is seeded at start, so a restart after 03:00 on Monday would skip the week.
   every('replan-catchup', CATCHUP_INTERVAL_MS, () => runReplanJob(deps, { catchUp: true }, log))
   every('predictions', PREDICTION_INTERVAL_MS, () => runPredictionJob(deps, {}, log))
   every('publish', PUBLISH_INTERVAL_MS, () => runPublishJob(deps, opts, log))
-  daily('publish-morning', PUBLISH_MORNING_SLOT, () =>
-    runPublishJob(deps, { ...opts, force: true }, log),
+  dailyPerRunner(
+    'publish-morning',
+    PUBLISH_MORNING_SLOT,
+    async () =>
+      (
+        await deps.prisma.deliveryChannel.findMany({
+          where: { channel: PUBLISH_CHANNEL, enabled: true },
+          select: { userId: true },
+        })
+      ).map((channel) => ({ userId: channel.userId, since: new Date(0) })),
+    (userIds, days) => runPublishJob(deps, { ...opts, force: true, userIds, days }, log),
   )
 
   return () => {

@@ -561,6 +561,38 @@ describe('the Today card', () => {
   })
 })
 
+describe('the fuel total', () => {
+  it('is one figure when the rounded ends are equal, in every road plan with a rate', () => {
+    let seen = 0
+    for (const [, road] of PLANS) {
+      const text = describeRoadRacePlan(road, 'km').fuel
+      if (text === null || road.fuel === null) continue
+      seen += 1
+      expect(text.total).not.toMatch(/About ([\d,]+) to \1 g/)
+      if (road.fuel.totalG[0] === road.fuel.totalG[1]) {
+        expect(text.total).toMatch(/^About [\d,]+ g over the expected time\.$/)
+      }
+    }
+    expect(seen).toBeGreaterThan(0)
+  })
+})
+
+describe('the unit of the sentences follows the runner', () => {
+  it('names a mile in miles and a kilometre in kilometres, in the pace and the gaps', () => {
+    const marathon = plan('marathon, cool, tolerated rung')
+    const km = describeRoadRacePlan(marathon, 'km')
+    const mi = describeRoadRacePlan(marathon, 'mi')
+    expect(km.pace?.range).toContain('/km')
+    expect(km.pace?.range).toContain('any one kilometre.')
+    expect(mi.pace?.range).toContain('/mi')
+    expect(mi.pace?.range).toContain('any one mile.')
+    expect(mi.pace?.range).not.toContain('kilometre')
+    expect(km.notIn.items.join('\n')).toContain('A pace for each kilometre or a split table')
+    expect(mi.notIn.items.join('\n')).toContain('A pace for each mile or a split table')
+    expect(mi.notIn.items.join('\n')).not.toContain('each kilometre')
+  })
+})
+
 describe('what the plan says it leaves out', () => {
   it('lists the marathon’s gaps and a shorter list for a 10 km', () => {
     const marathon = describeRoadRacePlan(plan('marathon, cool, tolerated rung'), 'km').notIn

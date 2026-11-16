@@ -13,7 +13,14 @@ import { createApp, type Deps } from '../../server/app.ts'
 import { signSession } from '../../server/auth/session.ts'
 import type { Config } from '../../server/config.ts'
 import { createPrisma, initSqlite } from '../../server/db.ts'
-import { settleWeatherCache } from '../../server/services/weatherCache.ts'
+import { storeParsed, type StoreOptions } from '../../server/services/activityStore.ts'
+import { runExecutionForActivity } from '../../server/services/execution.ts'
+import { scanFolder, scanFolderIntegration } from '../../server/services/folder.ts'
+import { syncProvider } from '../../server/services/sync.ts'
+import { publishForUser } from '../../server/services/publish.ts'
+import { backfillWatchRatings } from '../../server/services/watchRatingBackfill.ts'
+import { refreshWeatherCaches, settleWeatherCache } from '../../server/services/weatherCache.ts'
+import { todayIso } from '../../shared/dates.ts'
 
 /**
  * The app's deps plus the express app. `fetch` is the injected network client that the routes and
@@ -161,4 +168,86 @@ export async function listActivities(
     throw new Error(`GET /api/activities?${query} answered ${String(res.status)}`)
   }
   return (res.body as ActivityListPage).items
+}
+
+// ---------------------------------------------------------------------------------------------
+// Services that take the runner's day (D10, ADR 0022)
+// ---------------------------------------------------------------------------------------------
+// A request passes `req.runnerDay.today`; a test that calls the service directly passes the server's
+// day, which is every runner's day until D10 step 5. A test that cares about the day passes its own
+// `today` to the real function instead.
+
+type Without<T, K extends string> = Omit<T, K>
+
+/** `storeParsed` with the server's day as the runner's. */
+export function storeParsedToday(
+  deps: Deps,
+  userId: string,
+  parsed: Parameters<typeof storeParsed>[2],
+  opts: Without<StoreOptions, 'today'>,
+) {
+  return storeParsed(deps, userId, parsed, { ...opts, today: todayIso() })
+}
+
+/** `runExecutionForActivity` with the server's day as the runner's. */
+export function runExecutionForActivityToday(
+  deps: Deps,
+  args: Without<Parameters<typeof runExecutionForActivity>[1], 'today'>,
+) {
+  return runExecutionForActivity(deps, { ...args, today: todayIso() })
+}
+
+/** `syncProvider` with the server's day as the runner's. */
+export function syncProviderToday(
+  deps: Deps,
+  userId: string,
+  provider: string,
+  opts: Without<Parameters<typeof syncProvider>[3], 'today'> = {},
+) {
+  return syncProvider(deps, userId, provider, { ...opts, today: todayIso() })
+}
+
+/** `scanFolder` with the server's day as the runner's. */
+export function scanFolderToday(
+  deps: Deps,
+  userId: string,
+  opts: Without<Parameters<typeof scanFolder>[2], 'today'> = {},
+) {
+  return scanFolder(deps, userId, { ...opts, today: todayIso() })
+}
+
+/** `scanFolderIntegration` with the server's day as the runner's. */
+export function scanFolderIntegrationToday(
+  deps: Deps,
+  userId: string,
+  opts: Without<Parameters<typeof scanFolderIntegration>[2], 'today'> = {},
+) {
+  return scanFolderIntegration(deps, userId, { ...opts, today: todayIso() })
+}
+
+/** `refreshWeatherCaches` with the server's day at `now` as the runner's. */
+export function refreshWeatherCachesToday(
+  deps: Deps,
+  userId: string,
+  opts: Without<Parameters<typeof refreshWeatherCaches>[2], 'today'> = {},
+) {
+  return refreshWeatherCaches(deps, userId, { ...opts, today: todayIso(opts.now) })
+}
+
+/** `backfillWatchRatings` with the server's day at `now` as the runner's. */
+export function backfillWatchRatingsToday(
+  deps: Deps,
+  userId: string,
+  opts: Without<Parameters<typeof backfillWatchRatings>[2], 'today'> = {},
+) {
+  return backfillWatchRatings(deps, userId, { ...opts, today: todayIso(opts.now) })
+}
+
+/** `publishForUser` with the server's day at `now` as the runner's. */
+export function publishForUserToday(
+  deps: Deps,
+  userId: string,
+  opts: Without<Parameters<typeof publishForUser>[2], 'today'> = {},
+) {
+  return publishForUser(deps, userId, { ...opts, today: todayIso(opts.now) })
 }

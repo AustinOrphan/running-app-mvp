@@ -1,7 +1,7 @@
 // Planned versus actual on the server: link stored activities to the sessions they fulfil, assess
 // each linked session against expectation, and trim the next quality session after a run that was
 // much harder than expected [design 4.1 to 4.3]. The engine decides; this module reads and writes.
-import { addDays, daysBetween, todayIso } from '../../shared/dates.ts'
+import { addDays, daysBetween } from '../../shared/dates.ts'
 import { parseRefusedIds } from '../../shared/domain/refusals.ts'
 import { estimateState } from '../../shared/engine/athlete.ts'
 import { shouldTrimQuality, trimQuality } from '../../shared/engine/adapt.ts'
@@ -188,7 +188,7 @@ async function assessRow(
 /** Re-assesses one linked session without the pipeline that follows an assessment. */
 async function assessLinked(
   deps: Deps,
-  args: { userId: string; sessionId: string },
+  args: { userId: string; sessionId: string; today: string },
 ): Promise<PlanSession> {
   const row = await deps.prisma.planSession.findFirst({
     where: { id: args.sessionId, plan: { userId: args.userId } },
@@ -196,7 +196,7 @@ async function assessLinked(
   })
   if (!row) throw notFound('Session not found.')
   if (row.activityId === null) return toPlanSession(row)
-  const today = todayIso()
+  const { today } = args
   const ctx = await buildContext(deps, { userId: args.userId, goalId: row.plan.goalId, today })
   const activity = ctx.input.activities.find((a) => a.id === row.activityId)
   if (!activity) return toPlanSession(row)
@@ -209,11 +209,15 @@ async function assessLinked(
  */
 export async function assessSessionById(
   deps: Deps,
-  args: { userId: string; sessionId: string },
+  args: { userId: string; sessionId: string; today: string },
 ): Promise<PlanSession> {
   const session = await assessLinked(deps, args)
   if (session.activityId !== null) {
-    await refreshInsightsQuietly(deps, { userId: args.userId, activityIds: [session.activityId] })
+    await refreshInsightsQuietly(deps, {
+      userId: args.userId,
+      activityIds: [session.activityId],
+      today: args.today,
+    })
   }
   return session
 }
@@ -334,10 +338,10 @@ async function unlink(deps: Deps, userId: string, row: PlanSessionRow): Promise<
  */
 async function matchActivity(
   deps: Deps,
-  args: { userId: string; activityId: string; reconsider?: Reconsider | undefined },
+  args: { userId: string; activityId: string; today: string; reconsider?: Reconsider | undefined },
 ): Promise<string[]> {
   const { prisma } = deps
-  const today = todayIso()
+  const { today } = args
   const activity = await prisma.activity.findFirst({
     where: { id: args.activityId, userId: args.userId },
   })
@@ -355,7 +359,7 @@ async function matchActivity(
       (args.reconsider === 'type' && linked.linkSource === 'owner') ||
       stillFits(linked, toActivity(activity))
     if (keep) {
-      await assessLinked(deps, { userId: args.userId, sessionId: linked.id })
+      await assessLinked(deps, { userId: args.userId, sessionId: linked.id, today })
       return []
     }
     await unlink(deps, args.userId, linked)
@@ -399,7 +403,7 @@ async function matchActivity(
  */
 export async function runExecutionForActivity(
   deps: Deps,
-  args: { userId: string; activityId: string; reconsider?: Reconsider | undefined },
+  args: { userId: string; activityId: string; today: string; reconsider?: Reconsider | undefined },
 ): Promise<void> {
   let assessed: string[] = []
   try {
@@ -408,6 +412,7 @@ export async function runExecutionForActivity(
     await refreshInsightsQuietly(deps, {
       userId: args.userId,
       activityIds: [args.activityId, ...assessed],
+      today: args.today,
     })
   }
 }
@@ -418,7 +423,7 @@ export async function runExecutionForActivity(
  */
 export async function runExecutionQuietly(
   deps: Deps,
-  args: { userId: string; activityId: string; reconsider?: Reconsider | undefined },
+  args: { userId: string; activityId: string; today: string; reconsider?: Reconsider | undefined },
 ): Promise<void> {
   try {
     await runExecutionForActivity(deps, args)
@@ -434,38 +439,50 @@ export async function runExecutionQuietly(
  */
 export async function assessSessionsQuietly(
   deps: Deps,
-  args: { userId: string; sessionIds: string[] },
+  args: { userId: string; sessionIds: string[]; today: string },
 ): Promise<void> {
   for (const sessionId of args.sessionIds) {
     try {
-      await assessSessionById(deps, { userId: args.userId, sessionId })
+      await assessSessionById(deps, { userId: args.userId, sessionId, today: args.today })
     } catch (error) {
       createLogger(deps.config).warn({ err: error }, 'assessing a moved session failed')
     }
   }
 }
 
-/** Nightly sweep over the last 7 days of activities and sessions, for every user with a plan. */
+/**
+ * Nightly sweep over the last 7 days of activities and sessions, for every user with a plan whose
+ * day is in `todays` (the runner's `today` by user id, D10): each runner is swept on their own day.
+ */
 export async function runNightlyMatching(
   deps: Deps,
-  args: { today: string; onError?: (error: unknown, userId: string) => void },
+  args: {
+    todays: ReadonlyMap<string, string>
+    onError?: (error: unknown, userId: string) => void
+  },
 ): Promise<void> {
   const plans = await deps.prisma.plan.findMany({
-    where: { status: 'active', generatorVersion: { gte: 2 } },
+    where: {
+      status: 'active',
+      generatorVersion: { gte: 2 },
+      userId: { in: [...args.todays.keys()] },
+    },
   })
-  const from = addDays(args.today, -SWEEP_DAYS)
   for (const plan of plans) {
+    const today = args.todays.get(plan.userId)
+    if (today === undefined) continue
+    const from = addDays(today, -SWEEP_DAYS)
     try {
       await matchAndAssess(
         deps,
-        { userId: plan.userId, planId: plan.id, goalId: plan.goalId, today: args.today },
-        (a) => a.date >= from && a.date <= args.today,
+        { userId: plan.userId, planId: plan.id, goalId: plan.goalId, today },
+        (a) => a.date >= from && a.date <= today,
       )
     } catch (error) {
       // One user's failure must not stop the sweep for the others.
       args.onError?.(error, plan.userId)
     }
     // The runs of the window are described again, whatever matching did; this never throws.
-    await refreshRecentInsights(deps, { userId: plan.userId, today: args.today })
+    await refreshRecentInsights(deps, { userId: plan.userId, today })
   }
 }

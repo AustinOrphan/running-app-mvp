@@ -280,8 +280,9 @@ export function integrationsRouter(deps: Deps): Router {
     if (!row) throw conflict(`Connect ${registered.info.label} first.`)
     if (row.status === 'needs_auth') throw conflict(`Reconnect ${registered.info.label} first.`)
     if (provider === 'folder') {
-      trackBackground(scanFolderIntegration(deps, userId, { trigger: 'manual' }), (error) =>
-        logger.warn({ reason: safeMessage(error), provider }, 'folder scan failed'),
+      trackBackground(
+        scanFolderIntegration(deps, userId, { today: req.runnerDay.today, trigger: 'manual' }),
+        (error) => logger.warn({ reason: safeMessage(error), provider }, 'folder scan failed'),
       )
     } else if (registered.pull) {
       if (row.pausedUntil && row.pausedUntil.getTime() > Date.now()) {
@@ -292,6 +293,7 @@ export function integrationsRouter(deps: Deps): Router {
       if (!isSyncing(userId, provider)) {
         trackBackground(
           syncProvider(deps, userId, provider, {
+            today: req.runnerDay.today,
             trigger: 'manual',
             ...(body.from ? { from: body.from } : {}),
           }),
@@ -334,7 +336,10 @@ export function integrationsRouter(deps: Deps): Router {
     // The key is needed to take the sent sessions off the calendar, so this happens before the row
     // goes; a removal that fails answers 409 `remove-failed` and keeps the integration.
     if (registered.publish) {
-      await prepareDisconnect(deps, req.userId, { removeSent: removeSent === 'true' })
+      await prepareDisconnect(deps, req.userId, {
+        removeSent: removeSent === 'true',
+        today: req.runnerDay.today,
+      })
     }
     await prisma.integration.deleteMany({ where: { userId: req.userId, provider } })
     res.status(204).end()

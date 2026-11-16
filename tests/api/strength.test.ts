@@ -9,7 +9,7 @@ import { strengthMinutes } from '../../shared/engine/micro.ts'
 import { blockPosition, strengthTemplate, structuresFor } from '../../shared/engine/strength.ts'
 import { dataVersionKey } from '../../server/dataVersion.ts'
 import { loadAthleteContext } from '../../server/services/athleteState.ts'
-import { storeParsed } from '../../server/services/activityStore.ts'
+import { storeParsedToday as storeParsed } from './helpers.ts'
 import { loadStrengthContext, loadStrengthState } from '../../server/services/strength.ts'
 import type {
   Activity,

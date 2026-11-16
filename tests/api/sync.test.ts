@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'vitest'
 import { runSyncJob } from '../../server/jobs/scheduler.ts'
-import { sealSecret, syncProvider } from '../../server/services/sync.ts'
+import { sealSecret } from '../../server/services/sync.ts'
+import { syncProviderToday as syncProvider } from './helpers.ts'
 import { fakeFetch, type FakeRoute } from '../fakeFetch.ts'
 import { createTestCtx, seedUser, type TestCtx, type TestUser } from './helpers.ts'
 

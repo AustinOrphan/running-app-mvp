@@ -8,7 +8,7 @@ import { Router } from 'express'
 import { z } from 'zod'
 import type { Deps } from '../app.ts'
 import { parse } from '../errors.ts'
-import { addDays, daysBetween, isIsoDate, todayIso } from '../../shared/dates.ts'
+import { addDays, daysBetween, isIsoDate } from '../../shared/dates.ts'
 import { quantityIssue } from '../../shared/copy/quantity.ts'
 import type { Quantity } from '../../shared/copy/quantity.ts'
 import { EXERCISES, exerciseById, isExerciseId } from '../../shared/domain/strengthLibrary.ts'
@@ -201,8 +201,7 @@ const settingsSchema = z.strictObject({
  * A recent set needs its reps; a maximum is one rep with nothing left, so it takes neither. `asOf`
  * is a day that has begun, and today when left out.
  */
-function liftSchema() {
-  const today = todayIso()
+function liftSchema(today: string) {
   return z
     .strictObject({
       kind: z.enum(['set', 'max']),
@@ -310,8 +309,7 @@ const logIdParam = z.object({
 })
 
 /** `date` is a day that has begun and is not more than a year back (design 6.4). */
-function logSchema() {
-  const today = todayIso()
+function logSchema(today: string) {
   const earliest = addDays(today, -STRENGTH_BACKDATE_DAYS)
   return z
     .strictObject({
@@ -411,12 +409,14 @@ export function strengthRouter(deps: Deps): Router {
 
   router.get('/', async (req, res) => {
     parse(noQuery, req.query)
-    res.json(await strengthView(deps, { userId: req.userId, today: todayIso() }))
+    res.json(await strengthView(deps, { userId: req.userId, today: req.runnerDay.today }))
   })
 
   router.get('/workouts', async (req, res) => {
     const { from, to } = parse(workoutsQuerySchema, req.query)
-    res.json(await strengthWorkouts(deps, { userId: req.userId, today: todayIso(), from, to }))
+    res.json(
+      await strengthWorkouts(deps, { userId: req.userId, today: req.runnerDay.today, from, to }),
+    )
   })
 
   router.get('/workout', async (req, res) => {
@@ -424,7 +424,7 @@ export function strengthRouter(deps: Deps): Router {
     res.json(
       await strengthDayWorkout(deps, {
         userId: req.userId,
-        today: todayIso(),
+        today: req.runnerDay.today,
         date,
         ...(sessionId === undefined ? {} : { sessionId }),
         ...(swap === undefined ? {} : { swap }),
@@ -436,7 +436,11 @@ export function strengthRouter(deps: Deps): Router {
     parse(noQuery, req.query)
     const { exerciseId: id } = parse(z.object({ exerciseId }), req.params)
     res.json(
-      await strengthExerciseView(deps, { userId: req.userId, today: todayIso(), exerciseId: id }),
+      await strengthExerciseView(deps, {
+        userId: req.userId,
+        today: req.runnerDay.today,
+        exerciseId: id,
+      }),
     )
   })
 
@@ -447,7 +451,7 @@ export function strengthRouter(deps: Deps): Router {
 
   router.put('/lifts/:exerciseId', async (req, res) => {
     const { exerciseId: id } = parse(z.object({ exerciseId }), req.params)
-    const body = parse(liftSchema(), req.body)
+    const body = parse(liftSchema(req.runnerDay.today), req.body)
     res.json(await saveStrengthLift(prisma, req.userId, id, body))
   })
 
@@ -463,8 +467,8 @@ export function strengthRouter(deps: Deps): Router {
 
   router.put('/logs/:logId', async (req, res) => {
     const { logId } = parse(logIdParam, req.params)
-    const body = parse(logSchema(), req.body)
-    const saved = await saveStrengthLog(deps, req.userId, logId, body)
+    const body = parse(logSchema(req.runnerDay.today), req.body)
+    const saved = await saveStrengthLog(deps, req.userId, logId, body, req.runnerDay.today)
     res.status(saved.created ? 201 : 200).json(saved.result)
   })
 

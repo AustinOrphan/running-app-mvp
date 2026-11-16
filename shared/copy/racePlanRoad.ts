@@ -50,6 +50,11 @@ export const RACE_PLAN_ROAD_TEMPLATES = {
     'Over the course, the range is an average of {fast} to {slow}. It is not a pace for any one kilometre.',
     { fast: 'pace', slow: 'pace' },
   ),
+  // The same sentence for a runner who reads miles: the unit of the pace and of the sentence agree.
+  'race.plan.road.pace.range-mi': tpl(
+    'Over the course, the range is an average of {fast} to {slow}. It is not a pace for any one mile.',
+    { fast: 'pace', slow: 'pace' },
+  ),
   'race.plan.road.pace.marathon': tpl(
     'In 1.7 million recreational marathon runners, a start or a finish run too fast both went with slower finish times.',
   ),
@@ -133,6 +138,9 @@ export const RACE_PLAN_ROAD_TEMPLATES = {
   'race.plan.road.not-in.heading': tpl('Not in this plan', {}, { shape: 'label' }),
   'race.plan.road.not-in.split': tpl(
     'A pace for each kilometre or a split table: no study in the records gives a best shape.',
+  ),
+  'race.plan.road.not-in.split-mi': tpl(
+    'A pace for each mile or a split table: no study in the records gives a best shape.',
   ),
   'race.plan.road.not-in.slowing': tpl(
     'How much a runner slows late: no study in the records gives a size by finishing time.',
@@ -228,7 +236,8 @@ export interface RoadRacePlanText {
   notIn: { heading: string; items: string[] }
 }
 
-function noticeText(notice: RoadRaceNotice, units: Units): RoadNoticeText {
+/** A notice this build has no words for (a newer server's) is dropped by the caller, never shown blank. */
+function noticeText(notice: RoadRaceNotice, units: Units): RoadNoticeText | null {
   switch (notice) {
     case 'no-prediction':
       return {
@@ -274,6 +283,8 @@ function noticeText(notice: RoadRaceNotice, units: Units): RoadNoticeText {
         link: null,
         to: null,
       }
+    default:
+      return null
   }
 }
 
@@ -388,7 +399,7 @@ function paceText(plan: RoadRacePlan, units: Units): RoadRacePlanText['pace'] {
   return {
     heading: say(T['race.plan.road.pace.heading'], {}, units),
     range: say(
-      T['race.plan.road.pace.range'],
+      units === 'mi' ? T['race.plan.road.pace.range-mi'] : T['race.plan.road.pace.range'],
       { fast: pace(plan.pace.fastSecPerKm), slow: pace(plan.pace.slowSecPerKm) },
       units,
     ),
@@ -485,7 +496,11 @@ function raceWeekText(
 
 function notInItems(plan: RoadRacePlan, units: Units): string[] {
   const items = [
-    say(T['race.plan.road.not-in.split'], {}, units),
+    say(
+      units === 'mi' ? T['race.plan.road.not-in.split-mi'] : T['race.plan.road.not-in.split'],
+      {},
+      units,
+    ),
     say(T['race.plan.road.not-in.slowing'], {}, units),
   ]
   if (plan.distanceClass !== '10k') {
@@ -511,7 +526,9 @@ export function describeRoadRacePlan(plan: RoadRacePlan, units: Units): RoadRace
     sketch: say(U['race.plan.sketch'], {}, units),
     firmHeading: say(U['race.plan.firm.heading'], {}, units),
     aboutRanges: say(U['race.plan.firm.about'], {}, units),
-    notices: plan.notices.map((notice) => noticeText(notice, units)),
+    notices: plan.notices
+      .map((notice) => noticeText(notice, units))
+      .filter((notice): notice is RoadNoticeText => notice !== null),
     expected: expectedText(plan, units),
     pace: paceText(plan, units),
     firstHalf: firstHalfText(plan, units),

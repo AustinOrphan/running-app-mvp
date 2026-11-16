@@ -11,6 +11,7 @@ import {
   startScheduler,
   weekSlotStart,
 } from '../../server/jobs/scheduler.ts'
+import { serverTimeZone } from '../../server/runnerDay.ts'
 import { runNightlyMatching } from '../../server/services/execution.ts'
 import { replanActivePlan } from '../../server/services/planEngine.ts'
 import { sealSecret } from '../../server/services/sync.ts'
@@ -128,13 +129,14 @@ async function jobRuns(userId: string, job?: string) {
 
 describe('weekSlotStart', () => {
   test('is this week s Monday 03:00 once it has come, else null', () => {
-    expect(weekSlotStart(at(19, 2, 59), REPLAN_SLOT)).toBeNull()
-    expect(weekSlotStart(at(19, 3, 0), REPLAN_SLOT)).toEqual(at(19, 3, 0))
-    expect(weekSlotStart(at(21, 12), REPLAN_SLOT)).toEqual(at(19, 3, 0))
+    const slot = (now: Date) => weekSlotStart(now, REPLAN_SLOT, serverTimeZone())
+    expect(slot(at(19, 2, 59))).toBeNull()
+    expect(slot(at(19, 3, 0))).toEqual(at(19, 3, 0))
+    expect(slot(at(21, 12))).toEqual(at(19, 3, 0))
     // Weeks start Monday (ADR 0003), so Sunday still belongs to the week that began on the 19th.
-    expect(weekSlotStart(at(25, 23, 59), REPLAN_SLOT)).toEqual(at(19, 3, 0))
-    expect(weekSlotStart(at(26, 2, 0), REPLAN_SLOT)).toBeNull()
-    expect(weekSlotStart(at(26, 3, 0), REPLAN_SLOT)).toEqual(at(26, 3, 0))
+    expect(slot(at(25, 23, 59))).toEqual(at(19, 3, 0))
+    expect(slot(at(26, 2, 0))).toBeNull()
+    expect(slot(at(26, 3, 0))).toEqual(at(26, 3, 0))
   })
 
   test('the 03:00 Monday slot is unchanged', () => {
@@ -208,12 +210,11 @@ describe('the weekly catch-up', () => {
     await runReplanJob(deps(), { now: new Date(), catchUp: true })
     expect(replannedUsers()).toEqual([beforeSlot.user.id])
 
-    // The 03:00 job itself still re-plans every version-2 plan.
+    // The 03:00 job itself re-plans every version-2 plan whose week has no update yet: the catch-up
+    // just wrote one for the third, so it is not re-planned a second time.
     vi.mocked(replanActivePlan).mockClear()
     await runReplanJob(deps(), { now: new Date() })
-    expect(new Set(replannedUsers())).toEqual(
-      new Set([afterSlot.user.id, atSlot.user.id, beforeSlot.user.id]),
-    )
+    expect(new Set(replannedUsers())).toEqual(new Set([afterSlot.user.id, atSlot.user.id]))
   })
 
   test('a plan generated after the slot gets no catch-up re-plan (end to end)', async () => {
@@ -314,17 +315,21 @@ describe('the weekly catch-up', () => {
     expect(view.weeklyUpdate.due).toBe(false)
   })
 
-  test('the 03:00 job still re-plans every version-2 plan, whatever revisions exist', async () => {
+  test('the 03:00 job re-plans every version-2 plan, whatever other revisions exist, but not a week twice', async () => {
     const done = await planFor()
+    const edited = await planFor()
     const fresh = await planFor()
     await revise(done.planId, 'weekly', at(19, 3, 0))
+    await revise(edited.planId, 'owner', at(19, 9))
     replanWritesARevision()
 
     await runReplanJob(deps(), { now: new Date() })
 
-    expect(new Set(replannedUsers())).toEqual(new Set([done.user.id, fresh.user.id]))
-    const [run] = await jobRuns(done.user.id)
+    // A weekly revision since Monday 00:00 means the week's update is made: no second one.
+    expect(new Set(replannedUsers())).toEqual(new Set([edited.user.id, fresh.user.id]))
+    const [run] = await jobRuns(edited.user.id)
     expect(run).toMatchObject({ provider: 'replan', trigger: 'schedule', status: 'ok' })
+    expect(await jobRuns(done.user.id)).toEqual([])
   })
 
   test('a user whose re-plan is already running is skipped and records nothing', async () => {

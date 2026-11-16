@@ -19,13 +19,14 @@ import type { PrismaClient } from '../../server/db.ts'
 import { slotProviders } from '../../server/services/todaySlots.ts'
 import { registerHealthNoteProducer } from '../../server/services/todayHealth.ts'
 import { registerTodayStamp } from '../../server/services/today.ts'
-import { refreshWeatherCaches, settleWeatherCache } from '../../server/services/weatherCache.ts'
+import { settleWeatherCache } from '../../server/services/weatherCache.ts'
 import { fakeFetch } from '../fakeFetch.ts'
 import {
   client,
   createTestCtx,
   expectNoRefusedFetches,
   noNetwork,
+  refreshWeatherCachesToday as refreshWeatherCaches,
   seedUser,
   type TestCtx,
   type TestUser,
@@ -1537,20 +1538,21 @@ describe('GET /api/today: cost', () => {
     )
     expect(warm.count('activity.findMany')).toBe(0)
     expect(warm.count('plan.findFirst')).toBe(0)
-    // Pinned so that a query added to the request path is a decision, not an accident. Cold is 33
+    // Pinned so that a query added to the request path is a decision, not an accident. Cold is 34
     // reads: the session lookup, the forecast stamp (the profile and the cache row), the job-notes
     // stamp, the source notes' stamp (J10, the connections), the publications' stamp (three: the
     // rows by state, the channel, the recent sends), the brief's stamp (the current week's row), the
     // snapshot's eleven (the eleventh is the runner's active rest windows), the cached forecast, the
     // race climate, the three reads of the job notes, the source notes' read of the connections,
     // the watch slot's read of the channel, the note about tomorrow's run (the publications), the
-    // brief slot's read of the row and the fuel replay's three (the switches, the logs, the weeks
-    // of every plan; its session lookup is skipped without a log) and the countdown's course points
+    // brief slot's read of the row and the fuel replay's four (the switches, the logs, the weeks
+    // of every plan, and the profile for the zone that dates a replaced plan, D10 step 2b; its
+    // session lookup is skipped without a log) and the countdown's course points
     // (one read of the checkpoints, memoised as `race.course`). Warm is 17, the seventeen of the
     // list above, and the data version is read six times (the tag, the snapshot, the fuel replay's
     // memo once for each of the two fuel slots, the race course's memo, and the race plan's memo, which answers null for
     // a goal that is not an ultra without a query of its own).
-    expect(coldTotal).toBe(33)
+    expect(coldTotal).toBe(34)
     expect(warm.models).toHaveLength(17)
     expect(warm.raw).toBe(6)
   })

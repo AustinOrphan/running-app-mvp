@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { z } from 'zod'
-import { addDays, isIsoDate, todayIso } from '../../shared/dates.ts'
+import { addDays, isIsoDate } from '../../shared/dates.ts'
 import type { Deps } from '../app.ts'
 import { parse, validationError } from '../errors.ts'
 import { issueCalendarToken, revokeCalendarToken } from '../services/calendar.ts'
@@ -40,24 +40,29 @@ export function wristRouter(deps: Deps): Router {
 
   router.get('/status', async (req, res) => {
     const query = parse(statusQuery, req.query)
-    const today = todayIso()
+    const { today } = req.runnerDay
     const from = query.from ?? today
     const to = query.to ?? addDays(from, PUBLISH_HORIZON_DAYS - 1)
     const issue = statusRangeIssue(from, to)
     if (issue !== null) throw validationError(issue, [{ path: 'to', message: issue }])
     // A cached "On your watch" would be false: the answer says what the app knows now.
     res.set('Cache-Control', 'no-store')
-    res.json(await wristStatus(deps, req.userId, { from, to }))
+    res.json(await wristStatus(deps, req.userId, { from, to }, today))
   })
 
   router.put('/intervals', async (req, res) => {
     const body = parse(intervalsBody, req.body)
     res.json(
-      await setPublishing(deps, req.userId, {
-        enabled: body.enabled,
-        garminLinked: body.garminLinked,
-        removeSent: body.removeSent === true,
-      }),
+      await setPublishing(
+        deps,
+        req.userId,
+        {
+          enabled: body.enabled,
+          garminLinked: body.garminLinked,
+          removeSent: body.removeSent === true,
+        },
+        { today: req.runnerDay.today },
+      ),
     )
   })
 
@@ -66,7 +71,12 @@ export function wristRouter(deps: Deps): Router {
     res
       .status(202)
       .json(
-        await requestPublish(deps, req.userId, body.sessionId ? { sessionId: body.sessionId } : {}),
+        await requestPublish(
+          deps,
+          req.userId,
+          body.sessionId ? { sessionId: body.sessionId } : {},
+          { today: req.runnerDay.today },
+        ),
       )
   })
 

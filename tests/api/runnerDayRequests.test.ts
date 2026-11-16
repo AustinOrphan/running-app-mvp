@@ -15,16 +15,24 @@ import {
 
 const injected = vi.hoisted(() => ({ zone: null as string | null, echo: false }))
 
+/** The echo mode's answer: the east zone for the marker column value, the west zone otherwise. */
+function echoZone(stored: string | null | undefined): string {
+  return stored === 'Marker/Stored' ? 'Pacific/Kiritimati' : 'Pacific/Pago_Pago'
+}
+
 vi.mock('../../server/runnerDay.ts', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../server/runnerDay.ts')>()
   return {
     ...actual,
     runnerZone: (stored: string | null | undefined) =>
-      injected.echo ? `echo:${String(stored)}` : (injected.zone ?? actual.runnerZone(stored)),
+      injected.echo ? echoZone(stored) : (injected.zone ?? actual.runnerZone(stored)),
     runnerDay: (now: Date, stored: string | null | undefined) => {
-      // The echo mode returns the stored value as the zone, to show which column was read.
-      if (injected.echo)
-        return { tz: `echo:${String(stored)}`, today: isoDateInZone(now, 'UTC'), now }
+      // The echo mode answers with a zone that tells which stored value was read (a real zone,
+      // since step 3 computes slot times in the zone a request carries).
+      if (injected.echo) {
+        const tz = echoZone(stored)
+        return { tz, today: isoDateInZone(now, tz), now }
+      }
       const tz = injected.zone ?? actual.runnerZone(stored)
       return { tz, today: isoDateInZone(now, tz), now }
     },
@@ -123,7 +131,51 @@ describe('the runner day on the request', () => {
     injected.echo = true
     const res = await client(ctx, user).get('/api/today')
     expect(res.status).toBe(200)
-    expect((res.body as TodayView).tz).toBe('echo:Marker/Stored')
+    expect((res.body as TodayView).tz).toBe(EAST)
+  })
+
+  // Step 2b: the year of a bound or an age is the year of the runner's day. At 11:00 UTC on 31
+  // December 2026 Pacific/Kiritimati reads 1 January 2027 and Pacific/Pago_Pago reads 31 December.
+  describe('the year of the runner day', () => {
+    const NEW_YEAR_EVE = new Date(Date.UTC(2026, 11, 31, 11, 0))
+
+    test('the birth-year bound follows the runner year', async () => {
+      vi.setSystemTime(NEW_YEAR_EVE)
+      try {
+        // A session minted at the new date: the earlier cookie has expired by then.
+        const late = await seedUser(ctx, { email: 'bound@example.com' })
+        // The latest birth year is the year minus 10: 2017 in 2027, past the bound in 2026.
+        injected.zone = EAST
+        const east = await client(ctx, late).put('/api/profile').send({ birthYear: 2017 })
+        expect(east.status).toBe(200)
+        injected.zone = WEST
+        const west = await client(ctx, late).put('/api/profile').send({ birthYear: 2017 })
+        expect(west.status).toBe(400)
+      } finally {
+        vi.setSystemTime(NOW)
+      }
+    })
+
+    test('the age of the plan notice follows the runner year', async () => {
+      vi.setSystemTime(NEW_YEAR_EVE)
+      try {
+        const late = await seedUser(ctx, { email: 'age@example.com' })
+        await ctx.prisma.athleteProfile.upsert({
+          where: { userId: late.id },
+          create: { userId: late.id, birthYear: 2009 },
+          update: { birthYear: 2009 },
+        })
+        // Born in 2009: 18 in 2027 (the statement is asked for), 17 in 2026 (under age).
+        injected.zone = EAST
+        const east = await client(ctx, late).get('/api/plan-notice')
+        expect((east.body as { age: string }).age).toBe('ask')
+        injected.zone = WEST
+        const west = await client(ctx, late).get('/api/plan-notice')
+        expect((west.body as { age: string }).age).toBe('under')
+      } finally {
+        vi.setSystemTime(NOW)
+      }
+    })
   })
 
   test('setup and the password change answer with the zone', async () => {

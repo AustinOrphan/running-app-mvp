@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { z } from 'zod'
-import { isIsoDate, mondayOf, todayIso } from '../../shared/dates.ts'
+import { isIsoDate, mondayOf } from '../../shared/dates.ts'
 import { LOAD_APPETITES, PRESET_IDS } from '../../shared/engine/types.ts'
 import type { PlanWeek } from '../../shared/types.ts'
 import type { Deps } from '../app.ts'
@@ -229,12 +229,12 @@ export function planRouter(deps: Deps): Router {
   const router = Router()
 
   router.get('/', async (req, res) => {
-    res.json(await loadPlanWithSessions(deps, req.userId, todayIso()))
+    res.json(await loadPlanWithSessions(deps, req.userId, req.runnerDay.today))
   })
 
   router.post('/generate', async (req, res) => {
     const body = parse(generateBody, req.body)
-    await requirePlanNotice(prisma, req.userId)
+    await requirePlanNotice(prisma, req.userId, req.runnerDay.today)
     const options = {
       ...(body.strengthPreference === undefined
         ? {}
@@ -244,7 +244,7 @@ export function planRouter(deps: Deps): Router {
     const plan = await generateEnginePlan(deps, {
       userId: req.userId,
       goalId: body.goalId,
-      today: todayIso(),
+      today: req.runnerDay.today,
       options,
     })
     res.status(201).json(plan)
@@ -255,7 +255,8 @@ export function planRouter(deps: Deps): Router {
     res.json(
       await commitReplan(deps, {
         userId: req.userId,
-        today: todayIso(),
+        today: req.runnerDay.today,
+        tz: req.runnerDay.tz,
         expectHash: body.expectHash,
       }),
     )
@@ -265,7 +266,8 @@ export function planRouter(deps: Deps): Router {
   // revision, with an undo). The same position writes nothing and answers `revision: null`.
   router.put('/load', async (req, res) => {
     const { loadAppetite } = parse(loadBody, req.body)
-    res.json(await commitLoadSetting(deps, { userId: req.userId, loadAppetite, today: todayIso() }))
+    const { today, tz } = req.runnerDay
+    res.json(await commitLoadSetting(deps, { userId: req.userId, loadAppetite, today, tz }))
   })
 
   // Changes the method preset of the active plan: the weeks after the current one are drawn again
@@ -273,18 +275,20 @@ export function planRouter(deps: Deps): Router {
   // writes nothing and answers `revision: null`.
   router.put('/method', async (req, res) => {
     const { method } = parse(methodBody, req.body)
-    res.json(await commitMethod(deps, { userId: req.userId, method, today: todayIso() }))
+    const { today, tz } = req.runnerDay
+    res.json(await commitMethod(deps, { userId: req.userId, method, today, tz }))
   })
 
   // The runner's yes to the offer to raise the plan to match recent weeks: one re-plan, one revision
   // (reason `raise-to-match`), with an undo. Never called by the app on its own.
   router.post('/raise', async (req, res) => {
     const body = parse(raiseBody, req.body)
-    res.json(await commitRaise(deps, { userId: req.userId, ...body, today: todayIso() }))
+    const { today, tz } = req.runnerDay
+    res.json(await commitRaise(deps, { userId: req.userId, ...body, today, tz }))
   })
 
   router.get('/archived', async (req, res) => {
-    res.json(await listArchivedPlans(deps, { userId: req.userId, today: todayIso() }))
+    res.json(await listArchivedPlans(deps, { userId: req.userId, today: req.runnerDay.today }))
   })
 
   router.post('/archived/:id/restore', async (req, res) => {
@@ -292,7 +296,7 @@ export function planRouter(deps: Deps): Router {
       await restoreArchivedPlan(deps, {
         userId: req.userId,
         planId: req.params.id,
-        today: todayIso(),
+        today: req.runnerDay.today,
       }),
     )
   })
@@ -300,7 +304,7 @@ export function planRouter(deps: Deps): Router {
   // What an action would do, from the code that commits it. A refusal is information (200).
   router.post('/preview', async (req, res) => {
     const action = parse(previewBody, req.body)
-    res.json(await previewAction(deps, { userId: req.userId, action, today: todayIso() }))
+    res.json(await previewAction(deps, { userId: req.userId, action, today: req.runnerDay.today }))
   })
 
   router.get('/revisions', async (req, res) => {
@@ -309,6 +313,8 @@ export function planRouter(deps: Deps): Router {
       await listRevisions(deps, {
         userId: req.userId,
         limit: query.limit,
+        today: req.runnerDay.today,
+        tz: req.runnerDay.tz,
         before: query.before,
         includeEmpty: query.include === 'empty',
       }),
@@ -321,7 +327,8 @@ export function planRouter(deps: Deps): Router {
       await commitUndo(deps, {
         userId: req.userId,
         revisionId: req.params.id,
-        today: todayIso(),
+        today: req.runnerDay.today,
+        tz: req.runnerDay.tz,
         expectHash: body.expectHash,
       }),
     )
@@ -334,7 +341,7 @@ export function planRouter(deps: Deps): Router {
     res.json(
       await listDisruptions(deps, {
         userId: req.userId,
-        today: todayIso(),
+        today: req.runnerDay.today,
         date: query.date,
         includeAll: query.include === 'all',
       }),
@@ -347,7 +354,8 @@ export function planRouter(deps: Deps): Router {
       await commitDisruption(deps, {
         userId: req.userId,
         action: { type: 'disruption-create', ...window },
-        today: todayIso(),
+        today: req.runnerDay.today,
+        tz: req.runnerDay.tz,
         expectHash: hash,
       }),
     )
@@ -360,7 +368,8 @@ export function planRouter(deps: Deps): Router {
       await commitDisruption(deps, {
         userId: req.userId,
         action: { type: 'disruption-update', id, ...change },
-        today: todayIso(),
+        today: req.runnerDay.today,
+        tz: req.runnerDay.tz,
         expectHash: hash,
       }),
     )
@@ -373,7 +382,8 @@ export function planRouter(deps: Deps): Router {
       await commitDisruption(deps, {
         userId: req.userId,
         action: { type: 'disruption-remove', id },
-        today: todayIso(),
+        today: req.runnerDay.today,
+        tz: req.runnerDay.tz,
         expectHash: hash,
       }),
     )
@@ -394,12 +404,12 @@ export function planRouter(deps: Deps): Router {
       userId: req.userId,
       sessionId: id,
       adjustment: body.adjustment,
-      today: todayIso(),
+      today: req.runnerDay.today,
     }
     res.json(
       body.dryRun === true
         ? await previewAdjust(deps, args)
-        : await commitAdjust(deps, { ...args, expectHash: body.expectHash }),
+        : await commitAdjust(deps, { ...args, tz: req.runnerDay.tz, expectHash: body.expectHash }),
     )
   })
 
@@ -410,7 +420,8 @@ export function planRouter(deps: Deps): Router {
       userId: req.userId,
       sessionId: req.params.id,
       adjustment: adjustmentOfPatch(patch),
-      today: todayIso(),
+      today: req.runnerDay.today,
+      tz: req.runnerDay.tz,
     })
     res.json(result.session)
   })
@@ -418,7 +429,12 @@ export function planRouter(deps: Deps): Router {
   router.post('/sessions/:id/link', async (req, res) => {
     const { activityId } = parse(linkBody, req.body)
     res.json(
-      await linkPlanSession(deps, { userId: req.userId, sessionId: req.params.id, activityId }),
+      await linkPlanSession(deps, {
+        userId: req.userId,
+        sessionId: req.params.id,
+        activityId,
+        today: req.runnerDay.today,
+      }),
     )
   })
 
@@ -429,7 +445,11 @@ export function planRouter(deps: Deps): Router {
     const { id } = parse(sessionParams, req.params)
     res.set('Cache-Control', 'no-store')
     res.json(
-      await sessionWorkoutView(deps, { userId: req.userId, sessionId: id, today: todayIso() }),
+      await sessionWorkoutView(deps, {
+        userId: req.userId,
+        sessionId: id,
+        today: req.runnerDay.today,
+      }),
     )
   })
 
@@ -441,7 +461,7 @@ export function planRouter(deps: Deps): Router {
     const file = await sessionWorkoutFile(deps, {
       userId: req.userId,
       sessionId: id,
-      today: todayIso(),
+      today: req.runnerDay.today,
       now: new Date(),
     })
     res
@@ -457,7 +477,7 @@ export function planRouter(deps: Deps): Router {
     const file = await weekWorkoutZip(deps, {
       userId: req.userId,
       weekStart,
-      today: todayIso(),
+      today: req.runnerDay.today,
       now: new Date(),
     })
     res

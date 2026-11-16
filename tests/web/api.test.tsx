@@ -785,6 +785,29 @@ describe('Today', () => {
   const todayCalls = (calls: Array<{ method: string; url: string }>) =>
     calls.filter((c) => c.method === 'GET' && c.url === '/api/today').length
 
+  test('keeps asking while the answer is the phone copy, until the server answers', async () => {
+    // The `online` event can come before a request can get out: the worker then answers from the copy.
+    let reads = 0
+    const { calls } = mockApi(
+      allRoutes({
+        'GET /api/today': () => {
+          reads += 1
+          return reads <= 2 ? { servedFromCache: true } : {}
+        },
+      }),
+    )
+    const { wrapper } = setup()
+    const { result } = renderHook(() => useToday(), { wrapper })
+    await waitFor(
+      () => {
+        expect(result.current.data?.servedFromCache).toBeUndefined()
+        expect(result.current.isSuccess).toBe(true)
+      },
+      { timeout: 6000 },
+    )
+    expect(todayCalls(calls)).toBe(3)
+  })
+
   test('is read again when the window regains focus once it is stale; the settings are not', async () => {
     vi.useFakeTimers({ toFake: ['Date'] })
     try {

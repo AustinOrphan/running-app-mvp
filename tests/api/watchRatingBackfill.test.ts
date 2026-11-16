@@ -1,21 +1,21 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from 'vitest'
 import { runWatchRatingJob } from '../../server/jobs/scheduler.ts'
 import { dataVersionKey } from '../../server/dataVersion.ts'
-import { storeParsed } from '../../server/services/activityStore.ts'
-import { sealSecret, syncProvider } from '../../server/services/sync.ts'
+import { storeParsedToday as storeParsed, syncProviderToday as syncProvider } from './helpers.ts'
+import { sealSecret } from '../../server/services/sync.ts'
 import { parseActivityFile } from '../../shared/importers/files/index.ts'
 import { buildFit } from '../fixtures/fit/buildFit.ts'
 import { syntheticRun } from '../fixtures/syntheticRoute.ts'
 import {
   WATCH_RATING_BATCH,
   WATCH_RATING_DEFER_MS,
-  backfillWatchRatings,
 } from '../../server/services/watchRatingBackfill.ts'
 import { P } from '../../shared/engine/params/index.ts'
 import { fakeFetch } from '../fakeFetch.ts'
 import {
   client,
   createTestCtx,
+  backfillWatchRatingsToday as backfillWatchRatings,
   expectNoRefusedFetches,
   seedUser,
   type TestCtx,

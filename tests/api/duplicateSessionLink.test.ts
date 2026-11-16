@@ -316,7 +316,7 @@ describe('a moved session is assessed against the original', () => {
       date: old,
       min: 52,
     })
-    await assessSessionById(ctx, { userId: user.id, sessionId: linked.id })
+    await assessSessionById(ctx, { userId: user.id, sessionId: linked.id, today })
     const before = (await reload(linked.id)).execution
     expect(before).not.toBeNull()
     return { original, copy, linked, before }
@@ -349,7 +349,7 @@ describe('a moved session is assessed against the original', () => {
       },
     })
     await markDuplicates(ctx.prisma, user.id, [original.id], (sessionIds) =>
-      assessSessionsQuietly(ctx, { userId: user.id, sessionIds }),
+      assessSessionsQuietly(ctx, { userId: user.id, sessionIds, today }),
     )
     const row = await reload(linked.id)
     expect(row.activityId).toBe(original.id)

@@ -388,6 +388,8 @@ describe('runReplanJob', () => {
       update: { availability },
     })
     vi.setSystemTime(new Date(MONDAY.getTime() + 60_000))
+    // One update a week (D10's week guard): the quiet one is removed so the job has a week to update.
+    await ctx.prisma.planRevision.delete({ where: { id: quiet.id } })
     await runReplanJob(deps, { now: new Date() })
     const listed = (await c.get('/api/plan/revisions')).body as PlanRevisionView[]
     expect(listed.map((r) => r.reason)).toEqual(['weekly', 'generate'])

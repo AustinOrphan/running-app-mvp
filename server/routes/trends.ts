@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { z } from 'zod'
-import { addDays, mondayOf, todayIso, weekStartsBetween } from '../../shared/dates.ts'
+import { addDays, mondayOf, weekStartsBetween } from '../../shared/dates.ts'
 import { P } from '../../shared/engine/params/index.ts'
 import { seriesByDate, weeklyBands, weeklySleep, weightWeeks } from '../../shared/domain/trends.ts'
 import type { TrendsView, TrendWeightWeek } from '../../shared/types.ts'
@@ -49,7 +49,7 @@ export function trendsRouter(deps: Deps): Router {
   router.get('/', async (req, res) => {
     parse(query, req.query)
     const { userId } = req
-    const today = todayIso()
+    const { today } = req.runnerDay
     const last = mondayOf(today)
     const weekStarts = weekStartsBetween(addDays(last, -7 * (TRENDS_WEEKS - 1)), last)
     const account = await deps.prisma.user.findUnique({

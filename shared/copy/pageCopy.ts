@@ -121,6 +121,22 @@ export const PAGE_TEMPLATES = {
     {},
     { shape: 'label' },
   ),
+
+  // The Profile page's "Use my location" button: one line per reason the home location could not be
+  // read. Each names its true cause and offers the coordinates.
+  'profile.location.insecure': tpl(
+    'Location needs a secure (https) address, and this page was opened over http, so the browser will not share it. Enter the coordinates instead.',
+  ),
+  'profile.location.no-api': tpl(
+    'This browser cannot share a location. Enter the coordinates instead.',
+  ),
+  'profile.location.denied': tpl(
+    'The browser or device did not allow location here. Allow it in the browser’s site settings or the device’s location settings, or enter the coordinates instead.',
+  ),
+  'profile.location.unavailable': tpl('No location could be found. Enter the coordinates instead.'),
+  'profile.location.timeout': tpl(
+    'No location arrived within the wait. Enter the coordinates instead.',
+  ),
 } satisfies Record<string, Template>
 
 /**
