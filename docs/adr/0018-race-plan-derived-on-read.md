@@ -1,6 +1,6 @@
 # 0018. The race plan is derived on read from rules, the prediction, the fuel ladder and the runner's checkpoint table
 
-Status: Accepted 2026-11-16 (owner decision D11); proposed 2026-11-07
+Status: Accepted 2026-11-16 (#743); proposed 2026-11-07
 
 Builds on ADR 0005, 0009, 0010, 0011, 0012 and 0014. Adds rule H14 to `research/engine-rules.md` and
 amends H6, H11 and K6 there. The design is `docs/superpowers/specs/2026-11-07-race-plan-design.md`;
@@ -47,7 +47,7 @@ every read and stored nowhere.
   line over the time of the segment) with the few-hours label; a `self` race calls the rows course
   points and shows no aid wording and no grams per segment.
 - Ultra classes only (every class above the marathon, as H11). Shorter goals keep today's race session. The half marathon and the marathon have
-  their own plan: see ADR 0023.
+  their own plan, and the 10 km a shorter one (time, pace and heat blocks): see ADR 0023.
 - `Goal.supportLevel` `self` drops aid-station wording; aid time (R2) does not apply to it.
 - The race is not published to any device or feed.
 - The data version and the day are the plan's change key. The plan reads no forecast, so its ETag has

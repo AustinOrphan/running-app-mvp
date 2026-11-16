@@ -1,6 +1,6 @@
 # 0012. The installed app opens offline from a hand-written service worker that keeps six reads (five at first, the race plan added 2026-11-07), and the device's copy of health data is purged with the session
 
-Status: Accepted 2026-10-23 (#554); amended 2026-11-07 (#659; the race plan is a sixth kept read, see the addendum); amended 2026-11-07 (Done and a rating are queued writes, see the second addendum)
+Status: Accepted 2026-10-23 (#554); amended 2026-11-07 (#659; the race plan is a sixth kept read, see the addendum); amended 2026-11-07 (Done and a rating are queued writes, see the second addendum); amended 2026-11-16 (#743, the road plan rides the kept reads)
 
 ## Context
 
@@ -405,3 +405,9 @@ allowlist in `web/sw/sw.js` and `tests/unit/shared/sw.test.ts` stay as they are,
 ignored by a shell built before it, so an old shell keeps working and a new shell reads a missing field
 as no plan. The payload carries a pace from the runner's critical speed and grams from body mass, so it
 lives in `rl-api-v1` and is emptied only by `purgeDeviceData()`, like the rest.
+
+- **Fact:** the worker keeps a read by URL and never reads the payload's fields. Checked in
+  `web/sw/sw.js` (the allowlist and `readCopy`) on 2026-11-16.
+- **Fact:** a shell built before the plan renders `plan`, `reason` and `slots.race`, which stay `null`,
+  `'not-ultra'` and `null` for a road goal, and ignores an optional field it does not name. Read from
+  `shared/copy/racePlan.ts` and `RaceSessionSection.tsx` on 2026-11-16.

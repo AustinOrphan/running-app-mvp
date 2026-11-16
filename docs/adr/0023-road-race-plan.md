@@ -1,10 +1,10 @@
-# 0023. The road race plan is derived on read for the half marathon and the marathon
+# 0023. The road race plan is derived on read for the half marathon, the marathon and, in part, the 10 km
 
 Status: Proposed 2026-11-16
 
 Builds on ADR 0005, 0008, 0009, 0010, 0011, 0012 and 0018. Implements owner decision D11
-(2026-11-14). Replaces the sentence "Ultra classes only" of ADR 0018 for the half marathon and the
-marathon, and changes nothing else in ADR 0018. The research pass for D11 is
+(2026-11-14). Replaces the sentence "Ultra classes only" of ADR 0018 for the half marathon, the
+marathon and (time, pace and heat blocks only) the 10 km, and changes nothing else in ADR 0018. The research pass for D11 is
 `research/topics/road-racing.md` (19 papers, #741). This PR holds the decision only: no engine,
 server or web code, and no road rule text (see Consequences).
 
@@ -19,7 +19,9 @@ found and what the plan may therefore say.
 
 ## Decision
 
-The owner's answers of 2026-11-16 settle the scope.
+The owner decision of 2026-11-16 (Q1 to Q10 below, the owner's answers to the open design questions)
+settles the scope. Terms: the pace block is the expected time range divided by the distance, an
+average over the race.
 
 - **Classes (Q1).** A goal in the `half` or `marathon` distance class gets the full road plan. A
   `10k` goal gets the time, pace and heat blocks only. A `5k` goal is unchanged, and so is an
@@ -40,7 +42,7 @@ The owner's answers of 2026-11-16 settle the scope.
   `l2.csFractionShortMin`, with a critical speed that is not from a widened window, the plan states
   the population finding of `k6.firstHalfWarningCsFraction` with the runner's figure, worded as
   where slowing was more common and never as a limit or a pace to run. It shows for every marathon
-  that passes those gates, with no margin gate (a margin would need a Param with no paper).
+  that passes those gates, with no margin gate (a margin would need a number that no paper gives).
 - **Fuel.** The rate is the tolerated rung (`raceFuelFor`), stated only for an expected time of at
   least `h7.logMinDurationMin` (120 min). A half under 2 h gets no rate and one fact line (Q5). The
   FT1 hold facts stay on the Fuel lab, and the plan links to it (Q9). The H8 fluid line and the EAH
@@ -54,7 +56,8 @@ The owner's answers of 2026-11-16 settle the scope.
   `TodaySlots.roadRace`. For a road goal the server keeps answering `plan: null`,
   `reason: 'not-ultra'` and `slots.race: null`, so a shell built before this change shows what it
   shows today and never meets a shape it does not know.
-- **Not in the plan.** Pace per kilometre or split; late slowing; a rate above a tolerated rung;
+- **Not in the plan.** A target for a single kilometre or a split (the pace block above is an
+  average, not that); late slowing; a rate above a tolerated rung;
   fuel timing; a rate for a half under 2 h; the FT1 hold facts; a warm-up or pre-cooling; a heart
   rate or RPE; a finish target; I5's top-quartile branch; any I5 line for a half.
 - **Not published.** The plan reaches no watch file, intervals.icu event, calendar feed or brief
@@ -70,8 +73,9 @@ to this ADR.
   adjustment would count it twice. Read from the code on 2026-11-16.
 - **Fact:** `k6.firstHalfWarningCsFraction` is a grade C Param with two cited papers and no reader.
   Searched in `shared`, `server`, `web`, `scripts` and `tests` on 2026-11-16.
-- **Fact:** the finding behind it is one study: more than 25,000 recreational marathoners who ran the
-  first half above 94% of critical speed were more likely to slow by more than 25% in the second half
+- **Fact:** the finding behind it is one study: in a cohort of more than 25,000
+  recreational marathoners, those who ran the first half above 94% of critical speed (and more so above
+  critical speed) were more likely to slow by more than 25% in the second half
   [smyth-2020-cs-training-data]. Records added by the pass show the half marathon is paced more evenly
   than the marathon (average change of speed across five segments 3.36 to 3.60% against 4.12 to 5.46%
   [cuk-2020-sex-pacing-half-marathon-marathon]) and that typical slowing is about 3 to 4% at 10 km
@@ -140,14 +144,15 @@ to this ADR.
   fields, and an addendum would make ADR 0018 the record of two plans.
 - **A km-mark or split table.** Against (Fact): no study in the corpus gives a road split pattern or
   a best shape; a uniform table is a pace chart under another name.
-- **A late-fade or negative-split Param.** Against (Rule): no paper, so no Param.
+- **A late-fade or negative-split Param.** Against (Opinion): the plan states only what a paper
+  supports, and no paper gives a late-fade size.
 - **A rate for a half under 2 h from the ultra floor.** Against (Fact): that floor comes from an ultra
   population [tiller-2019-issn-ultra-nutrition], and no road source supports the band (above).
 - **The FT1 hold facts on the road fuel block.** For (Opinion): for a 3 to 5 h marathon, how long the
   rate held is the most relevant fuel fact. Against (Rule): FT1 scopes them to the Fuel lab. Declined
   for v1 by the owner (Q9).
-- **Hiding the first-half line when the figure is far from the expected pace.** Against (Rule): needs
-  a grade D Param with no paper.
+- **Hiding the first-half line when the figure is far from the expected pace.** Against (Opinion): it
+  needs a margin that no paper gives, and the plan states only what a paper supports.
 - **The H11 heart-rate ceiling and RPE for road.** Against (Fact): H11 rests on a 65 km trail study
   at an effort far below marathon effort, and nothing in the corpus gives a road race heart rate.
 - **A structured heat field on `Prediction`, or parsing `prediction.conditions`.** Against (Fact): a
