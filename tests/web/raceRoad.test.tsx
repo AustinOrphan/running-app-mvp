@@ -92,6 +92,7 @@ describe('RacePage: the road blocks', () => {
 
   test('a 10 km gets the time, pace and heat blocks and no fuel, first half or race week', async () => {
     const road = roadPlan('10k')
+    expect(road.name).toBe('Example 10 km')
     renderRace({ plan: null, reason: 'not-ultra', road })
     await screen.findByRole('heading', { level: 2, name: 'Expected time' })
     const headings = await headingsOf()

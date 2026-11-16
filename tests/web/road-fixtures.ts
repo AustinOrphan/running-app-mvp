@@ -59,8 +59,23 @@ function toleratedRun(n: number): FuelRunInput {
 
 export type RoadFixtureKind = 'marathon-heat' | 'half-under-2h' | '10k' | 'trail-marathon'
 
-/** A plan for one of the four classes the screenshots and the tests cover. */
-export function roadPlan(kind: RoadFixtureKind = 'marathon-heat'): RoadRacePlan {
+const NAMES: Record<RoadFixtureKind, string> = {
+  'marathon-heat': 'Example Marathon',
+  'half-under-2h': 'Example Half',
+  '10k': 'Example 10 km',
+  'trail-marathon': 'Example Trail Marathon',
+}
+
+/**
+ * A plan for one of the four classes the screenshots and the tests cover, from `roadRacePlanFor`
+ * on a synthetic input, so every date and line is the engine's own. The race falls `daysToRace`
+ * after `today`; the defaults give `ROAD_TODAY` and `ROAD_RACE`.
+ */
+export function roadPlan(
+  kind: RoadFixtureKind = 'marathon-heat',
+  today: string = ROAD_TODAY,
+  daysToRace = 5,
+): RoadRacePlan {
   const mid = {
     'marathon-heat': 4 * HOUR,
     'half-under-2h': 1 * HOUR + 38 * MIN,
@@ -69,6 +84,8 @@ export function roadPlan(kind: RoadFixtureKind = 'marathon-heat'): RoadRacePlan 
   }[kind]
   const goal: GoalModel = {
     ...BASE_GOAL,
+    name: NAMES[kind],
+    date: addDays(today, daysToRace),
     expectedDurationSec: mid,
     ...(kind === 'marathon-heat' ? { raceWbgtC: 24 } : {}),
     ...(kind === 'half-under-2h' ? { distanceM: 21_097.5, distanceClass: 'half' as const } : {}),
@@ -93,7 +110,7 @@ export function roadPlan(kind: RoadFixtureKind = 'marathon-heat'): RoadRacePlan 
     }),
     weightKg: 70,
     acclimationCredit: 0.4,
-    today: ROAD_TODAY,
+    today,
   }
   return JSON.parse(JSON.stringify(roadRacePlanFor(input))) as RoadRacePlan
 }
