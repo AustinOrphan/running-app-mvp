@@ -524,6 +524,40 @@ describe('ProfilePage', () => {
       expectCleanCopy(note)
     })
 
+    test('choosing Not set and saving keeps the unset entry and hides the save note', async () => {
+      vi.spyOn(Intl.DateTimeFormat.prototype, 'resolvedOptions').mockReturnValue({
+        locale: 'en-US',
+        calendar: 'gregory',
+        numberingSystem: 'latn',
+        timeZone: 'Pacific/Auckland',
+      })
+      // The server keeps what was saved, so the profile read that a zone change triggers sees it.
+      let stored = makeProfile({ timezone: 'Europe/London' })
+      const { api, user } = setup(
+        stored,
+        {
+          'GET /api/profile': () => stored,
+          'PUT /api/profile': ({ body }) => {
+            stored = { ...stored, ...(body as Partial<AthleteProfile>) }
+            return stored
+          },
+        },
+        SERVER,
+      )
+      await loaded()
+      const picker = screen.getByRole('combobox', { name: 'Timezone' })
+      await user.selectOptions(picker, "Not set (the server's zone, Pacific/Kiritimati)")
+      await user.click(screen.getByRole('button', { name: 'Save profile' }))
+      await waitFor(() => {
+        expect(puts(api)).toHaveLength(1)
+      })
+      expect(puts(api)[0]?.body).toMatchObject({ timezone: 'UTC' })
+      await waitFor(() => {
+        expect(picker).toHaveDisplayValue("Not set (the server's zone, Pacific/Kiritimati)")
+      })
+      expect(screen.queryByText(/^Saving sets the zone/)).not.toBeInTheDocument()
+    })
+
     test('there is no line while the session zone is unknown', async () => {
       setup(makeProfile({ timezone: 'Europe/London' }))
       await loaded()

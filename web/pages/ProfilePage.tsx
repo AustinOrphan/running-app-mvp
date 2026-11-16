@@ -150,10 +150,15 @@ interface BodyUnits {
 const heightLabel = (units: Units) => (units === 'mi' ? 'Height (in)' : 'Height (cm)')
 const weightLabel = (unit: WeightUnit) => (unit === 'lb' ? 'Weight (lb)' : 'Weight (kg)')
 
-function toDraft(profile: AthleteProfile, body: BodyUnits): Draft {
+/**
+ * `prefillZone` is true on the first load only: a stored 'UTC' (a profile never filled in) then
+ * shows the browser's zone. After a save the draft takes the saved zone as it is, so a runner who
+ * chose the "Not set" entry keeps seeing it.
+ */
+function toDraft(profile: AthleteProfile, body: BodyUnits, prefillZone = true): Draft {
   const { units, weightUnit } = body
-  // 'UTC' is the server's default for a profile that was never filled in.
-  const timezone = profile.timezone === 'UTC' ? (browserTimezone() ?? 'UTC') : profile.timezone
+  const timezone =
+    prefillZone && profile.timezone === 'UTC' ? (browserTimezone() ?? 'UTC') : profile.timezone
   const availability = {} as Draft['availability']
   for (const { value } of WEEKDAYS) {
     const day = profile.availability[value]
@@ -382,7 +387,7 @@ function ProfileForm({ initial, units, weightUnit }: { initial: AthleteProfile }
     }
     update.mutate(profile, {
       onSuccess: (saved) => {
-        setDraft(toDraft(saved, body))
+        setDraft(toDraft(saved, body, false))
         toast.show('Profile saved')
       },
     })
