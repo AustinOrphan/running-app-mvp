@@ -248,12 +248,12 @@ describe('weeklyDecision (J5, G-6)', () => {
     })
 
     it('leaves a week with some running to the step of G-6', () => {
-      const d = weeklyDecision(base({ activities: runs([30]), existing: base().existing }), WEEK, {
+      const d = weeklyDecision(base({ activities: runs([110]), existing: base().existing }), WEEK, {
         efficiency: STABLE,
       })
       expect(d.decision).toBe('hold')
-      // min(planned 200, 30 run x 1.1)
-      expect(d.nextWeekTargetMin).toBe(33)
+      // min(planned 200, 110 run x 1.1); 55% of the week is over the share of the recovery week (E3)
+      expect(d.nextWeekTargetMin).toBe(121)
     })
   })
 

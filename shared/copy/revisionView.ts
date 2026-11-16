@@ -129,6 +129,11 @@ export const REVISION_VIEW_TEMPLATES = {
     {},
     { shape: 'label' },
   ),
+  'diff.week.flag.break-repeat': tpl(
+    'the repeat of the loading week after a recovery week',
+    {},
+    { shape: 'label' },
+  ),
   'diff.week.flag.disrupted': tpl('touched by a rest window', {}, { shape: 'label' }),
   // The label of a window already holds a colon ("Rest: illness"), so the dates follow a comma.
   'diff.hold': tpl(
@@ -369,6 +374,7 @@ const FLAG_IDS: Record<string, ViewId> = {
   'post-race-restart': 'diff.week.flag.post-race',
   disrupted: 'diff.week.flag.disrupted',
   'heat-hold': 'diff.week.flag.heat-hold',
+  'break-repeat': 'diff.week.flag.break-repeat',
   'disruption-return': 'diff.week.flag.disrupted',
 }
 

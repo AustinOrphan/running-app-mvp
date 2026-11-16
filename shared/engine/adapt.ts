@@ -5,6 +5,7 @@
 // fixed HR improves).
 import { addDays, daysBetween } from '../dates.ts'
 import { isTrimmed, TRIM_RULE } from '../domain/sessionStatus.ts'
+import { BREAK_SIGNAL, BREAK_SIGNAL_DETAIL } from '../copy/breakWeek.ts'
 import { aggregateWeeks } from '../domain/weeks.ts'
 import type { Activity } from '../types.ts'
 import { efficiencyIndex } from './athlete.ts'
@@ -23,6 +24,7 @@ import {
   readinessSnapshot,
   sleepAverageH,
 } from './readiness.ts'
+import { breakWeekOf } from './breakWeek.ts'
 import { firstHotDays, lastLoadingMin } from './heat.ts'
 import { isProgrammeWeek } from './startWeeks.ts'
 import type {
@@ -421,6 +423,18 @@ export function isHeatOnlyHold(decision: Pick<WeeklyDecision, 'decision' | 'sign
   )
 }
 
+/**
+ * The holds a week that counts as the recovery week may carry: the short week itself, a short night
+ * and a mild pain under the flag score. Every other signal (illness, pain at the flag score, the
+ * energy-availability screen, a readiness flag, a poor check-in) keeps the decision as it was.
+ */
+const BREAK_COMPATIBLE_HOLDS: ReadonlySet<string> = new Set([
+  'completion-low',
+  'sleep-warning',
+  'pain-mild',
+  'heat',
+])
+
 /** Progress, hold or reduce from execution, check-ins, efficiency, sleep and HRV [rules J5, G-6]. */
 export function weeklyDecision(
   input: EngineInput,
@@ -615,8 +629,22 @@ export function weeklyDecision(
         ]
       : []
 
+  // A loading week run at or under the share of its target, with no window over it, no illness and
+  // no pain at or over the flag score, counts as the cycle's recovery week: the week after it
+  // repeats the loading week at the J7 share for the days since the last run, and G-6 does not step
+  // from the minutes run. The short week is then no hold; a mild pain or a short night keeps its
+  // own hold and its trim [rules E3, G-6, J7, J5; owner decision 2026-11-15].
+  const breakRepeat =
+    finished &&
+    independent.length === 0 &&
+    direct.length === 0 &&
+    holds.every((s) => BREAK_COMPATIBLE_HOLDS.has(s.code))
+      ? breakWeekOf(input, weekStart, actual, layoffAt(input, asOf))
+      : null
+  const standing = breakRepeat === null ? holds : holds.filter((s) => s.code !== 'completion-low')
+
   const reduce = direct.length > 0 || independent.length >= P.j5.reduceSignals.value
-  const hold = holds.length > 0 || independent.length > 0
+  const hold = standing.length > 0 || independent.length > 0
   const decision: WeeklyDecision['decision'] = reduce ? 'reduce' : hold ? 'hold' : 'progress'
 
   // G-6: the target never exceeds last week's actual x (1 + ramp); missed minutes are not repeated.
@@ -633,15 +661,23 @@ export function weeklyDecision(
     // A ladder or injury-return week is a step of a fixed programme, exempt from the soft ramp:
     // the suggestion is the minutes the step is planned at, inside the 2-week ceiling [rules E6, G-3]
     nextWeekTargetMin =
-      nextWeek !== undefined && isProgrammeWeek(nextWeek.flags)
-        ? wholeMinutes(nextWeekCap(nextPlanned, actual, P.g2.rampCeilingTwoWeeks.value))
-        : wholeMinutes(nextWeekCap(nextPlanned, actual, ramp, rebuild))
+      breakRepeat !== null
+        ? breakRepeat.capMin
+        : nextWeek !== undefined && isProgrammeWeek(nextWeek.flags)
+          ? wholeMinutes(nextWeekCap(nextPlanned, actual, P.g2.rampCeilingTwoWeeks.value))
+          : wholeMinutes(nextWeekCap(nextPlanned, actual, ramp, rebuild))
   } else {
     // G-6 steps from the minutes run. A week with none leaves no step to take, and a cap of 0
     // would hold the next week empty too: the break rules size the restart [rules J7, E6].
     const stepped = nextWeekCap(plannedThis, actual, ramp, rebuild)
+    // After a week that counts as the recovery week the cap is the J7 share of the week it repeats,
+    // not the step from the minutes run [rules E3, G-6, J7].
     const cap =
-      actual > 0 ? stepped : Math.max(stepped, restartCapFloor(plannedThis, layoffAt(input, asOf)))
+      breakRepeat !== null
+        ? breakRepeat.capMin
+        : actual > 0
+          ? stepped
+          : Math.max(stepped, restartCapFloor(plannedThis, layoffAt(input, asOf)))
     nextWeekTargetMin =
       decision === 'hold'
         ? wholeMinutes(cap)
@@ -651,7 +687,7 @@ export function weeklyDecision(
     // caution never adds load). After a recovery week the cap of G-6 steps from the recovery week's
     // minutes, which is no level to hold at: with the heat alone the planned week and the last
     // loading week bound it then.
-    const all = [...holds, ...independent, ...direct]
+    const all = [...standing, ...independent, ...direct]
     if (hasHeatHold({ decision, signals: all })) {
       const level = lastLoadingMin(input, weekStart)
       const reviewed = input.existing?.weeks.find((w) => w.weekStart === weekStart)
@@ -664,10 +700,15 @@ export function weeklyDecision(
       }
     }
   }
+  const breakSignal: Signal[] =
+    breakRepeat === null
+      ? []
+      : [{ code: BREAK_SIGNAL, detail: BREAK_SIGNAL_DETAIL, rules: ['E3', 'G-6', 'J7'] }]
   return {
     decision,
-    signals: [...holds, ...independent, ...direct, ...corroboration],
+    signals: [...breakSignal, ...standing, ...independent, ...direct, ...corroboration],
     nextWeekTargetMin,
+    ...(breakRepeat === null ? {} : { breakRepeat }),
   }
 }
 
