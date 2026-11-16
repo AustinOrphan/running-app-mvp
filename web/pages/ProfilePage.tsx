@@ -3,6 +3,14 @@ import { Link } from 'react-router-dom'
 import { render } from '../../shared/copy/template.ts'
 import { TEMPLATES } from '../../shared/copy/templates.ts'
 import { WARNING_SIGNS_NAME, WARNING_SIGNS_PATH } from '../../shared/copy/warningSigns.ts'
+import {
+  ZONE_UNSET_VALUE,
+  ZONE_UTC_VALUE,
+  zoneLineText,
+  zoneSaveNoteText,
+  zoneUnsetLabel,
+  zoneUtcLabel,
+} from '../../shared/copy/zone.ts'
 import { addDays } from '../../shared/dates.ts'
 import type {
   AthleteProfile,
@@ -26,7 +34,7 @@ import { usePlanNotice } from '../api/planNotice.ts'
 import { useProfile, useUpdateProfile } from '../api/profile.ts'
 import { useSaveScreening, useScreenings } from '../api/screenings.ts'
 import { useSettings } from '../api/settings.ts'
-import { useRunnerToday } from '../api/today.ts'
+import { useRunnerToday, useRunnerZone } from '../api/today.ts'
 import { useZones } from '../api/zones.ts'
 import { Button } from '../components/Button.tsx'
 import { PlanNoticeStanding } from '../components/PlanNotice.tsx'
@@ -182,17 +190,28 @@ function toDraft(profile: AthleteProfile, body: BodyUnits): Draft {
   }
 }
 
-function timezoneOptions(current: string): string[] {
+/**
+ * The picker's entries: the unset entry (stored 'UTC') first, then the UTC entry (stored `Etc/UTC`),
+ * then every other zone the browser knows and the draft's own.
+ */
+function timezoneOptions(
+  current: string,
+  serverZone: string | null,
+): Array<{ value: string; label: string }> {
   let zones: string[] = []
   try {
     zones = Intl.supportedValuesOf('timeZone')
   } catch {
     zones = []
   }
-  const all = new Set(zones)
-  all.add('UTC')
-  all.add(current)
-  return [...all].sort()
+  const rest = new Set([...zones, current])
+  rest.delete(ZONE_UNSET_VALUE)
+  rest.delete(ZONE_UTC_VALUE)
+  return [
+    { value: ZONE_UNSET_VALUE, label: zoneUnsetLabel(serverZone) },
+    { value: ZONE_UTC_VALUE, label: zoneUtcLabel() },
+    ...[...rest].sort().map((zone) => ({ value: zone, label: zone })),
+  ]
 }
 
 function round2(value: number): number {
@@ -412,7 +431,12 @@ function ProfileForm({ initial, units, weightUnit }: { initial: AthleteProfile }
     )
   }
 
-  const zones = timezoneOptions(draft.timezone)
+  // The zone the days follow, from the session user and never from the draft. Until step 5 of D10
+  // this is the server's zone for every runner, so it also names the unset entry; step 5 must take
+  // the server's zone from another source, since the session zone then is the runner's own.
+  const daysZone = useRunnerZone()
+  const runnerToday = useRunnerToday()
+  const zones = timezoneOptions(draft.timezone, daysZone)
 
   return (
     <>
@@ -830,14 +854,20 @@ function ProfileForm({ initial, units, weightUnit }: { initial: AthleteProfile }
                   }}
                 >
                   {zones.map((zone) => (
-                    <option key={zone} value={zone}>
-                      {zone}
+                    <option key={zone.value} value={zone.value}>
+                      {zone.label}
                     </option>
                   ))}
                 </Select>
               )}
             </Field>
           </div>
+          {daysZone !== null ? (
+            <p className={styles.note}>{zoneLineText(daysZone, runnerToday)}</p>
+          ) : null}
+          {draft.timezone !== initial.timezone ? (
+            <p className={styles.note}>{zoneSaveNoteText(draft.timezone)}</p>
+          ) : null}
         </section>
 
         {otherError !== undefined ? (
