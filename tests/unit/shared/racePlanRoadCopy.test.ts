@@ -343,6 +343,34 @@ describe('the expected time', () => {
 describe('heat', () => {
   const heat = (label: string) => describeRoadRacePlan(plan(label), 'km').heat
 
+  it('says the range is already slower for heat only when the prediction holds I2', () => {
+    const warm = goal({ raceWbgtC: 22 })
+    const cases: Array<[string, RoadRacePlan, boolean]> = [
+      ['with I2', roadRacePlanFor(input({ goal: warm })), true],
+      [
+        'without I2',
+        roadRacePlanFor(input({ goal: warm, prediction: pred(4 * HOUR, ['L6']) })),
+        false,
+      ],
+      [
+        'no prediction',
+        roadRacePlanFor(input({ goal: warm, prediction: null, coolPredictedSec: null })),
+        false,
+      ],
+    ]
+    for (const [label, built, holds] of cases) {
+      const text = describeRoadRacePlan(built, 'km')
+      const joined = text.heat.join(' ')
+      // the population lines show either way
+      expect(joined, label).toContain('Japanese')
+      expect(joined.includes('already slower throughout for heat'), label).toBe(holds)
+      const contradiction =
+        joined.includes('already slower throughout for heat') &&
+        text.notices.some((notice) => notice.text.includes('holds no heat adjustment'))
+      expect(contradiction, label).toBe(false)
+    }
+  })
+
   it('states the minutes of the range that are the usual weather, in the owner’s words', () => {
     expect(heat('marathon, warm').join(' ')).toContain(
       'About 7 min of this range is the usual weather for the date.',
@@ -505,6 +533,24 @@ describe('the Today card', () => {
     expect(late.carb).toContain('per kg of body mass a day')
     expect(late.daysToGo).toBe('1 day to go')
     expect(describeRoadRaceSummary(roadSummaryOf(built, RACE)!, 'km').daysToGo).toBe('Race day')
+  })
+
+  it('picks the same range wording and training note as the page for a floor from training', () => {
+    const floor = roadRacePlanFor(
+      input({ prediction: { ...pred(4 * HOUR), trainingSince: '2026-03-01' } }),
+    )
+    const page = describeRoadRacePlan(floor, 'km').expected
+    const card = describeRoadRaceSummary(roadSummaryOf(floor, addDays(RACE, -3))!, 'km')
+    expect(page.source).toMatch(/^At most about this long\./)
+    expect(card.expected).toBe(page.source)
+    expect(card.expectedNote).toBe(page.notes[0])
+    expect(card.expectedNote).toContain('best efforts in training since')
+    const plain = describeRoadRaceSummary(
+      roadSummaryOf(plan('marathon, cool, tolerated rung'), addDays(RACE, -3))!,
+      'km',
+    )
+    expect(plain.expected).toMatch(/^Most likely time\./)
+    expect(plain.expectedNote).toBeNull()
   })
 
   it('uses the fluid block for a half under 2 h', () => {

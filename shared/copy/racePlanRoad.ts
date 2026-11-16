@@ -148,7 +148,7 @@ export const RACE_PLAN_ROAD_TEMPLATES = {
     'A heart rate or an effort number: no study in the records gives one for a road race.',
   ),
   'race.plan.road.not-in.warm-up': tpl(
-    'A warm-up or pre-cooling: no study in the records covers them.',
+    'A warm-up or pre-cooling for a road race: no road study in the records covers them.',
   ),
   'race.plan.road.not-in.target': tpl('A finish target. The plan shows a range, never a target.'),
   'race.plan.road.not-in.hold': tpl(
@@ -277,6 +277,39 @@ function noticeText(notice: RoadRaceNotice, units: Units): RoadNoticeText {
   }
 }
 
+/** The range line: "at most" wording for a floor from training (A6), else the plain range. */
+function expectedSource(expected: RoadRacePlan['expected'], units: Units): string {
+  if (expected.basis !== 'prediction') return say(U['race.plan.expected.source-goal'], {}, units)
+  const slots = raceEstimateSlots({
+    lowSec: expected.lowSec,
+    highSec: expected.highSec,
+    predictedSec: expected.midSec,
+  })
+  return say(
+    U[
+      expected.trainingSince === null || expected.trainingWidened
+        ? 'race.plan.expected.source-range'
+        : 'race.plan.expected.source-floor'
+    ],
+    { low: slots.low, high: slots.high },
+    units,
+  )
+}
+
+/** The A6 note when the range rests on a critical speed found from training; null otherwise. */
+function trainingNote(expected: RoadRacePlan['expected'], units: Units): string | null {
+  if (expected.trainingSince === null) return null
+  return say(
+    U[
+      expected.trainingWidened
+        ? 'race.plan.expected.training-widened'
+        : 'race.plan.expected.training'
+    ],
+    { date: { kind: 'date', iso: expected.trainingSince, style: 'short' } },
+    units,
+  )
+}
+
 function expectedText(plan: RoadRacePlan, units: Units): RoadExpectedText {
   const { expected } = plan
   const slots = raceEstimateSlots({
@@ -285,18 +318,7 @@ function expectedText(plan: RoadRacePlan, units: Units): RoadExpectedText {
     predictedSec: expected.midSec,
   })
   const figure = say(U['race.plan.expected.figure'], { duration: slots.likely }, units)
-  const source =
-    expected.basis === 'prediction'
-      ? say(
-          U[
-            expected.trainingSince === null || expected.trainingWidened
-              ? 'race.plan.expected.source-range'
-              : 'race.plan.expected.source-floor'
-          ],
-          { low: slots.low, high: slots.high },
-          units,
-        )
-      : say(U['race.plan.expected.source-goal'], {}, units)
+  const source = expectedSource(expected, units)
   const clock =
     expected.start === null || expected.finish === null
       ? null
@@ -309,19 +331,8 @@ function expectedText(plan: RoadRacePlan, units: Units): RoadExpectedText {
           units,
         )
   const notes: string[] = []
-  if (expected.trainingSince !== null) {
-    notes.push(
-      say(
-        U[
-          expected.trainingWidened
-            ? 'race.plan.expected.training-widened'
-            : 'race.plan.expected.training'
-        ],
-        { date: { kind: 'date', iso: expected.trainingSince, style: 'short' } },
-        units,
-      ),
-    )
-  }
+  const training = trainingNote(expected, units)
+  if (training !== null) notes.push(training)
   if (expected.climb !== null) {
     notes.push(
       say(
@@ -422,7 +433,7 @@ function heatLines(plan: RoadRacePlan, units: Units): string[] {
     lines.push(
       say(T['race.plan.road.heat.i5-population'], {}, units),
       say(T['race.plan.road.heat.i5-midpack'], {}, units),
-      say(T['race.plan.road.heat.no-shape'], {}, units),
+      ...(heat.rangeHoldsHeat ? [say(T['race.plan.road.heat.no-shape'], {}, units)] : []),
       say(T['race.plan.road.heat.medical'], {}, units),
       say(T['race.plan.road.heat.medical-note'], {}, units),
     )
@@ -528,6 +539,8 @@ export interface RoadRaceSummaryText {
   open: string
   /** The expected range as one line. */
   expected: string
+  /** The A6 note beside the range; null unless it rests on training. */
+  expectedNote: string | null
   fuel: RaceFuelText | null
   fluid: RoadFluidText | null
 }
@@ -538,20 +551,13 @@ export function describeRoadRaceSummary(
   units: Units,
 ): RoadRaceSummaryText {
   const week = summary.raceWeek
-  const slots = raceEstimateSlots({
-    lowSec: summary.expected.lowSec,
-    highSec: summary.expected.highSec,
-    predictedSec: summary.expected.midSec,
-  })
   return {
     heading: say(U['race.plan.week.heading'], {}, units),
     daysToGo: daysToGoText(summary.daysToRace, units),
     carb: summary.carbLineDue && week !== null ? describeRaceWeek(week, units).carb : null,
     open: say(U['race.plan.open'], {}, units),
-    expected:
-      summary.expected.basis === 'prediction'
-        ? say(U['race.plan.expected.source-range'], { low: slots.low, high: slots.high }, units)
-        : say(U['race.plan.expected.source-goal'], {}, units),
+    expected: expectedSource(summary.expected, units),
+    expectedNote: trainingNote(summary.expected, units),
     fuel: fuelText(summary, units),
     fluid: fluidText(summary, units),
   }

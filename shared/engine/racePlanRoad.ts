@@ -117,6 +117,8 @@ export interface RoadHeat {
   aboveModel: boolean
   /** A marathon above `i3.slopeStartC`: the I5 pair (Ely 2008) and the medical-records line (Roberts 2010). */
   paceShapeFinding: boolean
+  /** The prediction holds the heat adjustment (I2): its range is already slower for heat. */
+  rangeHoldsHeat: boolean
   rules: string[]
 }
 
@@ -278,6 +280,7 @@ export function roadRacePlanFor(input: RoadRacePlanInput): RoadRacePlan {
     warm,
     aboveModel: wbgt !== null && heatWarning(wbgt) !== null,
     paceShapeFinding: distanceClass === 'marathon' && warm,
+    rangeHoldsHeat: prediction !== null && heatRules,
     rules: [
       'I2',
       'I3',

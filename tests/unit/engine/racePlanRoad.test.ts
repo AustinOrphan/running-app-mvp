@@ -363,6 +363,21 @@ describe('roadRacePlanFor: heat', () => {
     expect(cool.notices).not.toContain('heat-not-in-range')
   })
 
+  it('holds the I2 flag only with a prediction that holds I2, apart from the I5 finding', () => {
+    const warm = goal({ raceWbgtC: 22 })
+    const withI2 = planOf({ goal: warm })
+    expect(withI2.heat.paceShapeFinding).toBe(true)
+    expect(withI2.heat.rangeHoldsHeat).toBe(true)
+    const noI2 = planOf({ goal: warm, prediction: prediction(4 * HOUR, ['L6', 'L2']) })
+    expect(noI2.heat.paceShapeFinding).toBe(true)
+    expect(noI2.heat.rangeHoldsHeat).toBe(false)
+    expect(noI2.notices).toContain('heat-not-in-range')
+    const none = planOf({ goal: warm, prediction: null, coolPredictedSec: null })
+    expect(none.heat.paceShapeFinding).toBe(true)
+    expect(none.heat.rangeHoldsHeat).toBe(false)
+    expect(none.notices).not.toContain('heat-not-in-range')
+  })
+
   it('is zero minutes, not a figure, when the model adds nothing at the WBGT', () => {
     const plan = planOf({ goal: goal({ raceWbgtC: 8 }), coolPredictedSec: 4 * HOUR })
     expect(plan.heat.inRangeSec).toBe(0)
