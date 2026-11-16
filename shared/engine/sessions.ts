@@ -131,7 +131,8 @@ const LIBRARY: Record<SessionKind, LibraryEntry> = {
   },
   race: {
     zone: 'race-pace',
-    purpose: 'Race day: run by effort, follow the fuel and pacing plan.',
+    // Only an ultra goal has a race plan (rule H14, `racePlanFor`); every other race promises none.
+    purpose: 'Race day: run by effort.',
     rules: ['K6'],
   },
   cross: {
@@ -534,6 +535,9 @@ export function prescribe(
   const flags: SessionFlag[] = []
   const rules = [...lib.rules]
   let purpose = lib.purpose
+  if (kind === 'race' && ctx.ultra !== true && ctx.goalPaceSecPerKm != null) {
+    purpose = 'Race day: run by effort, with the goal pace band as a guide.'
+  }
   let title = TITLES[kind]
   let built: Built = { structure: [], workPace: null, rules: [] }
 

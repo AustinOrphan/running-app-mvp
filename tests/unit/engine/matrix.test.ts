@@ -241,7 +241,13 @@ describe('plan matrix: the race session [rules K6, H11]', () => {
       expect(race.target.hr, id).toBeNull()
       expect(race.target.rpe, id).toEqual(P.expectedRpe.race.value)
       expect(race.rules, id).toEqual(['K6'])
-      expect(race.purpose, id).toBe('Race day: run by effort, follow the fuel and pacing plan.')
+      // no race plan exists for these goals (rule H14): the words promise none (RT1)
+      expect(race.purpose, id).toBe(
+        race.target.paceSecPerKm !== null
+          ? 'Race day: run by effort, with the goal pace band as a guide.'
+          : 'Race day: run by effort.',
+      )
+      expect(race.purpose, id).not.toMatch(/plan|fuel/i)
     }
   })
 
