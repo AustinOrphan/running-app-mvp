@@ -4,16 +4,27 @@
 import { afterAll, afterEach, beforeAll, describe, expect, test, vi } from 'vitest'
 import { isoDateInZone } from '../../shared/dates.ts'
 import type { TodayView } from '../../shared/types.ts'
-import { client, createTestCtx, seedUser, type TestCtx, type TestUser } from './helpers.ts'
+import {
+  client,
+  createTestCtx,
+  expectNoRefusedFetches,
+  seedUser,
+  type TestCtx,
+  type TestUser,
+} from './helpers.ts'
 
-const injected = vi.hoisted(() => ({ zone: null as string | null }))
+const injected = vi.hoisted(() => ({ zone: null as string | null, echo: false }))
 
 vi.mock('../../server/runnerDay.ts', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../server/runnerDay.ts')>()
   return {
     ...actual,
-    runnerZone: (stored: string | null | undefined) => injected.zone ?? actual.runnerZone(stored),
+    runnerZone: (stored: string | null | undefined) =>
+      injected.echo ? `echo:${String(stored)}` : (injected.zone ?? actual.runnerZone(stored)),
     runnerDay: (now: Date, stored: string | null | undefined) => {
+      // The echo mode returns the stored value as the zone, to show which column was read.
+      if (injected.echo)
+        return { tz: `echo:${String(stored)}`, today: isoDateInZone(now, 'UTC'), now }
       const tz = injected.zone ?? actual.runnerZone(stored)
       return { tz, today: isoDateInZone(now, tz), now }
     },
@@ -38,6 +49,8 @@ beforeAll(async () => {
 
 afterEach(() => {
   injected.zone = null
+  injected.echo = false
+  expectNoRefusedFetches(ctx)
 })
 
 afterAll(async () => {
@@ -99,5 +112,40 @@ describe('the runner day on the request', () => {
     })
     expect(login.status).toBe(200)
     expect((login.body as { tz: string }).tz).toBe(EAST)
+  })
+
+  test('the stored profile zone reaches the resolver', async () => {
+    await ctx.prisma.athleteProfile.upsert({
+      where: { userId: user.id },
+      create: { userId: user.id, timezone: 'Marker/Stored' },
+      update: { timezone: 'Marker/Stored' },
+    })
+    injected.echo = true
+    const res = await client(ctx, user).get('/api/today')
+    expect(res.status).toBe(200)
+    expect((res.body as TodayView).tz).toBe('echo:Marker/Stored')
+  })
+
+  test('setup and the password change answer with the zone', async () => {
+    const fresh = await createTestCtx()
+    try {
+      injected.zone = EAST
+      const setup = await client(fresh)
+        .post('/api/setup')
+        .send({ email: 'new@example.com', password: 'correct horse battery staple' })
+      expect(setup.status).toBe(201)
+      expect((setup.body as { tz: string }).tz).toBe(EAST)
+      const cookie = (setup.headers['set-cookie'] as unknown as string[])[0]?.split(';')[0] ?? ''
+      const changed = await client(fresh, { id: '', email: '', cookie })
+        .put('/api/auth/password')
+        .send({
+          currentPassword: 'correct horse battery staple',
+          newPassword: 'another long passphrase here',
+        })
+      expect(changed.status).toBe(200)
+      expect((changed.body as { tz: string }).tz).toBe(EAST)
+    } finally {
+      await fresh.close()
+    }
   })
 })
