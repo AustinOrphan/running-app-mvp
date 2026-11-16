@@ -814,10 +814,15 @@ export interface SessionUser extends UserSettings {
   /** True until the browser's zone has been saved to the profile, once (create-user). */
   zoneFromBrowser: boolean
   /**
-   * The IANA zone the runner's days follow (D10, ADR 0022): the one `TodayView.tz` carries. Until
-   * the cutover (step 5) it is the server's for every runner.
+   * The IANA zone the runner's days follow (D10, ADR 0022): the one `TodayView.tz` carries. The
+   * profile's zone when one is chosen, the server's otherwise.
    */
   tz: string
+  /**
+   * The server's own zone, which the Profile picker's "Not set" entry names. Absent from a payload
+   * cached before the field existed, so readers treat it as unknown.
+   */
+  serverTz?: string
 }
 export type GoalPriority = 'A' | 'B' | 'C'
 export type GoalStatus = 'target' | 'considering' | 'done' | 'dropped'
@@ -1840,7 +1845,7 @@ export interface StateInputs {
 export interface StateView {
   /** The data version the picture was built at: `<boot>.<writes>.<external>`. */
   version: string
-  /** The server's local day the picture is for. */
+  /** The runner's day the picture is for. */
   asOf: string
   /** When the picture was built, as an instant. */
   builtAt: string

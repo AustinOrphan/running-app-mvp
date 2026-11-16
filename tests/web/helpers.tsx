@@ -179,16 +179,21 @@ export function makeTestQueryClient(): QueryClient {
  * the pages read the runner's day in that zone whatever zone the device is in (D10, ADR 0022).
  * Without it a page falls back to the device's day.
  */
-export function seedRunnerZone(queryClient: QueryClient, tz: string): void {
-  queryClient.setQueryData([keys.me], { tz })
+export function seedRunnerZone(queryClient: QueryClient, tz: string, serverTz?: string): void {
+  queryClient.setQueryData([keys.me], serverTz === undefined ? { tz } : { tz, serverTz })
 }
 
 export function renderWithProviders(
   ui: ReactElement,
-  opts: { route?: string; queryClient?: QueryClient; runnerZone?: string } = {},
+  opts: {
+    route?: string
+    queryClient?: QueryClient
+    runnerZone?: string
+    serverZone?: string
+  } = {},
 ): RenderResult {
   const queryClient = opts.queryClient ?? makeTestQueryClient()
-  if (opts.runnerZone !== undefined) seedRunnerZone(queryClient, opts.runnerZone)
+  if (opts.runnerZone !== undefined) seedRunnerZone(queryClient, opts.runnerZone, opts.serverZone)
   return render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={[opts.route ?? '/']}>{ui}</MemoryRouter>

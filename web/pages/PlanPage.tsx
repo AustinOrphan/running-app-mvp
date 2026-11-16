@@ -1113,7 +1113,7 @@ function latestUpdate(
   revisions: PlanRevisionView[] | undefined,
   server: { date: string; tz: string } | undefined,
 ): PlanRevisionView | null {
-  // The weekly job runs on the server's day, so the age and the weekday are read in its zone.
+  // The weekly job runs on the runner's clock, so the age and the weekday are read in the runner's zone.
   if (server === undefined) return null
   const found = (revisions ?? []).find(
     (revision) =>

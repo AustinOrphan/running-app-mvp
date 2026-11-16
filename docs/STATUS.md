@@ -36,9 +36,6 @@ Each item names the default that holds until the owner answers.
 5. **The Apple Watch companion, phase 0 spike** (design #701, plan
    `docs/superpowers/plans/2026-11-10-companion-phase0-spike.md`, #702): waiting on the owner's
    Task 1 steps in Xcode. Default: nothing is built.
-6. **Two designs in progress** (owner decisions of 2026-11-14, below): time zones per runner (D10)
-   and a full road-race plan (D11, in progress: ADR 0023 and the docs PR, nothing built yet).
-   Each is queued after the engine work that June needs.
 
 Answered on 2026-11-14, one item at a time (the owner's answers to D1 to D11 of the review of
 2026-11-12, and the Strava question):
@@ -76,16 +73,19 @@ Answered on 2026-11-14, one item at a time (the owner's answers to D1 to D11 of 
 - **D9. Accessibility scan.** `@axe-core/playwright` as a devDependency, a scan of the main pages in
   e2e, the backlog triaged and then a failure on new violations (#724). A VoiceOver pass is still
   needed for what scanners miss.
-- **D10. Time zones.** Per-runner days now, queued after the engine work that June needs; lifts the
-  same-zone limit on invites once built.
-- **D11. Road races.** In progress (2026-11-16). A full road-race plan, sequenced after the same
-  work; the wording fix for non-ultra goals landed first (#738) and the research pass merged
-  (#741, 19 papers). The owner answered the design questions on 2026-11-16: half and marathon get
-  the full plan and the 10 km the time, pace and heat blocks; trail or mixed courses lose the pace
-  and first-half lines; no printable card in v1; a half under 2 h gets no fuel rate. The decision
-  is ADR 0023 (proposed; ADR 0018 accepted, pointing to it). Four PRs: docs (this one), engine and
-  copy, web, server switch. The design question 4 reference is the race plan design, question 4
-  (`docs/superpowers/specs/2026-11-07-race-plan-design.md`).
+- **D10. Time zones.** Built (2026-11-16, ADR 0022, steps 1 to 5: #742, #744, #747, #750, #746,
+  #753 and the cutover #754). A runner's day is the calendar date in the zone saved on the Profile
+  page; with none saved (the stored `UTC`) it is the server's zone. The limit that invited accounts
+  share the server's zone is lifted. Matching, the Monday re-plan and the forced publish follow
+  each runner's clock, the backup the server's. Left: step 6, the zone reads outside the day (the
+  Smashrun offset, the browser's Apple export, the forecast wall clock, the map area, the calendar
+  header). Imports keep dating an offset-less time in the stored zone (owner answer, question 7).
+  A zone is changed by hand on the Profile page; there is no travel prompt (question 5).
+- **D11. Road races.** Built (2026-11-16, ADR 0023: #741, #743, #745, #748 and #752). Half and
+  marathon get the full plan and the 10 km the time, pace and heat blocks (`racePlanRoad.ts`; the
+  `road` field of `GET /api/race/plan` and the `roadRace` slot of Today); trail or mixed courses
+  lose the pace and first-half lines; no printable card in v1; a half under 2 h gets no fuel rate.
+  The wording fix for non-ultra goals landed first (#738).
 - **Break week.** A week run by choice at a fraction of its target counts as the cycle's recovery
   week, and the next week repeats the loading week (#736, #737).
 - **Strava.** One shared install-wide registration, built only when a tester needs Strava; until

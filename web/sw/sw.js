@@ -18,7 +18,7 @@
 //   bounds how long a copy is served; an expired one is deleted when a read meets it, when Today is
 //   saved, and at the first request of each worker's life. A 401 empties the cache, because the
 //   session is gone and the copies are health data of that session.
-// - Today's copy is picked by the server's day: the kept answer whose date is today in the
+// - Today's copy is picked by the runner's day: the kept answer whose date is today in the
 //   `tz` it carries, else the newest older one. The page marks that answer `servedFromCache`. The
 //   watch slot and the health note about the watch are stripped from every kept copy, because a
 //   saved "On your watch" or "not on the watch yet" would be false. The race plan's copy is marked
@@ -172,7 +172,7 @@ async function fresh(cache, key, ttlMs) {
 /**
  * The calendar date of an instant in an IANA zone as YYYY-MM-DD, or null for a zone that is not
  * known. The same reading as `isoDateInZone` in `shared/dates.ts`, which `useServerToday` uses, so
- * the page and the worker agree on when the server's day ends.
+ * the page and the worker agree on when the runner's day ends.
  */
 function dayInZone(ms, tz) {
   if (typeof tz !== 'string') return null

@@ -1,12 +1,12 @@
 # 0023. The road race plan is derived on read for the half marathon, the marathon and, in part, the 10 km
 
-Status: Proposed 2026-11-16
+Status: Accepted 2026-11-16 (#752)
 
 Builds on ADR 0005, 0008, 0009, 0010, 0011, 0012 and 0018. Implements owner decision D11
 (2026-11-14). Replaces the sentence "Ultra classes only" of ADR 0018 for the half marathon, the
 marathon and (time, pace and heat blocks only) the 10 km, and changes nothing else in ADR 0018. The research pass for D11 is
-`research/topics/road-racing.md` (19 papers, #741). This PR holds the decision only: no engine,
-server or web code, and no road rule text (see Consequences).
+`research/topics/road-racing.md` (19 papers, #741). The ADR records the decision; the engine, server and web
+code and the road rule text came in later PRs (see Consequences).
 
 ## Context
 

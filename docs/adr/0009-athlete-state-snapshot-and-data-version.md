@@ -103,6 +103,9 @@ Alternatives:
 - A forecast-dependent deliverable (the watch publisher) composes its change key from the data
   version, the day and the forecast's fetch time, because the forecast cache is non-state.
 - The global counter invalidates every user's snapshot on any state write; irrelevant for one runner.
+- The `today` handed to the snapshot readers is the runner's day (ADR 0022), taken from the request
+  or the job and never resolved inside a service; the day is in every memo key and tag, so a zone
+  change gives the next read a new key.
 - Request handlers read the weather caches and never wait on Open-Meteo, with two bounded
   exceptions: `GET /api/weather/forecast` on an empty cell (5 seconds, because the runner asked for
   the forecast) and plan generation on a cold race climate (8 seconds, once).

@@ -65,6 +65,7 @@ test(
       unitsFromBrowser: false,
       zoneFromBrowser: false,
       tz: serverTimeZone(),
+      serverTz: serverTimeZone(),
     })
     expect(JSON.stringify(res.body)).not.toContain('passwordHash')
 
@@ -479,6 +480,7 @@ test('me', async () => {
     unitsFromBrowser: false,
     zoneFromBrowser: false,
     tz: serverTimeZone(),
+    serverTz: serverTimeZone(),
   })
 
   const noneToken = [
