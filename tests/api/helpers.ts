@@ -17,7 +17,9 @@ import { storeParsed, type StoreOptions } from '../../server/services/activitySt
 import { runExecutionForActivity } from '../../server/services/execution.ts'
 import { scanFolder, scanFolderIntegration } from '../../server/services/folder.ts'
 import { syncProvider } from '../../server/services/sync.ts'
-import { settleWeatherCache } from '../../server/services/weatherCache.ts'
+import { publishForUser } from '../../server/services/publish.ts'
+import { backfillWatchRatings } from '../../server/services/watchRatingBackfill.ts'
+import { refreshWeatherCaches, settleWeatherCache } from '../../server/services/weatherCache.ts'
 import { todayIso } from '../../shared/dates.ts'
 
 /**
@@ -221,4 +223,31 @@ export function scanFolderIntegrationToday(
   opts: Without<Parameters<typeof scanFolderIntegration>[2], 'today'> = {},
 ) {
   return scanFolderIntegration(deps, userId, { ...opts, today: todayIso() })
+}
+
+/** `refreshWeatherCaches` with the server's day at `now` as the runner's. */
+export function refreshWeatherCachesToday(
+  deps: Deps,
+  userId: string,
+  opts: Without<Parameters<typeof refreshWeatherCaches>[2], 'today'> = {},
+) {
+  return refreshWeatherCaches(deps, userId, { ...opts, today: todayIso(opts.now) })
+}
+
+/** `backfillWatchRatings` with the server's day at `now` as the runner's. */
+export function backfillWatchRatingsToday(
+  deps: Deps,
+  userId: string,
+  opts: Without<Parameters<typeof backfillWatchRatings>[2], 'today'> = {},
+) {
+  return backfillWatchRatings(deps, userId, { ...opts, today: todayIso(opts.now) })
+}
+
+/** `publishForUser` with the server's day at `now` as the runner's. */
+export function publishForUserToday(
+  deps: Deps,
+  userId: string,
+  opts: Without<Parameters<typeof publishForUser>[2], 'today'> = {},
+) {
+  return publishForUser(deps, userId, { ...opts, today: todayIso(opts.now) })
 }

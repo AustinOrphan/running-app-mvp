@@ -8,7 +8,6 @@ import { STATUS_MAX_DAYS } from '../../shared/workouts/horizon.ts'
 import {
   REMOVE_TIMEOUT_MS,
   prepareDisconnect,
-  publishForUser,
   setPublishing,
 } from '../../server/services/publish.ts'
 import { settleBackground } from '../../server/services/sync.ts'
@@ -17,6 +16,7 @@ import {
   client,
   createTestCtx,
   expectNoRefusedFetches,
+  publishForUserToday as publishForUser,
   seedUser,
   type TestCtx,
   type TestUser,
@@ -808,14 +808,19 @@ describe('DELETE /api/integrations/intervals', () => {
       })
 
     await expect(
-      prepareDisconnect(ctx, u.id, { removeSent: true, fetch: hang, timeoutMs: 40 }),
+      prepareDisconnect(ctx, u.id, {
+        removeSent: true,
+        fetch: hang,
+        timeoutMs: 40,
+        today: todayIso(),
+      }),
     ).rejects.toMatchObject({ status: 409, details: { code: 'remove-failed' } })
     await expect(
       setPublishing(
         ctx,
         u.id,
         { enabled: false, garminLinked: false, removeSent: true },
-        { fetch: hang, timeoutMs: 40 },
+        { fetch: hang, timeoutMs: 40, today: todayIso() },
       ),
     ).rejects.toMatchObject({ status: 409, details: { code: 'remove-failed' } })
     // nothing changed

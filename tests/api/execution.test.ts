@@ -26,9 +26,9 @@ import {
 import { runNightlyMatching } from '../../server/services/execution.ts'
 import {
   runExecutionForActivityToday as runExecutionForActivity,
+  refreshWeatherCachesToday as refreshWeatherCaches,
   storeParsedToday as storeParsed,
 } from './helpers.ts'
-import { refreshWeatherCaches } from '../../server/services/weatherCache.ts'
 import { fakeFetch } from '../fakeFetch.ts'
 import { SESSION_KINDS } from '../unit/engine/fixtures.ts'
 import {

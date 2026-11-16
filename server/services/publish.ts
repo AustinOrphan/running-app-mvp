@@ -26,7 +26,6 @@
 // (`publishChangeKey`), a retry that is due and a 30-minute backstop; there is no other watermark.
 import { createHash } from 'node:crypto'
 import { addDays, daysBetween, isIsoDate } from '../../shared/dates.ts'
-import { loadRunnerDay } from '../runnerDay.ts'
 import { publishSentence, wristRangeSentence, wristSentence } from '../../shared/copy/publish.ts'
 import { workoutExternalId } from '../../shared/domain/sessionIdentity.ts'
 import type {
@@ -200,8 +199,8 @@ export interface PublishOptions {
   trigger?: Extract<SyncTrigger, 'schedule' | 'manual'>
   fetch?: typeof fetch
   now?: Date
-  /** The runner's day (D10); read from the profile at `now` when absent. */
-  today?: string
+  /** The runner's day (D10, ADR 0022), from the request or the job. */
+  today: string
 }
 
 export interface PublishResult {
@@ -332,7 +331,7 @@ async function referenceFor(
 export async function publishForUser(
   deps: Deps,
   userId: string,
-  opts: PublishOptions = {},
+  opts: PublishOptions,
 ): Promise<PublishResult> {
   if (flights.has(userId)) return NOT_RUN
   const flight = runOnce(deps, userId, opts)
@@ -382,7 +381,7 @@ async function runOnce(deps: Deps, userId: string, opts: PublishOptions): Promis
   const secrets = secretValues(opened.secret)
   const ctx = await providerContext(deps, userId, PROVIDER, { ...opened, fetch: opts.fetch })
 
-  const today = opts.today ?? (await loadRunnerDay(prisma, userId, now)).today
+  const { today } = opts
   const to = addDays(today, PUBLISH_HORIZON_DAYS - 1)
   const tag = userTagOf(userId)
   const tally = { sent: 0, unchanged: 0, withdrawn: 0, failed: 0 }
@@ -1038,7 +1037,7 @@ export async function isPublishDue(
   deps: Deps,
   channel: DeliveryChannel,
   now: Date,
-  runnersToday?: string,
+  today: string,
 ): Promise<boolean> {
   if (!channel.enabled) return false
   if (channel.pausedUntil !== null && channel.pausedUntil > now) return false
@@ -1050,7 +1049,6 @@ export async function isPublishDue(
   if (!integration || integration.status === 'needs_auth') return false
   if (channel.lastRunAt === null) return true
   if (now.getTime() - channel.lastRunAt.getTime() >= PUBLISH_BACKSTOP_MS) return true
-  const today = runnersToday ?? (await loadRunnerDay(prisma, channel.userId, now)).today
   if (channel.dataKey !== (await publishChangeKey(deps, channel.userId, today))) return true
   // Only a row a run can act on counts: one of today or later. The run closes a waiting row of a
   // day that has passed, or of a session the runner has done, so none keeps the tick running it.
@@ -1109,10 +1107,10 @@ async function connectedIntegration(deps: Deps, userId: string) {
 async function removeSentEvents(
   deps: Deps,
   userId: string,
-  opts: { fetch?: typeof fetch; now?: Date; today?: string; timeoutMs?: number },
+  opts: { fetch?: typeof fetch; now?: Date; today: string; timeoutMs?: number },
 ): Promise<void> {
   const { prisma, config } = deps
-  const today = opts.today ?? (await loadRunnerDay(prisma, userId, opts.now ?? new Date())).today
+  const { today } = opts
   const rows = await prisma.wristPublication.findMany({
     where: {
       userId,
@@ -1250,7 +1248,7 @@ export async function setPublishing(
   deps: Deps,
   userId: string,
   input: { enabled: boolean; garminLinked: boolean; removeSent: boolean },
-  opts: { fetch?: typeof fetch; now?: Date; timeoutMs?: number } = {},
+  opts: { fetch?: typeof fetch; now?: Date; today: string; timeoutMs?: number },
 ): Promise<WristSettings> {
   const { prisma } = deps
   const start = await exclusive(userId, async () => {
@@ -1292,7 +1290,7 @@ export async function setPublishing(
 function startBackgroundRun(
   deps: Deps,
   userId: string,
-  opts: { fetch?: typeof fetch; now?: Date },
+  opts: { fetch?: typeof fetch; now?: Date; today: string },
 ): void {
   trackBackground(publishForUser(deps, userId, { ...opts, trigger: 'manual' }), (error) =>
     createLogger(deps.config).warn({ reason: safeMessage(error) }, 'publishing failed'),
@@ -1308,7 +1306,7 @@ export async function requestPublish(
   deps: Deps,
   userId: string,
   input: { sessionId?: string },
-  opts: { fetch?: typeof fetch; now?: Date } = {},
+  opts: { fetch?: typeof fetch; now?: Date; today: string },
 ): Promise<WristSettings> {
   const { prisma } = deps
   await connectedIntegration(deps, userId)
@@ -1354,7 +1352,13 @@ export async function requestPublish(
 export async function prepareDisconnect(
   deps: Deps,
   userId: string,
-  opts: { removeSent: boolean; fetch?: typeof fetch; now?: Date; timeoutMs?: number },
+  opts: {
+    removeSent: boolean
+    fetch?: typeof fetch
+    now?: Date
+    today: string
+    timeoutMs?: number
+  },
 ): Promise<void> {
   await exclusive(userId, async () => {
     if (opts.removeSent) {

@@ -6,7 +6,6 @@
 // Every request goes through the injected `fetch` (`Deps.fetch`, else the global one, looked up at
 // each call), so a test hands in synthetic responses and none touches the network.
 import { addDays, isoDateInZone } from '../../shared/dates.ts'
-import { loadRunnerDay } from '../runnerDay.ts'
 import { weatherIndex } from '../../shared/engine/heat.ts'
 import type { ForecastView } from '../../shared/types.ts'
 import type { Deps } from '../app.ts'
@@ -612,13 +611,13 @@ export interface RefreshOutcome {
 export async function refreshWeatherCaches(
   deps: Deps,
   userId: string,
-  opts: { fetch?: typeof fetch; now?: Date; today?: string } = {},
+  opts: { fetch?: typeof fetch; now?: Date; today: string },
 ): Promise<RefreshOutcome> {
   const { prisma } = deps
   const fetchFn = opts.fetch ?? fetchOf(deps)
   const now = opts.now ?? new Date()
-  // The runner's day (D10) bounds the goals; the job passes it, a caller with none reads the profile.
-  const today = opts.today ?? (await loadRunnerDay(prisma, userId, now)).today
+  // The runner's day (D10, ADR 0022) bounds the goals; the caller passes it.
+  const { today } = opts
   const outcome: RefreshOutcome = { refreshed: 0, failed: 0, error: null }
   const fail = (error: unknown): void => {
     outcome.failed += 1
@@ -689,6 +688,6 @@ export async function refreshWeatherCaches(
  * the new values need, without making the request wait. A failure stays on the cache row, where
  * the weather job's back-off finds it.
  */
-export function warmWeatherCaches(deps: Deps, userId: string): void {
-  inBackground(refreshWeatherCaches(deps, userId))
+export function warmWeatherCaches(deps: Deps, userId: string, today: string): void {
+  inBackground(refreshWeatherCaches(deps, userId, { today }))
 }

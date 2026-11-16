@@ -53,11 +53,16 @@ export function wristRouter(deps: Deps): Router {
   router.put('/intervals', async (req, res) => {
     const body = parse(intervalsBody, req.body)
     res.json(
-      await setPublishing(deps, req.userId, {
-        enabled: body.enabled,
-        garminLinked: body.garminLinked,
-        removeSent: body.removeSent === true,
-      }),
+      await setPublishing(
+        deps,
+        req.userId,
+        {
+          enabled: body.enabled,
+          garminLinked: body.garminLinked,
+          removeSent: body.removeSent === true,
+        },
+        { today: req.runnerDay.today },
+      ),
     )
   })
 
@@ -66,7 +71,12 @@ export function wristRouter(deps: Deps): Router {
     res
       .status(202)
       .json(
-        await requestPublish(deps, req.userId, body.sessionId ? { sessionId: body.sessionId } : {}),
+        await requestPublish(
+          deps,
+          req.userId,
+          body.sessionId ? { sessionId: body.sessionId } : {},
+          { today: req.runnerDay.today },
+        ),
       )
   })
 

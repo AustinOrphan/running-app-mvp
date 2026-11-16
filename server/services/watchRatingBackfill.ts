@@ -7,7 +7,6 @@ import { runExecutionQuietly } from './execution.ts'
 import { isSyncing, openIntegration, providerContext } from './sync.ts'
 import { safeMessage, secretValues } from './syncLog.ts'
 import { addDays } from '../../shared/dates.ts'
-import { loadRunnerDay } from '../runnerDay.ts'
 import { P } from '../../shared/engine/params/index.ts'
 
 /**
@@ -89,12 +88,12 @@ function waiting(userId: string, from: string, skip: string[] = []) {
 export async function backfillWatchRatings(
   deps: Deps,
   userId: string,
-  opts: { limit?: number; now?: Date; today?: string } = {},
+  opts: { limit?: number; now?: Date; today: string },
 ): Promise<WatchRatingBackfillResult> {
   const { prisma } = deps
   const now = opts.now ?? new Date()
-  // The runner's day (D10); the job passes it, a caller with none gets it from the profile.
-  const today = opts.today ?? (await loadRunnerDay(prisma, userId, now)).today
+  // The runner's day (D10, ADR 0022); the job passes it.
+  const { today } = opts
   const from = addDays(today, -P.a5.historyWindowDays.value)
   const result: WatchRatingBackfillResult = {
     filled: 0,

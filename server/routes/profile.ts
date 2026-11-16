@@ -159,7 +159,7 @@ export function profileRouter(deps: Deps): Router {
       merged.homeLng !== saved.homeLng ||
       merged.useHomeWeather !== saved.useHomeWeather
     ) {
-      warmWeatherCaches(deps, req.userId)
+      warmWeatherCaches(deps, req.userId, req.runnerDay.today)
     }
     res.json(await loadProfile(prisma, req.userId))
   })
