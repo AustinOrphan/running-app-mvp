@@ -13,14 +13,16 @@ import { copyRetryInterval, useAskAgainOnReconnect } from './copyRetry.ts'
  * It asks again when the connection returns and repeats until the server answers (`copyRetry.ts`).
  */
 export function useRacePlan(options: { enabled?: boolean } = {}) {
+  const queryKey = [keys.race, 'plan']
+  const enabled = options.enabled ?? true
   const query = useQuery({
-    queryKey: [keys.race, 'plan'],
+    queryKey,
     queryFn: () => api<RacePlanView>('GET', '/race/plan'),
     staleTime: 0,
     refetchInterval: copyRetryInterval,
-    enabled: options.enabled ?? true,
+    enabled,
   })
-  useAskAgainOnReconnect(query.data, query.refetch)
+  useAskAgainOnReconnect({ queryKey, data: query.data, refetch: query.refetch, enabled })
   return query
 }
 

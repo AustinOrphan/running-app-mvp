@@ -16,14 +16,16 @@ import { copyRetryInterval, useAskAgainOnReconnect } from './copyRetry.ts'
  * until the server answers (`copyRetry.ts`).
  */
 export function useToday(options: { enabled?: boolean } = {}) {
+  const queryKey = [keys.today]
+  const enabled = options.enabled ?? true
   const query = useQuery({
-    queryKey: [keys.today],
+    queryKey,
     queryFn: () => api<TodayView>('GET', '/today'),
     refetchOnWindowFocus: true,
     refetchInterval: copyRetryInterval,
-    enabled: options.enabled ?? true,
+    enabled,
   })
-  useAskAgainOnReconnect(query.data, query.refetch)
+  useAskAgainOnReconnect({ queryKey, data: query.data, refetch: query.refetch, enabled })
   return query
 }
 
