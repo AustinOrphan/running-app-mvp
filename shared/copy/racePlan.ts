@@ -230,6 +230,8 @@ export const RACE_PLAN_TEMPLATES = {
     low: 'count',
     high: 'count',
   }),
+  // One rate gives one figure: the range form would read "About 360 to 360 g".
+  'race.plan.fuel.total-one': tpl('About {n} g over the expected time.', { n: 'count' }),
   'race.plan.fuel.carry': tpl(
     'You carry everything, so that total is what to carry for the expected time.',
   ),
@@ -1092,6 +1094,15 @@ function partText(plan: RacePlan, third: RaceThird, units: Units): RacePartText 
   }
 }
 
+/** The total over the expected time: one figure when the rounded ends are equal, else a range. */
+function totalText(totalG: [number, number], units: Units): string {
+  const low = roundTo(totalG[0], RACE_CARB_ROUND_G)
+  const high = roundTo(totalG[1], RACE_CARB_ROUND_G)
+  return low === high
+    ? say(T['race.plan.fuel.total-one'], { n: count(low) }, units)
+    : say(T['race.plan.fuel.total'], { low: count(low), high: count(high) }, units)
+}
+
 /** The fuel lines, shared by the page and the race-day block of the session sheet. */
 export function describeRaceFuel(
   plan: Pick<RacePlan, 'fuel' | 'fluid' | 'eahStronger' | 'supportLevel'>,
@@ -1113,14 +1124,7 @@ export function describeRaceFuel(
     multiCarb: fuel.multiCarbRequired ? multi : null,
     fewHours: fuel.basis === 'tolerated' ? say(T['race.plan.fuel.few-hours'], {}, units) : null,
     hot: fuel.hot && fuel.basis === 'tolerated' ? say(T['race.plan.fuel.hot'], {}, units) : null,
-    total: say(
-      T['race.plan.fuel.total'],
-      {
-        low: count(roundTo(fuel.totalG[0], RACE_CARB_ROUND_G)),
-        high: count(roundTo(fuel.totalG[1], RACE_CARB_ROUND_G)),
-      },
-      units,
-    ),
+    total: totalText(fuel.totalG, units),
     carry: plan.supportLevel === 'self' ? say(T['race.plan.fuel.carry'], {}, units) : null,
     aid: plan.supportLevel === 'aided' ? say(T['race.plan.fuel.aid'], {}, units) : null,
     lock: fuel.basis === 'locked' ? gutConditionLock() : null,

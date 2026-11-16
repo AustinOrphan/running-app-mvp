@@ -348,6 +348,17 @@ describe('fuel and fluid words', () => {
     expect(fuel.eah.lines.some((line) => /extra care/.test(line))).toBe(true)
   })
 
+  it('states a total of one rate as one figure, never "About 360 to 360 g"', () => {
+    for (const [, plan] of PLANS) {
+      const total = describeRacePlan(plan, 'km').fuel.total
+      expect(total).not.toMatch(/About ([\d,]+) to \1 g/)
+      expect(total).toMatch(/^About [\d,]+(?: to [\d,]+)? g over the expected time\.$/)
+    }
+    const [low, high] = PLANS[0]![1].fuel.totalG
+    const one = describeRacePlan(PLANS[0]![1], 'km').fuel.total
+    if (low === high) expect(one).not.toContain(' to ')
+  })
+
   it('rounds the totals to RACE_CARB_ROUND_G grams', () => {
     const total = describeRacePlan(PLANS[0]![1], 'km').fuel.total
     for (const g of total.match(/\d[\d,]*(?= g)|\d[\d,]*(?= to)/g) ?? []) {

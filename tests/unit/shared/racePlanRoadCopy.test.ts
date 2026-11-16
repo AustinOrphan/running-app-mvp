@@ -561,6 +561,22 @@ describe('the Today card', () => {
   })
 })
 
+describe('the fuel total', () => {
+  it('is one figure when the rounded ends are equal, in every road plan with a rate', () => {
+    let seen = 0
+    for (const [, road] of PLANS) {
+      const text = describeRoadRacePlan(road, 'km').fuel
+      if (text === null || road.fuel === null) continue
+      seen += 1
+      expect(text.total).not.toMatch(/About ([\d,]+) to \1 g/)
+      if (road.fuel.totalG[0] === road.fuel.totalG[1]) {
+        expect(text.total).toMatch(/^About [\d,]+ g over the expected time\.$/)
+      }
+    }
+    expect(seen).toBeGreaterThan(0)
+  })
+})
+
 describe('the unit of the sentences follows the runner', () => {
   it('names a mile in miles and a kilometre in kilometres, in the pace and the gaps', () => {
     const marathon = plan('marathon, cool, tolerated rung')
