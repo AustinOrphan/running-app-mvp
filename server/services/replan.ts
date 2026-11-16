@@ -17,6 +17,7 @@ import { createHash } from 'node:crypto'
 import { addDays, mondayOf } from '../../shared/dates.ts'
 import {
   changesSummary,
+  breakRepeatSummary,
   decisionSummary,
   loadSettingSummary,
   methodChangeSummary,
@@ -978,9 +979,16 @@ export async function computeReplan(deps: Deps, args: ReplanArgs): Promise<Repla
   // The week a hold or a reduce caps: the week that follows the one the decision reviewed.
   const decidedWeek =
     decision !== null && decision.decision !== 'progress' ? addDays(lastWeek, 7) : null
+  // A week that counts as the cycle's recovery week caps the week after it at the J7 share of the
+  // loading week it repeats, in place of the step from the minutes run [rules E3, G-6, J7]. With no
+  // other hold the decision is a progress, so no hold trims a session of the repeat.
+  const breakWeek = decision?.breakRepeat
   const weekCaps: Record<string, number> = {}
   if (decision !== null && decidedWeek !== null) {
     weekCaps[decidedWeek] = decision.nextWeekTargetMin
+  }
+  if (breakWeek !== undefined && decidedWeek === null) {
+    weekCaps[addDays(lastWeek, 7)] = decision!.nextWeekTargetMin
   }
   for (const week of weekRows) {
     if (
@@ -1011,7 +1019,12 @@ export async function computeReplan(deps: Deps, args: ReplanArgs): Promise<Repla
       }))
     : null
   const { draft, changes, heldWeek } = replan(
-    { ...input, weekCaps, ...(args.raise ? { raiseToLevel: true } : {}) },
+    {
+      ...input,
+      weekCaps,
+      ...(breakWeek === undefined ? {} : { breakWeek }),
+      ...(args.raise ? { raiseToLevel: true } : {}),
+    },
     {
       decisions,
       heatHeld:
@@ -1063,7 +1076,11 @@ export async function computeReplan(deps: Deps, args: ReplanArgs): Promise<Repla
       ? [
           lead,
           flip,
-          decision ? decisionSummary(decision.decision, decision.nextWeekTargetMin) : null,
+          decision === null
+            ? null
+            : breakWeek === undefined
+              ? decisionSummary(decision.decision, decision.nextWeekTargetMin)
+              : breakRepeatSummary(decision.nextWeekTargetMin),
         ]
           .filter((line): line is string => line !== null)
           .join(' ')

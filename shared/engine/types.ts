@@ -501,10 +501,27 @@ export interface StoredAssessment extends ExecutionFindings {
 export interface ExecutionAssessment extends ExecutionFindings {
   lines: string[]
 }
+/**
+ * A loading week of the stored plan that was run at or under `e3.breakWeekMaxShare` of its target,
+ * with no rest window over it, and so counts as the cycle's recovery week [rules E3, G-6, J7]. The
+ * weekly decision of that week finds it (`breakWeekOf`); the re-plan after it repeats the week.
+ */
+export interface BreakWeek {
+  /** The Monday of the week that counts as the recovery week. */
+  weekStart: string
+  /** The minutes that week was planned at: the figure the next week repeats. */
+  plannedMin: number
+  /** The minutes run in it. */
+  ranMin: number
+  /** The most the repeat may hold: the J7 share of `plannedMin` for the days since the last run. */
+  capMin: number
+}
 export interface WeeklyDecision {
   decision: 'progress' | 'hold' | 'reduce'
   signals: Array<{ code: string; detail: string; rules: string[] }>
   nextWeekTargetMin: number
+  /** Set when the reviewed week counts as the cycle's recovery week; `decision` is 'progress' then. */
+  breakRepeat?: BreakWeek
   /**
    * Set while the week lies inside a post-race window [rules H12]: the week reports its stage
    * instead of progress, hold or reduce (`decision` is 'hold' for callers that read only that).
@@ -644,6 +661,13 @@ export interface EngineInput {
    * against the capped week.
    */
   weekCaps?: Record<string, number>
+  /**
+   * The week just before the current one when it counts as the cycle's recovery week (the weekly
+   * decision's `breakRepeat`) [rules E3, G-6, J7]: the current week repeats the loading week it was
+   * planned as, the loading weeks after it count from there, and the ramp is measured from the last
+   * loading week run before it. Absent, the plan is drawn as before.
+   */
+  breakWeek?: BreakWeek
   /**
    * Set by the runner's yes to the offer to raise the plan to match [rule E7]: a re-plan then starts
    * its loading sequence from the level a new plan would read from the recent weeks

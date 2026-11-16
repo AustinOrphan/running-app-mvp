@@ -9,6 +9,7 @@ import { addDays, daysBetween, mondayOf } from '../dates.ts'
 import type { Weekday } from '../types.ts'
 import { afterBreak, breakRestart } from './adapt.ts'
 import { estimateState } from './athlete.ts'
+import { BREAK_REPEAT_FLAG } from './breakWeek.ts'
 import {
   dayRuleOn,
   disruptionPlan,
@@ -177,7 +178,11 @@ export function draftRamp(
     volumes: volume,
     skip,
     // a week a window took days from is a part week, a baseline beside another week and never alone
-    partial: new Set(windowedWeeks(windows)),
+    partial: new Set(
+      input.breakWeek === undefined
+        ? windowedWeeks(windows)
+        : [...windowedWeeks(windows), input.breakWeek.weekStart],
+    ),
     floor:
       floorWeek === undefined
         ? null
@@ -336,6 +341,14 @@ function recoveryCadence(
       lastLoad = null
       if (week.flags.includes('restart-floor')) first = false
       continue
+    }
+    // The week that repeats the loading week after one that counted as the recovery week opens a
+    // block: the week before it, run at a recovery week's volume, is the recovery week of the cycle
+    // [rules E3, G-6, J7].
+    if (week.flags.includes(BREAK_REPEAT_FLAG)) {
+      run = 0
+      first = false
+      lastLoad = null
     }
     if (week.isRecovery) {
       if (lastLoad !== null) {

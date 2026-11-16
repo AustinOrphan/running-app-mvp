@@ -689,7 +689,13 @@ function generate(
   const rampCtx: RampContext = {
     volumes,
     skip,
-    partial: new Set(windowed),
+    // the week that counts as the recovery week is a part week too: the repeat is measured against
+    // the last loading week run before it [rule G-6]
+    partial: new Set(
+      input.breakWeek !== undefined && input.breakWeek.weekStart < currentMonday
+        ? [...windowed, input.breakWeek.weekStart]
+        : windowed,
+    ),
     floor:
       floorWeek === undefined
         ? null
@@ -710,7 +716,12 @@ function generate(
   const freeCtx: RampContext = {
     ...rampCtx,
     volumes: freeVolumes,
-    partial: new Set(windowed.filter((weekStart) => !shortTouched(weekStart))),
+    partial: new Set([
+      ...windowed.filter((weekStart) => !shortTouched(weekStart)),
+      ...(input.breakWeek !== undefined && input.breakWeek.weekStart < currentMonday
+        ? [input.breakWeek.weekStart]
+        : []),
+    ]),
   }
   const doneRow = state.weeks.find((w) => w.weekStart === currentMonday)
   const doneGain = gains.get(currentMonday) ?? 0
@@ -1805,6 +1816,20 @@ export function replan(
     } else {
       stillPlanned.set(weekStart, planned)
     }
+  }
+  // The week before counts as the recovery week, and this week repeats the loading week [rules E3,
+  // G-6, J7]: the figure of the plan being replaced (a recovery week's, where it had one) is no bound
+  // on a week that is drawn again as a loading week, so the repeat's own figure is the bound.
+  const broke = input.breakWeek
+  // A week a rest window touches keeps the bound of its sessions, which charge the held days (J9).
+  const untouched =
+    dayRulesIn(windowPlan, { from: currentMonday, to: addDays(currentMonday, 6) }).length === 0
+  if (broke !== undefined && broke.weekStart === addDays(currentMonday, -7) && untouched) {
+    const repeat = Math.min(broke.plannedMin, broke.capMin)
+    const still = stillPlanned.get(currentMonday)
+    if (still !== undefined) stillPlanned.set(currentMonday, Math.max(still, repeat))
+    const fig = figure.get(currentMonday)
+    if (fig !== undefined) figure.set(currentMonday, Math.max(fig, repeat))
   }
   // the running minutes the replaced plan still has on each day from today on
   const plannedOn = new Map<string, number>()
