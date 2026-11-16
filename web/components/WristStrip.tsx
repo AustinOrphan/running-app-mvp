@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
-import { daysBetween, mondayOf, todayIso } from '../../shared/dates.ts'
+import { daysBetween, mondayOf } from '../../shared/dates.ts'
+import { useRunnerToday } from '../api/today.ts'
 import { isToRun } from '../../shared/domain/sessionStatus.ts'
 import { wristCounts, wristPlain, wristStripSentence } from '../../shared/copy/publish.ts'
 import { fileRefusalSentence, workoutLinkLabel } from '../../shared/copy/workouts.ts'
@@ -23,7 +24,8 @@ export function weekHasRuns(sessions: readonly PlanSession[], weekStart: string)
 export function WristStrip({ sessions }: { sessions: readonly PlanSession[] }) {
   const { status } = useWristStatus()
   const send = useSendAgain()
-  const weekStart = mondayOf(todayIso())
+  const runnerToday = useRunnerToday()
+  const weekStart = mondayOf(runnerToday)
 
   const off = status !== undefined && !status.settings.enabled
   const counts = status?.settings.enabled === true ? wristCounts(status.items) : null

@@ -9,7 +9,7 @@ import {
   activitySetsText,
   possibleDuplicateNote,
 } from '../../shared/copy/activityList.ts'
-import { addDays, isIsoDate, todayIso } from '../../shared/dates.ts'
+import { addDays, isIsoDate } from '../../shared/dates.ts'
 import { movingTimeDiffers } from '../../shared/domain/movingTime.ts'
 import type {
   ActivityListItem,
@@ -27,6 +27,7 @@ import {
 } from '../api/activities.ts'
 import { ApiError } from '../api/client.ts'
 import { useSettings } from '../api/settings.ts'
+import { useRunnerToday } from '../api/today.ts'
 import { Button } from '../components/Button.tsx'
 import { EmptyPreview, EmptyState } from '../components/EmptyState.tsx'
 import { ErrorState } from '../components/ErrorState.tsx'
@@ -53,13 +54,13 @@ const FILTER_OPTIONS: Array<{ value: TypeFilter; label: string }> = [
 
 const EN_DASH = '–'
 
-/** Older and later years carry the year so a long list stays unambiguous. */
-function withYear(text: string, date: string): string {
-  return date.slice(0, 4) === todayIso().slice(0, 4) ? text : `${text} ${date.slice(0, 4)}`
+/** Older and later years carry the year (the runner's current one is `today`'s) so a long list stays unambiguous. */
+function withYear(text: string, date: string, today: string): string {
+  return date.slice(0, 4) === today.slice(0, 4) ? text : `${text} ${date.slice(0, 4)}`
 }
 
-function dateHeading(date: string): string {
-  return withYear(`${formatWeekday(date)} ${formatShortDate(date)}`, date)
+function dateHeading(date: string, today: string): string {
+  return withYear(`${formatWeekday(date)} ${formatShortDate(date)}`, date, today)
 }
 
 /**
@@ -67,11 +68,11 @@ function dateHeading(date: string): string {
  * real YYYY-MM-DD that reads back as itself has one: a year typed halfway ("0002-03-15") or a fifth
  * digit ("20266-03-15") is a value the input may hold, and formatting it would throw.
  */
-function rangeDate(value: string): string | null {
+function rangeDate(value: string, today: string): string | null {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || !isIsoDate(value) || addDays(value, 0) !== value) {
     return null
   }
-  return withYear(formatShortDate(value), value)
+  return withYear(formatShortDate(value), value, today)
 }
 
 /** Consecutive rows with the same date; the API already sorts newest first. */
@@ -91,8 +92,11 @@ function ActivityRow({
   glyph,
   restorable = false,
   original,
+  today,
 }: {
   activity: ActivityListItem
+  /** The runner's day, read once by the page. */
+  today: string
   /** The row a possible duplicate was flagged against, when it is on the screen. */
   original?: ActivityListItem
   units: Units
@@ -145,7 +149,7 @@ function ActivityRow({
           [TYPE_LABELS[activity.type], distance === EN_DASH ? null : distance, duration, pace, note]
             .filter((part) => part !== null && part !== '')
             .join(' '),
-          dateHeading(activity.date),
+          dateHeading(activity.date, today),
           movingPace ? activityPaceLabel(true).toLowerCase() : null,
         ]
           .filter((part) => part !== null && part !== '')
@@ -223,6 +227,7 @@ function ActivityRow({
 }
 
 export function ActivitiesPage() {
+  const today = useRunnerToday()
   const [params, setParams] = useSearchParams()
   const adding = params.get('new') === '1'
   const duplicatesOnly = params.get('duplicates') === '1'
@@ -289,8 +294,8 @@ export function ActivitiesPage() {
   // A range that is set keeps its fields in view, so a filter is never active out of sight.
   const showDates = datesOpen
   const rangeText = [
-    rangeDate(from) === null ? null : `from ${rangeDate(from) ?? ''}`,
-    rangeDate(to) === null ? null : `to ${rangeDate(to) ?? ''}`,
+    rangeDate(from, today) === null ? null : `from ${rangeDate(from, today) ?? ''}`,
+    rangeDate(to, today) === null ? null : `to ${rangeDate(to, today) ?? ''}`,
   ]
     .filter((part) => part !== null)
     .join(' ')
@@ -383,12 +388,13 @@ export function ActivitiesPage() {
         : (loaded ?? []).find((r) => r.id === row.duplicateOfId)
     body = groupByDate(rows).map((group) => (
       <section key={group.date} className={styles.group}>
-        <h2 className={styles.date}>{dateHeading(group.date)}</h2>
+        <h2 className={styles.date}>{dateHeading(group.date, today)}</h2>
         <ul className={styles.list}>
           {group.rows.map((row) => (
             <ActivityRow
               key={row.id}
               activity={row}
+              today={today}
               units={units}
               glyph={glyphs.get(row.id)}
               original={originalOf(row)}
@@ -516,12 +522,13 @@ export function ActivitiesPage() {
           <p className={styles.notice}>These are not counted. Restore a run to count it again.</p>
           {groupByDate(confirmedRows).map((group) => (
             <div key={group.date}>
-              <h3 className={styles.date}>{dateHeading(group.date)}</h3>
+              <h3 className={styles.date}>{dateHeading(group.date, today)}</h3>
               <ul className={styles.list}>
                 {group.rows.map((row) => (
                   <ActivityRow
                     key={row.id}
                     activity={row}
+                    today={today}
                     units={units}
                     glyph={glyphs.get(row.id)}
                     restorable

@@ -88,24 +88,12 @@ const SERVER_UTC_DAY: Record<string, number> = {
   'server/services/duplicates.ts': 1,
 }
 
-/** Web files reading the device's day through `todayIso`, with the number of calls. */
+/**
+ * Web files reading the device's day through `todayIso`, with the number of calls: only the
+ * fallback of `useRunnerToday` (D10, ADR 0022), used while no zone is known.
+ */
 const WEB_TODAY_ISO: Record<string, number> = {
-  'web/components/CalendarFeed.tsx': 1,
-  'web/components/SeasonStrip.tsx': 1,
-  'web/components/WristSettings.tsx': 1,
-  'web/components/WristStrip.tsx': 1,
-  'web/components/revisions/RevisionDiff.tsx': 1,
-  'web/components/revisions/UndoControl.tsx': 2,
-  'web/pages/ActivitiesPage.tsx': 1,
-  'web/pages/ActivityForm.tsx': 2,
-  'web/pages/BriefPage.tsx': 1,
-  'web/pages/GoalsPage.tsx': 2,
-  'web/pages/PlanPage.tsx': 1,
-  'web/pages/ProfilePage.tsx': 1,
-  'web/pages/RaceResultSheet.tsx': 1,
-  'web/pages/ReviewPage.tsx': 1,
-  'web/pages/StatsPage.tsx': 1,
-  'web/pages/TrendsPage.tsx': 1,
+  'web/api/today.ts': 1,
 }
 
 const TODAY_ISO_CALL = /\btodayIso\(/g
