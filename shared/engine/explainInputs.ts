@@ -1067,6 +1067,7 @@ export const ANCHOR_WORDS: Record<Boundary['source'], string> = {
   'hrmax-age': 'your age',
   hrr: 'your heart-rate reserve',
   profile: 'your profile',
+  'own-line': 'your own heart-rate line on cool runs',
 }
 
 function anchorFacts(scope: Scope): InputFact[] {

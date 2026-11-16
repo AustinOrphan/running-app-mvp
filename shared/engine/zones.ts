@@ -169,6 +169,13 @@ export function buildZones(profile: AthleteProfile, state: AthleteState, today: 
     lt2Hr = hrBoundary(hrMaxValue * lt2Frac, halfWidth * lt2Frac, hrMaxAnchor.source, today)
   }
 
+  // The ceiling the runner accepted from their own heart-rate line stands ahead of the other
+  // anchors of the first threshold, while it lies under the threshold heart rate [rules C4, C8].
+  const ownLt1 = profile.ownLt1Hr ?? null
+  if (ownLt1 !== null && ownLt1 > 0 && lt2Hr !== null && ownLt1 < lt2Hr.value) {
+    lt1Hr = hrBoundary(ownLt1, bandDefault, 'own-line', today)
+  }
+
   let hr: ZoneSet['hr'] = null
   if (hrMax && lt1Hr && lt2Hr) {
     const floorByFraction = Math.round(hrMax.value * P.c2.z1FloorFractionOfHrMax.value)

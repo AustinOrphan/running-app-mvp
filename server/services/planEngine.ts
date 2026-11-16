@@ -32,6 +32,7 @@ import {
   weeklyRamp,
   zoneProposals,
 } from '../../shared/engine/index.ts'
+import { ownCeilingProposal } from '../../shared/engine/ownCeiling.ts'
 import { loadPosition, rebuildZone, type LoadPosition } from '../../shared/engine/loadSetting.ts'
 import { resolveMethod, type MethodPosition } from '../../shared/engine/methods.ts'
 import { P } from '../../shared/engine/params/index.ts'
@@ -712,6 +713,18 @@ export async function listZoneProposals(
     return { date: session.date, kind: session.kind, assessment: session.execution! }
   })
   const proposals = zoneProposals(input, executions)
+  // The own easy ceiling goes through the same list, so it is declined, accepted and recorded like
+  // every other proposal (rules C4, C8, owner decision D4, 2026-11-14).
+  const context = await loadAthleteContext(deps, { userId: args.userId, today: args.today })
+  const ceiling = ownCeilingProposal(
+    context.activities,
+    args.today,
+    context.zones,
+    context.zoneChanges.lt1Hr ?? null,
+  )
+  // Without an active plan an answer leaves no revision, so the fresh-data guard and the held
+  // decline could not apply: no offer then.
+  if (ceiling !== null && plan !== null) proposals.push(ceiling)
   if (proposals.length === 0) return []
 
   // A decline is found by its stored change (`zones.<boundary>.declined`, the proposed values in
@@ -734,9 +747,27 @@ export async function listZoneProposals(
         ),
     ),
   )
+  // The own easy ceiling moves with every run, so "Not now" holds by direction, not by value:
+  // a decline of a lower (or higher) ceiling silences that direction for the window (rule C8).
+  const declinedDirections = new Set(
+    revisions.flatMap((revision) =>
+      zoneDecisionsOf(revision.changes)
+        .filter((d) => d.boundary === 'lt1Hr' && d.outcome === 'declined')
+        .map(({ change }) =>
+          (change.to as number) < (change.from as number) ? 'lower' : 'higher',
+        ),
+    ),
+  )
   return proposals
     .map((proposal) => ({ ...proposal, id: proposalId(proposal) }))
-    .filter((proposal) => !declined.has(proposal.id))
+    .filter(
+      (proposal) =>
+        !declined.has(proposal.id) &&
+        !(
+          proposal.boundary === 'lt1Hr' &&
+          declinedDirections.has(proposal.to < proposal.from ? 'lower' : 'higher')
+        ),
+    )
 }
 
 /** Accepts (applies to the profile) or declines a proposal; the revision log keeps the record. */
@@ -751,6 +782,9 @@ export async function decideZoneProposal(
     where: { userId: args.userId, status: 'active' },
     orderBy: { createdAt: 'desc' },
   })
+  // The own ceiling is decided only with a plan to hold the revision that records the answer.
+  if (proposal.boundary === 'lt1Hr' && !plan)
+    throw notFound('That zone proposal is no longer open.')
 
   if (args.decision === 'decline') {
     if (plan) {
@@ -772,10 +806,18 @@ export async function decideZoneProposal(
       where: { userId: args.userId },
       data: { thresholdPaceSecPerKm: proposal.to },
     })
+  } else if (proposal.boundary === 'lt1Hr') {
+    // The accepted ceiling is the profile's own; the zones read it ahead of the other anchors.
+    await prisma.athleteProfile.update({
+      where: { userId: args.userId },
+      data: { ownLt1Hr: proposal.to },
+    })
   } else if (proposal.boundary === 'hrMax') {
     await prisma.athleteProfile.update({
       where: { userId: args.userId },
-      data: { hrMax: proposal.to, hrMaxSource: 'measured' },
+      // A new maximum makes an accepted own ceiling stale (C2, C8), as in the profile route. No
+      // producer emits an hrMax proposal today, so this branch has no test.
+      data: { hrMax: proposal.to, hrMaxSource: 'measured', ownLt1Hr: null },
     })
   } else {
     throw conflict(zoneNotStoredText(proposal.boundary))

@@ -268,6 +268,7 @@ export function toProfile(row: AthleteProfileRow): AthleteProfile {
     hrMaxSource: row.hrMaxSource as AthleteProfile['hrMaxSource'],
     hrRest: row.hrRest,
     lthr: row.lthr,
+    ...(row.ownLt1Hr === null ? {} : { ownLt1Hr: row.ownLt1Hr }),
     thresholdPaceSecPerKm: row.thresholdPaceSecPerKm,
     runningSinceYear: row.runningSinceYear,
     injuries: parseJson<Injury[]>(row.injuries, []),

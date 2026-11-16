@@ -13,6 +13,7 @@ export const BOUNDARY_SOURCE_LABELS: Record<Boundary['source'], string> = {
   'hrmax-age': 'Estimated from age',
   hrr: 'From heart rate reserve',
   profile: 'From the profile',
+  'own-line': 'From your own heart-rate line on cool runs',
 }
 
 /**

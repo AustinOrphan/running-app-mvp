@@ -494,6 +494,7 @@ model AthleteProfile {
   hrMaxSource           String? // 'measured' | 'estimated'
   hrRest                Int?
   lthr                  Int?
+  ownLt1Hr              Int? // the easy heart-rate ceiling accepted from the own HR-at-pace line (C4, C8)
   thresholdPaceSecPerKm Int?
   runningSinceYear      Int?
   injuries              String   @default("[]") // JSON text: Injury[]

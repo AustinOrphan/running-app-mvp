@@ -1,11 +1,12 @@
 import { cleanup, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
+import { assertCleanCopy } from '../../shared/copy/lint.ts'
 import { addDays, weekStartsBetween } from '../../shared/dates.ts'
 import { formatLoad } from '../../shared/domain/weight.ts'
 import { P } from '../../shared/engine/params/index.ts'
 import type { WeekHistory } from '../../shared/engine/strength.ts'
-import type { WeeklyDecision } from '../../shared/engine/types.ts'
+import type { OwnCeilingEvidence, WeeklyDecision } from '../../shared/engine/types.ts'
 import type {
   Activity,
   AthleteProfile,
@@ -1222,6 +1223,80 @@ describe('ReviewPage', () => {
       await ready()
       expect(await screen.findByText('Critical speed')).toBeInTheDocument()
       expect(screen.getByText('4:10 /km to 4:04 /km')).toBeInTheDocument()
+    })
+
+    describe('the own easy ceiling (rules C4, C8)', () => {
+      const evidence = (direction: 'lower' | 'higher'): OwnCeilingEvidence => ({
+        direction,
+        lt1SpeedMps: 3,
+        estimates: direction === 'lower' ? [131, 132, 131] : [150, 151, 150],
+        runs: [
+          { date: '2026-10-05', speedMps: 2.8, avgHr: 128 },
+          { date: '2026-10-07', speedMps: 3.1, avgHr: 134 },
+        ],
+        maxWbgtC: 15,
+      })
+
+      test('a lower ceiling shows the readings and the runs, with neutral wording', async () => {
+        renderReview({
+          plan: v2Plan(),
+          weeks: { [W]: fullWeek },
+          proposals: [
+            makeProposal({
+              boundary: 'lt1Hr',
+              from: 144,
+              to: 132,
+              reason:
+                'On 10 cool runs with clean heart-rate data, the line of heart rate against pace gives 131 bpm at the easy pace limit, against the current 144 bpm. Moving the easy heart-rate limit down to 132 bpm would match the line; confirm or decline.',
+              rules: ['C8', 'C4', 'A8'],
+              evidence: evidence('lower'),
+            }),
+          ],
+        })
+        await ready()
+        const region = await screen.findByRole('region', { name: 'Zone proposals' })
+        expect(within(region).getByText('Easy heart rate limit')).toBeInTheDocument()
+        expect(within(region).getByText('144 bpm to 132 bpm')).toBeInTheDocument()
+        expect(within(region).getByText(/down to 132 bpm would match the line/)).toBeInTheDocument()
+        expect(
+          within(region).getByText(
+            /Read at the easy pace limit, 5:33 \/km, the line gave 131 bpm, 132 bpm, 131 bpm over the last three cool runs\. Only runs at or below 15 C/,
+          ),
+        ).toBeInTheDocument()
+        expect(within(region).getByText('The 2 runs')).toBeInTheDocument()
+        expect(within(region).getByText(/5 Oct: 5:57 \/km, 128 bpm average/)).toBeInTheDocument()
+        expect(within(region).queryByText(/^Based on/)).not.toBeInTheDocument()
+        expect(
+          within(region).getByRole('button', { name: 'Accept Easy heart rate limit change' }),
+        ).toBeInTheDocument()
+        expect(
+          within(region).getByRole('button', { name: 'Decline Easy heart rate limit change' }),
+        ).toBeInTheDocument()
+        assertCleanCopy(region.textContent ?? '')
+      })
+
+      test('a higher ceiling says what it allows and what it needed', async () => {
+        renderReview({
+          plan: v2Plan(),
+          weeks: { [W]: fullWeek },
+          proposals: [
+            makeProposal({
+              boundary: 'lt1Hr',
+              from: 144,
+              to: 149,
+              reason:
+                'On 14 cool runs with clean heart-rate data, the line of heart rate against pace gives 150 bpm at the easy pace limit, against the current 144 bpm. A higher limit allows more intensity on every easy step, so this offer needed more runs and a closer agreement than a lower one, and moves the limit by at most 5 bpm. Moving it to 149 bpm would match the line as far as that allows; confirm or decline.',
+              rules: ['C8', 'C4', 'A8'],
+              evidence: evidence('higher'),
+            }),
+          ],
+        })
+        await ready()
+        const region = await screen.findByRole('region', { name: 'Zone proposals' })
+        expect(within(region).getByText('144 bpm to 149 bpm')).toBeInTheDocument()
+        expect(within(region).getByText(/more intensity on every easy step/)).toBeInTheDocument()
+        assertCleanCopy(region.textContent ?? '')
+      })
     })
   })
 })
