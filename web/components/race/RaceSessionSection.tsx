@@ -5,6 +5,7 @@ import { describeRaceSummary, raceOpenText, raceTitleText } from '../../../share
 import { describeRoadRaceSummary } from '../../../shared/copy/racePlanRoad.ts'
 import type { PlanSession, TodayView, Units } from '../../../shared/types.ts'
 import { keys } from '../../api/client.ts'
+import { hasRacePlan, useRacePlan } from '../../api/race.ts'
 import { RaceFuelBlock } from './RaceBlocks.tsx'
 import { RoadFluidBlock } from './RoadRaceBlocks.tsx'
 import styles from './Race.module.css'
@@ -16,14 +17,19 @@ import styles from './Race.module.css'
  * fluid lines, and the link. The lines are the `race` or `roadRace` slot of the Today payload the
  * page already holds (read without asking again, so the block shows from a copy of Today kept
  * offline), and they appear only on the race day itself, when the payload's race is this session's
- * day. Opened from another page or day, the block is the link alone.
+ * day. Opened from another page or day, the block is the link alone. It shows only when the cached
+ * race plan answer holds a plan (`hasRacePlan`): none for a 5 km, and none while the cache is empty.
  */
 export function RaceSessionSection({ session, units }: { session: PlanSession; units: Units }) {
+  // The cached race plan answer, never a request (`enabled: false`): a goal with no plan (a 5 km)
+  // or a cache that does not hold the answer yet shows nothing, not a link to an empty page.
+  const plan = useRacePlan({ enabled: false }).data
   const today = useQuery<TodayView>({ queryKey: [keys.today], enabled: false }).data
   const summary = today?.coach.slots.race ?? null
   const road = today?.coach.slots.roadRace ?? null
   const onRaceDay = (race: { daysToRace: number; date: string } | null) =>
     race !== null && race.daysToRace === 0 && race.date === session.date
+  if (!hasRacePlan(plan)) return null
   if (summary === null && road !== null && onRaceDay(road)) {
     return <RoadRaceDay units={units} />
   }

@@ -19,10 +19,13 @@ import {
   delayResponses,
   expectCleanCopy,
   explainOf,
+  makeTestQueryClient,
   mockApi,
   renderWithProviders,
   type MockRoutes,
 } from './helpers.tsx'
+import { roadPlan } from './road-fixtures.ts'
+import { keys } from '../../web/api/client.ts'
 import {
   makeBrief,
   makeDiff,
@@ -63,8 +66,11 @@ const nearby = [
   makeActivity({ id: 'act2', date: '2027-01-12', durationSec: 1800, distanceM: 5000 }),
 ]
 
-function renderSheet(session: PlanSessionView, extra: MockRoutes = {}) {
+/** `racePlan` seeds the cached race plan answer the race-day block reads (it never asks for it). */
+function renderSheet(session: PlanSessionView, extra: MockRoutes = {}, racePlan?: unknown) {
   const onClose = vi.fn()
+  const queryClient = makeTestQueryClient()
+  if (racePlan !== undefined) queryClient.setQueryData([keys.race, 'plan'], racePlan)
   const api = mockApi({
     'GET /api/settings': () => settings,
     'GET /api/activities': () => activityPage(nearby),
@@ -75,6 +81,7 @@ function renderSheet(session: PlanSessionView, extra: MockRoutes = {}) {
     <ToastProvider>
       <SessionSheet session={session} onClose={onClose} />
     </ToastProvider>,
+    { queryClient },
   )
   return { ...api, onClose }
 }
@@ -1124,9 +1131,15 @@ describe('the race plan block (rule H14)', () => {
     })
 
   const noTargets: MockRoutes = { 'GET /api/fuel/targets': () => [] }
+  const ultraView = {
+    plan: { name: 'Example 100', date: '2027-02-01', daysToRace: 19 },
+    reason: null,
+  }
+  const marathonView = { plan: null, reason: 'not-ultra', road: roadPlan('marathon-heat') }
+  const fiveKView = { plan: null, reason: 'not-ultra' }
 
   test('an ultra race session links to the race plan', async () => {
-    renderSheet(raceSession('z1'), noTargets)
+    renderSheet(raceSession('z1'), noTargets, ultraView)
     const sheet = await screen.findByRole('dialog', { name: 'Race' })
     expect(await within(sheet).findByRole('link', { name: 'Open the race plan' })).toHaveAttribute(
       'href',
@@ -1134,13 +1147,28 @@ describe('the race plan block (rule H14)', () => {
     )
   })
 
-  test('a race stored in the race-pace zone (a road race, rule H15) links to the race plan too', async () => {
-    renderSheet(raceSession('z3'), noTargets)
+  test('a marathon race session (a road race, rule H15) links to the race plan too', async () => {
+    renderSheet(raceSession('z3'), noTargets, marathonView)
     const sheet = await screen.findByRole('dialog', { name: 'Race' })
     expect(await within(sheet).findByRole('link', { name: 'Open the race plan' })).toHaveAttribute(
       'href',
       '/race',
     )
+  })
+
+  test('a 5 km race session has no race plan block: the plan page would hold the empty state only', async () => {
+    renderSheet(raceSession('z3'), noTargets, fiveKView)
+    const sheet = await screen.findByRole('dialog', { name: 'Race' })
+    await within(sheet).findByText('Prescription')
+    expect(within(sheet).queryByRole('link', { name: 'Open the race plan' })).toBeNull()
+  })
+
+  test('with no race plan answer cached the block shows nothing and asks for nothing', async () => {
+    const { calls } = renderSheet(raceSession('z3'), noTargets)
+    const sheet = await screen.findByRole('dialog', { name: 'Race' })
+    await within(sheet).findByText('Prescription')
+    expect(within(sheet).queryByRole('link', { name: 'Open the race plan' })).toBeNull()
+    expect(calls.some((call) => call.url === '/api/race/plan')).toBe(false)
   })
 
   test('a road race session shows its purpose with no promise of a fuel or pacing plan (RT1)', async () => {
@@ -1157,6 +1185,7 @@ describe('the race plan block (rule H14)', () => {
         flags: [],
       }),
       noTargets,
+      marathonView,
     )
     const sheet = await screen.findByRole('dialog', { name: 'Race' })
     expect(await within(sheet).findByText(purpose)).toBeVisible()

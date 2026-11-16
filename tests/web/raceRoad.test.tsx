@@ -206,6 +206,8 @@ function seededRoadClient(kind: Parameters<typeof roadPlan>[0], date: string, ex
     }),
   )
   queryClient.setQueryData([keys.settings], SETTINGS)
+  // The race-day block reads the cached race plan answer to know there is a plan to link to.
+  queryClient.setQueryData([keys.race, 'plan'], { plan: null, reason: 'not-ultra', road })
   return { queryClient, summary }
 }
 

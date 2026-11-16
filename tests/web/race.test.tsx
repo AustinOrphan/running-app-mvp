@@ -352,6 +352,8 @@ function seededClient(plan: RacePlan, date: string) {
     }),
   )
   queryClient.setQueryData([keys.settings], SETTINGS)
+  // The race-day block reads the cached race plan answer to know there is a plan to link to.
+  queryClient.setQueryData([keys.race, 'plan'], { plan, reason: null })
   return { queryClient, summary }
 }
 
@@ -436,8 +438,15 @@ describe('the race-day block of the session sheet', () => {
   })
 
   test('is the link alone when Today has not been read', () => {
-    renderWithProviders(<RaceSessionSection session={RACE_SESSION} units="km" />)
+    const queryClient = makeTestQueryClient()
+    queryClient.setQueryData([keys.race, 'plan'], { plan: planWith(), reason: null })
+    renderWithProviders(<RaceSessionSection session={RACE_SESSION} units="km" />, { queryClient })
     expect(screen.getByRole('link', { name: 'Open the race plan' })).toBeInTheDocument()
+  })
+
+  test('shows nothing while the race plan answer is not cached', () => {
+    renderWithProviders(<RaceSessionSection session={RACE_SESSION} units="km" />)
+    expect(screen.queryByRole('link', { name: 'Open the race plan' })).toBeNull()
   })
 })
 

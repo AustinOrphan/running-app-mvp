@@ -597,7 +597,5 @@ test("a road race plan opens with no connection from the phone's copy, and says 
     page.getByText(/^Offline\. Showing the race plan saved at \d{2}:\d{2}\.$/),
   ).toBeVisible()
   await page.context().setOffline(false)
-  // The page reads the plan again when the connection returns; the worker may need a moment to
-  // leave its offline answer.
-  await expect(page.getByText(/^Offline\./)).toBeHidden({ timeout: 15_000 })
+  await expect(page.getByText(/^Offline\./)).toBeHidden()
 })
