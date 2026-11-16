@@ -13,7 +13,7 @@
 // left as it is, except when the undone revision created a rest window: its back-dated skips come
 // back, because the window was the runner's own statement.
 import { describeUndoFinding, undoneSummary } from '../../shared/copy/revision.ts'
-import { mondayOf, todayIso } from '../../shared/dates.ts'
+import { mondayOf } from '../../shared/dates.ts'
 import { diffPlans } from '../../shared/engine/diff.ts'
 import { replan, runChecklist } from '../../shared/engine/index.ts'
 import { P } from '../../shared/engine/params/index.ts'
@@ -552,12 +552,12 @@ export async function undoStates(
     userId: string
     rows: readonly PlanRevisionListRow[]
     planActive: boolean
-    today?: string
+    today: string
     now?: Date
   },
 ): Promise<Map<string, UndoState>> {
   const { prisma } = deps
-  const today = args.today ?? todayIso()
+  const { today } = args
   const nowMs = (args.now ?? new Date()).getTime()
   const windowDays = P.revision.undoWindowDays.value
   const states = new Map<string, UndoState>()
@@ -665,21 +665,32 @@ function ownerWeeksAt(
 /** Revisions as the API serves them, with the structural undo state and the causes of each. */
 export async function viewRevisions(
   deps: Deps,
-  args: { userId: string; rows: readonly PlanRevisionListRow[]; planActive: boolean },
+  args: {
+    userId: string
+    rows: readonly PlanRevisionListRow[]
+    planActive: boolean
+    today: string
+    tz: string
+  },
 ): Promise<PlanRevisionView[]> {
   const [states, ownerWeeks] = await Promise.all([
     undoStates(deps, args),
     ownerWeeksByPlan(deps, args.rows),
   ])
   return args.rows.map((row) =>
-    revisionView(row, states.get(row.id)!, ownerWeeksAt(ownerWeeks.get(row.planId), row.createdAt)),
+    revisionView(
+      row,
+      states.get(row.id)!,
+      args.tz,
+      ownerWeeksAt(ownerWeeks.get(row.planId), row.createdAt),
+    ),
   )
 }
 
 /** One of the user's revisions as the API serves it. */
 export async function viewRevision(
   deps: Deps,
-  args: { userId: string; revisionId: string },
+  args: { userId: string; revisionId: string; today: string; tz: string },
 ): Promise<PlanRevisionView> {
   const row = await deps.prisma.planRevision.findFirst({
     where: { id: args.revisionId, plan: { userId: args.userId } },
@@ -692,6 +703,8 @@ export async function viewRevision(
     userId: args.userId,
     rows: [revision],
     planActive: plan.status === 'active',
+    today: args.today,
+    tz: args.tz,
   })
   return view!
 }
@@ -704,7 +717,14 @@ export async function viewRevision(
  */
 export async function listRevisions(
   deps: Deps,
-  args: { userId: string; limit: number; before?: string; includeEmpty?: boolean },
+  args: {
+    userId: string
+    limit: number
+    today: string
+    tz: string
+    before?: string
+    includeEmpty?: boolean
+  },
 ): Promise<PlanRevisionView[]> {
   const { prisma } = deps
   const plan = await prisma.plan.findFirst({
@@ -744,7 +764,13 @@ export async function listRevisions(
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     take: args.limit,
   })
-  return viewRevisions(deps, { userId: args.userId, rows, planActive: true })
+  return viewRevisions(deps, {
+    userId: args.userId,
+    rows,
+    planActive: true,
+    today: args.today,
+    tz: args.tz,
+  })
 }
 
 /**

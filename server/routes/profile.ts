@@ -17,8 +17,9 @@ const dayAvailability = z.strictObject({
   maxMin: nullableInt(0, 600),
 })
 
-function buildSchema(now: Date) {
-  const year = now.getFullYear()
+/** The birth-year and start-year bounds read the year of the runner's `today`. */
+function buildSchema(today: string) {
+  const year = Number(today.slice(0, 4))
   return z.strictObject({
     birthYear: nullableInt(1920, year - 10).optional(),
     sex: z.enum(['female', 'male', 'unspecified']).nullable().optional(),
@@ -104,7 +105,7 @@ export function profileRouter(deps: Deps): Router {
 
   // Fields that are absent keep their saved value; a null clears a nullable one.
   router.put('/', async (req, res) => {
-    const body = parse(buildSchema(new Date()), req.body)
+    const body = parse(buildSchema(req.runnerDay.today), req.body)
     const saved = await loadProfile(prisma, req.userId)
     const merged: AthleteProfile = { ...saved }
     Object.assign(merged, body)

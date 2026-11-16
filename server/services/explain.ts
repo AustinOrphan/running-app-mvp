@@ -5,7 +5,6 @@
 // requests on one version fit the model once. No other history or plan query runs: the one read
 // beyond the snapshot is the stored assessments of the week a decision is about, which sit on the
 // session rows and are not part of the snapshot.
-import { todayIso } from '../../shared/dates.ts'
 import { weeklyDecision } from '../../shared/engine/adapt.ts'
 import {
   explainInputs,
@@ -73,19 +72,18 @@ const NOT_FOUND: Record<ExplainRequest['subject'], string> = {
  */
 export async function explainView(
   deps: Deps,
-  args: { userId: string; request: ExplainRequest; today?: string },
+  args: { userId: string; request: ExplainRequest; today: string; tz: string },
 ): Promise<ExplainView> {
-  const { userId, request } = args
+  const { userId, request, today, tz } = args
   // A run's figures are the ones stored with its insight (E4-7), not read again from the snapshot.
   if (request.subject === 'activity') {
-    return explainActivity(deps, { userId, activityId: request.id })
+    return explainActivity(deps, { userId, activityId: request.id, today, tz })
   }
   // A brief's figures are the ones stored with it (E4-5): read from its row, never memoised by the
   // data version, since a brief is a non-state table and a stored fact does not change.
   if (request.subject === 'brief') {
     return explainBrief(deps, { userId, weekStart: request.weekStart })
   }
-  const today = args.today ?? todayIso()
   const context = await loadAthleteContext(deps, { userId, today })
   // The athlete's data and the stored plan, rest windows included, with the neutral goal the
   // reads about the athlete use. The weekly decision is made from the plan's own goal below.

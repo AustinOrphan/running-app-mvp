@@ -1169,6 +1169,7 @@ describe('recordPlanWrite', () => {
       recordPlanWrite(tx, {
         planId: f.plan.id,
         userId: f.u.id,
+        today: thisMonday,
         reason: 'disruption',
         summary: 'Synthetic.',
         changes,
@@ -1194,6 +1195,7 @@ describe('recordPlanWrite', () => {
       recordPlanWrite(tx, {
         planId: f.plan.id,
         userId: f.u.id,
+        today: thisMonday,
         reason: 'owner',
         summary: 'Synthetic.',
         changes: [],
@@ -1213,6 +1215,7 @@ describe('recordPlanWrite', () => {
         recordPlanWrite(tx, {
           planId: f.plan.id,
           userId: other.id,
+          today: thisMonday,
           reason: 'owner',
           summary: 'Synthetic.',
           changes: [],
@@ -1253,9 +1256,10 @@ function revisionRow(over: Partial<PlanRevisionRow> = {}): PlanRevisionRow {
 
 describe('the view of a revision', () => {
   const now = new Date('2026-10-20T03:00:00Z')
+  const writtenOn = '2026-10-20'
 
   test('can be undone while it has a payload, is young, is not undone and is not an undo', () => {
-    expect(toPlanRevision(revisionRow(), now).undo).toEqual({
+    expect(toPlanRevision(revisionRow(), writtenOn, now).undo).toEqual({
       available: true,
       reasons: [],
       undoneAt: null,
@@ -1268,7 +1272,7 @@ describe('the view of a revision', () => {
     ['an undo', { reason: 'undo' }, 'is-undo'],
     ['one older than the window', { createdAt: new Date('2026-10-12T03:00:00Z') }, 'window-passed'],
   ])('says why %s cannot be undone', (_name, over, code) => {
-    const { undo } = toPlanRevision(revisionRow(over), now)
+    const { undo } = toPlanRevision(revisionRow(over), writtenOn, now)
     expect(undo.available).toBe(false)
     expect(undo.reasons).toHaveLength(1)
     expect(undo.reasons[0]).toMatchObject({ code })
@@ -1277,11 +1281,12 @@ describe('the view of a revision', () => {
 
   test('the window is the Param, to the millisecond', () => {
     const edge = new Date(now.getTime() - P.revision.undoWindowDays.value * 86_400_000)
-    expect(toPlanRevision(revisionRow({ createdAt: edge }), now).undo.reasons[0]?.code).toBe(
-      'window-passed',
-    )
     expect(
-      toPlanRevision(revisionRow({ createdAt: new Date(edge.getTime() + 1) }), now).undo.available,
+      toPlanRevision(revisionRow({ createdAt: edge }), writtenOn, now).undo.reasons[0]?.code,
+    ).toBe('window-passed')
+    expect(
+      toPlanRevision(revisionRow({ createdAt: new Date(edge.getTime() + 1) }), writtenOn, now).undo
+        .available,
     ).toBe(true)
   })
 
@@ -1302,6 +1307,7 @@ describe('the view of a revision', () => {
         undoOf: 'rev0',
         disruptionId: 'd1',
       }),
+      writtenOn,
       now,
     )
     expect(view).toMatchObject({
@@ -1312,7 +1318,7 @@ describe('the view of a revision', () => {
       undoOf: 'rev0',
       disruptionId: 'd1',
     })
-    expect(toPlanRevision(revisionRow({ diff: '{not json' }), now).diff).toBeNull()
+    expect(toPlanRevision(revisionRow({ diff: '{not json' }), writtenOn, now).diff).toBeNull()
   })
 })
 

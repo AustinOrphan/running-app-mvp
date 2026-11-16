@@ -11,7 +11,7 @@
 // also tells a stored insight that the check-in changed); no history or plan query runs beside
 // them. `ActivityInsight` is non-state, so none of these writes moves the data version.
 import { createHash } from 'node:crypto'
-import { addDays, todayIso } from '../../shared/dates.ts'
+import { addDays, isoDateInZone } from '../../shared/dates.ts'
 import { rankStandouts, standoutFacts, STANDOUT_VERSION } from '../../shared/engine/standout.ts'
 import type { StandoutSession } from '../../shared/engine/standout.ts'
 import { P } from '../../shared/engine/params/index.ts'
@@ -153,7 +153,7 @@ const isRun = (type: string): boolean => type === 'run' || type === 'race'
  */
 export async function activityInsight(
   deps: DepsWithPrisma,
-  args: { userId: string; activityId: string; today?: string; force?: boolean },
+  args: { userId: string; activityId: string; today: string; force?: boolean },
 ): Promise<InsightRecord | null> {
   const { prisma } = deps
   const { userId, activityId } = args
@@ -188,7 +188,7 @@ export async function activityInsight(
 
   const context = await loadAthleteContext(deps, {
     userId,
-    today: args.today ?? todayIso(computedAt),
+    today: args.today,
   })
   const hrModel = await hrModelOf(deps, context)
   const facts = standoutFacts({
@@ -213,7 +213,7 @@ export async function activityInsight(
 /** `GET /api/activities/:id/standout`: the first findings of a run. 404 for another user's run. */
 export async function standoutView(
   deps: DepsWithPrisma,
-  args: { userId: string; activityId: string },
+  args: { userId: string; activityId: string; today: string },
 ): Promise<StandoutView> {
   const record = await activityInsight(deps, args)
   if (record === null) throw notFound('Activity not found.')
@@ -227,7 +227,7 @@ export async function standoutView(
  */
 export async function explainActivity(
   deps: DepsWithPrisma,
-  args: { userId: string; activityId: string },
+  args: { userId: string; activityId: string; today: string; tz: string },
 ): Promise<ExplainView> {
   const record = await activityInsight(deps, args)
   if (record === null) throw notFound('Activity not found.')
@@ -239,7 +239,7 @@ export async function explainActivity(
   }
   return {
     subject: 'activity',
-    asOf: todayIso(record.computedAt),
+    asOf: isoDateInZone(record.computedAt, args.tz),
     frozen: true,
     rules: groups.map((group) => group.rule),
     groups,
@@ -255,9 +255,9 @@ export async function explainActivity(
  */
 export async function refreshInsightsQuietly(
   deps: DepsWithPrisma,
-  args: { userId: string; activityIds: readonly string[]; today?: string },
+  args: { userId: string; activityIds: readonly string[]; today: string },
 ): Promise<void> {
-  const today = args.today ?? todayIso()
+  const { today } = args
   const from = addDays(today, -INSIGHT_EAGER_DAYS)
   for (const activityId of new Set(args.activityIds)) {
     try {

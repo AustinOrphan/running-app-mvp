@@ -16,7 +16,7 @@
 // plan query runs beside them. `WeeklyBrief` is non-state, so none of these writes moves the data
 // version. A brief is seen when the revision it describes is: `PlanRevision.seenAt` is the one
 // marker, and stamping it is a state write.
-import { addDays, mondayOf, todayIso } from '../../shared/dates.ts'
+import { addDays, mondayOf } from '../../shared/dates.ts'
 import { BRIEF_VERSION, buildBriefFacts } from '../../shared/engine/brief.ts'
 import { isHotForSteering, trainingHeatAdvice } from '../../shared/engine/heat.ts'
 import type {
@@ -119,6 +119,8 @@ interface Composed {
 interface ComposeArgs {
   userId: string
   today: string
+  /** The runner's zone, for the day a revision was written. */
+  tz: string
   /** The revision the weekly update wrote. */
   revisionId: string | null
   /** The error that stopped the update, when it did. */
@@ -161,14 +163,14 @@ async function weeklyPredictions(
 
 /** The facts of the brief for `today`'s week, from the snapshot and the revision (if any). */
 async function compose(deps: Deps, args: ComposeArgs): Promise<Composed> {
-  const { userId, today } = args
+  const { userId, today, tz } = args
   const weekStart = mondayOf(today)
   const last = addDays(weekStart, -7)
   const context = await loadAthleteContext(deps, { userId, today })
   const revision =
     args.revisionId === null
       ? null
-      : await viewRevision(deps, { userId, revisionId: args.revisionId })
+      : await viewRevision(deps, { userId, revisionId: args.revisionId, today, tz })
   const replan = args.failure === undefined ? null : replanNoteOf(args.failure, context, today)
   const decision =
     context.plan === null ? null : await decisionFor(deps, { userId, today, last, revision })
@@ -224,13 +226,16 @@ function rowData(composed: Composed, provisional: boolean) {
  */
 export async function generateBrief(
   deps: Deps,
-  args: { userId: string; today: string } & ({ revisionId: string } | { failure: unknown }),
+  args: { userId: string; today: string; tz: string } & (
+    { revisionId: string } | { failure: unknown }
+  ),
 ): Promise<void> {
-  const { userId, today } = args
+  const { userId, today, tz } = args
   const weekStart = mondayOf(today)
   const composed = await compose(deps, {
     userId,
     today,
+    tz,
     ...('revisionId' in args
       ? { revisionId: args.revisionId }
       : { revisionId: null, failure: args.failure }),
@@ -302,7 +307,7 @@ async function unclaimedWeeklyRevision(
 /** Builds this week's brief for a request: from the weekly revision if there is one, else provisionally. */
 async function composeCurrent(
   deps: Deps,
-  args: { userId: string; today: string; planId: string },
+  args: { userId: string; today: string; tz: string; planId: string },
 ): Promise<{ composed: Composed; provisional: boolean }> {
   const revisionId = await unclaimedWeeklyRevision(deps, {
     planId: args.planId,
@@ -311,6 +316,7 @@ async function composeCurrent(
   const composed = await compose(deps, {
     userId: args.userId,
     today: args.today,
+    tz: args.tz,
     revisionId,
   })
   return { composed, provisional: revisionId === null }
@@ -322,15 +328,16 @@ async function composeCurrent(
  */
 async function ensureCurrent(
   deps: Deps,
-  args: { userId: string; today: string },
+  args: { userId: string; today: string; tz: string },
 ): Promise<WeeklyBriefRow | null> {
-  const { userId, today } = args
+  const { userId, today, tz } = args
   const weekStart = mondayOf(today)
   const context = await loadAthleteContext(deps, { userId, today })
   if (context.plan === null) return null
   const { composed, provisional } = await composeCurrent(deps, {
     userId,
     today,
+    tz,
     planId: context.plan.id,
   })
   try {
@@ -352,7 +359,7 @@ async function ensureCurrent(
  */
 async function refreshProvisional(
   deps: Deps,
-  args: { userId: string; today: string; row: WeeklyBriefRow },
+  args: { userId: string; today: string; tz: string; row: WeeklyBriefRow },
 ): Promise<WeeklyBriefRow> {
   const { row } = args
   const context = await loadAthleteContext(deps, { userId: args.userId, today: args.today })
@@ -360,6 +367,7 @@ async function refreshProvisional(
   const { composed, provisional } = await composeCurrent(deps, {
     userId: args.userId,
     today: args.today,
+    tz: args.tz,
     planId: context.plan.id,
   })
   const facts = JSON.stringify(composed.facts)
@@ -381,15 +389,15 @@ async function refreshProvisional(
 /** The stored row for a week; the current week's is built when missing or provisional. */
 async function briefRow(
   deps: Deps,
-  args: { userId: string; weekStart: string; today: string },
+  args: { userId: string; weekStart: string; today: string; tz: string },
 ): Promise<WeeklyBriefRow | null> {
-  const { userId, weekStart, today } = args
+  const { userId, weekStart, today, tz } = args
   const row = await deps.prisma.weeklyBrief.findUnique({
     where: { userId_weekStart: { userId, weekStart } },
   })
   if (weekStart !== mondayOf(today)) return row
-  if (row === null) return ensureCurrent(deps, { userId, today })
-  return row.provisional ? refreshProvisional(deps, { userId, today, row }) : row
+  if (row === null) return ensureCurrent(deps, { userId, today, tz })
+  return row.provisional ? refreshProvisional(deps, { userId, today, tz, row }) : row
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -445,20 +453,28 @@ async function neighbour(
 
 async function toView(
   deps: Deps,
-  args: { userId: string; row: WeeklyBriefRow; today: string },
+  args: { userId: string; row: WeeklyBriefRow; today: string; tz: string },
 ): Promise<BriefView | null> {
-  const { userId, row, today } = args
+  const { userId, row, today, tz } = args
   const stored = readFacts(row.facts)
   if (stored === null) return null
   const [revision, since, prev, next] = await Promise.all([
-    row.revisionId === null ? null : viewRevision(deps, { userId, revisionId: row.revisionId }),
+    row.revisionId === null
+      ? null
+      : viewRevision(deps, { userId, revisionId: row.revisionId, today, tz }),
     sinceRows(deps, userId, row).then(async (rows): Promise<PlanRevisionView[]> => {
       if (rows.length === 0 || row.planId === null) return []
       const plan = await deps.prisma.plan.findFirst({
         where: { id: row.planId, userId },
         select: { status: true },
       })
-      return viewRevisions(deps, { userId, rows, planActive: plan?.status === 'active' })
+      return viewRevisions(deps, {
+        userId,
+        rows,
+        planActive: plan?.status === 'active',
+        today,
+        tz,
+      })
     }),
     neighbour(deps, userId, row.weekStart, 'prev'),
     neighbour(deps, userId, row.weekStart, 'next'),
@@ -485,12 +501,12 @@ async function toView(
  */
 export async function briefView(
   deps: Deps,
-  args: { userId: string; weekStart?: string; today?: string },
+  args: { userId: string; weekStart?: string; today: string; tz: string },
 ): Promise<BriefView | null> {
-  const today = args.today ?? todayIso()
+  const { today, tz } = args
   const weekStart = args.weekStart ?? mondayOf(today)
-  const row = await briefRow(deps, { userId: args.userId, weekStart, today })
-  return row === null ? null : toView(deps, { userId: args.userId, row, today })
+  const row = await briefRow(deps, { userId: args.userId, weekStart, today, tz })
+  return row === null ? null : toView(deps, { userId: args.userId, row, today, tz })
 }
 
 /**
@@ -544,9 +560,9 @@ async function listItems(
  */
 export async function briefList(
   deps: Deps,
-  args: { userId: string; limit: number; today?: string },
+  args: { userId: string; limit: number; today: string },
 ): Promise<BriefListItem[]> {
-  const today = args.today ?? todayIso()
+  const { today } = args
   const rows = await deps.prisma.weeklyBrief.findMany({
     where: { userId: args.userId },
     orderBy: { weekStart: 'desc' },

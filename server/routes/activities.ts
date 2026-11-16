@@ -21,7 +21,7 @@ import { assessSessionsQuietly, runExecutionQuietly } from '../services/executio
 import { loadGlyphs } from '../services/glyphs.ts'
 import { standoutView } from '../services/insight.ts'
 import { strengthTypeLockedMessage } from '../../shared/copy/strengthTemplates.ts'
-import { isIsoDate, todayIso } from '../../shared/dates.ts'
+import { isIsoDate } from '../../shared/dates.ts'
 import {
   ACTIVITY_GLYPH_IDS_MAX,
   ACTIVITY_OFFSET_MAX,
@@ -215,7 +215,7 @@ export function activitiesRouter(deps: Deps): Router {
     res
       .status(200)
       .type('text/csv; charset=utf-8')
-      .set('Content-Disposition', `attachment; filename="activities-${todayIso()}.csv"`)
+      .set('Content-Disposition', `attachment; filename="activities-${req.runnerDay.today}.csv"`)
       .send(`${lines.join('\r\n')}\r\n`)
   })
 
@@ -227,7 +227,8 @@ export function activitiesRouter(deps: Deps): Router {
 
   router.post('/', async (req, res) => {
     const body = parse(activitySchema, req.body)
-    res.status(201).json(toActivity(await createManualActivity(deps, req.userId, body)))
+    const { today } = req.runnerDay
+    res.status(201).json(toActivity(await createManualActivity(deps, req.userId, body, { today })))
   })
 
   // Registered before /:id. `PUT` of a client-chosen id is the idempotent create the outbox queues
@@ -235,7 +236,14 @@ export function activitiesRouter(deps: Deps): Router {
   router.put('/done/:activityId', async (req, res) => {
     const { activityId } = parse(doneIdParam, req.params)
     const { sessionId, ...body } = parse(doneSchema, req.body)
-    const saved = await saveDoneActivity(deps, req.userId, activityId, body, sessionId)
+    const saved = await saveDoneActivity(
+      deps,
+      req.userId,
+      activityId,
+      body,
+      req.runnerDay.today,
+      sessionId,
+    )
     res.status(saved.created ? 201 : 200).json(toActivity(saved.activity))
   })
 
@@ -292,7 +300,13 @@ export function activitiesRouter(deps: Deps): Router {
   // What stood out on a run: at most three facts, computed on the first read and stored, then
   // computed again after a rating, an edit or a change of version. None for strength and cross.
   router.get('/:id/standout', async (req, res) => {
-    res.json(await standoutView(deps, { userId: req.userId, activityId: idParam(req.params.id) }))
+    res.json(
+      await standoutView(deps, {
+        userId: req.userId,
+        activityId: idParam(req.params.id),
+        today: req.runnerDay.today,
+      }),
+    )
   })
 
   router.get('/:id/file', async (req, res) => {
@@ -330,7 +344,11 @@ export function activitiesRouter(deps: Deps): Router {
           }
     await prisma.activity.update({ where: { id, userId: req.userId }, data })
     // A new rating changes the assessment of the session this activity fulfils.
-    await runExecutionQuietly(deps, { userId: req.userId, activityId: id })
+    await runExecutionQuietly(deps, {
+      userId: req.userId,
+      activityId: id,
+      today: req.runnerDay.today,
+    })
     res.json(toActivity(await findOwned(req.userId, id)))
   }
   router.patch('/:id/feedback', saveFeedback)
@@ -378,7 +396,12 @@ export function activitiesRouter(deps: Deps): Router {
         : body.type !== existing.type || subtypeChanged
           ? 'type'
           : undefined
-    await runExecutionQuietly(deps, { userId: req.userId, activityId: id, reconsider })
+    await runExecutionQuietly(deps, {
+      userId: req.userId,
+      activityId: id,
+      today: req.runnerDay.today,
+      reconsider,
+    })
     res.json(toActivity(await findOwned(req.userId, id)))
   })
 
@@ -405,7 +428,11 @@ export function activitiesRouter(deps: Deps): Router {
       const moved: string[] = []
       await moveConfirmedLogs(prisma, req.userId, existing.duplicateOfId, moved)
       // A session handed to the original is assessed against it, as an import does.
-      await assessSessionsQuietly(deps, { userId: req.userId, sessionIds: moved })
+      await assessSessionsQuietly(deps, {
+        userId: req.userId,
+        sessionIds: moved,
+        today: req.runnerDay.today,
+      })
     }
     res.json(toActivity(updated))
   })

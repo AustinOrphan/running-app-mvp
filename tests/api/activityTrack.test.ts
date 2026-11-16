@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'vitest'
-import { storeParsed } from '../../server/services/activityStore.ts'
+import { storeParsedToday as storeParsed } from './helpers.ts'
 import { parseActivityFile } from '../../shared/importers/files/index.ts'
 import { decodePolyline } from '../../shared/importers/files/track.ts'
 import { haversineM } from '../../shared/importers/files/summarize.ts'

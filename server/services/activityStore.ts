@@ -22,6 +22,8 @@ export interface StoreOptions {
   importBatchId: string | null
   file?: { name: string; format: 'fit' | 'gpx' | 'tcx'; bytes: Uint8Array }
   channel: 'upload' | 'folder' | 'provider' | 'push'
+  /** The runner's day, for the matching that follows the store. */
+  today: string
 }
 
 export interface StoreResult {
@@ -354,7 +356,11 @@ export async function storeParsed(
   // here is logged and never fails the import; the nightly sweep tries again.
   if (stored.outcome !== 'duplicate') {
     try {
-      await runExecutionForActivity(deps, { userId, activityId: stored.activityId })
+      await runExecutionForActivity(deps, {
+        userId,
+        activityId: stored.activityId,
+        today: opts.today,
+      })
     } catch (error) {
       createLogger(deps.config).warn(
         { err: error },
@@ -405,6 +411,8 @@ export interface ManualActivityOptions {
   sessionId?: string
   /** The id the row is stored under, when the client chose it (`saveDoneActivity`). */
   id?: string
+  /** The runner's day, for the matching that follows the store. */
+  today: string
 }
 
 /**
@@ -418,7 +426,7 @@ export async function createManualActivity(
   deps: Deps,
   userId: string,
   input: ManualActivityInput,
-  opts: ManualActivityOptions = {},
+  opts: ManualActivityOptions,
 ): Promise<ActivityRow> {
   const { prisma } = deps
   const data = {
@@ -443,9 +451,14 @@ export async function createManualActivity(
     : await prisma.activity.create({ data })
   await markDuplicates(prisma, userId, [created.id])
   if (opts.sessionId === undefined || unlinked) {
-    await runExecutionQuietly(deps, { userId, activityId: created.id })
+    await runExecutionQuietly(deps, { userId, activityId: created.id, today: opts.today })
   } else {
-    await linkPlanSession(deps, { userId, sessionId: opts.sessionId, activityId: created.id })
+    await linkPlanSession(deps, {
+      userId,
+      sessionId: opts.sessionId,
+      activityId: created.id,
+      today: opts.today,
+    })
   }
   return prisma.activity.findFirstOrThrow({ where: { id: created.id, userId } })
 }
@@ -487,6 +500,7 @@ export async function saveDoneActivity(
   userId: string,
   activityId: string,
   input: ManualActivityInput,
+  today: string,
   sessionId?: string,
 ): Promise<SavedDoneActivity> {
   const { prisma } = deps
@@ -500,7 +514,7 @@ export async function saveDoneActivity(
       where: { activityId: existing.id, execution: null },
       select: { id: true },
     })
-    if (unassessed) await assessSessionById(deps, { userId, sessionId: unassessed.id })
+    if (unassessed) await assessSessionById(deps, { userId, sessionId: unassessed.id, today })
     return { activity: existing, created: false }
   }
   const already = await repeat()
@@ -528,6 +542,7 @@ export async function saveDoneActivity(
     // matched it first) cannot both pass, and the loser's activity is rolled back with its 409.
     const activity = await createManualActivity(deps, userId, input, {
       id: activityId,
+      today,
       ...(linkTo === undefined
         ? {}
         : {

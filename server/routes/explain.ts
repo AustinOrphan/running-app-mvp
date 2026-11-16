@@ -59,7 +59,14 @@ export function explainRouter(deps: Deps): Router {
 
   router.get('/', async (req, res) => {
     const request: ExplainRequest = parse(query, req.query)
-    res.json(await explainView(deps, { userId: req.userId, request }))
+    res.json(
+      await explainView(deps, {
+        userId: req.userId,
+        request,
+        today: req.runnerDay.today,
+        tz: req.runnerDay.tz,
+      }),
+    )
   })
 
   return router

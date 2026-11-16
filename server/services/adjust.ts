@@ -85,6 +85,8 @@ function updateOf(patch: SessionPatch, before: PlanSessionRow, remember: boolean
 export interface PlannedAdjust {
   userId: string
   planId: string
+  /** The runner's day the edit was decided on, also the day of the revision it writes. */
+  today: string
   /** The session asked about, as it is now. */
   session: PlanSessionRow
   check: AdjustCheck
@@ -155,6 +157,7 @@ export async function planAdjust(
   return {
     userId,
     planId: row.planId,
+    today,
     session: row,
     check,
     writes,
@@ -177,7 +180,7 @@ export async function applyAdjust(
   planned: PlannedAdjust,
   isPreviewed: (diff: PlanDiff) => boolean,
 ): Promise<{ revision: PlanRevisionView; session: PlanSessionRow }> {
-  const { check, writes, planId, userId } = planned
+  const { check, writes, planId, userId, today } = planned
   return deps.prisma.$transaction(
     async (tx) => {
       const current = await tx.planSession.findMany({
@@ -206,6 +209,7 @@ export async function applyAdjust(
       const revision = await recordPlanWrite(tx, {
         planId,
         userId,
+        today,
         reason: 'owner',
         summary: check.summary,
         changes: check.changes,

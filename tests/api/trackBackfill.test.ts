@@ -1,6 +1,6 @@
 import { afterEach, afterAll, beforeAll, beforeEach, describe, expect, test } from 'vitest'
 import { runTrackJob } from '../../server/jobs/scheduler.ts'
-import { storeParsed } from '../../server/services/activityStore.ts'
+import { storeParsedToday as storeParsed } from './helpers.ts'
 import { sealSecret } from '../../server/services/sync.ts'
 import { TRACK_MAX_ATTEMPTS, backfillTracks } from '../../server/services/trackBackfill.ts'
 import { parseActivityFile } from '../../shared/importers/files/index.ts'

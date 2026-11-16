@@ -92,7 +92,9 @@ export async function backfillWatchRatings(
 ): Promise<WatchRatingBackfillResult> {
   const { prisma } = deps
   const now = opts.now ?? new Date()
-  const from = addDays(todayIso(now), -P.a5.historyWindowDays.value)
+  // Step 3 of D10 gives this job the runner's day; until then it is the server's.
+  const today = todayIso(now)
+  const from = addDays(today, -P.a5.historyWindowDays.value)
   const result: WatchRatingBackfillResult = {
     filled: 0,
     unrated: 0,
@@ -224,7 +226,7 @@ export async function backfillWatchRatings(
       result.filled = filled
       result.unrated = settled.length - filled
       // A new rating changes the assessment of the session the run fulfils, as saveFeedback does.
-      for (const id of changed) await runExecutionQuietly(deps, { userId, activityId: id })
+      for (const id of changed) await runExecutionQuietly(deps, { userId, activityId: id, today })
     }
   }
 

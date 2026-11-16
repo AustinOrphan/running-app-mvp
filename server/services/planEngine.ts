@@ -2,7 +2,7 @@
 // link an activity to a session. The owner's edits of a session are `adjust.ts`. The engine
 // decides; this module gathers, persists and guards.
 import { randomUUID } from 'node:crypto'
-import { addDays, daysBetween, mondayOf, todayIso } from '../../shared/dates.ts'
+import { addDays, daysBetween, mondayOf } from '../../shared/dates.ts'
 import {
   ACTIVITY_TYPE_WORDS,
   acceptedZoneSummary,
@@ -153,7 +153,7 @@ function present(
 export async function loadPlanWithSessions(
   deps: Deps,
   userId: string,
-  today: string = todayIso(),
+  today: string,
 ): Promise<PlanWithSessions | null> {
   const plan = await deps.prisma.plan.findFirst({
     where: { userId, status: 'active' },
@@ -347,6 +347,7 @@ export async function generateEnginePlan(
       await recordPlanWrite(tx, {
         planId: plan.id,
         userId,
+        today,
         reason: switched ? 'goal-switch' : 'generate',
         summary: (switched ? goalSwitchSummary : generatedSummary)(
           goal.name,
@@ -644,7 +645,7 @@ export async function assertLinkable(
 /** Links, relinks (`activityId`) or unlinks (`null`) the activity that fulfils a session. */
 export async function linkPlanSession(
   deps: Deps,
-  args: { userId: string; sessionId: string; activityId: string | null },
+  args: { userId: string; sessionId: string; activityId: string | null; today: string },
 ): Promise<PlanSession> {
   const { prisma } = deps
   const { userId } = args
@@ -676,7 +677,7 @@ export async function linkPlanSession(
     where: { id: row.id, plan: { userId } },
     data: { activityId: activity.id, linkSource: 'owner', refusedActivityIds: null },
   })
-  return assessSessionById(deps, { userId, sessionId: row.id })
+  return assessSessionById(deps, { userId, sessionId: row.id, today: args.today })
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -808,6 +809,7 @@ export async function decideZoneProposal(
       await recordPlanWrite(prisma, {
         planId: plan.id,
         userId: args.userId,
+        today: args.today,
         reason: 'owner',
         summary: declinedZoneSummary(proposal.boundary, args.today),
         changes: [zoneChange(proposal, 'declined', args.today)],
@@ -844,6 +846,7 @@ export async function decideZoneProposal(
     await recordPlanWrite(prisma, {
       planId: plan.id,
       userId: args.userId,
+      today: args.today,
       reason: 'owner',
       summary: acceptedZoneSummary(proposal.boundary, args.today),
       changes: [zoneChange(proposal, 'accepted', args.today)],

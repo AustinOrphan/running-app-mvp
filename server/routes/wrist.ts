@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { z } from 'zod'
-import { addDays, isIsoDate, todayIso } from '../../shared/dates.ts'
+import { addDays, isIsoDate } from '../../shared/dates.ts'
 import type { Deps } from '../app.ts'
 import { parse, validationError } from '../errors.ts'
 import { issueCalendarToken, revokeCalendarToken } from '../services/calendar.ts'
@@ -40,7 +40,7 @@ export function wristRouter(deps: Deps): Router {
 
   router.get('/status', async (req, res) => {
     const query = parse(statusQuery, req.query)
-    const today = todayIso()
+    const { today } = req.runnerDay
     const from = query.from ?? today
     const to = query.to ?? addDays(from, PUBLISH_HORIZON_DAYS - 1)
     const issue = statusRangeIssue(from, to)

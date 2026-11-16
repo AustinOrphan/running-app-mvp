@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { z } from 'zod'
-import { addDays, isIsoDate, mondayOf, todayIso, weekStartsBetween } from '../../shared/dates.ts'
+import { addDays, isIsoDate, mondayOf, weekStartsBetween } from '../../shared/dates.ts'
 import { activityLoadStart, aggregateWeeks } from '../../shared/domain/weeks.ts'
 import type { Deps } from '../app.ts'
 import { parse, validationError } from '../errors.ts'
@@ -16,12 +16,12 @@ const rangeQuery = z.object({ from: isoDate.optional(), to: isoDate.optional() }
  * The Mondays covered by `?from&to`. Both ends snap to their week; `to` defaults to this week and
  * `from` to eleven weeks earlier. Throws a `validation` error for a reversed or oversized range.
  */
-export function parseWeekRange(query: unknown): string[] {
+export function parseWeekRange(query: unknown, today: string): string[] {
   const { from, to } = parse(rangeQuery, query)
   if (from !== undefined && to !== undefined && from > to) {
     throw validationError('`from` must not be after `to`.')
   }
-  const last = mondayOf(to ?? todayIso())
+  const last = mondayOf(to ?? today)
   const first = mondayOf(from ?? addDays(last, -7 * (DEFAULT_WEEKS - 1)))
   if (first > last) throw validationError('`from` must not be after `to`.')
   const weeks = weekStartsBetween(first, last)
@@ -35,8 +35,9 @@ export function weeksRouter(deps: Deps): Router {
   const router = Router()
 
   router.get('/', async (req, res) => {
-    const weekStarts = parseWeekRange(req.query)
-    const first = weekStarts[0] ?? mondayOf(todayIso())
+    const { today } = req.runnerDay
+    const weekStarts = parseWeekRange(req.query, today)
+    const first = weekStarts[0] ?? mondayOf(today)
     const last = weekStarts[weekStarts.length - 1] ?? first
     // Seven columns, from the lookback of the first row to the end of the last week.
     const activities = await loadActivityCores(deps.prisma, req.userId, {

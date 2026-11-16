@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'vitest'
 import { runTerrainJob } from '../../server/jobs/scheduler.ts'
-import { storeParsed } from '../../server/services/activityStore.ts'
+import { storeParsedToday as storeParsed } from './helpers.ts'
 import { backfillTerrainBins } from '../../server/services/terrainBackfill.ts'
 import { parseActivityFile } from '../../shared/importers/files/index.ts'
 import type { TerrainBins } from '../../shared/types.ts'
