@@ -91,6 +91,18 @@ describe('the change-password gate', () => {
   )
 
   test(
+    'the error-report exemption is exact: a longer path is gated',
+    async () => {
+      const ctx = await ctxFor()
+      const user = await seedTemporary(ctx)
+      const response = await client(ctx, user).post('/api/client-errors-x').send({})
+      expect(response.status).toBe(403)
+      expect(codeOf(response)).toBe('auth.password-change-required')
+    },
+    SLOW,
+  )
+
+  test(
     'an anonymous request is still a 401, not a 403',
     async () => {
       const ctx = await ctxFor()

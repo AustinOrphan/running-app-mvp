@@ -66,7 +66,8 @@ export function sameOriginGuard(): RequestHandler {
  */
 export function requirePasswordChanged(): RequestHandler {
   return (req, _res, next) => {
-    if (req.mustChangePassword && !req.path.startsWith('/client-errors')) {
+    const errorReport = req.path === '/client-errors' || req.path.startsWith('/client-errors/')
+    if (req.mustChangePassword && !errorReport) {
       next(passwordChangeRequired())
       return
     }

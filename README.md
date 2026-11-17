@@ -682,7 +682,7 @@ intervals.icu publisher wrote stay in that person's own intervals.icu calendar.
 ## Resetting the password
 
 ```sh
-npm run reset-password -- you@example.com
+npm run -s reset-password -- you@example.com
 ```
 
 In Docker, run the compiled script inside the container:
@@ -697,7 +697,10 @@ tester's forgotten password is reset: the owner runs it for that email and sends
 temporary password by a private channel. A reset ends every session the account had open, and the
 next sign-in asks for a new password. Until it is changed the server answers every request except
 the password change, sign-out and the account read with 403 (`auth.password-change-required`), so
-the temporary password opens nothing else.
+the temporary password opens nothing else. Calendar-feed and ingest tokens are separate credentials
+and stay valid after a reset; replace them in the app (a new calendar link or push token ends the
+old one) if the old password was not trusted. The `-s` flag keeps npm's own lines off standard
+output when it is captured.
 
 ## Installing as an app
 
