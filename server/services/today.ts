@@ -254,16 +254,21 @@ function stripFor(context: AthleteContext, date: string): WeekStrip {
  */
 function unratedRuns(context: AthleteContext): TodayView['unrated'] {
   const since = addDays(context.asOf, 1 - UNRATED_DAYS)
-  return context.activities
-    .filter(
-      (a) =>
-        (a.type === 'run' || a.type === 'race') &&
-        ratingAsk(a) !== null &&
-        (a.duplicateStatus === 'none' || a.duplicateStatus === 'dismissed') &&
-        a.date >= since,
-    )
-    .reverse()
-    .slice(0, UNRATED_LIMIT)
+  return (
+    context.activities
+      .filter(
+        (a) =>
+          (a.type === 'run' || a.type === 'race') &&
+          ratingAsk(a) !== null &&
+          (a.duplicateStatus === 'none' || a.duplicateStatus === 'dismissed') &&
+          a.date >= since,
+      )
+      .reverse()
+      // A run with nothing answered comes before one the watch rated, so a few watch-rated runs
+      // never push it off the list; the sort is stable, so each group stays newest first.
+      .sort((a, b) => Number(ratingAsk(a) === 'short') - Number(ratingAsk(b) === 'short'))
+      .slice(0, UNRATED_LIMIT)
+  )
 }
 
 /**

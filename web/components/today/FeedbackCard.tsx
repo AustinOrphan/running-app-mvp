@@ -179,7 +179,8 @@ function FeedbackQueued({
 /**
  * The most recent unrated run of the last week in full; the others as a list with a Rate button
  * that opens the same form in place. `unrated` is the list the server sends with the payload
- * (`TodayView.unrated`): runs and races without an effort rating or a feel.
+ * (`TodayView.unrated`): runs and races `ratingAsk` leaves open, a full form for a run with no
+ * rating and feel and pain only for one the watch rated (FP1).
  */
 export function FeedbackCard({
   unrated,
@@ -207,10 +208,7 @@ export function FeedbackCard({
       <h2 id={headingId} className={styles.heading}>
         How did it go?
       </h2>
-      <p className={styles.caption}>
-        Recent runs without a rating. A rating of effort or feel is what lets the plan adjust. Rate
-        any or all of it.
-      </p>
+      <p className={styles.caption}>{render(TEMPLATES['today.rate.card-caption'], {}, units)}</p>
       <ul className={styles.feedbackList}>
         {newest === undefined ? null : (
           <FeedbackItem

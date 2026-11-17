@@ -442,6 +442,10 @@ export const TODAY_TEMPLATES = {
   'today.rate.caption': tpl(
     'Optional. A rating of effort or feel is what lets the plan adjust. Rate any or all of it.',
   ),
+  // The line under the heading of the card of older runs; true for a full and for a short ask.
+  'today.rate.card-caption': tpl(
+    'Recent runs that still need an answer. Feel, pain or effort is what lets the plan adjust. Answer any or all of it.',
+  ),
   // The short ask for a run the watch already rated (FP1): feel and pain only, no effort.
   'today.rate.short-heading': tpl('How did this run feel?', {}, { shape: 'label' }),
   'today.rate.short-caption': tpl(
