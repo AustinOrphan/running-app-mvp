@@ -1,9 +1,10 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, test } from 'vitest'
+import { afterEach, beforeEach, describe, expect, test } from 'vitest'
 import type { BriefListItem, TodayView } from '../../shared/types.ts'
 import { makeItem, makeUpdate, makeView } from './brief-fixtures.ts'
-import { expectCleanCopy, type MockRoutes } from './helpers.tsx'
+import { MondayBrief } from '../../web/components/today/MondayBrief.tsx'
+import { expectCleanCopy, mockApi, renderWithProviders, type MockRoutes } from './helpers.tsx'
 import { makePreview, makeRevision } from './plan-fixtures.ts'
 import { makeCoach, makeHero, makeToday } from './today-fixtures.ts'
 import { renderToday, startToday } from './today-render.tsx'
@@ -12,6 +13,9 @@ import { renderToday, startToday } from './today-render.tsx'
 // column with Open and Undo, and a review that is due stands beside it.
 
 beforeEach(startToday)
+afterEach(() => {
+  Object.defineProperty(window.navigator, 'onLine', { value: true, configurable: true })
+})
 
 function dayWith(brief: BriefListItem | null, lastWeekReady = false): TodayView {
   const base = makeCoach()
@@ -109,5 +113,69 @@ describe('Today: the Monday card', () => {
 
   test('the update the card describes is the revision of the brief', () => {
     expect(makeUpdate().undo.available).toBe(true)
+  })
+
+  describe('Got it', () => {
+    test('marks the update seen, the card leaves and focus lands on the quiet line', async () => {
+      const user = userEvent.setup()
+      let seen = false
+      const item = makeItem({ seen: false, changeCount: 3 })
+      const { api } = renderToday(dayWith(item), {
+        ...withBrief(),
+        [`POST /api/briefs/${item.weekStart}/seen`]: () => {
+          seen = true
+          return { status: 204, body: undefined }
+        },
+        'GET /api/today': () => dayWith({ ...item, seen }),
+      })
+      const card = await screen.findByRole('region', { name: 'The plan was updated' })
+      await user.click(within(card).getByRole('button', { name: 'Got it' }))
+      await waitFor(() => {
+        expect(
+          screen.queryByRole('region', { name: 'The plan was updated' }),
+        ).not.toBeInTheDocument()
+      })
+      expect(
+        api.calls.filter((call) => call.url === `/api/briefs/${item.weekStart}/seen`),
+      ).toHaveLength(1)
+      const line = within(await screen.findByRole('region', { name: 'Weekly brief' })).getByRole(
+        'link',
+      )
+      await waitFor(() => {
+        expect(line).toHaveFocus()
+      })
+    })
+
+    test('says so and keeps the card when the write fails', async () => {
+      const user = userEvent.setup()
+      const item = makeItem({ seen: false, changeCount: 3 })
+      renderToday(dayWith(item), {
+        ...withBrief(),
+        [`POST /api/briefs/${item.weekStart}/seen`]: () => ({
+          status: 500,
+          body: { error: { code: 'internal', message: 'Server error' } },
+        }),
+      })
+      const card = await screen.findByRole('region', { name: 'The plan was updated' })
+      await user.click(within(card).getByRole('button', { name: 'Got it' }))
+      expect(await within(card).findByRole('alert')).toHaveTextContent('That did not save')
+      expect(within(card).getByRole('button', { name: 'Got it' })).toBeInTheDocument()
+    })
+
+    test('is not offered offline, and nothing is queued', async () => {
+      Object.defineProperty(window.navigator, 'onLine', { value: false, configurable: true })
+      const api = mockApi(withBrief())
+      renderWithProviders(
+        <MondayBrief
+          item={makeItem({ seen: false, changeCount: 3 })}
+          reviewDue={false}
+          units="mi"
+        />,
+      )
+      const card = await screen.findByRole('region', { name: 'The plan was updated' })
+      expect(within(card).getByRole('link', { name: 'Open the brief' })).toBeInTheDocument()
+      expect(within(card).queryByRole('button', { name: 'Got it' })).not.toBeInTheDocument()
+      expect(api.calls.some((call) => call.url.includes('/seen'))).toBe(false)
+    })
   })
 })

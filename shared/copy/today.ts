@@ -294,6 +294,10 @@ export const TODAY_TEMPLATES = {
   // Monday on Today: while the weekly update's brief is unopened and it changed sessions, a card
   // stands under the session hero (`MondayBrief`), and a review that is due gets its own link beside it.
   'today.monday.title': tpl('The plan was updated', {}, { shape: 'label' }),
+  // "Got it" marks the update seen (the one marker of ADR 0007), so the card gives way to the quiet
+  // line; the update stays in the brief, in Plan's "What changed" and in its undo.
+  'today.monday.got-it': tpl('Got it', {}, { shape: 'label' }),
+  'today.monday.got-it-failed': tpl('That did not save. Try again.'),
   'today.monday.review': tpl('Review last week', {}, { shape: 'label' }),
   'today.monday.review-note': tpl('A few answers keep the next update accurate.'),
 
