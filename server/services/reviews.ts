@@ -1,6 +1,6 @@
 import { BREAK_REVIEW_REASON } from '../../shared/copy/breakWeek.ts'
 import type { Deps } from '../app.ts'
-import { addDays, mondayOf } from '../../shared/dates.ts'
+import { addDays, isoDateInZone, mondayOf } from '../../shared/dates.ts'
 import { toV1Phase } from '../../shared/domain/plan.ts'
 import { activityLoadStart, aggregateWeeks } from '../../shared/domain/weeks.ts'
 import { prefillFromCheckins, suggestAction, type Suggestion } from '../../shared/domain/review.ts'
@@ -15,8 +15,8 @@ import type {
 } from '../../shared/types.ts'
 import { HttpError, validationError } from '../errors.ts'
 import { createLogger } from '../logger.ts'
-import { loadActivityCores, toPlanWeek, toWeeklyReview } from '../serialize.ts'
-import { loadAthleteContext } from './athleteState.ts'
+import { loadActivityCores, parseJson, toPlanWeek, toWeeklyReview } from '../serialize.ts'
+import { loadAthleteContext, memoByVersion } from './athleteState.ts'
 import { replanActivePlan, weeklyDecisions } from './planEngine.ts'
 import { loadRaiseOffer, raiseWeekOf } from './raiseOffer.ts'
 import { viewRevision } from './revisions.ts'
@@ -189,6 +189,56 @@ function synthetic(userId: string, weekStart: string, now: string): WeeklyReview
 }
 
 /**
+ * The signals behind the weekly decision of each finished week, from the decisions the plan's
+ * revisions stored (`PlanRevision.decision`, reasons `weekly` and `review`). The review row keeps
+ * the action but not the signals. A revision decides the week before the Monday it was written on
+ * (`replan`: `lastWeek`), in the runner's zone; the latest one whose decision equals the stored
+ * action is the one read, so a week with no revision, or only one that decided otherwise, has none.
+ * Memoised by data version (ADR 0009).
+ */
+async function storedSignals(
+  deps: Deps,
+  userId: string,
+  tz: string,
+  reviewed: Array<{ weekStart: string; action: string }>,
+): Promise<Map<string, ReviewSignals>> {
+  const found = new Map<string, ReviewSignals>()
+  if (reviewed.length === 0) return found
+  const weeks = reviewed.map((r) => r.weekStart).sort()
+  const first = weeks[0]!
+  const last = weeks[weeks.length - 1]!
+  const rows = await memoByVersion(
+    deps,
+    { userId, name: `review.held:${first}:${last}:${tz}` },
+    async () => {
+      const from = new Date(`${addDays(first, 6)}T00:00:00.000Z`)
+      const to = new Date(`${addDays(last, 16)}T00:00:00.000Z`)
+      const revisions = await deps.prisma.planRevision.findMany({
+        where: {
+          plan: { userId },
+          reason: { in: ['weekly', 'review'] },
+          decision: { not: null },
+          createdAt: { gte: from, lt: to },
+        },
+        select: { createdAt: true, decision: true },
+        orderBy: { createdAt: 'asc' },
+      })
+      return revisions.map((row) => ({
+        week: addDays(mondayOf(isoDateInZone(row.createdAt, tz)), -7),
+        decision: parseJson<WeeklyDecision | null>(row.decision, null),
+      }))
+    },
+  )
+  const actions = new Map(reviewed.map((r) => [r.weekStart, r.action]))
+  for (const row of rows) {
+    if (row.decision === null || actions.get(row.week) !== row.decision.decision) continue
+    // Ascending by time: a later revision of the same week replaces an earlier one.
+    found.set(row.week, row.decision.signals)
+  }
+  return found
+}
+
+/**
  * One review per week, in order. A week without a stored row comes back synthetic. Until a week is
  * reviewed its suggestion follows the current data; after `reviewedAt` the stored snapshot wins.
  */
@@ -197,6 +247,7 @@ export async function listReviews(
   userId: string,
   weekStarts: string[],
   today: string,
+  tz = 'UTC',
 ): Promise<ReviewView[]> {
   if (weekStarts.length === 0) return []
   const stored = await deps.prisma.weeklyReview.findMany({
@@ -224,10 +275,26 @@ export async function listReviews(
     ? await loadRaiseOffer(deps, { userId, today })
     : null
 
+  const held = isV2
+    ? await storedSignals(
+        deps,
+        userId,
+        tz,
+        [...byWeek.values()].flatMap((r) =>
+          r.reviewedAt !== null && r.suggestedAction !== null
+            ? [{ weekStart: r.weekStart, action: r.suggestedAction }]
+            : [],
+        ),
+      )
+    : new Map<string, ReviewSignals>()
+
   return weekStarts.map((weekStart): ReviewView => {
     const review = byWeek.get(weekStart) ?? synthetic(userId, weekStart, now)
-    if (review.reviewedAt !== null)
-      return weekStart === offerWeek && offer ? { ...review, raise: offer } : review
+    if (review.reviewedAt !== null) {
+      const signals = held.get(weekStart)
+      const stored: ReviewView = signals === undefined ? review : { ...review, signals }
+      return weekStart === offerWeek && offer ? { ...stored, raise: offer } : stored
+    }
     const context = contexts.get(weekStart)
     const v2 =
       context && isV2

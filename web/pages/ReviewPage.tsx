@@ -7,6 +7,12 @@ import {
   prefillLines,
   REVIEW_PREFILL_TEMPLATES,
 } from '../../shared/copy/reviewPrefill.ts'
+import {
+  REVIEWED_ROW,
+  SUGGESTED_ACTION_LABEL,
+  isListedAction,
+  signalLabels,
+} from '../../shared/copy/reviewHeld.ts'
 import { sessionStatusLabel } from '../../shared/copy/sessionStatus.ts'
 import { RAISE_TEMPLATES, raiseFigures } from '../../shared/copy/raise.ts'
 import { render } from '../../shared/copy/template.ts'
@@ -355,13 +361,33 @@ function ReviewBody({ today, from, thisWeek, reviews, weeks, plan, activities }:
             {reviewed.map((item) => (
               <li key={item.weekStart} className={styles.historyRow}>
                 <span className={styles.historyWeek}>{formatShortDate(item.weekStart)}</span>
+                {isListedAction(item.suggestedAction) ? (
+                  <span>
+                    <span className={styles.muted}>{REVIEWED_ROW.suggested}</span>{' '}
+                    {SUGGESTED_ACTION_LABEL[item.suggestedAction]}
+                  </span>
+                ) : null}
                 <span>
-                  {item.finalDecision === null ? 'No decision' : capitalise(item.finalDecision)}
+                  {isListedAction(item.suggestedAction) ? (
+                    <>
+                      <span className={styles.muted}>{REVIEWED_ROW.decided}</span>{' '}
+                    </>
+                  ) : null}
+                  {item.finalDecision === null
+                    ? REVIEWED_ROW.noDecision
+                    : capitalise(item.finalDecision)}
                 </span>
                 {item.finalNextMin !== null ? (
                   <span
                     className={styles.muted}
                   >{`${String(item.finalNextMin)} min next week`}</span>
+                ) : null}
+                {item.signals !== undefined && signalLabels(item.signals).length > 0 ? (
+                  <ul className={styles.historySignals} aria-label={REVIEWED_ROW.signals}>
+                    {signalLabels(item.signals).map((label) => (
+                      <li key={label}>{label}</li>
+                    ))}
+                  </ul>
                 ) : null}
               </li>
             ))}

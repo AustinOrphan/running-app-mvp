@@ -152,7 +152,7 @@ export const jAdapt = {
       ['walsh-2021-sleep-athlete-consensus'],
       {
         unit: 'h',
-        note: 'Sleep warning: 7-night average under 7 h or under the stated need.',
+        note: 'Sleep warning: 7-night average under 7 h, the same figure for every athlete.',
       },
     ),
     sleepWarnNights: param(

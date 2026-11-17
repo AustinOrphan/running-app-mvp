@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
-import type { ApiErrorBody, PlanWeek, WeeklyReview } from '../../shared/types.ts'
+import type { ApiErrorBody, PlanWeek, ReviewView, WeeklyReview } from '../../shared/types.ts'
 import { toPlanWeek } from '../../server/serialize.ts'
 import { client, createTestCtx, seedUser, type TestCtx, type TestUser } from './helpers.ts'
 
@@ -429,5 +429,54 @@ describe('PUT /api/reviews/:weekStart', () => {
     const theirList = await list(`?from=${W}&to=${W}`, other)
     expect(theirList.body[0]).toMatchObject({ userId: other.id, fatigue: 2, notes: null })
     expect(await ctx.prisma.weeklyReview.count()).toBe(2)
+  })
+})
+
+describe('GET /api/reviews: what held a reviewed week (WH1)', () => {
+  const held = [{ code: 'sleep-warning', detail: 'Sleep averaged 6.2 h.', rules: ['J5'] }]
+  const url = `/api/reviews?from=${W}&to=${W}`
+
+  async function seedReviewed(week: string, action: string): Promise<void> {
+    await ctx.prisma.plan.updateMany({ where: { userId: user.id }, data: { generatorVersion: 2 } })
+    await ctx.prisma.weeklyReview.create({
+      data: {
+        userId: user.id,
+        weekStart: week,
+        dataStatus: 'complete',
+        suggestedAction: action,
+        finalDecision: 'progress',
+        finalNextMin: 330,
+        reviewedAt: new Date('2026-03-16T18:00:00.000Z'),
+      },
+    })
+  }
+
+  async function seedRevision(createdAt: string, decision: string): Promise<void> {
+    const plan = await ctx.prisma.plan.findFirstOrThrow({ where: { userId: user.id } })
+    await ctx.prisma.planRevision.create({
+      data: {
+        planId: plan.id,
+        createdAt: new Date(createdAt),
+        reason: 'weekly',
+        summary: 'Weekly update.',
+        decision: JSON.stringify({ decision, signals: held, nextWeekTargetMin: 300 }),
+      },
+    })
+  }
+
+  test('a reviewed week carries the signals of the decision written the Monday after it', async () => {
+    await seedReviewed(W, 'hold')
+    await seedRevision('2026-03-09T06:00:00.000Z', 'hold')
+    const rows = (await client(ctx, user).get(url)).body as ReviewView[]
+    expect(rows[0]).toMatchObject({ suggestedAction: 'hold', signals: held })
+  })
+
+  test('no signals without a revision, or when the revision decided otherwise', async () => {
+    await seedReviewed(W, 'hold')
+    const before = (await client(ctx, user).get(url)).body as ReviewView[]
+    expect(before[0]?.signals).toBeUndefined()
+    await seedRevision('2026-03-09T06:00:00.000Z', 'progress')
+    const after = (await client(ctx, user).get(url)).body as ReviewView[]
+    expect(after[0]?.signals).toBeUndefined()
   })
 })

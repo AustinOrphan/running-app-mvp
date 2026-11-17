@@ -666,6 +666,69 @@ describe('ReviewPage', () => {
     expect(items[1]).toHaveTextContent('330 min next week')
   })
 
+  test('history shows each week suggested action and signals beside the decision', async () => {
+    renderReview({
+      reviews: {
+        [W]: {
+          reviewedAt: '2026-10-20T00:00:00.000Z',
+          suggestedAction: 'hold',
+          finalDecision: 'progress',
+          finalNextMin: 330,
+          signals: [
+            { code: 'sleep-warning', detail: 'Sleep averaged 6.2 h.', rules: ['J5'] },
+            { code: 'completion-low', detail: '210 of 300 minutes.', rules: ['J5', 'G-6'] },
+          ],
+        },
+        '2026-10-05': {
+          reviewedAt: '2026-10-12T00:00:00.000Z',
+          suggestedAction: 'progress',
+          finalDecision: 'progress',
+          finalNextMin: 330,
+          signals: [],
+        },
+      },
+    })
+    const heading = await screen.findByRole('heading', { name: 'Reviewed weeks' })
+    // The rows are the outer list's children; each may hold a list of signals.
+    const rows = within(heading.parentElement as HTMLElement).getAllByRole('list')[0] as HTMLElement
+    const items = Array.from(rows.children)
+    const held = items[0] as HTMLElement
+    expect(held).toHaveTextContent('Suggested Hold')
+    expect(held).toHaveTextContent('Decided Progress')
+    const signals = within(held).getByRole('list', { name: 'Signals for the suggestion' })
+    expect(
+      within(signals)
+        .getAllByRole('listitem')
+        .map((li) => li.textContent),
+    ).toEqual(['Short sleep', 'Fewer of the planned minutes run'])
+    // A week that progressed with nothing behind it lists no signals.
+    expect(items[1]).toHaveTextContent('Suggested Progress')
+    expect(within(items[1] as HTMLElement).queryByRole('list')).not.toBeInTheDocument()
+    expectCleanCopy(heading.parentElement as HTMLElement)
+  })
+
+  test('a week with no stored signal or suggestion shows only the decision', async () => {
+    renderReview({
+      reviews: {
+        [W]: {
+          reviewedAt: '2026-10-20T00:00:00.000Z',
+          suggestedAction: null,
+          finalDecision: 'hold',
+          finalNextMin: 300,
+        },
+      },
+    })
+    const heading = await screen.findByRole('heading', { name: 'Reviewed weeks' })
+    const item = within(within(heading.parentElement as HTMLElement).getByRole('list')).getByRole(
+      'listitem',
+    )
+    expect(item).toHaveTextContent('Hold')
+    expect(item).toHaveTextContent('300 min next week')
+    expect(item).not.toHaveTextContent('Suggested')
+    expect(item).not.toHaveTextContent('Decided')
+    expect(within(item).queryByRole('list')).not.toBeInTheDocument()
+  })
+
   test('the week picker spans the 12 finished weeks and the current one', async () => {
     const user = userEvent.setup()
     const api = renderReview({ allReviewed: true })

@@ -30,9 +30,9 @@ export function reviewsRouter(deps: Deps): Router {
   const router = Router()
 
   router.get('/', async (req, res) => {
-    const { today } = req.runnerDay
+    const { today, tz } = req.runnerDay
     const weekStarts = parseWeekRange(req.query, today)
-    res.json(await listReviews(deps, req.userId, weekStarts, today))
+    res.json(await listReviews(deps, req.userId, weekStarts, today, tz))
   })
 
   router.put('/:weekStart', async (req, res) => {
