@@ -25,6 +25,7 @@ import {
   type GradeBand,
   type GradeCurve,
 } from './gradeCurve.ts'
+import { ownCeilingReading, type OwnCeilingReading } from './ownCeiling.ts'
 import { P } from './params/index.ts'
 import { anchorRaceFor, CS_METHODS, predictFromState, rangeLabel } from './predict.ts'
 import { gradeAdjustedSpeed } from './terrain.ts'
@@ -149,6 +150,12 @@ export interface MyPaces {
     /** The Z1 pace range of the zones, whatever the basis, for a comparison; null without one. */
     zoneRange: PaceBand | null
     hr: HrLineNeeds
+    /**
+     * What the runner's cool, clean runs say about the top of Z1, beside the ceiling in use (rules C4,
+     * C8): shown whether or not an offer stands, never applied. `grade` is the lowest of the Params
+     * it reads.
+     */
+    ownCeiling: { reading: OwnCeilingReading; grade: Grade; rules: string[] }
   }
   /** The runner's speed by grade next to Minetti's, rule I13. Display only. */
   terrain: GradeCurve
@@ -162,6 +169,8 @@ export interface MyPacesInput {
   hrModel: HrModel | null
   activities: Activity[]
   today: string
+  /** The day of the last accepted change of the easy ceiling: only runs after it are read (C8). */
+  lt1ChangedOn?: string | null
 }
 
 const GRADE_ORDER: readonly Grade[] = ['A', 'B', 'C', 'D']
@@ -517,6 +526,18 @@ export function myPaces(input: MyPacesInput, events: readonly EventSpec[]): MyPa
         windowWeeks: P.hrModel.windowWeeks.value,
         minDurationMin: P.hrModel.minDurationMin.value,
         ceiling: ceilingOf(zones) !== null,
+      },
+      ownCeiling: {
+        reading: ownCeilingReading(input.activities, today, zones, input.lt1ChangedOn ?? null),
+        grade: lowestGrade(
+          gradesOf([
+            P.c8.ownLt1MaxWbgtC,
+            P.c8.ownLt1MinRunsLower,
+            P.c9.lineSpeedMargin,
+            P.c9.lineMinSlopeBpmPerMps,
+          ]),
+        ),
+        rules: ['C4', 'C8', 'C9', 'A8'],
       },
     },
     terrain,

@@ -26,6 +26,126 @@ function estimateAt(points: readonly OwnCeilingRun[], lt1SpeedMps: number): numb
   return line.interceptBpm + line.slopeBpmPerMps * lt1SpeedMps
 }
 
+/** The cool runs that pass B2, after the last accepted change of the boundary (C8), oldest first. */
+function ownCeilingRuns(
+  activities: readonly HrFitRun[],
+  today: string,
+  changedOn: string | null,
+): OwnCeilingRun[] {
+  return coolRunPoints(activities, today, P.c8.ownLt1MaxWbgtC.value)
+    .filter((p) => changedOn === null || p.date > changedOn)
+    .map((p) => ({ date: p.date, speedMps: p.speedMps, avgHr: p.avgHr }))
+}
+
+/** The runs the three nested readings need before the line is read at all: the fewest of a direction. */
+function runsToRead(): number {
+  const fewest = Math.min(P.c8.ownLt1MinRunsLower.value, P.c8.ownLt1MinRunsRaise.value)
+  return fewest + P.c8.minObservations.value - 1
+}
+
+/**
+ * C8's observations: the line refit as each of the last `c8.minObservations` runs arrived, read at the
+ * easy pace limit. Null when any of them cannot be read there.
+ */
+function nestedEstimates(runs: readonly OwnCeilingRun[], lt1SpeedMps: number): number[] | null {
+  const estimates: number[] = []
+  for (let k = P.c8.minObservations.value - 1; k >= 0; k -= 1) {
+    const estimate = estimateAt(runs.slice(0, runs.length - k), lt1SpeedMps)
+    if (estimate === null) return null
+    estimates.push(estimate)
+  }
+  return estimates
+}
+
+/** What a reading stands on, whatever the runs say. */
+export interface OwnCeilingSample {
+  /** Cool, clean, flat, steady runs in the window now (after the last accepted change, when there is one). */
+  runs: number
+  /** Runs at which the line is read and a reading is shown. */
+  need: number
+  /** Runs at which an offer of a lower, and of a higher, ceiling can stand on Review (C8). */
+  needLower: number
+  needHigher: number
+  windowWeeks: number
+  maxWbgtC: number
+  minDurationMin: number
+  /** The day of the last accepted change: only runs after it count; null when there is none. */
+  since: string | null
+}
+
+/**
+ * What the runs say about the top of zone 1, to set beside the ceiling in use [rules C4, C8]. Never an
+ * offer and never applied: an offer is `ownCeilingProposal`, on Review, and unchanged. `missing` says
+ * what the zones lack (a maximum heart rate or a pace anchor), `too-few` that fewer runs qualify than
+ * `need`, `unclear` that the line cannot be read at the easy pace limit, `ready` the reading.
+ */
+export type OwnCeilingReading =
+  | (OwnCeilingSample & { status: 'missing'; missing: Array<'maximum' | 'pace'> })
+  | (OwnCeilingSample & { status: 'too-few' })
+  | (OwnCeilingSample & { status: 'unclear' })
+  | (OwnCeilingSample & {
+      status: 'ready'
+      /** The lowest, middle and highest of the three nested readings, bpm. */
+      low: number
+      mid: number
+      high: number
+      /** The ceiling in use, the half-width of its band (rule C7), and where the range sits against it. */
+      inUse: { bpm: number; bandBpm: number }
+      relation: 'within' | 'below' | 'above'
+      /** Beats between the ceiling in use and the nearest end of the range; 0 when within. */
+      gapBpm: number
+    })
+
+/**
+ * The reading of the runner's own easy ceiling as of `today`: the same runs, the same three nested
+ * readings and the same line conditions as `ownCeilingProposal`, shown whether or not an offer stands.
+ */
+export function ownCeilingReading(
+  activities: readonly HrFitRun[],
+  today: string,
+  zones: ZoneSet,
+  changedOn: string | null = null,
+): OwnCeilingReading {
+  const runs = ownCeilingRuns(activities, today, changedOn)
+  const observations = P.c8.minObservations.value
+  const sample: OwnCeilingSample = {
+    runs: runs.length,
+    need: runsToRead(),
+    needLower: P.c8.ownLt1MinRunsLower.value + observations - 1,
+    needHigher: P.c8.ownLt1MinRunsRaise.value + observations - 1,
+    windowWeeks: P.hrModel.windowWeeks.value,
+    maxWbgtC: P.c8.ownLt1MaxWbgtC.value,
+    minDurationMin: P.hrModel.minDurationMin.value,
+    since: changedOn,
+  }
+  const { lt1Hr, lt2Hr, hrMax, lt1PaceSecPerKm, hr } = zones
+  const missing: Array<'maximum' | 'pace'> = []
+  if (lt1Hr === null || lt2Hr === null || hrMax === null || hr === null) missing.push('maximum')
+  if (lt1PaceSecPerKm === null || !(lt1PaceSecPerKm.value > 0)) missing.push('pace')
+  if (missing.length > 0 || lt1Hr === null || lt1PaceSecPerKm === null) {
+    return { ...sample, status: 'missing', missing }
+  }
+  if (runs.length < sample.need) return { ...sample, status: 'too-few' }
+  const estimates = nestedEstimates(runs, 1000 / lt1PaceSecPerKm.value)
+  if (estimates === null) return { ...sample, status: 'unclear' }
+  const sorted = [...estimates].sort((a, b) => a - b)
+  const low = Math.round(sorted[0]!)
+  const high = Math.round(sorted[sorted.length - 1]!)
+  const mid = Math.round(sorted[Math.floor(sorted.length / 2)]!)
+  const bpm = lt1Hr.value
+  const relation = bpm > high ? 'above' : bpm < low ? 'below' : 'within'
+  return {
+    ...sample,
+    status: 'ready',
+    low,
+    mid,
+    high,
+    inUse: { bpm, bandBpm: (lt1Hr.band[1] - lt1Hr.band[0]) / 2 },
+    relation,
+    gapBpm: relation === 'above' ? bpm - high : relation === 'below' ? low - bpm : 0,
+  }
+}
+
 /**
  * An offer to move the easy heart-rate ceiling to the runner's own, or null [rules C4, C8]. It reads
  * the cool runs that pass B2 (`coolRunPoints`) and takes C8's three observations as the line refit as
@@ -48,24 +168,13 @@ export function ownCeilingProposal(
   if (hr === null || !(lt1PaceSecPerKm.value > 0)) return null
 
   const maxWbgtC = P.c8.ownLt1MaxWbgtC.value
-  const runs: OwnCeilingRun[] = coolRunPoints(activities, today, maxWbgtC)
-    .filter((p) => changedOn === null || p.date > changedOn)
-    .map((p) => ({
-      date: p.date,
-      speedMps: p.speedMps,
-      avgHr: p.avgHr,
-    }))
+  const runs = ownCeilingRuns(activities, today, changedOn)
   const observations = P.c8.minObservations.value
-  const fewest = Math.min(P.c8.ownLt1MinRunsLower.value, P.c8.ownLt1MinRunsRaise.value)
-  if (runs.length < fewest + observations - 1) return null
+  if (runs.length < runsToRead()) return null
 
   const lt1SpeedMps = 1000 / lt1PaceSecPerKm.value
-  const estimates: number[] = []
-  for (let k = observations - 1; k >= 0; k -= 1) {
-    const estimate = estimateAt(runs.slice(0, runs.length - k), lt1SpeedMps)
-    if (estimate === null) return null
-    estimates.push(estimate)
-  }
+  const estimates = nestedEstimates(runs, lt1SpeedMps)
+  if (estimates === null) return null
   const from = lt1Hr.value
   const spread = Math.max(...estimates) - Math.min(...estimates)
   // Runs behind the weakest of the three estimates.
