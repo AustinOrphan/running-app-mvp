@@ -1262,6 +1262,25 @@ describe('GET /api/today', () => {
       expect(await slot(f)).toBeNull()
     })
 
+    test('takes precedence over the repeated-area offer when both hold', async () => {
+      const f = await fixture('today-runpain-repeat@example.com')
+      for (const back of [4, 2, 0]) {
+        await api(f)
+          .put(`/api/checkins/${addDays(THURSDAY, -back)}`)
+          .send({ painScore: 2, painArea: 'left calf' })
+          .expect(200)
+      }
+      expect(await slot(f)).toMatchObject({ offerReason: 'pain-repeat' })
+      await planKind(f, THURSDAY, 'long')
+      await run(f, THURSDAY, FLAG)
+      expect(await slot(f)).toMatchObject({
+        offer: true,
+        offerReason: 'run-pain',
+        runPain: { area: 'left calf', pain: FLAG },
+        repeat: null,
+      })
+    })
+
     test('is not made again while a window is open, and the check-in reason keeps its precedence', async () => {
       const f = await fixture('today-runpain-window@example.com')
       await planKind(f, THURSDAY, 'long')
