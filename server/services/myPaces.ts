@@ -22,6 +22,7 @@ export function loadMyPaces(
         hrModel: await hrModelOf(deps, context),
         activities: context.activities,
         today,
+        lt1ChangedOn: context.zoneChanges.lt1Hr ?? null,
       },
       PACE_EVENTS,
     )

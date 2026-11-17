@@ -91,3 +91,18 @@ the race plan (ADR 0018) and the strength workout (ADR 0014) are.
   through `personalClimbRatio`, a little and capped (rule L5, owner decision 2026-11-08); the easy
   pace and the zones still do not.
 - The page's failed load now uses the shared `ErrorState` and `useLoadView`.
+
+## Addendum 2026-11-17: the easy ceiling from the runs is shown (owner decision)
+
+- `myPaces` returns `MyPaces.easy.ownCeiling`: `ownCeilingReading` (`shared/engine/ownCeiling.ts`) over
+  `context.activities` and `zoneChanges.lt1Hr`, inside the memo `paces.view`, so it is derived on read and
+  stored nowhere. It shows what the own easy ceiling (C4, C8) reads from the runner's cool runs, whether or
+  not an offer stands, with no active plan needed.
+- The section "Easy ceiling from your runs" sits on My paces, between the easy pace and the zones, not on
+  the Profile. **Opinion**: My paces is the page of derived readings with their "how this is made" notes
+  and the memo already stands there, while the Profile holds what the runner types and the zones' own
+  editing; a reading on the Profile would sit beside the fields that clear the accepted ceiling.
+- A reading is never applied. Applying stays the offer on the review page (ADR 0007), unchanged. The reading
+  adds no Param and no rule number; it reuses `c8.*`, `hrModel.*` and `c9.*`.
+- With fewer qualifying runs than the offer's fewest (10), the section says how many qualify of how many are
+  needed and what makes a run qualify; with no maximum heart rate or no pace anchor it says which is missing.

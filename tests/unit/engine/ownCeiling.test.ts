@@ -4,7 +4,7 @@ import { describe, expect, test } from 'vitest'
 import { assertCleanCopy } from '../../../shared/copy/lint.ts'
 import { addDays } from '../../../shared/dates.ts'
 import { coolRunPoints } from '../../../shared/engine/execution.ts'
-import { ownCeilingProposal } from '../../../shared/engine/ownCeiling.ts'
+import { ownCeilingProposal, ownCeilingReading } from '../../../shared/engine/ownCeiling.ts'
 import { P } from '../../../shared/engine/params/index.ts'
 import type { Activity, HrQuality } from '../../../shared/types.ts'
 import { zoneSetFixture } from './fixtures.ts'
@@ -235,5 +235,118 @@ describe('the own easy ceiling offer', () => {
     expect(
       ownCeilingProposal(runs(14, 60), TODAY, zoneSetFixture({ ...ZONES, lt1PaceSecPerKm: null })),
     ).toBeNull()
+  })
+})
+
+describe('the own easy ceiling reading', () => {
+  test('with enough runs gives the range of the three readings beside the ceiling in use', () => {
+    // The line gives 150 bpm at 3.0 m/s; the ceiling in use is 140 with a band of 135 to 145.
+    const reading = ownCeilingReading(runs(14, 90), TODAY, ZONES)
+    expect(reading).toMatchObject({
+      status: 'ready',
+      runs: 14,
+      need: 10,
+      needLower: 10,
+      needHigher: 14,
+      windowWeeks: 8,
+      maxWbgtC: 15,
+      since: null,
+      relation: 'below',
+      inUse: { bpm: 140, bandBpm: 5 },
+    })
+    if (reading.status !== 'ready') throw new Error('not ready')
+    expect(reading.low).toBeLessThanOrEqual(reading.mid)
+    expect(reading.mid).toBeLessThanOrEqual(reading.high)
+    expect(reading.mid).toBe(150)
+    expect(reading.gapBpm).toBe(reading.low - 140)
+  })
+
+  test('is shown when no offer stands: a reading that agrees with the ceiling is within', () => {
+    const all = runs(14, 80)
+    expect(ownCeilingProposal(all, TODAY, ZONES)).toBeNull()
+    expect(ownCeilingReading(all, TODAY, ZONES)).toMatchObject({
+      status: 'ready',
+      relation: 'within',
+      gapBpm: 0,
+    })
+  })
+
+  test('puts a ceiling in use over the runs on the other side', () => {
+    expect(ownCeilingReading(runs(14, 60), TODAY, ZONES)).toMatchObject({
+      status: 'ready',
+      relation: 'above',
+      gapBpm: 20,
+    })
+  })
+
+  test('counts only runs after the accepted change', () => {
+    const all = runs(14, 90)
+    expect(ownCeilingReading(all, TODAY, ZONES, all[5]!.date)).toMatchObject({
+      status: 'too-few',
+      runs: 8,
+      since: all[5]!.date,
+    })
+  })
+
+  test('says how many runs qualify of how many are needed when there are too few', () => {
+    const few = runs(6, 60, (i) => (i === 0 ? { extra: { hrQuality: FAILING } } : {}))
+    expect(ownCeilingReading(few, TODAY, ZONES)).toMatchObject({
+      status: 'too-few',
+      runs: 5,
+      need: 10,
+    })
+    expect(ownCeilingReading([], TODAY, ZONES)).toMatchObject({ status: 'too-few', runs: 0 })
+    // Runs with no recorded weather never qualify.
+    const unrecorded = runs(14, 90, () => ({ extra: { tempC: null, humidityPct: null } }))
+    expect(ownCeilingReading(unrecorded, TODAY, ZONES)).toMatchObject({
+      status: 'too-few',
+      runs: 0,
+    })
+  })
+
+  test('says what is missing instead of hiding: no maximum, no pace anchor, or both', () => {
+    const all = runs(14, 90)
+    const noMax = zoneSetFixture({ ...ZONES, hrMax: null, hr: null })
+    expect(ownCeilingReading(all, TODAY, noMax)).toMatchObject({
+      status: 'missing',
+      missing: ['maximum'],
+      runs: 14,
+    })
+    expect(
+      ownCeilingReading(all, TODAY, zoneSetFixture({ ...ZONES, lt1PaceSecPerKm: null })),
+    ).toMatchObject({ status: 'missing', missing: ['pace'] })
+    expect(
+      ownCeilingReading(
+        all,
+        TODAY,
+        zoneSetFixture({ ...ZONES, hrMax: null, hr: null, lt1PaceSecPerKm: null }),
+      ),
+    ).toMatchObject({ status: 'missing', missing: ['maximum', 'pace'] })
+  })
+
+  test('is unclear when the line cannot be read at the easy pace limit', () => {
+    const slow = zoneSetFixture({
+      ...ZONES,
+      lt1PaceSecPerKm: { value: 600, band: [580, 620], source: 'cs', asOf: TODAY },
+    })
+    expect(ownCeilingReading(runs(14, 90), TODAY, slow)).toMatchObject({
+      status: 'unclear',
+      runs: 14,
+    })
+  })
+
+  test('the range is the offer evidence: same three readings, so the two never disagree', () => {
+    for (const [count, intercept] of [
+      [14, 90],
+      [10, 60],
+    ] as const) {
+      const all = runs(count, intercept)
+      const offer = ownCeilingProposal(all, TODAY, ZONES)!
+      const reading = ownCeilingReading(all, TODAY, ZONES)
+      expect(reading.status).toBe('ready')
+      if (reading.status !== 'ready') continue
+      expect(reading.low).toBe(Math.min(...offer.evidence!.estimates))
+      expect(reading.high).toBe(Math.max(...offer.evidence!.estimates))
+    }
   })
 })
