@@ -31,6 +31,17 @@
   line-height: var(--lh-sm);
 }
 
+/* The header's link to the race plan: the last words of the context line. */
+.raceLink {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.raceLink:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
+}
+
 .linkButton {
   display: inline-flex;
   align-items: center;

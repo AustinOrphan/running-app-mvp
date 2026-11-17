@@ -64,7 +64,11 @@ const COPY_ALLOWED = [
   'web/components/race/RaceCard.tsx',
   'web/components/race/RaceSessionSection.tsx',
   'web/components/race/RaceSlot.tsx',
+  // the road blocks link to the Plan page's race week (RPB)
+  'web/components/race/RoadRaceBlocks.tsx',
   'web/components/race/courseImport.ts',
+  // the Plan page's header names the race and links to the race plan (RPB)
+  'web/pages/PlanPage.tsx',
   'web/pages/RacePage.tsx',
 ]
 

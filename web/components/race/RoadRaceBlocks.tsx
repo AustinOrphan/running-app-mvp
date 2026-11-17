@@ -1,6 +1,8 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
+import { planWeekLinkText } from '../../../shared/copy/racePlan.ts'
 import { describeRoadRacePlan, type RoadFluidText } from '../../../shared/copy/racePlanRoad.ts'
+import { mondayOf } from '../../../shared/dates.ts'
 import type { RoadRacePlan } from '../../../shared/engine/racePlanRoad.ts'
 import type { Units } from '../../../shared/types.ts'
 import { rulesRef } from '../../api/explain.ts'
@@ -187,7 +189,14 @@ export function RoadRaceBlocks({ plan, units }: { plan: RoadRacePlan; units: Uni
           <h2 id="road-week" className={styles.heading}>
             {raceWeek.heading}
           </h2>
-          <RaceWeekBlock week={raceWeek} full />
+          <RaceWeekBlock
+            week={raceWeek}
+            full
+            planWeek={{
+              to: `/plan?week=${mondayOf(plan.date)}`,
+              label: planWeekLinkText(units),
+            }}
+          />
           {raceWeek.extra === null ? null : <p className={styles.note}>{raceWeek.extra}</p>}
           <div>
             <ExplainButton

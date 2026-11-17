@@ -189,6 +189,25 @@ describe('RacePage', () => {
     expectCleanCopy(container)
   })
 
+  test('links the last two days to the plan race week and the headlamp line to the plan', async () => {
+    mockApi({
+      'GET /api/race/plan': () => ({ plan: planWith(), reason: null }),
+      'GET /api/settings': () => SETTINGS,
+    })
+    renderWithProviders(<RacePage />, { route: '/race' })
+    const week = await screen.findByRole('region', { name: 'The last two days' })
+    // 2026-03-20 is a Friday; its week starts Monday 16 March
+    expect(within(week).getByRole('link', { name: "Open the plan's race week" })).toHaveAttribute(
+      'href',
+      '/plan?week=2026-03-16',
+    )
+    const dark = screen.getByRole('region', { name: 'Dark hours' })
+    expect(within(dark).getByRole('link', { name: 'Open the training plan' })).toHaveAttribute(
+      'href',
+      '/plan',
+    )
+  })
+
   test('has no aid-station wording for a runner without support, and says to carry everything', async () => {
     mockApi({
       'GET /api/race/plan': () => ({ plan: planWith({}, 'self'), reason: null }),

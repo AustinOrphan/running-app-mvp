@@ -72,6 +72,18 @@ export const RACE_PLAN_TEMPLATES = {
   'race.plan.days-to-go-one': tpl('1 day to go', {}, { shape: 'label' }),
   'race.plan.race-day': tpl('Race day', {}, { shape: 'label' }),
   'race.plan.open': tpl('Open the race plan', {}, { shape: 'label' }),
+  // The Plan page's header line for a goal with a race plan (RPB): the same date and days-to-go words
+  // as the Race page. It stands in for "Race week of <Monday>", which cost the first screen a line
+  // at 360 px. A saved copy cannot know the days left.
+  'race.plan.on-plan': tpl('{name}, {date}. {days}.', {
+    name: 'text',
+    date: 'date',
+    days: 'text',
+  }),
+  'race.plan.on-plan-saved': tpl('{name}, {date}.', { name: 'text', date: 'date' }),
+  // Links from the Race page to the Plan page (RPB).
+  'race.plan.to-plan-week': tpl("Open the plan's race week", {}, { shape: 'label' }),
+  'race.plan.to-plan': tpl('Open the training plan', {}, { shape: 'label' }),
   'race.plan.sketch': tpl(
     'Every line is a sketch from rules and your own runs. Ranges are wide on purpose.',
   ),
@@ -811,6 +823,34 @@ export function raceCopyNoteText(
 /** The title of the page, the heading of the sheet block when it has no summary to show. */
 export function raceTitleText(units: Units): string {
   return say(T['race.plan.title'], {}, units)
+}
+
+/**
+ * The Plan page's context line for a goal with a race plan, the Race page's own: name, race date and
+ * days to go (left out for the phone's saved copy).
+ */
+export function planRaceContextText(
+  race: { name: string; date: string; daysToRace: number },
+  phoneCopy: boolean,
+  units: Units,
+): string {
+  const date = { kind: 'date', iso: race.date, style: 'long' } as const
+  if (phoneCopy) return say(T['race.plan.on-plan-saved'], { name: race.name, date }, units)
+  return say(
+    T['race.plan.on-plan'],
+    { name: race.name, date, days: daysToGoText(race.daysToRace, units) },
+    units,
+  )
+}
+
+/** The link from the Race page to the Plan page's race week. */
+export function planWeekLinkText(units: Units): string {
+  return say(T['race.plan.to-plan-week'], {}, units)
+}
+
+/** The link from the headlamp line to the Plan page. */
+export function planLinkText(units: Units): string {
+  return say(T['race.plan.to-plan'], {}, units)
 }
 
 /** The label of every link to the page. */

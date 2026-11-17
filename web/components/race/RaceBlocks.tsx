@@ -51,7 +51,16 @@ export function RaceFuelBlock({ text, stronger, full, floor }: RaceFuelBlockProp
 }
 
 /** The race-week lines (rule K6): the carbohydrate range and the grams, the days, the evidence. */
-export function RaceWeekBlock({ week, full }: { week: RaceWeekText; full: boolean }) {
+export function RaceWeekBlock({
+  week,
+  full,
+  planWeek,
+}: {
+  week: RaceWeekText
+  full: boolean
+  /** The Plan page's race week (`/plan?week=`) and the link's words; the whole block only. */
+  planWeek?: { to: string; label: string }
+}) {
   return (
     <>
       <p className={styles.text}>{week.carb}</p>
@@ -67,6 +76,11 @@ export function RaceWeekBlock({ week, full }: { week: RaceWeekText; full: boolea
             </p>
           ))}
           <p className={styles.note}>{week.fluid}</p>
+          {planWeek === undefined ? null : (
+            <Link to={planWeek.to} className={styles.link}>
+              {planWeek.label}
+            </Link>
+          )}
         </>
       ) : null}
     </>

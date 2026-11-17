@@ -3,7 +3,8 @@ import styles from './PageHeader.module.css'
 
 export interface PageHeaderProps {
   title: string
-  context?: string
+  /** One line of words, which may end in a link (the Plan page's link to the race plan). */
+  context?: ReactNode
   actions?: ReactNode
   /** Keeps the actions beside the title on a phone too, where they would take a row of their own. */
   inlineActions?: boolean
