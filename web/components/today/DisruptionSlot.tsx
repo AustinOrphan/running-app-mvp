@@ -44,6 +44,7 @@ export function DisruptionSlot({ view, units }: { view: TodayView; units: Units 
 
   const offered = slot?.offer === true && !later
   const repeat = slot?.offerReason === 'pain-repeat' ? (slot.repeat ?? null) : null
+  const runPain = slot?.offerReason === 'run-pain' ? (slot.runPain ?? null) : null
   const prompt = offered ? (
     <RestWindowPrompt
       units={units}
@@ -77,7 +78,8 @@ export function DisruptionSlot({ view, units }: { view: TodayView; units: Units 
       {sheet ? (
         <NotFullSheet
           today={view.date}
-          prefill={repeat}
+          prefill={repeat ?? runPain}
+          prefillFrom={runPain ? 'run' : 'check-ins'}
           onClose={() => {
             setSheet(false)
           }}

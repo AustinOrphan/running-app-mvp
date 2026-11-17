@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest'
 import { addDays } from '../../../shared/dates.ts'
 import {
+  longDayRunPain,
   painAreaKey,
   painReports,
   repeatPainPattern,
@@ -194,5 +195,53 @@ describe('repeatPainPattern', () => {
   test('no check-ins, or none with an area, give no pattern', () => {
     expect(pattern([])).toBeNull()
     expect(pattern([day(0, null), day(1, ''), day(2, '  ')])).toBeNull()
+  })
+})
+
+describe('longDayRunPain (rule J11)', () => {
+  const FLAG = P.pain.flagScore.value
+  const DAY = '2026-03-18'
+  const long = { date: DAY, kind: 'long', status: 'planned' }
+  const run = (date: string, pain: number | null, over: Record<string, unknown> = {}) => ({
+    date,
+    type: 'run',
+    pain,
+    ...over,
+  })
+  const read = (
+    activities: Array<ReturnType<typeof run>>,
+    sessions = [long],
+    wellness: PainCheckin[] = [],
+  ) => longDayRunPain({ activities, sessions, wellness, date: DAY })
+
+  test('reads today and yesterday at the flag score on a long or back-to-back day', () => {
+    expect(read([run(DAY, FLAG)])).toEqual({ pain: FLAG, area: '' })
+    const yesterday = addDays(DAY, -1)
+    expect(read([run(yesterday, FLAG + 1)], [{ ...long, date: yesterday, kind: 'b2b' }])).toEqual({
+      pain: FLAG + 1,
+      area: '',
+    })
+  })
+
+  test('takes the highest rating, and the newest area the check-ins of the two days name', () => {
+    const wellness = [
+      { date: addDays(DAY, -1), painArea: 'right knee' },
+      { date: DAY, painArea: ' left calf ' },
+    ]
+    expect(read([run(DAY, FLAG), run(DAY, FLAG + 2)], [long], wellness)).toEqual({
+      pain: FLAG + 2,
+      area: 'left calf',
+    })
+  })
+
+  test('reads nothing below the flag, from another day, another kind, a duplicate or a skipped day', () => {
+    expect(read([run(DAY, FLAG - 1)])).toBeNull()
+    expect(read([run(DAY, null)])).toBeNull()
+    expect(read([run(addDays(DAY, -2), FLAG)], [{ ...long, date: addDays(DAY, -2) }])).toBeNull()
+    expect(read([run(DAY, FLAG)], [{ ...long, kind: 'easy' }])).toBeNull()
+    expect(read([run(DAY, FLAG)], [{ ...long, kind: 'long-fast-finish' }])).toBeNull()
+    expect(read([run(DAY, FLAG, { duplicateStatus: 'possible' })])).toBeNull()
+    expect(read([run(DAY, FLAG, { type: 'ride' })])).toBeNull()
+    expect(read([run(DAY, FLAG)], [{ ...long, status: 'skipped' }])).toBeNull()
   })
 })

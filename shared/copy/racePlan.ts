@@ -34,12 +34,14 @@ import type {
   RaceThird,
   RaceWeek,
 } from '../engine/racePlan.ts'
+import type { RehearsalClimb } from '../engine/rehearsal.ts'
 import type { SplitRow } from '../engine/raceSplits.ts'
 import { P } from '../engine/params/index.ts'
 import type { SessionKind } from '../engine/types.ts'
 import type { RacePlanReason, Units } from '../types.ts'
 import { HOW_TO_READ } from './runCharts.ts'
 import { RACE_CARB_ROUND_G } from './limits.ts'
+import { milesToM } from '../units.ts'
 import { render, tpl, type SlotSpec, type SlotValues, type Template } from './template.ts'
 import { TODAY_TEMPLATES } from './today.ts'
 
@@ -375,6 +377,50 @@ export const RACE_PLAN_TEMPLATES = {
   'race.plan.rehearsal.no-altitude-all': tpl(
     'No run since {date} recorded altitude, so downhill time cannot be counted.',
     { date: 'date' },
+  ),
+  // Climb: the long runs beside the course's own figure (H1). Counts and figures; no ask, no gap.
+  'race.plan.rehearsal.climb-course': tpl(
+    'The course climbs {gain} and descends {loss} per {per}.',
+    { gain: 'climb', loss: 'climb', per: 'text' },
+  ),
+  'race.plan.rehearsal.climb-course-gain': tpl('The course climbs {gain} per {per}.', {
+    gain: 'climb',
+    per: 'text',
+  }),
+  'race.plan.rehearsal.climb-bins-some': tpl(
+    'The climbing time comes from {n} of the {total} long runs; the others have no altitude time.',
+    { n: 'count', total: 'count' },
+  ),
+  'race.plan.rehearsal.climb-long': tpl(
+    'Long runs of {time} or more since {date}: {n}, with a median of {gain} climb and {loss} descent per {per}.',
+    { time: 'minutes', date: 'date', n: 'count', gain: 'climb', loss: 'climb', per: 'text' },
+  ),
+  'race.plan.rehearsal.climb-long-gain': tpl(
+    'Long runs of {time} or more since {date}: {n}, with a median of {gain} climb per {per}.',
+    { time: 'minutes', date: 'date', n: 'count', gain: 'climb', per: 'text' },
+  ),
+  'race.plan.rehearsal.climb-long-none': tpl('Long runs of {time} or more since {date}: none.', {
+    time: 'minutes',
+    date: 'date',
+  }),
+  'race.plan.rehearsal.climb-long-no-gain': tpl(
+    'Long runs of {time} or more since {date}: {n}, none with climb recorded.',
+    { time: 'minutes', date: 'date', n: 'count' },
+  ),
+  'race.plan.rehearsal.climb-at-or-above': tpl(
+    'Long runs with as much climb per {per} as the course: {n}.',
+    { per: 'text', n: 'count' },
+  ),
+  'race.plan.rehearsal.climb-bands': tpl(
+    'Long runs: {time} on uphill grades of {pct} or steeper, {walked} of it walking.',
+    { time: 'minutes', pct: 'percent', walked: 'percent' },
+  ),
+  'race.plan.rehearsal.climb-bands-none': tpl(
+    'Long runs: none on uphill grades of {pct} or steeper.',
+    { pct: 'percent' },
+  ),
+  'race.plan.rehearsal.climb-no-bins': tpl(
+    'No long run has altitude time yet, so time on climbs cannot be counted.',
   ),
   'race.plan.rehearsal.no-runs': tpl('No runs since {date}.', { date: 'date' }),
 
@@ -1300,6 +1346,84 @@ export function describeRaceWeek(week: RaceWeek, units: Units): RaceWeekText {
   }
 }
 
+/** The climb part of the Rehearsal block: the long runs beside the course's own climb. */
+function climbLines(
+  climb: RehearsalClimb,
+  date: { kind: 'date'; iso: string; style: 'short' },
+  units: Units,
+): string[] {
+  const miles = units === 'mi'
+  const per = miles ? 'mile' : 'km'
+  // A per-kilometre figure read per mile: the climb quantity then shows it in feet.
+  const scale = miles ? milesToM(1) / 1000 : 1
+  const perUnit = (mPerKm: number) => ({ kind: 'climb', m: mPerKm * scale }) as const
+  const time = minutes(P.r1.longRunMin.value)
+  const courseLoss = climb.courseLossPerKm
+  const lines = [
+    courseLoss === null
+      ? say(
+          T['race.plan.rehearsal.climb-course-gain'],
+          { gain: perUnit(climb.courseGainPerKm), per },
+          units,
+        )
+      : say(
+          T['race.plan.rehearsal.climb-course'],
+          { gain: perUnit(climb.courseGainPerKm), loss: perUnit(courseLoss), per },
+          units,
+        ),
+  ]
+  if (climb.longRuns === 0) {
+    lines.push(say(T['race.plan.rehearsal.climb-long-none'], { time, date }, units))
+    return lines
+  }
+  const n = count(climb.longRuns)
+  if (climb.medianGainPerKm === null) {
+    lines.push(say(T['race.plan.rehearsal.climb-long-no-gain'], { time, date, n }, units))
+  } else {
+    const gain = perUnit(climb.medianGainPerKm)
+    lines.push(
+      climb.medianLossPerKm === null || courseLoss === null
+        ? say(T['race.plan.rehearsal.climb-long-gain'], { time, date, n, gain, per }, units)
+        : say(
+            T['race.plan.rehearsal.climb-long'],
+            { time, date, n, gain, loss: perUnit(climb.medianLossPerKm), per },
+            units,
+          ),
+    )
+    lines.push(
+      say(
+        T['race.plan.rehearsal.climb-at-or-above'],
+        { per, n: count(climb.atOrAboveCourse) },
+        units,
+      ),
+    )
+  }
+  const pct = percent(climb.bandMinPct)
+  if (climb.runsWithBins === 0) {
+    lines.push(say(T['race.plan.rehearsal.climb-no-bins'], {}, units))
+  } else if (climb.minutes === 0 || climb.walkedShare === null) {
+    lines.push(say(T['race.plan.rehearsal.climb-bands-none'], { pct }, units))
+  } else {
+    lines.push(
+      say(
+        T['race.plan.rehearsal.climb-bands'],
+        { time: minutes(climb.minutes), pct, walked: percent(Math.round(climb.walkedShare * 100)) },
+        units,
+      ),
+    )
+    if (climb.runsWithoutBins > 0) {
+      lines.push(
+        say(
+          T['race.plan.rehearsal.climb-bins-some'],
+          { n: count(climb.runsWithBins), total: count(climb.longRuns) },
+          units,
+        ),
+      )
+    }
+  }
+  return lines
+}
+
 /** The Rehearsal block: the night and downhill counts of the recent runs, in plain facts. */
 function rehearsalText(plan: RacePlan, units: Units): RacePlanText['rehearsal'] {
   const r = plan.rehearsal
@@ -1369,6 +1493,9 @@ function rehearsalText(plan: RacePlan, units: Units): RacePlanText['rehearsal'] 
       }
     }
   }
+  // A cached payload from before the climb part has no `climb` (ADR 0012): read as absent.
+  const climb = r.runs === 0 ? null : ((r.climb as RehearsalClimb | null | undefined) ?? null)
+  if (climb !== null) lines.push(...climbLines(climb, date, units))
   return { heading: say(T['race.plan.rehearsal.heading'], {}, units), lines }
 }
 

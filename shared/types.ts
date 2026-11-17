@@ -1628,12 +1628,20 @@ export interface DisruptionSlot {
   /**
    * True when no window is open and either today's check-in reports illness or pain at or above
    * `pain.flagScore`, or the check-ins of the last `pain.repeatDays` days report one area on
-   * `pain.repeatReports` days (rule J11): the page offers a rest window and creates nothing by
-   * itself.
+   * `pain.repeatReports` days, or a run of today or yesterday on a long or back-to-back day was
+   * rated at or above it (rule J11): the page offers a rest window and creates nothing by itself.
    */
   offer: boolean
-  /** Why the offer is made: today's check-in, or a repeated area. Null without an offer. */
-  offerReason?: 'check-in' | 'pain-repeat' | null
+  /**
+   * Why the offer is made: today's check-in, a repeated area, or pain rated on a long or
+   * back-to-back run. Null without an offer.
+   */
+  offerReason?: 'check-in' | 'pain-repeat' | 'run-pain' | null
+  /**
+   * The rating behind a `run-pain` offer and the area from the check-ins of the two days (empty
+   * when they name none), which the sheet fills in. Null otherwise.
+   */
+  runPain?: { area: string; pain: number } | null
   /**
    * The repeated area behind a `pain-repeat` offer, which the sheet fills in: the area in the
    * runner's words, the days with a report, the look-back and the highest pain. Null otherwise.

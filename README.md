@@ -31,7 +31,8 @@ install; the setup page closes afterwards. Later accounts are added by the perso
 server (see "Accounts for other people" below), and `ALLOW_REGISTRATION=true` is not needed for
 that; it opens the setup page to anyone who can reach the server, so leave it `false`.
 
-Sign-in sets an httpOnly cookie that lasts 30 days. Only failed attempts count: an account is
+Sign-in sets an httpOnly cookie that lasts 30 days. Using the app renews it (a request after the
+cookie is a day old sets a fresh one), up to 120 days after the sign-in, then you sign in again. Only failed attempts count: an account is
 limited to 10 failed sign-ins per 15 minutes (the email is compared in lower case) and an address to
 100, and a successful sign-in clears that account's failures. Setup shares both budgets. Behind a
 proxy the address budget is one budget for all runners, a backstop against one client trying many

@@ -2,7 +2,14 @@ import type { RequestHandler } from 'express'
 import type { Deps } from '../app.ts'
 import { unauthorized } from '../errors.ts'
 import { runnerDay, type RunnerDay } from '../runnerDay.ts'
-import { SESSION_COOKIE, verifySession } from './session.ts'
+import {
+  isSecure,
+  SESSION_COOKIE,
+  SESSION_RENEW_AFTER_SEC,
+  setSessionCookie,
+  signSession,
+  verifySession,
+} from './session.ts'
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -54,7 +61,7 @@ export function sameOriginGuard(): RequestHandler {
  * 401.
  */
 export function requireAuth(deps: Deps): RequestHandler {
-  return async (req, _res, next) => {
+  return async (req, res, next) => {
     try {
       const cookies = req.cookies as Record<string, unknown> | undefined
       const token = cookies?.[SESSION_COOKIE]
@@ -73,6 +80,20 @@ export function requireAuth(deps: Deps): RequestHandler {
       if (!user || session.version !== user.sessionVersion) {
         next(unauthorized())
         return
+      }
+      // Sliding renewal: a cookie more than a day old is replaced by one with the same version and
+      // sign-in time, ending at most 30 days on or at the cap from the sign-in. A cookie already at
+      // the cap would get the same end, so it is left alone.
+      const now = Math.floor(Date.now() / 1000)
+      if (now - session.issuedAt > SESSION_RENEW_AFTER_SEC) {
+        const renewed = signSession(user.id, deps.config.sessionSecret, user.sessionVersion, {
+          signedInAt: session.signedInAt,
+          now,
+        })
+        const claims = verifySession(renewed, deps.config.sessionSecret)
+        if (claims && claims.expiresAt > session.expiresAt) {
+          setSessionCookie(res, renewed, isSecure(req), claims.expiresAt - now)
+        }
       }
       req.userId = user.id
       req.runnerDay = runnerDay(new Date(), user.profile?.timezone, user.id)

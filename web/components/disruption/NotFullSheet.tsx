@@ -58,6 +58,8 @@ export interface NotFullSheetProps {
    * creates nothing; the window is made only after the preview.
    */
   prefill?: { area: string; pain: number } | null
+  /** Where the prefill came from, which the hint under it says; the check-ins when omitted. */
+  prefillFrom?: 'check-ins' | 'run'
 }
 
 type Step = 'reason' | 'when' | 'review' | 'done'
@@ -86,7 +88,12 @@ const FIELD_ORDER = ['startDate', 'endDate', 'mode', 'maxRunMin', 'area', 'pain'
  * below 900 px; focus moves to the heading of each step, and back to whatever opened the sheet when
  * it closes.
  */
-export function NotFullSheet({ onClose, today: given, prefill = null }: NotFullSheetProps) {
+export function NotFullSheet({
+  onClose,
+  today: given,
+  prefill = null,
+  prefillFrom = 'check-ins',
+}: NotFullSheetProps) {
   const settings = useSettings()
   const todayView = useToday()
   const plan = usePlan()
@@ -387,7 +394,7 @@ export function NotFullSheet({ onClose, today: given, prefill = null }: NotFullS
               </label>
               {prefill !== null ? (
                 <>
-                  <p className={styles.text}>{prefillHint(units)}</p>
+                  <p className={styles.text}>{prefillHint(units, prefillFrom)}</p>
                   <p role="note" className={styles.rule}>
                     <WarningSignsText text={repeatSignsLine(units)} />
                   </p>

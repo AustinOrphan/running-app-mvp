@@ -274,6 +274,7 @@ describe('the offer for a repeated area and the cross-training line (rule J11)',
 
   it('says the sheet was filled in and that anything can change', () => {
     expect(prefillHint('km')).toBe('Filled in from your check-ins. Change anything.')
+    expect(prefillHint('km', 'run')).toBe('Filled in from your rating of the run. Change anything.')
   })
 
   it('offers cycling or pool work as an option, with no promise of fitness or healing', () => {
@@ -289,6 +290,7 @@ describe('the offer for a repeated area and the cross-training line (rule J11)',
       repeatPromptAsk({ reports: 3, days: 7 }, 'km'),
       repeatSignsLine('km'),
       prefillHint('km'),
+      prefillHint('km', 'run'),
       crossTrainingLine('km'),
     ]
     for (const text of lines) {
