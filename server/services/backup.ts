@@ -10,9 +10,9 @@ import { mondayOf } from '../../shared/dates.ts'
  * file named like a backup is a backup that passed.
  *
  * Three kinds exist. `ordinary` copies (`app-<stamp>.db`) come from the daily job and from
- * `npm run backup`, and are the only ones the retention rule prunes. `pre-migrate` copies are made
- * before `prisma migrate deploy`, and `pre-restore` copies by `npm run restore`; neither is ever
- * pruned automatically.
+ * `npm run backup`, and are pruned by the retention rule. `pre-migrate` copies are made before
+ * `prisma migrate deploy` and are pruned by their own rule (`prunePreMigrateBackups`).
+ * `pre-restore` copies, made by `npm run restore`, are never pruned automatically.
  */
 
 export type BackupKind = 'ordinary' | 'pre-migrate' | 'pre-restore'
@@ -23,10 +23,49 @@ const PREFIX: Record<BackupKind, string> = {
   'pre-restore': 'pre-restore',
 }
 const ORDINARY_NAME = /^app-(\d{8}T\d{6}Z)\.db$/
+const PRE_MIGRATE_NAME = /^pre-migrate-(\d{8}T\d{6}Z)\.db$/
 
 /** Days and ISO weeks that the default rule keeps a backup for (the newest of each). */
 export const KEEP_DAYS = 7
 export const KEEP_WEEKS = 4
+
+/**
+ * A pre-update (`pre-migrate`) copy is removed once it is older than this, unless it is one of the
+ * newest `KEEP_PRE_MIGRATE_MIN`, which stay whatever their age (owner decision 2026-11-17).
+ */
+export const KEEP_PRE_MIGRATE_DAYS = 30
+export const KEEP_PRE_MIGRATE_MIN = 3
+
+/**
+ * Days that the off-host job keeps a daily snapshot of the newest `app-*.db` (30 daily snapshots,
+ * decision D1). A requirement on a job outside this repository, stated in the README.
+ */
+export const OFF_HOST_SNAPSHOT_DAYS = 30
+
+const DAY_MS = 86_400_000
+
+/**
+ * The longest time, in days, that a deleted account can stay in the copies while every job runs
+ * on its schedule. The figure behind the tester data notice (README, "Data notice").
+ *
+ * - `localDays`: an ordinary copy is the newest of one of `KEEP_WEEKS` ISO weeks at most, so it goes
+ *   within `KEEP_WEEKS` weeks and the part of the week it was made in: `KEEP_WEEKS + 1` weeks.
+ *   A pre-update copy goes after `KEEP_PRE_MIGRATE_DAYS`, so the ordinary bound is the longer one.
+ * - `offHostDays`: the off-host job reads only the newest `app-*.db`, which stops holding the
+ *   account at the next daily copy (one day), and its snapshot lives `OFF_HOST_SNAPSHOT_DAYS`.
+ *
+ * Not counted: the newest `KEEP_PRE_MIGRATE_MIN` pre-update copies, which stay until later updates
+ * push them out; `pre-restore` copies; copies made by hand; `npm run backup -- --keep`.
+ */
+export function deletedAccountRetention(): {
+  localDays: number
+  offHostDays: number
+  longestDays: number
+} {
+  const localDays = Math.max((KEEP_WEEKS + 1) * 7, KEEP_PRE_MIGRATE_DAYS)
+  const offHostDays = 1 + OFF_HOST_SNAPSHOT_DAYS
+  return { localDays, offHostDays, longestDays: Math.max(localDays, offHostDays) }
+}
 
 export type Retention = { newest: number } | { days: number; weeks: number }
 
@@ -262,6 +301,39 @@ export function pruneBackups(
   protectedName?: string,
 ): string[] {
   const pruned = selectPruned(listOrdinaryBackups(dir), retention, protectedName)
+  for (const file of pruned) discard(join(dir, file.name))
+  return pruned.map((file) => file.name)
+}
+
+/** The `pre-migrate-<stamp>.db` files in `dir`, newest first. */
+export function listPreMigrateBackups(dir: string): BackupFile[] {
+  let names: string[]
+  try {
+    names = readdirSync(dir)
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return []
+    throw error
+  }
+  const files: BackupFile[] = []
+  for (const name of names) {
+    const stamp = PRE_MIGRATE_NAME.exec(name)?.[1]
+    const at = stamp === undefined ? null : parseBackupStamp(stamp)
+    if (at !== null) files.push({ name, at })
+  }
+  return files.sort(newestFirst)
+}
+
+/**
+ * Removes the `pre-migrate` copies in `dir` that are older than `KEEP_PRE_MIGRATE_DAYS` at `now`,
+ * except the newest `KEEP_PRE_MIGRATE_MIN` whatever their age; returns their names. Idempotent. It
+ * lists only names of the pre-migrate pattern inside `dir`, so the live database, ordinary and
+ * `pre-restore` copies and every other file stay.
+ */
+export function prunePreMigrateBackups(dir: string, now: Date = new Date()): string[] {
+  const cutoff = now.getTime() - KEEP_PRE_MIGRATE_DAYS * DAY_MS
+  const pruned = listPreMigrateBackups(dir)
+    .slice(KEEP_PRE_MIGRATE_MIN)
+    .filter((file) => file.at.getTime() < cutoff)
   for (const file of pruned) discard(join(dir, file.name))
   return pruned.map((file) => file.name)
 }

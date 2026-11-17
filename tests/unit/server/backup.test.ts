@@ -10,7 +10,12 @@ import {
   backupStamp,
   createBackup,
   DEFAULT_RETENTION,
+  deletedAccountRetention,
   hasPendingMigrations,
+  KEEP_PRE_MIGRATE_DAYS,
+  KEEP_PRE_MIGRATE_MIN,
+  OFF_HOST_SNAPSHOT_DAYS,
+  prunePreMigrateBackups,
   migrationStatus,
   integrityProblems,
   listOrdinaryBackups,
@@ -319,6 +324,115 @@ describe('pruneBackups', () => {
   test('a folder that does not exist has nothing to prune', () => {
     expect(pruneBackups(join(dir, 'none'))).toEqual([])
     expect(listOrdinaryBackups(join(dir, 'none'))).toEqual([])
+  })
+})
+
+describe('prunePreMigrateBackups', () => {
+  const NOW = new Date('2026-11-17T12:00:00Z')
+  const stamp = (name: string): string => `pre-migrate-${name}.db`
+
+  function seed(names: string[]): string {
+    const backups = join(dir, 'backups')
+    mkdirSync(backups)
+    for (const name of names) writeFileSync(join(backups, name), 'x')
+    return backups
+  }
+
+  test('removes copies older than 30 days and keeps the newest 3 and the recent ones', () => {
+    const backups = seed([
+      stamp('20260101T000000Z'),
+      stamp('20260201T000000Z'),
+      stamp('20260301T000000Z'),
+      stamp('20261001T000000Z'),
+      stamp('20261110T000000Z'),
+      stamp('20261116T000000Z'),
+    ])
+    const removed = prunePreMigrateBackups(backups, NOW)
+    expect(removed).toEqual([
+      stamp('20260301T000000Z'),
+      stamp('20260201T000000Z'),
+      stamp('20260101T000000Z'),
+    ])
+    expect(readdirSync(backups).sort()).toEqual([
+      stamp('20261001T000000Z'),
+      stamp('20261110T000000Z'),
+      stamp('20261116T000000Z'),
+    ])
+  })
+
+  test('keeps the newest 3 whatever their age', () => {
+    const backups = seed([
+      stamp('20250101T000000Z'),
+      stamp('20250201T000000Z'),
+      stamp('20250301T000000Z'),
+      stamp('20250401T000000Z'),
+    ])
+    expect(prunePreMigrateBackups(backups, NOW)).toEqual([stamp('20250101T000000Z')])
+    expect(readdirSync(backups)).toHaveLength(3)
+  })
+
+  test('a copy exactly 30 days old stays; one a second older goes when not in the newest 3', () => {
+    const backups = seed([
+      stamp('20261018T120000Z'),
+      stamp('20261018T115959Z'),
+      stamp('20261117T000000Z'),
+      stamp('20261116T000000Z'),
+      stamp('20261115T000000Z'),
+    ])
+    expect(prunePreMigrateBackups(backups, NOW)).toEqual([stamp('20261018T115959Z')])
+    expect(readdirSync(backups)).toContain(stamp('20261018T120000Z'))
+  })
+
+  test('leaves other files, the live database and its folder neighbours untouched', () => {
+    const live = join(dir, 'app.db')
+    writeFileSync(live, 'live')
+    const others = [
+      'app-20250101T000000Z.db',
+      'pre-restore-20250101T000000Z.db',
+      'pre-migrate-20250101T000000Z.db.partial',
+      'pre-migrate-notastamp.db',
+      'notes.txt',
+    ]
+    const backups = seed([
+      ...others,
+      stamp('20250101T000000Z'),
+      stamp('20250102T000000Z'),
+      stamp('20250103T000000Z'),
+      stamp('20250104T000000Z'),
+    ])
+    prunePreMigrateBackups(backups, NOW)
+    const left = readdirSync(backups)
+    for (const name of others) expect(left).toContain(name)
+    expect(left).not.toContain(stamp('20250101T000000Z'))
+    expect(readFileSync(live, 'utf8')).toBe('live')
+  })
+
+  test('is idempotent and a missing folder has nothing to prune', () => {
+    const backups = seed([stamp('20250101T000000Z'), stamp('20250102T000000Z')])
+    expect(prunePreMigrateBackups(backups, NOW)).toEqual([])
+    expect(prunePreMigrateBackups(join(dir, 'none'), NOW)).toEqual([])
+  })
+
+  test('the constants are 30 days and 3 copies', () => {
+    expect(KEEP_PRE_MIGRATE_DAYS).toBe(30)
+    expect(KEEP_PRE_MIGRATE_MIN).toBe(3)
+  })
+})
+
+describe('deletedAccountRetention', () => {
+  test('is 35 days locally and 31 off-host, so 35 days at most', () => {
+    expect(deletedAccountRetention()).toEqual({ localDays: 35, offHostDays: 31, longestDays: 35 })
+  })
+
+  test('the README states the figure, the constants and the geocoding line', () => {
+    const readme = readFileSync(resolve('README.md'), 'utf8')
+    const { longestDays } = deletedAccountRetention()
+    expect(readme).toContain(`from every copy the server keeps within ${longestDays} days`)
+    expect(readme).toContain(`The ${longestDays} days is \`deletedAccountRetention().longestDays\``)
+    expect(readme).toContain(`keep ${OFF_HOST_SNAPSHOT_DAYS} daily snapshots`)
+    expect(readme).toContain(`remove\nthe copies older than ${KEEP_PRE_MIGRATE_DAYS} days`)
+    expect(readme).toContain(`keep the newest ${KEEP_PRE_MIGRATE_MIN}`)
+    expect(readme).toContain("Open-Meteo's geocoding service; nothing else goes with it")
   })
 })
 

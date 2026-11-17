@@ -56,7 +56,7 @@ describe('npm run backup', () => {
     expect(out).toContain('integrity_check: ok')
   })
 
-  test('--before-migrate names the file pre-migrate-<timestamp>.db and prunes nothing', async () => {
+  test('--before-migrate names the file pre-migrate-<timestamp>.db and leaves app copies', async () => {
     makeDatabase()
     mkdirSync(join(dir, 'backups'))
     for (const stamp of ['20260101T020000Z', '20260102T020000Z', '20260103T020000Z']) {

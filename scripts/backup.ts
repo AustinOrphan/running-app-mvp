@@ -8,6 +8,9 @@ import {
   createBackup,
   migrationStatus,
   pruneBackups,
+  prunePreMigrateBackups,
+  KEEP_PRE_MIGRATE_DAYS,
+  KEEP_PRE_MIGRATE_MIN,
   RETENTION_RULE,
   type Retention,
 } from '../server/services/backup.ts'
@@ -24,13 +27,14 @@ database file.
   (no flag)         app-<UTC timestamp>.db, then the older app-*.db files are pruned.
                     Default rule: ${RETENTION_RULE}.
   --keep <n>        Prune to the newest n app-*.db files instead of the default rule.
-  --before-migrate  pre-migrate-<UTC timestamp>.db, with no pruning, and only when a folder in
+  --before-migrate  pre-migrate-<UTC timestamp>.db, then the pre-migrate copies older than
+                    ${KEEP_PRE_MIGRATE_DAYS} days are removed, the newest ${KEEP_PRE_MIGRATE_MIN} always kept; only when a folder in
                     prisma/migrations (relative to the working directory) is not yet applied to the
                     database. With no database file, none pending, or a failed migration recorded
                     (the migrate command refuses until it is resolved), nothing is copied and
                     the exit status is 0.
 
-Only app-*.db files are pruned; pre-migrate and pre-restore copies stay until deleted by hand.
+Only app-*.db and pre-migrate files are pruned; pre-restore copies stay until deleted by hand.
 `
 
 export interface Output {
@@ -85,7 +89,9 @@ export async function backupCommand(
   let retention: Retention | undefined
   if (values.keep !== undefined) {
     if (beforeMigrate) {
-      io.stderr('--keep applies to ordinary backups; --before-migrate prunes nothing.\n')
+      io.stderr(
+        '--keep applies to ordinary backups; --before-migrate prunes pre-migrate copies only.\n',
+      )
       return 1
     }
     if (!/^[1-9]\d*$/.test(values.keep)) {
@@ -125,10 +131,10 @@ export async function backupCommand(
     kind: beforeMigrate ? 'pre-migrate' : 'ordinary',
   })
   io.stdout(`Backup written: ${copy.path}\nSize: ${formatSize(copy.bytes)}\nintegrity_check: ok\n`)
-  if (!beforeMigrate) {
-    const pruned = pruneBackups(backupDirectory(databaseFile), retention, basename(copy.path))
-    if (pruned.length > 0) io.stdout(`Pruned ${pruned.length}: ${pruned.join(', ')}\n`)
-  }
+  const pruned = beforeMigrate
+    ? prunePreMigrateBackups(backupDirectory(databaseFile))
+    : pruneBackups(backupDirectory(databaseFile), retention, basename(copy.path))
+  if (pruned.length > 0) io.stdout(`Pruned ${pruned.length}: ${pruned.join(', ')}\n`)
   return 0
 }
 

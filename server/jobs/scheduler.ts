@@ -13,6 +13,7 @@ import {
   createBackup,
   listOrdinaryBackups,
   pruneBackups,
+  prunePreMigrateBackups,
 } from '../services/backup.ts'
 import { generateBrief } from '../services/brief.ts'
 import { runNightlyMatching } from '../services/execution.ts'
@@ -511,7 +512,11 @@ export async function runBackupJob(
     const file = sqliteFilePath(deps.config.databaseUrl)
     const copy = await createBackup(file, { kind: 'ordinary', now: opts.now })
     const pruned = pruneBackups(backupDirectory(file), undefined, basename(copy.path))
-    log?.info({ bytes: copy.bytes, pruned: pruned.length }, 'database backed up')
+    const prunedPreMigrate = prunePreMigrateBackups(backupDirectory(file), opts.now)
+    log?.info(
+      { bytes: copy.bytes, pruned: pruned.length, prunedPreMigrate: prunedPreMigrate.length },
+      'database backed up',
+    )
   } catch (error) {
     log?.warn({ reason: safeMessage(error) }, 'scheduled backup failed')
     failure = error
