@@ -234,7 +234,9 @@ describe('figures that restate a Param come from the Param', () => {
 
   it('keeps the rule wording and no note while the saved day before is within the rule', () => {
     const week = base.raceWeek
-    expect(week?.shake).toMatch(/^The plan keeps the day before to at most 20 min of easy running/)
+    expect(week?.shake).toMatch(
+      /^The training plan keeps the day before to at most 20 min of easy running/,
+    )
     expect(week?.shakeNote).toBeNull()
   })
 
@@ -289,6 +291,65 @@ describe('figures that restate a Param come from the Param', () => {
     const [low, high] = P.h6.headlampRehearsalRuns.value
     expect(dark).toContain(`${String(low)} to ${String(high)} headlamp runs`)
     expect(describeRacePlan(PLANS[9]![1], 'km').dark).toBeNull()
+  })
+
+  it('names the two views of the page apart from the Plan tab, and says the race plan in the card intro', () => {
+    const card = describeRaceCard(PLANS[0]![1], 'km')
+    expect(card.viewPlan).toBe('Overview')
+    expect(card.viewCard).toBe('Race card')
+    expect(card.intro).toMatch(/ranges from the race plan/)
+  })
+
+  it('ends the last part at the figure of the expected time, to the minute', () => {
+    for (const [name, plan] of PLANS) {
+      const text = describeRacePlan(plan, 'km')
+      expect(text.parts.at(-1)?.window, name).toBe(
+        `${text.parts.at(-1)?.window.split(' to ')[0] ?? ''} to ${text.expected.figure} into the race`,
+      )
+    }
+  })
+
+  it('says the training plan for the headlamp runs and the day before, never "the plan"', () => {
+    expect(base.dark?.lines.join(' ')).toMatch(
+      /The training plan asks for \d+ to \d+ headlamp runs/,
+    )
+    expect(base.raceWeek?.shake).toMatch(/^The training plan keeps the day before/)
+  })
+
+  it('heads the carbohydrate block by what it covers, not "Race week"', () => {
+    expect(base.raceWeek?.heading).toBe('The last two days')
+    // Today's card in the race week keeps its own heading: it covers the whole week.
+    const summary = summaryOf(PLANS[0]![1], addDays(RACE, -1))
+    if (summary === null) throw new Error('expected a summary')
+    expect(describeRaceSummary(summary, 'km').heading).toBe('Race week')
+  })
+
+  it('says one figure for the hours outside daylight when the two ends are the same', () => {
+    const goalOnly = describeRacePlan(PLANS[5]![1], 'km').dark?.lines[0] ?? ''
+    expect(goalOnly).toMatch(/^About \d+ hours of the expected time fall outside daylight\.$/)
+    expect(goalOnly).not.toMatch(/ to /)
+    const wide = racePlanFor(
+      input({ prediction: { predictedSec: 30 * HOUR, lowSec: 20 * HOUR, highSec: 40 * HOUR } }),
+    )
+    expect(describeRacePlan(wide, 'km').dark?.lines[0]).toMatch(
+      /^About \d+ to \d+ hours of the expected time/,
+    )
+  })
+
+  it('says "1 hour" in the singular and leaves the line out when the dark hours round to 0', () => {
+    const plan = PLANS[5]![1]
+    const withHours = (hours: [number, number]): RacePlan => ({
+      ...plan,
+      dark: { ...plan.dark!, hours },
+    })
+    const lines = (hours: [number, number]) =>
+      describeRacePlan(withHours(hours), 'km').dark?.lines ?? []
+    expect(lines([1.2, 0.8])[0]).toBe('About 1 hour of the expected time falls outside daylight.')
+    expect(lines([0.2, 0.4]).join(' ')).not.toMatch(/outside daylight/)
+    expect(lines([0.2, 0.4])[0]).toMatch(/^Daylight here is/)
+    expect(lines([0.2, 2.4])[0]).toBe(
+      'About 0 to 2 hours of the expected time fall outside daylight.',
+    )
   })
 
   it('says the rounding step from r1.arrivalRoundMin', () => {
@@ -503,7 +564,7 @@ describe('the words of the checkpoint table', () => {
   })
 
   it('says the empty state when the runner has no rows, in the words of the support level', () => {
-    expect(describeRacePoints(PLANS[0]![1], 'km').empty).toMatch(/The plan works without them/)
+    expect(describeRacePoints(PLANS[0]![1], 'km').empty).toMatch(/The race plan works without them/)
     expect(describeRacePoints(PLANS[0]![1], 'km').heading).toBe('Checkpoints')
     expect(describeRacePoints(PLANS[1]![1], 'km').heading).toBe('Course points')
     expect(describeRacePoints(PLANS[1]![1], 'km').rows).toEqual([])
@@ -603,7 +664,7 @@ describe('the words of the checkpoint table', () => {
     expect(plain).not.toMatch(/your own speed/i)
   })
 
-  it('shows a cutoff and an arrival range as two lines that never mention each other', () => {
+  it('shows a cutoff and an arrival range as separate lines that never mention each other', () => {
     for (const [name, plan] of WITH_ROWS) {
       for (const units of UNITS) {
         for (const row of describeRacePoints(plan, units).rows) {
@@ -621,7 +682,8 @@ describe('the words of the checkpoint table', () => {
       }
     }
     const first = describeRacePoints(WITH_ROWS[0]![1], 'km').rows[0]!
-    expect(first.cutoff).toEqual(['Cutoff 15:00', 'Cutoff 9 h into the race'])
+    // One line holds both forms of the cutoff.
+    expect(first.cutoff).toEqual(['Cutoff 15:00, 9 h into the race'])
     expect(describeRacePoints(WITH_ROWS[2]![1], 'km').rows[0]!.cutoff).toEqual([
       'Cutoff 9 h into the race',
     ])
@@ -917,8 +979,8 @@ describe('the words of the race card', () => {
     expect(a!.windowLabel).toBe('Expected arrival')
     expect(a!.window).toMatch(/^\d\d:\d\d to \d\d:\d\d/)
     expect(a!.window).not.toMatch(/about|cutoff/i)
-    expect(a!.cutoff).toEqual(['Cutoff 15:00', 'Cutoff 9 h into the race'])
-    expect(c!.cutoff).toHaveLength(2)
+    expect(a!.cutoff).toEqual(['Cutoff 15:00, 9 h into the race'])
+    expect(c!.cutoff).toHaveLength(1)
     expect(finish!.cutoff).toEqual([])
     expect(finish!.next).toBeNull()
   })

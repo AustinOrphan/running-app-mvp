@@ -36,6 +36,7 @@ import { WarningSignsText } from './WarningSignsText.tsx'
 import {
   formatClimb,
   formatLongDate,
+  formatSessionMinutes,
   formatShortDate,
   formatWeekday,
   sessionKindLabel,
@@ -104,15 +105,13 @@ const ASSESSMENT_FLAG_LABELS: Record<ExecutionAssessment['flags'][number], strin
   spike: 'Bigger than the recent longest run',
 }
 
-const NBSP = ' '
-
 /**
  * Duration, distance and the like for a one-line summary; rest days have none. The distance is the
  * estimate the server worked out, worded as one; a session with none keeps the plan's own distance.
  */
 export function sessionSummary(session: PlanSessionView, units: Units | undefined): string {
   const parts: string[] = []
-  if (session.durationMin > 0) parts.push(`${String(session.durationMin)}${NBSP}min`)
+  if (session.durationMin > 0) parts.push(formatSessionMinutes(session.durationMin))
   if (units !== undefined) {
     // `?? null`: a Today answer the phone kept from before the estimate existed has no field.
     const estimate = session.distanceEstimate ?? null
@@ -147,7 +146,7 @@ function stepText(step: Step, session: PlanSession): string {
 function activityLabel(activity: ActivityListItem, units: Units | undefined): string {
   const parts = [
     `${formatWeekday(activity.date)} ${formatShortDate(activity.date)}`,
-    `${String(Math.round(activity.durationSec / 60))}${NBSP}min`,
+    formatSessionMinutes(Math.round(activity.durationSec / 60)),
   ]
   if (activity.distanceM !== null && units !== undefined) {
     parts.push(formatDistance(activity.distanceM, units))
@@ -428,7 +427,7 @@ export function SessionSheet({ session, onClose }: SessionSheetProps) {
   const facts = (
     <>
       {session.durationMin > 0 ? (
-        <Row label="Time">{`${String(session.durationMin)}${NBSP}min`}</Row>
+        <Row label="Time">{formatSessionMinutes(session.durationMin)}</Row>
       ) : null}
       {units === undefined ? null : parts !== null ? (
         <Row label="Distance" caption={parts.caption}>
@@ -455,7 +454,7 @@ export function SessionSheet({ session, onClose }: SessionSheetProps) {
           {original !== null ? (
             <p className={styles.muted}>
               First planned: {original.title ?? session.title},{' '}
-              {String(original.durationMin ?? session.durationMin)} min
+              {formatSessionMinutes(original.durationMin ?? session.durationMin)}
               {original.date !== undefined && original.date !== session.date
                 ? `, on ${formatLongDate(original.date)}`
                 : ''}

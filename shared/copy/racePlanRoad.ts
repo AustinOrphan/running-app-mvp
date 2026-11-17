@@ -97,7 +97,7 @@ export const RACE_PLAN_ROAD_TEMPLATES = {
     'The 50th and 100th places lost their time to a slower pace from the start, not to more slowing late.',
   ),
   'race.plan.road.heat.no-shape': tpl(
-    'The range is already slower throughout for heat, and the plan sets no pacing shape for it.',
+    'The range is already slower throughout for heat, and the race plan sets no pacing shape for it.',
   ),
   'race.plan.road.heat.medical': tpl(
     'In one marathon, medical encounters and non-finishers rose quickly above a start WBGT of 13 °C. Several races met a mass-casualty incident above 21 °C.',
@@ -112,7 +112,7 @@ export const RACE_PLAN_ROAD_TEMPLATES = {
     { min: 'minutes' },
   ),
   'race.plan.road.fuel.short-source': tpl(
-    'The studies the plan draws on name no carbohydrate rate for a race of one to two hours.',
+    'The studies the race plan draws on name no carbohydrate rate for a race of one to two hours.',
   ),
 
   // ---- Race week --------------------------------------------------------------------------------
@@ -122,13 +122,13 @@ export const RACE_PLAN_ROAD_TEMPLATES = {
 
   // ---- Notices ----------------------------------------------------------------------------------
   'race.plan.road.notice.no-cs': tpl(
-    'No critical speed is fitted yet, so the plan has no first-half line.',
+    'No critical speed is fitted yet, so the race plan has no first-half line.',
   ),
   'race.plan.road.notice.cs-dated': tpl(
-    'Your critical speed rests on efforts older than three months, so the plan has no first-half line.',
+    'Your critical speed rests on efforts older than three months, so the race plan has no first-half line.',
   ),
   'race.plan.road.notice.course-not-flat': tpl(
-    'This course is trail or mixed, so the plan gives no average pace and no first-half line.',
+    'This course is trail or mixed, so the race plan gives no average pace and no first-half line.',
   ),
   'race.plan.road.notice.heat-not-in-range': tpl(
     'The usual weather is warm, but the prediction holds no heat adjustment, so the range says nothing about heat.',
@@ -158,7 +158,9 @@ export const RACE_PLAN_ROAD_TEMPLATES = {
   'race.plan.road.not-in.warm-up': tpl(
     'A warm-up or pre-cooling for a road race: no road study in the records covers them.',
   ),
-  'race.plan.road.not-in.target': tpl('A finish target. The plan shows a range, never a target.'),
+  'race.plan.road.not-in.target': tpl(
+    'A finish target. The race plan shows a range, never a target.',
+  ),
   'race.plan.road.not-in.hold': tpl(
     'How long the race rate has held on training runs. The fuel lab shows that.',
   ),

@@ -11,7 +11,8 @@
 // - A figure that belongs to a study (the 65 km race, the 220 km race) is written as that study's
 //   own, with its population, as the H11 line of Explain does.
 // - No sentence compares a cutoff with the range, asks for a finish time or says "behind". The
-//   cutoff and the arrival range of a checkpoint are two plain facts in two separate lines.
+//   cutoff and the arrival range of a checkpoint are two plain facts in two separate lines (the
+//   cutoff's clock and elapsed forms share one).
 //
 // Pure. The sentences that fuel, fluid and the safety card already have (`fuelCopy.ts`) are
 // reused, not written again.
@@ -135,7 +136,7 @@ export const RACE_PLAN_TEMPLATES = {
     'Your zones hold no heart rate yet, so the effort is the whole target.',
   ),
   'race.plan.notice.no-climate': tpl(
-    'The race climate is not saved yet, so the plan says nothing about heat.',
+    'The race climate is not saved yet, so the race plan says nothing about heat.',
   ),
 
   // ---- Effort ------------------------------------------------------------------------------------
@@ -184,7 +185,7 @@ export const RACE_PLAN_TEMPLATES = {
     { share: 'share' },
   ),
   'race.plan.part.late-expect': tpl(
-    'Expect slower speed at the same effort. The plan does not ask for it to be made up.',
+    'Expect slower speed at the same effort. The race plan does not ask for it to be made up.',
   ),
 
   // ---- Heat --------------------------------------------------------------------------------------
@@ -241,6 +242,9 @@ export const RACE_PLAN_TEMPLATES = {
 
   // ---- Race week ---------------------------------------------------------------------------------
   'race.plan.week.heading': tpl('Race week', {}, { shape: 'label' }),
+  // The block on the Race page covers the final window only, so it is not called "Race week": that is
+  // the Plan page's name for the training week.
+  'race.plan.week.block-heading': tpl('The last two days', {}, { shape: 'label' }),
   'race.plan.week.carb': tpl(
     'In the last {fromH} to {toH} hours before the start, eat {low} to {high} g of carbohydrate per kg of body mass a day, with little running.',
     { fromH: 'count', toH: 'count', low: 'count', high: 'count' },
@@ -258,7 +262,7 @@ export const RACE_PLAN_TEMPLATES = {
     'The lower end of the range and the length of the window are engine choices.',
   ),
   'race.plan.week.shake': tpl(
-    'The plan keeps the day before to at most {min} of easy running, and easy running only from {date}.',
+    'The training plan keeps the day before to at most {min} of easy running, and easy running only from {date}.',
     { min: 'minutes', date: 'date' },
   ),
   'race.plan.week.shake-held': tpl('The training plan has {min} on the day before.', {
@@ -295,15 +299,23 @@ export const RACE_PLAN_TEMPLATES = {
     'About {low} to {high} hours of the expected time fall outside daylight.',
     { low: 'count', high: 'count' },
   ),
+  // One figure when the two ends round to the same hour: the range form would read "About 10 to 10".
+  'race.plan.dark.hours-single': tpl('About 1 hour of the expected time falls outside daylight.'),
+  'race.plan.dark.hours-one': tpl('About {n} hours of the expected time fall outside daylight.', {
+    n: 'count',
+  }),
   'race.plan.dark.whole': tpl('The race is expected to cross darkness.'),
   'race.plan.dark.clock': tpl(
     'Daylight here is {dawn} to {dusk}, a default. Season and place are not modelled.',
     { dawn: 'text', dusk: 'text' },
   ),
-  'race.plan.dark.lamp': tpl('The plan asks for {low} to {high} headlamp runs before the race.', {
-    low: 'count',
-    high: 'count',
-  }),
+  'race.plan.dark.lamp': tpl(
+    'The training plan asks for {low} to {high} headlamp runs before the race.',
+    {
+      low: 'count',
+      high: 'count',
+    },
+  ),
 
   // ---- Rehearsal: what the runner's recent runs hold of the night and downhill ask (H6, H5) ----
   // Descriptive: the ask sits in the dark block and the climbing line, these lines say what was done
@@ -358,10 +370,10 @@ export const RACE_PLAN_TEMPLATES = {
   'race.plan.points.heading': tpl('Checkpoints', {}, { shape: 'label' }),
   'race.plan.points.heading-self': tpl('Course points', {}, { shape: 'label' }),
   'race.plan.points.empty': tpl(
-    'Add the checkpoints of the course to see about when you reach each one. The plan works without them.',
+    'Add the checkpoints of the course to see about when you reach each one. The race plan works without them.',
   ),
   'race.plan.points.empty-self': tpl(
-    'Add course points to see about when you reach each one. The plan works without them.',
+    'Add course points to see about when you reach each one. The race plan works without them.',
   ),
   'race.plan.points.edit': tpl('Edit checkpoints', {}, { shape: 'label' }),
   'race.plan.points.edit-self': tpl('Edit course points', {}, { shape: 'label' }),
@@ -400,10 +412,15 @@ export const RACE_PLAN_TEMPLATES = {
     low: 'count',
     high: 'count',
   }),
-  'race.plan.points.cutoff-clock': tpl('Cutoff {clock}', { clock: 'text' }, { shape: 'label' }),
   'race.plan.points.cutoff-elapsed': tpl(
     'Cutoff {elapsed} into the race',
     { elapsed: 'duration' },
+    { shape: 'label' },
+  ),
+  // Both forms of one cutoff on one line.
+  'race.plan.points.cutoff-both': tpl(
+    'Cutoff {clock}, {elapsed} into the race',
+    { clock: 'text', elapsed: 'duration' },
     { shape: 'label' },
   ),
   'race.plan.points.weights': tpl(
@@ -483,11 +500,11 @@ export const RACE_PLAN_TEMPLATES = {
   // ---- The race card -------------------------------------------------------------------------------
   'race.plan.card.title': tpl('Race card', {}, { shape: 'label' }),
   'race.plan.card.view': tpl('View', {}, { shape: 'label' }),
-  'race.plan.card.view-plan': tpl('Plan', {}, { shape: 'label' }),
+  'race.plan.card.view-plan': tpl('Overview', {}, { shape: 'label' }),
   'race.plan.card.print': tpl('Print the card', {}, { shape: 'label' }),
   'race.plan.card.list': tpl('Race card, one block for each stop', {}, { shape: 'label' }),
   'race.plan.card.intro': tpl(
-    'A table of every stop, then one block for each, to read at a glance or to print. The times are ranges from the plan: a sketch, not a promise.',
+    'A table of every stop, then one block for each, to read at a glance or to print. The times are ranges from the race plan: a sketch, not a promise.',
   ),
   'race.plan.card.empty': tpl(
     'The race card has one block for each checkpoint. Add checkpoints, or import the course, to build it.',
@@ -579,7 +596,7 @@ export const RACE_PLAN_TEMPLATES = {
   'race.plan.card.note-unsaved': tpl('This browser would not keep the note.'),
   'race.plan.card.note-print': tpl('Crew note', {}, { shape: 'label' }),
   'race.plan.card.estimate-note': tpl(
-    'Grams of carbohydrate are an estimate: the rate from the plan, over the time of each leg.',
+    'Grams of carbohydrate are an estimate: the rate from the race plan, over the time of each leg.',
   ),
   'race.plan.card.self-note': tpl(
     'You carry everything on this course, so no fuel is listed for each leg.',
@@ -1217,7 +1234,7 @@ export function describeRaceWeek(week: RaceWeek, units: Units): RaceWeekText {
       ]
     : []
   return {
-    heading: say(T['race.plan.week.heading'], {}, units),
+    heading: say(T['race.plan.week.block-heading'], {}, units),
     carb: say(
       T['race.plan.week.carb'],
       { fromH: count(fromH), toH: count(toH), low: count(low), high: count(high) },
@@ -1320,15 +1337,22 @@ export function describeRacePlan(plan: RacePlan, units: Units): RacePlanText {
   const dark = plan.dark
   const darkLines: string[] = []
   if (dark !== null) {
-    darkLines.push(
-      dark.hours === null
-        ? say(T['race.plan.dark.whole'], {}, units)
-        : say(
-            T['race.plan.dark.hours'],
-            { low: count(Math.round(dark.hours[0])), high: count(Math.round(dark.hours[1])) },
-            units,
-          ),
-    )
+    if (dark.hours === null) {
+      darkLines.push(say(T['race.plan.dark.whole'], {}, units))
+    } else {
+      const low = Math.round(dark.hours[0])
+      const high = Math.round(dark.hours[1])
+      // One figure when the ends agree; nothing at all when that figure is 0 hours.
+      if (low !== high) {
+        darkLines.push(
+          say(T['race.plan.dark.hours'], { low: count(low), high: count(high) }, units),
+        )
+      } else if (low === 1) {
+        darkLines.push(say(T['race.plan.dark.hours-single'], {}, units))
+      } else if (low > 0) {
+        darkLines.push(say(T['race.plan.dark.hours-one'], { n: count(low) }, units))
+      }
+    }
     darkLines.push(say(T['race.plan.dark.clock'], { dawn: dark.dawn, dusk: dark.dusk }, units))
     darkLines.push(
       say(
@@ -1405,7 +1429,7 @@ export interface RacePointRowText {
   /** Day or night, climb by effort: short labels. */
   tags: string[]
   carry: string | null
-  /** The cutoff, in the clock and in elapsed time with a start time: facts, never compared. */
+  /** The cutoff as one line: the clock and the elapsed time with a start time, facts never compared. */
   cutoff: string[]
 }
 
@@ -1524,13 +1548,14 @@ function pointRowText(row: SplitRow, units: Units): RacePointRowText {
   if (row.climbByEffort) tags.push(say(T['race.plan.points.climb-tag'], {}, units))
   const cutoff: string[] = []
   if (row.cutoffSec !== null) {
-    if (row.cutoffClock !== null) {
-      cutoff.push(
-        say(T['race.plan.points.cutoff-clock'], { clock: clockText(row.cutoffClock) }, units),
-      )
-    }
     cutoff.push(
-      say(T['race.plan.points.cutoff-elapsed'], { elapsed: duration(row.cutoffSec) }, units),
+      row.cutoffClock !== null
+        ? say(
+            T['race.plan.points.cutoff-both'],
+            { clock: clockText(row.cutoffClock), elapsed: duration(row.cutoffSec) },
+            units,
+          )
+        : say(T['race.plan.points.cutoff-elapsed'], { elapsed: duration(row.cutoffSec) }, units),
     )
   }
   return {
@@ -1574,7 +1599,7 @@ export interface RaceCardBlockText {
   windowElapsed: boolean
   /** The arrival window as the figure of the block ("13:25 to 14:00"); the start time on the start block. */
   window: string | null
-  /** The cutoff, in the clock and in elapsed time with a start time: facts, never compared. */
+  /** The cutoff as one line: the clock and the elapsed time with a start time, facts never compared. */
   cutoff: string[]
   /** Said only where the plan holds that the arrival falls outside daylight. */
   headlamp: string | null

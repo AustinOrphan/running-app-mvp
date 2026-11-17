@@ -52,7 +52,7 @@ describe('RacePage: the road blocks', () => {
       'First half',
       'Heat',
       'Fuel and fluid',
-      'Race week',
+      'The last two days',
       'Not in this plan',
     ])
     const text = describeRoadRacePlan(road, 'km')
@@ -99,7 +99,7 @@ describe('RacePage: the road blocks', () => {
     expect(headings).toContain('Average pace')
     expect(headings).not.toContain('First half')
     expect(headings).not.toContain('Fuel and fluid')
-    expect(headings).not.toContain('Race week')
+    expect(headings).not.toContain('The last two days')
     expectCleanCopy(document.body)
   })
 

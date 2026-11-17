@@ -116,7 +116,9 @@ for (const viewport of WIDTHS) {
     await expect(headings.filter({ hasText: 'Expected time' })).toBeVisible()
     await expect(headings.filter({ hasText: 'Effort' })).toBeVisible()
     await expect(headings.filter({ hasText: 'Fuel and fluid' })).toBeVisible()
-    await expect(headings.filter({ hasText: 'Race week' })).toBeVisible()
+    await expect(headings.filter({ hasText: 'The last two days' })).toBeVisible()
+    // "Race week" is the Plan page's name for the training week, not a heading of this page.
+    await expect(headings.filter({ hasText: 'Race week' })).toHaveCount(0)
     await expect(headings.filter({ hasText: 'Dark hours' })).toBeVisible()
     await expect(headings.filter({ hasText: 'Rehearsal' })).toBeVisible()
 

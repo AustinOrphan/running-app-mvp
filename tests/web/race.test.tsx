@@ -111,7 +111,7 @@ describe('RacePage', () => {
       'Checkpoints',
       'Fuel and fluid',
       'Heat',
-      'Race week',
+      'The last two days',
       'Dark hours',
     ])
     const text = describeRacePlan(plan, 'km')
@@ -494,7 +494,7 @@ describe('RacePage: the checkpoint table', () => {
     const { container } = renderWithProviders(<RacePage />, { route: '/race' })
     const section = (await screen.findByRole('heading', { level: 2, name: 'Checkpoints' }))
       .parentElement!
-    expect(within(section).getByText(/The plan works without them/)).toBeInTheDocument()
+    expect(within(section).getByText(/The race plan works without them/)).toBeInTheDocument()
     expect(within(section).getByRole('button', { name: 'Edit checkpoints' })).toBeInTheDocument()
     expectCleanCopy(container)
   })
@@ -516,13 +516,13 @@ describe('RacePage: the checkpoint table', () => {
     ])
     const first = within(rows[0]!)
     expect(first.getByText(text.rows[0]!.arrival)).toBeInTheDocument()
-    // The cutoff stands in its own lines, apart from the arrival range.
+    // The cutoff stands in one line, apart from the arrival range.
+    expect(text.rows[0]!.cutoff).toHaveLength(1)
     for (const line of text.rows[0]!.cutoff) {
       const element = first.getByText(line)
       expect(element.textContent).not.toMatch(/About/)
     }
-    expect(first.getByText(/Cutoff 15:00/)).toBeInTheDocument()
-    expect(first.getByText(/Cutoff 9 h into the race/)).toBeInTheDocument()
+    expect(first.getByText('Cutoff 15:00, 9 h into the race')).toBeInTheDocument()
     expect(first.queryByText(/Cutoff.*About|About.*Cutoff/)).toBeNull()
     expect(within(rows[2]!).getByText(text.rows[2]!.arrival)).toBeInTheDocument()
     expect(screen.getAllByText(/Carry about \d+ to \d+ g of carbohydrate/)).toHaveLength(3)
@@ -882,8 +882,7 @@ describe('RacePage: the race card', () => {
     expect(within(a).getByText('Expected arrival')).toBeVisible()
     expect(within(a).getByText(/^\d\d:\d\d to \d\d:\d\d/)).toBeVisible()
     expect(within(a).queryByText(/^About \d\d:/)).toBeNull()
-    expect(within(a).getByText('Cutoff 15:00')).toBeVisible()
-    expect(within(a).getByText('Cutoff 9 h into the race')).toBeVisible()
+    expect(within(a).getByText('Cutoff 15:00, 9 h into the race')).toBeVisible()
     expect(within(blocks[3]!).queryByText(/^Next:|^Fuel$/)).toBeNull()
     expectCleanCopy(container)
     // no pace, no split, no rate
@@ -937,7 +936,7 @@ describe('RacePage: the race card', () => {
     await user.click(screen.getByRole('radio', { name: 'Race card' }))
     expect(await screen.findByRole('heading', { level: 2, name: 'Race card' })).toBeVisible()
     expect(screen.queryByRole('heading', { level: 2, name: 'Expected time' })).toBeNull()
-    await user.click(screen.getByRole('radio', { name: 'Plan' }))
+    await user.click(screen.getByRole('radio', { name: 'Overview' }))
     expect(await screen.findByRole('heading', { level: 2, name: 'Expected time' })).toBeVisible()
   })
 

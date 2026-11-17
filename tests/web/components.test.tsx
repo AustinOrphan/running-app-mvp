@@ -20,10 +20,13 @@ import { ToastProvider, useToast } from '../../web/components/Toast.tsx'
 import {
   formatClimb,
   formatLongDate,
+  formatSessionMinutes,
   formatShortDate,
   formatWeekday,
   phaseLabel,
 } from '../../web/components/format.ts'
+import { heroMinutes } from '../../web/components/today/SessionHero.tsx'
+import { sessionSummary } from '../../web/components/SessionSheet.tsx'
 import { makeWeekRow } from '../factories.ts'
 import { expectCleanCopy, expectTouchScale, mockApi, renderWithProviders } from './helpers.tsx'
 import { settings } from './plan-fixtures.ts'
@@ -760,6 +763,28 @@ describe('format helpers', () => {
     expect(phaseLabel('race')).toBe('Race week')
     expect(phaseLabel('restart')).toBe('Restart')
     expect(phaseLabel('taper')).toBe('Taper')
+  })
+
+  test('a session length reads in minutes under two hours and in hours and minutes from there', () => {
+    expect(formatSessionMinutes(45)).toBe('45 min')
+    expect(formatSessionMinutes(119)).toBe('119 min')
+    expect(formatSessionMinutes(120)).toBe('2 h')
+    expect(formatSessionMinutes(125)).toBe('2 h 5 min')
+    // The race session of a 100-mile goal, as the Race plan writes the expected time.
+    expect(formatSessionMinutes(1929)).toBe('32 h 9 min')
+  })
+
+  test("Today's big figure splits into figure and unit, in hours from two hours", () => {
+    expect(heroMinutes(45)).toEqual({ figure: '45', unit: 'min' })
+    expect(heroMinutes(120)).toEqual({ figure: '2', unit: 'h' })
+    expect(heroMinutes(1929)).toEqual({ figure: '32 h 9', unit: 'min' })
+  })
+
+  test('the day card line of a race session gives hours and minutes, not 1929 min', () => {
+    const race = makeSession({ kind: 'race', durationMin: 1929, distanceM: 160_934 })
+    const line = sessionSummary(race, 'mi')
+    expect(line).toContain(formatSessionMinutes(1929))
+    expect(line).not.toContain('1929')
   })
 })
 

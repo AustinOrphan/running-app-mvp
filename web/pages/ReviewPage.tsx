@@ -60,7 +60,12 @@ import { combineQueries, useLoadView } from '../components/loadView.ts'
 import { Skeleton } from '../components/Skeleton.tsx'
 import { ReviewCountPrompt, ReviewLifts } from '../components/strength/ReviewStrength.tsx'
 import { useToast } from '../components/Toast.tsx'
-import { formatShortDate, formatWeekday, weekPhaseLabel } from '../components/format.ts'
+import {
+  formatSessionMinutes,
+  formatShortDate,
+  formatWeekday,
+  weekPhaseLabel,
+} from '../components/format.ts'
 import { assessmentLines, localiseEngineText } from '../components/engineText.ts'
 import { WarningSignsText } from '../components/WarningSignsText.tsx'
 import { RevisionDiff } from '../components/revisions/RevisionDiff.tsx'
@@ -765,7 +770,7 @@ function SessionSummaries({
             <div className={styles.sessionHead}>
               <span className={styles.sessionDay}>{formatWeekday(session.date)}</span>
               <span className={styles.sessionTitle}>{session.title}</span>
-              <span className={styles.muted}>{`${String(session.durationMin)} min`}</span>
+              <span className={styles.muted}>{formatSessionMinutes(session.durationMin)}</span>
               <span className={styles.sessionStatus}>{sessionStatusLabel(session.status)}</span>
               {/* With any drawing on the list, every row keeps the slot, so the status stays in line. */}
               {anyGlyph ? (

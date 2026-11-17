@@ -1,3 +1,4 @@
+import { formatQuantity } from '../../shared/copy/quantity.ts'
 import type { SessionKind } from '../../shared/engine/types.ts'
 import type { PlanPhase } from '../../shared/types.ts'
 
@@ -10,6 +11,15 @@ export {
   formatWeekdayDate,
 } from '../../shared/dates.ts'
 export { formatClimb } from '../../shared/units.ts'
+
+/**
+ * One session's length the way the Race plan writes a time: minutes under two hours, hours and
+ * minutes from there on ("45 min", "2 h 5 min", "32 h 9 min"). The `minutes` quantity, as Today's
+ * cards write it.
+ */
+export function formatSessionMinutes(min: number): string {
+  return formatQuantity({ kind: 'minutes', min }, 'km')
+}
 
 const phaseLabels: Record<PlanPhase, string> = {
   restart: 'Restart',

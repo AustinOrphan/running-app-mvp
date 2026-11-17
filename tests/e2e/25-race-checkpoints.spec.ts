@@ -62,7 +62,7 @@ test('a plan with no rows says it works without them, and offers the editor', as
   await page.goto('/race')
   const heading = page.getByRole('heading', { level: 2, name: 'Checkpoints' })
   await expect(heading).toBeVisible()
-  await expect(page.getByText(/The plan works without them/)).toBeVisible()
+  await expect(page.getByText(/The race plan works without them/)).toBeVisible()
   await expect(page.getByRole('button', { name: 'Edit checkpoints' })).toBeVisible()
   expect(await scrollsSideways()).toBe(false)
 })
@@ -97,15 +97,14 @@ test('enters two points and reads their arrival ranges, the cutoff and the finis
   await expect(rows).toHaveCount(3)
   const a = list.getByRole('article', { name: 'Checkpoint A' })
   await expect(a.getByText(/^About \d\d:\d\d( the next day)? to \d\d:\d\d/)).toBeVisible()
-  // the cutoff stands in its own lines, in the clock and in time into the race
-  await expect(a.getByText('Cutoff 14:30')).toBeVisible()
-  await expect(a.getByText('Cutoff 8 h 30 min into the race')).toBeVisible()
+  // the cutoff stands in one line, in the clock and in time into the race
+  await expect(a.getByText('Cutoff 14:30, 8 h 30 min into the race')).toBeVisible()
   await expect(
     a.getByText('900 m of climb, as entered.').or(a.getByText(/ft of climb, as entered/)),
   ).toBeVisible()
   const b = list.getByRole('article', { name: 'Checkpoint B' })
   await expect(b.getByText(/of descent, shown and not counted/)).toBeVisible()
-  await expect(b.getByText(/^Cutoff 03:00 the next day$/)).toBeVisible()
+  await expect(b.getByText(/^Cutoff 03:00 the next day, .+ into the race$/)).toBeVisible()
   const finish = list.getByRole('article', { name: 'Finish' })
   await expect(finish.getByText(/^About \d\d:\d\d/)).toBeVisible()
   // grams to carry for an aided race, labelled an estimate
@@ -228,7 +227,7 @@ test('imports a course GPX file: proposes its waypoints, draws the profile, and 
   await expect(
     list
       .getByRole('article', { name: 'Lower station' })
-      .getByText('Cutoff 9 h 30 min into the race'),
+      .getByText(/^Cutoff (\d\d:\d\d.*, )?9 h 30 min into the race$/),
   ).toBeVisible()
   await expect(list.getByRole('article', { name: 'Station C' })).toBeVisible()
   await expect(list.getByRole('article', { name: 'Station B' })).toHaveCount(0)
