@@ -11,7 +11,8 @@
 // - A figure that belongs to a study (the 65 km race, the 220 km race) is written as that study's
 //   own, with its population, as the H11 line of Explain does.
 // - No sentence compares a cutoff with the range, asks for a finish time or says "behind". The
-//   cutoff and the arrival range of a checkpoint are two plain facts in two separate lines.
+//   cutoff and the arrival range of a checkpoint are two plain facts in two separate lines (the
+//   cutoff's clock and elapsed forms share one).
 //
 // Pure. The sentences that fuel, fluid and the safety card already have (`fuelCopy.ts`) are
 // reused, not written again.
@@ -279,6 +280,7 @@ export const RACE_PLAN_TEMPLATES = {
     { low: 'count', high: 'count' },
   ),
   // One figure when the two ends round to the same hour: the range form would read "About 10 to 10".
+  'race.plan.dark.hours-single': tpl('About 1 hour of the expected time falls outside daylight.'),
   'race.plan.dark.hours-one': tpl('About {n} hours of the expected time fall outside daylight.', {
     n: 'count',
   }),
@@ -390,7 +392,6 @@ export const RACE_PLAN_TEMPLATES = {
     low: 'count',
     high: 'count',
   }),
-  'race.plan.points.cutoff-clock': tpl('Cutoff {clock}', { clock: 'text' }, { shape: 'label' }),
   'race.plan.points.cutoff-elapsed': tpl(
     'Cutoff {elapsed} into the race',
     { elapsed: 'duration' },
@@ -1280,17 +1281,22 @@ export function describeRacePlan(plan: RacePlan, units: Units): RacePlanText {
   const dark = plan.dark
   const darkLines: string[] = []
   if (dark !== null) {
-    darkLines.push(
-      dark.hours === null
-        ? say(T['race.plan.dark.whole'], {}, units)
-        : Math.round(dark.hours[0]) === Math.round(dark.hours[1])
-          ? say(T['race.plan.dark.hours-one'], { n: count(Math.round(dark.hours[0])) }, units)
-          : say(
-              T['race.plan.dark.hours'],
-              { low: count(Math.round(dark.hours[0])), high: count(Math.round(dark.hours[1])) },
-              units,
-            ),
-    )
+    if (dark.hours === null) {
+      darkLines.push(say(T['race.plan.dark.whole'], {}, units))
+    } else {
+      const low = Math.round(dark.hours[0])
+      const high = Math.round(dark.hours[1])
+      // One figure when the ends agree; nothing at all when that figure is 0 hours.
+      if (low !== high) {
+        darkLines.push(
+          say(T['race.plan.dark.hours'], { low: count(low), high: count(high) }, units),
+        )
+      } else if (low === 1) {
+        darkLines.push(say(T['race.plan.dark.hours-single'], {}, units))
+      } else if (low > 0) {
+        darkLines.push(say(T['race.plan.dark.hours-one'], { n: count(low) }, units))
+      }
+    }
     darkLines.push(say(T['race.plan.dark.clock'], { dawn: dark.dawn, dusk: dark.dusk }, units))
     darkLines.push(
       say(
@@ -1367,7 +1373,7 @@ export interface RacePointRowText {
   /** Day or night, climb by effort: short labels. */
   tags: string[]
   carry: string | null
-  /** The cutoff, in the clock and in elapsed time with a start time: facts, never compared. */
+  /** The cutoff as one line: the clock and the elapsed time with a start time, facts never compared. */
   cutoff: string[]
 }
 
@@ -1537,7 +1543,7 @@ export interface RaceCardBlockText {
   windowElapsed: boolean
   /** The arrival window as the figure of the block ("13:25 to 14:00"); the start time on the start block. */
   window: string | null
-  /** The cutoff, in the clock and in elapsed time with a start time: facts, never compared. */
+  /** The cutoff as one line: the clock and the elapsed time with a start time, facts never compared. */
   cutoff: string[]
   /** Said only where the plan holds that the arrival falls outside daylight. */
   headlamp: string | null

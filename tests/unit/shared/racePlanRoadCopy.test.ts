@@ -290,7 +290,7 @@ describe('the first half', () => {
     const notices = (label: string) =>
       describeRoadRacePlan(plan(label), 'km').notices.map((notice) => notice.text)
     expect(notices('marathon, no CS')).toContain(
-      'No critical speed is fitted yet, so the plan has no first-half line.',
+      'No critical speed is fitted yet, so the race plan has no first-half line.',
     )
     expect(notices('marathon, dated CS').join(' ')).toContain('older than three months')
   })
@@ -598,7 +598,7 @@ describe('what the plan says it leaves out', () => {
     const marathon = describeRoadRacePlan(plan('marathon, cool, tolerated rung'), 'km').notIn
     expect(marathon.heading).toBe('Not in this plan')
     expect(marathon.items.join('\n')).toContain(
-      'A finish target. The plan shows a range, never a target.',
+      'A finish target. The race plan shows a range, never a target.',
     )
     expect(marathon.items.join('\n')).toContain('any rate for a race under 2 h')
     const ten = describeRoadRacePlan(plan('10 km'), 'km').notIn

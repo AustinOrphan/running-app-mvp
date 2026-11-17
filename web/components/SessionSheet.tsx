@@ -105,8 +105,6 @@ const ASSESSMENT_FLAG_LABELS: Record<ExecutionAssessment['flags'][number], strin
   spike: 'Bigger than the recent longest run',
 }
 
-const NBSP = ' '
-
 /**
  * Duration, distance and the like for a one-line summary; rest days have none. The distance is the
  * estimate the server worked out, worded as one; a session with none keeps the plan's own distance.
@@ -148,7 +146,7 @@ function stepText(step: Step, session: PlanSession): string {
 function activityLabel(activity: ActivityListItem, units: Units | undefined): string {
   const parts = [
     `${formatWeekday(activity.date)} ${formatShortDate(activity.date)}`,
-    `${String(Math.round(activity.durationSec / 60))}${NBSP}min`,
+    formatSessionMinutes(Math.round(activity.durationSec / 60)),
   ]
   if (activity.distanceM !== null && units !== undefined) {
     parts.push(formatDistance(activity.distanceM, units))

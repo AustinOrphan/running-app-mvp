@@ -294,6 +294,22 @@ describe('figures that restate a Param come from the Param', () => {
     )
   })
 
+  it('says "1 hour" in the singular and leaves the line out when the dark hours round to 0', () => {
+    const plan = PLANS[5]![1]
+    const withHours = (hours: [number, number]): RacePlan => ({
+      ...plan,
+      dark: { ...plan.dark!, hours },
+    })
+    const lines = (hours: [number, number]) =>
+      describeRacePlan(withHours(hours), 'km').dark?.lines ?? []
+    expect(lines([1.2, 0.8])[0]).toBe('About 1 hour of the expected time falls outside daylight.')
+    expect(lines([0.2, 0.4]).join(' ')).not.toMatch(/outside daylight/)
+    expect(lines([0.2, 0.4])[0]).toMatch(/^Daylight here is/)
+    expect(lines([0.2, 2.4])[0]).toBe(
+      'About 0 to 2 hours of the expected time fall outside daylight.',
+    )
+  })
+
   it('says the rounding step from r1.arrivalRoundMin', () => {
     expect(base.expected.notes.join(' ')).toContain(`${String(P.r1.arrivalRoundMin.value)} min`)
   })
