@@ -90,6 +90,10 @@ describe('the error boundaries', () => {
     const alert = await screen.findByRole('alert')
     expect(alert).toHaveTextContent('This screen hit a problem.')
     expect(screen.getByRole('button', { name: 'Reload' })).toBeInTheDocument()
+    const shown = /^Reference: (c-[0-9a-f]{10})$/.exec(
+      (await screen.findByText(/^Reference: /)).textContent,
+    )?.[1]
+    expect(shown).toBeDefined()
 
     // The navigation beside the page still works, and the next page replaces the screen.
     const primary = screen.getByRole('navigation', { name: 'Primary' })
@@ -104,6 +108,8 @@ describe('the error boundaries', () => {
     const report = reportsOf(calls)[0]?.body as Record<string, string>
     expect(report['message']).toBe('Plan page exploded')
     expect(report['path']).toBe('/plan')
+    // The reference on screen is the one the server logs with the report.
+    expect(report['ref']).toBe(shown)
     expect(report['componentStack']).toContain('ThrowingPage')
     expect(report['userAgent']).toBeTruthy()
     expect(report['buildId']).toBe('dev')

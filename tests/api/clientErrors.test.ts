@@ -85,13 +85,18 @@ describe('the log line of a client error', () => {
     )
     const app = express()
     app.use(express.json({ limit: CLIENT_ERROR_BODY_LIMIT }))
+    // Stands in for `requireAuth`, which sets the runner's id.
+    app.use((req, _res, next) => {
+      req.userId = 'user-1'
+      next()
+    })
     app.use('/api/client-errors', clientErrorsRouter(logger))
 
     const res = await request(app)
       .post('/api/client-errors')
       .set('Cookie', 'rl_session=secret-session-value')
       .set('Authorization', 'Bearer secret-token')
-      .send(report)
+      .send({ ...report, ref: 'c-0123456789' })
     expect(res.status).toBe(204)
 
     expect(lines).toHaveLength(1)
@@ -100,6 +105,9 @@ describe('the log line of a client error', () => {
     expect(line['msg']).toBe(CLIENT_ERROR_LOG_MESSAGE)
     expect(line['msg']).toBe('client error')
     for (const [key, value] of Object.entries(report)) expect(line[key]).toBe(value)
+    expect(line['userId']).toBe('user-1')
+    expect(line['ref']).toBe('c-0123456789')
+    expect(JSON.stringify(line)).not.toContain('@')
     const text = JSON.stringify(line)
     expect(text).not.toContain('secret-session-value')
     expect(text).not.toContain('secret-token')

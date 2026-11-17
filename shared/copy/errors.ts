@@ -13,5 +13,8 @@ export const ERROR_TEMPLATES = {
   'error.crash': tpl('This screen hit a problem.'),
   'error.crash-hint': tpl('Reload to carry on.'),
   'error.crash-hint-nav': tpl('Reload to carry on, or open another tab.'),
+  // ER1: the id of the server's log line (or, for a screen that threw, of the report the page sent),
+  // so the runner can quote it and the operator can grep for it.
+  'error.reference': tpl('Reference: {ref}', { ref: 'text' }, { shape: 'label' }),
   'error.crash-reload': tpl('Reload', {}, { shape: 'label' }),
 } as const

@@ -15,6 +15,22 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * The reference (the server's request id) of the newest failed response that carried one, or of the
+ * newest render error; a later 5xx without one clears it (a success does not: queries run side by side,
+ * and one that succeeds must not hide the reference of one that failed). `ErrorState` and the feedback note read it,
+ * so a failed screen and the note the runner sends name the same line in the server log (ER1).
+ */
+let latestReference: string | null = null
+
+export function reference(): string | null {
+  return latestReference
+}
+
+export function setReference(value: string | null): void {
+  latestReference = value
+}
+
 /** Window event fired when a signed-in request comes back 401, so the app can go to /login. */
 export const UNAUTHORIZED_EVENT = 'rl:unauthorized'
 
@@ -85,9 +101,12 @@ export async function api<T>(
       window.dispatchEvent(new Event(UNAUTHORIZED_EVENT))
     }
     if (isErrorBody(payload)) {
-      const { code, message, details } = payload.error
+      const { code, message, details, ref } = payload.error
+      if (typeof ref === 'string' && ref !== '') latestReference = ref
+      else if (response.status >= 500) latestReference = null
       throw new ApiError(response.status, code, message, details)
     }
+    if (response.status >= 500) latestReference = null
     throw new ApiError(response.status, 'internal', 'The server returned an unexpected response.')
   }
 

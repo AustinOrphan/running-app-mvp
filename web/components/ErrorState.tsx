@@ -1,5 +1,6 @@
 import { render } from '../../shared/copy/template.ts'
 import { TEMPLATES } from '../../shared/copy/templates.ts'
+import { reference } from '../api/client.ts'
 import { Button } from './Button.tsx'
 import styles from './ErrorState.module.css'
 import { useOnline } from './useOnline.ts'
@@ -25,6 +26,7 @@ export interface ErrorStateProps {
 export function ErrorState({ subject, onRetry, retrying = false }: ErrorStateProps) {
   const online = useOnline()
   const slots = { subject: subject }
+  const ref = reference()
   return (
     <div className={styles.error}>
       {/* The sentence is the alert, and it is remounted for each attempt: while a retry runs it is plain
@@ -40,6 +42,9 @@ export function ErrorState({ subject, onRetry, retrying = false }: ErrorStatePro
       <p className={styles.body}>
         {render(TEMPLATES[online ? 'error.load-hint' : 'error.load-offline-hint'], {}, 'km')}
       </p>
+      {ref !== null && (
+        <p className={styles.body}>{render(TEMPLATES['error.reference'], { ref }, 'km')}</p>
+      )}
       <div className={styles.action}>
         <Button
           variant="primary"

@@ -2,7 +2,8 @@ import { Component, type ErrorInfo, type ReactNode } from 'react'
 import { useLocation } from 'react-router-dom'
 import { render } from '../../shared/copy/template.ts'
 import { TEMPLATES } from '../../shared/copy/templates.ts'
-import { reportClientError } from '../pwa/clientErrors.ts'
+import { setReference } from '../api/client.ts'
+import { newClientReference, reportClientError } from '../pwa/clientErrors.ts'
 import { Button } from './Button.tsx'
 import styles from './ErrorState.module.css'
 
@@ -31,6 +32,8 @@ export interface ErrorBoundaryProps {
 
 interface ErrorBoundaryState {
   failed: boolean
+  /** The reference shown and sent with the report (ER1); null until `componentDidCatch` makes it. */
+  ref: string | null
 }
 
 /**
@@ -41,9 +44,9 @@ interface ErrorBoundaryState {
  * (`reportClientError`).
  */
 export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  override state: ErrorBoundaryState = { failed: false }
+  override state: ErrorBoundaryState = { failed: false, ref: null }
 
-  static getDerivedStateFromError(): ErrorBoundaryState {
+  static getDerivedStateFromError(): Partial<ErrorBoundaryState> {
     return { failed: true }
   }
 
@@ -52,12 +55,15 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       (typeof error === 'object' && error !== null ? originalStacks.get(error) : undefined) ??
       info.componentStack
     console.error(`Render error (${this.props.scope} boundary):`, error, stack)
-    reportClientError(error, stack)
+    const ref = newClientReference()
+    setReference(ref)
+    this.setState({ ref })
+    reportClientError(error, stack, ref)
   }
 
   override componentDidUpdate(previous: ErrorBoundaryProps): void {
     if (this.state.failed && previous.resetKey !== this.props.resetKey) {
-      this.setState({ failed: false })
+      this.setState({ failed: false, ref: null })
     }
   }
 
@@ -70,6 +76,11 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
           {render(TEMPLATES['error.crash'], {}, 'km')}
         </p>
         <p className={styles.body}>{render(TEMPLATES[hint], {}, 'km')}</p>
+        {this.state.ref !== null && (
+          <p className={styles.body}>
+            {render(TEMPLATES['error.reference'], { ref: this.state.ref }, 'km')}
+          </p>
+        )}
         <div className={styles.action}>
           <Button
             variant="primary"

@@ -15,7 +15,7 @@ import type {
 } from '../../shared/types.ts'
 import { useLogout } from '../api/auth.ts'
 import { useWaitingRecords } from '../api/activityOutbox.ts'
-import { fieldErrors, keys } from '../api/client.ts'
+import { fieldErrors, keys, reference } from '../api/client.ts'
 import { exportRefusal, useDownloadExport, type ExportRefusal } from '../api/export.ts'
 import { useSettings, useUpdateSettings, type SettingsPatch } from '../api/settings.ts'
 import { Button } from '../components/Button.tsx'
@@ -507,6 +507,7 @@ function FeedbackBlock({ units }: { units: Units }) {
       planId: plan?.id ?? null,
       // newest first
       planRevisedAt: revisions?.[0]?.createdAt ?? null,
+      reference: reference(),
     })
   }
 

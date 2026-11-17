@@ -35,7 +35,17 @@ function textOf(read: () => unknown, fallback: string): string {
   }
 }
 
-function fieldsOf(error: unknown, componentStack: string | null | undefined) {
+/**
+ * A short id for a screen that threw (ER1), shown to the runner and sent with the report so the server's
+ * log line carries it. `getRandomValues` works on an insecure origin, where `randomUUID` does not.
+ */
+export function newClientReference(): string {
+  const bytes = new Uint8Array(5)
+  crypto.getRandomValues(bytes)
+  return `c-${Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('')}`
+}
+
+function fieldsOf(error: unknown, componentStack: string | null | undefined, ref?: string) {
   const record = (): Record<string, unknown> =>
     typeof error === 'object' && error !== null ? (error as Record<string, unknown>) : {}
   const message = textOf(() => (error instanceof Error ? error.message : error), '')
@@ -46,6 +56,7 @@ function fieldsOf(error: unknown, componentStack: string | null | undefined) {
     path: window.location.pathname.slice(0, 300),
     buildId: pageBuildId().slice(0, 64),
     userAgent: navigator.userAgent.slice(0, 300),
+    ...(ref === undefined ? {} : { ref }),
   }
 }
 
@@ -53,8 +64,12 @@ function fieldsOf(error: unknown, componentStack: string | null | undefined) {
  * The JSON body, under `MAX_BODY_BYTES` bytes: the stack and the component stack are cut first (by
  * halves, at a character boundary), then the message, so multi-byte text never costs the report.
  */
-export function clientErrorBody(error: unknown, componentStack: string | null | undefined): string {
-  const fields = fieldsOf(error, componentStack)
+export function clientErrorBody(
+  error: unknown,
+  componentStack: string | null | undefined,
+  ref?: string,
+): string {
+  const fields = fieldsOf(error, componentStack, ref)
   let body = JSON.stringify(fields)
   for (const key of ['stack', 'componentStack', 'message'] as const) {
     while (encoder.encode(body).length > MAX_BODY_BYTES && fields[key] !== '') {
@@ -65,7 +80,11 @@ export function clientErrorBody(error: unknown, componentStack: string | null | 
   return body
 }
 
-export function reportClientError(error: unknown, componentStack: string | null | undefined): void {
+export function reportClientError(
+  error: unknown,
+  componentStack: string | null | undefined,
+  ref?: string,
+): void {
   if (typeof error === 'object' && error !== null) {
     if (reported.has(error)) return
     reported.add(error)
@@ -88,7 +107,7 @@ export function reportClientError(error: unknown, componentStack: string | null 
         credentials: 'same-origin',
         keepalive: true,
         headers: { 'Content-Type': 'application/json' },
-        body: clientErrorBody(error, componentStack),
+        body: clientErrorBody(error, componentStack, ref),
       })
     } catch {
       // Dropped: the console has the error too.

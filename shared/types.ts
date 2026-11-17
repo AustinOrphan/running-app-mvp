@@ -2109,7 +2109,8 @@ export interface ValidationIssue {
   message: string
 }
 export interface ApiErrorBody {
-  error: { code: ApiErrorCode; message: string; details?: unknown }
+  /** `ref` is the request id (the `x-request-id` header); present on a 5xx only. */
+  error: { code: ApiErrorCode; message: string; details?: unknown; ref?: string }
 }
 
 // ---- Strength (phase 3b, section 5.1; ADR 0014) -------------------------------------------------

@@ -4,6 +4,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest'
 import { GoalsPage } from '../../web/pages/GoalsPage.tsx'
 import { ProfilePage } from '../../web/pages/ProfilePage.tsx'
 import { SettingsPage } from '../../web/pages/SettingsPage.tsx'
+import { reference, setReference } from '../../web/api/client.ts'
 import { SetupPage } from '../../web/pages/SetupPage.tsx'
 import { ToastProvider } from '../../web/components/Toast.tsx'
 import { makeRecord } from './track-record-fixtures.ts'
@@ -24,6 +25,7 @@ function failOnce<T>(answer: T) {
 }
 
 afterEach(() => {
+  setReference(null)
   vi.restoreAllMocks()
   vi.unstubAllGlobals()
 })
@@ -49,6 +51,41 @@ describe('ErrorState on a failed load', () => {
     await userEvent.setup().click(screen.getByRole('button', { name: 'Try again' }))
     expect(await screen.findByText('No goals yet.')).toBeInTheDocument()
     expect(goals.reads()).toBe(2)
+  })
+
+  test('a 500 with a reference shows "Reference: <id>" (ER1)', async () => {
+    let reads = 0
+    mockApi({
+      'GET /api/goals': () =>
+        ++reads === 1
+          ? {
+              status: 500,
+              body: { error: { code: 'internal', message: 'Boom', ref: 'req-7f3a-42' } },
+            }
+          : [],
+      'GET /api/settings': () => ({ email: 'runner@example.com', displayName: null, units: 'km' }),
+      'GET /api/plan': () => null,
+      'GET /api/plan/archived': () => [],
+      'GET /api/predictions': () => ({ prediction: null, log: [] }),
+      'GET /api/predictions/record': () => makeRecord(),
+    })
+    renderWithProviders(
+      <ToastProvider>
+        <GoalsPage />
+      </ToastProvider>,
+    )
+    expect(await screen.findByText('Reference: req-7f3a-42')).toBeInTheDocument()
+    expectCleanCopy(document.body)
+    expect(reference()).toBe('req-7f3a-42')
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Try again' }))
+    expect(await screen.findByText('No goals yet.')).toBeInTheDocument()
+  })
+
+  test('a failure without a reference shows no reference line', async () => {
+    mockApi({ 'GET /api/settings': () => FAILED })
+    renderWithProviders(<SettingsPage />)
+    expect(await screen.findByText('Settings did not load.')).toBeInTheDocument()
+    expect(screen.queryByText(/Reference:/)).not.toBeInTheDocument()
   })
 
   test('Settings: Try again reads the settings again and shows the page', async () => {
