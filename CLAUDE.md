@@ -116,6 +116,10 @@ protection reads. The Docker image must still build (`docker build .`) after a c
   `forecastStamp(prisma, userId)`. The fetch is `Deps.fetch`, read at each call (the global `fetch`
   when unset); tests inject one through the API helpers' `ctx.fetch` and never stub the global, and
   settle a background refresh with `settleWeatherCache`.
+- Place search (PL1, ADR 0024): `POST /api/places/search` (`searchPlaces`, `server/providers/openMeteo.ts`,
+  `server/services/places.ts`) is the one request path that waits on Open-Meteo's geocoder, up to 5 s
+  (a 502 `places.unavailable` after that). It sends only the typed text and logs nothing that holds it;
+  `GET /api/places/usual-start` makes no outside request and returns a rounded cell and counts, never a track.
 - Terrain bins (D2-2): `Activity.terrainBins` (JSON text, `TerrainBins` in `shared/types.ts`) holds a
   run's or race's moving seconds, metres and walking seconds by grade band, and `flatCv`, from the
   stored 10 s stream (distance and altitude, no heart rate). `computeTerrainBins`
