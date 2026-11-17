@@ -26,7 +26,13 @@ import { heatWarning } from './heat.ts'
 import { P } from './params/index.ts'
 import { rangeLabel } from './predict.ts'
 import { clockAt, type RaceClock } from './raceClock.ts'
-import { carbLineDays, raceWbgtIndex, raceWeekFor, type RaceWeek } from './racePlan.ts'
+import {
+  carbLineDays,
+  raceWbgtIndex,
+  raceWeekFor,
+  type RaceWeek,
+  type RaceWeekSession,
+} from './racePlan.ts'
 
 const SEC_PER_MIN = 60
 const SEC_PER_HOUR = 3600
@@ -57,6 +63,8 @@ export interface RoadRacePlanInput {
   weightKg: number | null
   /** The heat acclimation credit from 0 to 1 as of `today`. */
   acclimationCredit: number
+  /** The stored plan's sessions (see `RacePlanInput.raceWeekSessions`). */
+  raceWeekSessions?: readonly RaceWeekSession[] | null
   /** The server's day. */
   today: string
 }
@@ -313,6 +321,7 @@ export function roadRacePlanFor(input: RoadRacePlanInput): RoadRacePlan {
         weightKg: input.weightKg,
         wbgtC: wbgt,
         acclimationCredit: input.acclimationCredit,
+        sessions: input.raceWeekSessions,
       })
     : null
 

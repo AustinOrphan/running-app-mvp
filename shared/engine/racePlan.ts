@@ -23,7 +23,7 @@ import { rangeLabel } from './predict.ts'
 import { clockAt, type RaceClock } from './raceClock.ts'
 import { rehearsalFor, type RaceRehearsal } from './rehearsal.ts'
 import { splitsFor, type CheckpointInput, type RaceSplits } from './raceSplits.ts'
-import type { ClimbBlend, GoalModel, LadderResult, Prediction } from './types.ts'
+import type { ClimbBlend, GoalModel, LadderResult, Prediction, SessionKind } from './types.ts'
 
 const SEC_PER_MIN = 60
 const MIN_PER_HOUR = 60
@@ -60,11 +60,82 @@ export interface RacePlanInput {
    * the plan carries no rehearsal.
    */
   history?: { activities: readonly Activity[]; homeLat: number | null; homeLng: number | null }
+  /**
+   * The stored plan's sessions (the snapshot's `planSessions`), the one source of the race-week
+   * lines once the plan holds its race week. Absent or null: no plan, the lines come from Params.
+   */
+  raceWeekSessions?: readonly RaceWeekSession[] | null
   /** The server's day. */
   today: string
 }
 
 export type { RaceClock }
+
+/** The part of a stored plan session the race-week lines read. */
+export interface RaceWeekSession {
+  date: string
+  kind: SessionKind
+  durationMin: number
+  status?: string
+}
+
+/** The kinds of the run-in before a long race that count as easy running [rule K6]. */
+const EASY_RUN_KINDS: ReadonlySet<SessionKind> = new Set<SessionKind>(['easy', 'recovery'])
+/**
+ * The kinds that are runs, and so count toward the day before's minutes. An entered B or C race in
+ * the taper stays as entered (K6), so a `race` dated before the goal race is a run that is not easy.
+ */
+const RUN_KINDS_BEFORE_RACE: ReadonlySet<SessionKind> = new Set<SessionKind>([
+  'easy',
+  'recovery',
+  'long',
+  'long-fast-finish',
+  'threshold',
+  'intervals',
+  'race-pace',
+  'strides',
+  'hills',
+  'hike',
+  'b2b',
+  'race',
+])
+
+/**
+ * The rule's shake-out read against the stored plan's race-week sessions (rule K6): the saved
+ * sessions are the one source of the race-week lines. The plan has a race week when it holds a
+ * session in the seven days up to the race; without one the rule's own shake-out stands. A skipped
+ * session is not held. `easyFrom` moves later when the plan holds a run that is not easy within the
+ * rule's days (a swap or an edit put it there); `held` appears when the saved day before holds more
+ * than the rule's minutes or is not easy running. An unedited plan returns `shakeOut` unchanged.
+ */
+export function shakeOutHeld(
+  raceDate: string,
+  shakeOut: RaceWeek['shakeOut'],
+  sessions: readonly RaceWeekSession[] | null | undefined,
+): RaceWeek['shakeOut'] {
+  if (sessions == null) return shakeOut
+  const live = sessions.filter((s) => s.status !== 'skipped')
+  const windowStart = addDays(raceDate, -7)
+  if (!live.some((s) => s.date >= windowStart && s.date <= raceDate)) return shakeOut
+  const runs = live.filter(
+    (s) => s.date < raceDate && s.date >= windowStart && RUN_KINDS_BEFORE_RACE.has(s.kind),
+  )
+  const lastHard = runs
+    .filter((s) => !EASY_RUN_KINDS.has(s.kind))
+    .reduce<string | null>((max, s) => (max === null || s.date > max ? s.date : max), null)
+  const easyFrom =
+    lastHard !== null && addDays(lastHard, 1) > shakeOut.easyFrom
+      ? addDays(lastHard, 1)
+      : shakeOut.easyFrom
+  const before = runs.filter((s) => s.date === shakeOut.dayBefore)
+  const min = before.reduce((sum, s) => sum + s.durationMin, 0)
+  const hard = before.find((s) => !EASY_RUN_KINDS.has(s.kind))
+  const longest = [...before].sort((a, b) => b.durationMin - a.durationMin)[0]
+  const kind = hard?.kind ?? longest?.kind
+  const held =
+    kind !== undefined && (min > shakeOut.maxMin || hard !== undefined) ? { min, kind } : undefined
+  return { ...shakeOut, easyFrom, ...(held === undefined ? {} : { held }) }
+}
 
 /** Why the plan is thinner than it could be; the page says each in a line. */
 export type RaceNotice =
@@ -175,8 +246,18 @@ export interface RaceWeek {
   /** The body mass in kilograms and the grams it gives, low to high; null without a body mass. */
   weightKg: number | null
   carbG: [number, number] | null
-  /** The plan's own shake-out (`shakeOutFor`). */
-  shakeOut: { dayBefore: string; easyFrom: string; maxMin: number }
+  /**
+   * The plan's shake-out (`shakeOutFor`), read against the stored plan's race-week sessions when
+   * the caller passes them (`raceWeekSessions`): `easyFrom` is then the later of the rule's date and
+   * the day after the plan's last session that is not easy running, and `held` is present only when
+   * the saved day before holds more than `maxMin` minutes or is not easy running.
+   */
+  shakeOut: {
+    dayBefore: string
+    easyFrom: string
+    maxMin: number
+    held?: { min: number; kind: SessionKind }
+  }
   /** The race WBGT reaches `i8.triggerWbgtC`: the heat top-up line of rule I8 applies. */
   heatTopUp: boolean
   acclimationCredit: number
@@ -374,9 +455,12 @@ export function raceWeekFor(args: {
   weightKg: number | null
   wbgtC: number | null
   acclimationCredit: number
+  /** The stored plan's sessions; see `shakeOutHeld`. */
+  sessions?: readonly RaceWeekSession[] | null
 }): RaceWeek | null {
-  const shakeOut = shakeOutFor(args.goal.date, args.expectedMin)
-  if (shakeOut === undefined) return null
+  const ruleShakeOut = shakeOutFor(args.goal.date, args.expectedMin)
+  if (ruleShakeOut === undefined) return null
+  const shakeOut = shakeOutHeld(args.goal.date, ruleShakeOut, args.sessions)
   const [carbLow, carbHigh] = P.k6.carbLoadGPerKgDay.value
   const finalHours = [...P.k6.carbLoadFinalHours.value] as [number, number]
   return {
@@ -466,6 +550,7 @@ export function racePlanFor(input: RacePlanInput): RacePlan {
     weightKg: input.weightKg,
     wbgtC: wbgt,
     acclimationCredit: input.acclimationCredit,
+    sessions: input.raceWeekSessions,
   })
 
   const notices: RaceNotice[] = []
