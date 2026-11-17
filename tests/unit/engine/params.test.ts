@@ -1151,4 +1151,17 @@ describe('parameter registry', () => {
     }
     expect(engineRules).toContain('33. **B2 Wrist heart rate on hilly runs')
   })
+
+  it('states the J5 sleep warning as the code reads it (WH1)', () => {
+    const line = engineRules.split('\n').find((l) => l.includes('- a sleep warning:'))
+    expect(line).toBeDefined()
+    // The code compares one absolute figure; no per-athlete need exists to read.
+    expect(line).toContain(
+      `${P.j5.sleepWarnNights.value}-night average under ${P.j5.sleepWarnHours.value} h`,
+    )
+    expect(line).toContain(`\`j5.sleepMinNights\` (${P.j5.sleepMinNights.value})`)
+    expect(line).toContain('the same figure for every athlete')
+    expect(line).not.toMatch(/stated need|or under the athlete/)
+    expect(P.j5.sleepWarnHours.note).not.toMatch(/stated need/)
+  })
 })

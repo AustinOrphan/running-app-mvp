@@ -131,7 +131,7 @@ import type {
 } from '../shared/types.ts'
 
 /** Parses stored JSON text; any failure gives `fallback`. */
-function parseJson<T>(text: string | null, fallback: T): T {
+export function parseJson<T>(text: string | null, fallback: T): T {
   if (text === null) return fallback
   try {
     return JSON.parse(text) as T

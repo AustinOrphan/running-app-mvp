@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
-import type { ApiErrorBody, PlanWeek, WeeklyReview } from '../../shared/types.ts'
+import type { ApiErrorBody, PlanWeek, ReviewView, WeeklyReview } from '../../shared/types.ts'
 import { toPlanWeek } from '../../server/serialize.ts'
 import { client, createTestCtx, seedUser, type TestCtx, type TestUser } from './helpers.ts'
 
@@ -429,5 +429,115 @@ describe('PUT /api/reviews/:weekStart', () => {
     const theirList = await list(`?from=${W}&to=${W}`, other)
     expect(theirList.body[0]).toMatchObject({ userId: other.id, fatigue: 2, notes: null })
     expect(await ctx.prisma.weeklyReview.count()).toBe(2)
+  })
+})
+
+describe('GET /api/reviews: what held a reviewed week (WH1)', () => {
+  const held = [{ code: 'sleep-warning', detail: 'Sleep averaged 6.2 h.', rules: ['J5'] }]
+  const url = `/api/reviews?from=${W}&to=${W}`
+
+  async function seedReviewed(week: string, action: string): Promise<void> {
+    await ctx.prisma.plan.updateMany({ where: { userId: user.id }, data: { generatorVersion: 2 } })
+    await ctx.prisma.weeklyReview.create({
+      data: {
+        userId: user.id,
+        weekStart: week,
+        dataStatus: 'complete',
+        suggestedAction: action,
+        finalDecision: 'progress',
+        finalNextMin: 330,
+        reviewedAt: new Date('2026-03-16T18:00:00.000Z'),
+      },
+    })
+  }
+
+  const other = [{ code: 'heat', detail: 'The first hot days are near.', rules: ['J5', 'I8'] }]
+
+  async function seedRevision(
+    createdAt: string,
+    decision: string,
+    opts: { reason?: string; signals?: unknown; raw?: string } = {},
+  ): Promise<void> {
+    const plan = await ctx.prisma.plan.findFirstOrThrow({ where: { userId: user.id } })
+    await ctx.prisma.planRevision.create({
+      data: {
+        planId: plan.id,
+        createdAt: new Date(createdAt),
+        reason: opts.reason ?? 'weekly',
+        summary: 'Weekly update.',
+        decision:
+          opts.raw ??
+          JSON.stringify({ decision, signals: opts.signals ?? held, nextWeekTargetMin: 300 }),
+      },
+    })
+  }
+
+  async function signalsOf(): Promise<ReviewView['signals']> {
+    return ((await client(ctx, user).get(url)).body as ReviewView[])[0]?.signals
+  }
+
+  test('the latest matching revision wins', async () => {
+    await seedReviewed(W, 'hold')
+    await seedRevision('2026-03-09T06:00:00.000Z', 'hold', { signals: other })
+    await seedRevision('2026-03-10T06:00:00.000Z', 'hold')
+    expect(await signalsOf()).toEqual(held)
+  })
+
+  test('a review revision counts', async () => {
+    await seedReviewed(W, 'hold')
+    await seedRevision('2026-03-11T06:00:00.000Z', 'hold', { reason: 'review' })
+    expect(await signalsOf()).toEqual(held)
+  })
+
+  test.each(['owner', 'undo', 'method-change'])('a %s revision is ignored', async (reason) => {
+    await seedReviewed(W, 'hold')
+    await seedRevision('2026-03-09T06:00:00.000Z', 'hold', { reason })
+    expect(await signalsOf()).toBeUndefined()
+  })
+
+  test('a revision a week off does not attach', async () => {
+    await seedReviewed(W, 'hold')
+    await seedRevision('2026-03-16T06:00:00.000Z', 'hold')
+    await seedRevision('2026-03-02T06:00:00.000Z', 'hold')
+    expect(await signalsOf()).toBeUndefined()
+  })
+
+  test('the runner zone decides the Monday: just after local midnight counts for the week before', async () => {
+    await ctx.prisma.athleteProfile.upsert({
+      where: { userId: user.id },
+      create: { userId: user.id, timezone: 'Pacific/Auckland' },
+      update: { timezone: 'Pacific/Auckland' },
+    })
+    await seedReviewed(W, 'hold')
+    // Monday 2026-03-09 00:30 in Auckland (UTC+13) is still Sunday 2026-03-08 in UTC.
+    await seedRevision('2026-03-08T11:30:00.000Z', 'hold')
+    expect(await signalsOf()).toEqual(held)
+  })
+
+  test('a decision with malformed JSON or without signals attaches nothing usable', async () => {
+    await seedReviewed(W, 'hold')
+    await seedRevision('2026-03-09T06:00:00.000Z', 'hold', { raw: '{not json' })
+    expect(await signalsOf()).toBeUndefined()
+    await seedRevision('2026-03-10T06:00:00.000Z', 'hold', {
+      raw: JSON.stringify({ decision: 'hold', nextWeekTargetMin: 300 }),
+    })
+    const res = await client(ctx, user).get(url)
+    expect(res.status).toBe(200)
+  })
+
+  test('a reviewed week carries the signals of the decision written the Monday after it', async () => {
+    await seedReviewed(W, 'hold')
+    await seedRevision('2026-03-09T06:00:00.000Z', 'hold')
+    const rows = (await client(ctx, user).get(url)).body as ReviewView[]
+    expect(rows[0]).toMatchObject({ suggestedAction: 'hold', signals: held })
+  })
+
+  test('no signals without a revision, or when the revision decided otherwise', async () => {
+    await seedReviewed(W, 'hold')
+    const before = (await client(ctx, user).get(url)).body as ReviewView[]
+    expect(before[0]?.signals).toBeUndefined()
+    await seedRevision('2026-03-09T06:00:00.000Z', 'progress')
+    const after = (await client(ctx, user).get(url)).body as ReviewView[]
+    expect(after[0]?.signals).toBeUndefined()
   })
 })
