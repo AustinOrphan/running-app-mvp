@@ -261,7 +261,7 @@ with Import on the Activities page.
 
 ### Weather and privacy
 
-The server otherwise makes no third-party requests, apart from the one map download described under "Trail and road" below. Weather comes from Open-Meteo (no account or key),
+The server otherwise makes no third-party requests, apart from the one map download described under "Trail and road" below and the place search described under "Place search" below. Weather comes from Open-Meteo (no account or key),
 and no setting turns the lookups off. A background job runs every ten minutes and sends:
 
 - For each activity with a start location, that location rounded to a cell of 0.1 degree (about 11
@@ -288,6 +288,15 @@ else is sent. Settings, under Maps, has a "Map tiles" checkbox, on by default, t
 tiles off on that device; the route is then drawn alone, with no request to OpenStreetMap. The
 setting is kept in the browser, so each device has its own. The server's Content-Security-Policy
 allows that one image host and no other.
+
+#### Place search
+
+Setting the home place or the race place by searching a town or postcode sends one request to
+Open-Meteo's geocoding service (`geocoding-api.open-meteo.com`), only when you search. The server
+sends the text you typed and nothing else: no account detail, no coordinates and no stored place go
+with it. The text is not logged or stored; of what comes back, only the place you choose is kept,
+as coordinates rounded to 0.01 degree (about 1 km). "Use where my runs start" makes no request: the
+server reads your stored routes and answers with one rounded cell.
 
 #### Trail and road
 

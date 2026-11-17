@@ -49,6 +49,7 @@ import { trendsLoadRouter } from './routes/trendsLoad.ts'
 import { trendsRunsRouter } from './routes/trendsRuns.ts'
 import { strengthRouter } from './routes/strength.ts'
 import { todayRouter } from './routes/today.ts'
+import { placesRouter } from './routes/places.ts'
 import { weatherRouter } from './routes/weather.ts'
 import { weeksRouter } from './routes/weeks.ts'
 import { wellnessRouter } from './routes/wellness.ts'
@@ -197,6 +198,7 @@ export function createApp(
   app.use('/api/jobs', jobsRouter(deps))
   app.use('/api/map-area', mapAreaRouter(deps))
   app.use('/api/weather', weatherRouter(deps))
+  app.use('/api/places', placesRouter(deps))
   app.use('/api/today', todayRouter(deps))
   app.use('/api/checkins', checkinsRouter(deps))
   app.use('/api/zones', zonesRouter(deps))

@@ -2093,7 +2093,8 @@ export interface PlanNoticeConfirm {
   ageConfirmed?: boolean
 }
 
-export type ApiErrorCode = 'validation' | 'unauthorized' | 'not_found' | 'conflict' | 'internal'
+export type ApiErrorCode =
+  'validation' | 'unauthorized' | 'not_found' | 'conflict' | 'internal' | 'places.unavailable'
 /** Validation details are `{ issues: ValidationIssue[] }`. */
 export interface ValidationIssue {
   path: string
