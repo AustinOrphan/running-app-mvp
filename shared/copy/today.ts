@@ -297,7 +297,7 @@ export const TODAY_TEMPLATES = {
   // "Got it" marks the update seen (the one marker of ADR 0007), so the card gives way to the quiet
   // line; the update stays in the brief, in Plan's "What changed" and in its undo.
   'today.monday.got-it': tpl('Got it', {}, { shape: 'label' }),
-  'today.monday.got-it-failed': tpl('That did not save. Try again.'),
+  'today.monday.got-it-failed': tpl('The update was not marked as read. Try again.'),
   'today.monday.review': tpl('Review last week', {}, { shape: 'label' }),
   'today.monday.review-note': tpl('A few answers keep the next update accurate.'),
 

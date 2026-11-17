@@ -146,6 +146,32 @@ describe('Today: the Monday card', () => {
       })
     })
 
+    test('leaves focus alone when the runner has moved on before the card leaves', async () => {
+      const user = userEvent.setup()
+      let seen = false
+      const item = makeItem({ seen: false, changeCount: 3 })
+      renderToday(dayWith(item, true), {
+        ...withBrief(),
+        [`POST /api/briefs/${item.weekStart}/seen`]: () => {
+          seen = true
+          return { status: 204, body: undefined }
+        },
+        'GET /api/today': () => dayWith({ ...item, seen }, true),
+      })
+      const card = await screen.findByRole('region', { name: 'The plan was updated' })
+      const elsewhere = await screen.findByRole('radio', { name: 'Fresh' })
+      await user.click(within(card).getByRole('button', { name: 'Got it' }))
+      // Focus goes elsewhere before the write and the refetch settle.
+      elsewhere.focus()
+      await waitFor(() => {
+        expect(
+          screen.queryByRole('region', { name: 'The plan was updated' }),
+        ).not.toBeInTheDocument()
+      })
+      expect(await screen.findByRole('region', { name: 'Weekly brief' })).toBeInTheDocument()
+      expect(elsewhere).toHaveFocus()
+    })
+
     test('says so and keeps the card when the write fails', async () => {
       const user = userEvent.setup()
       const item = makeItem({ seen: false, changeCount: 3 })
@@ -158,7 +184,9 @@ describe('Today: the Monday card', () => {
       })
       const card = await screen.findByRole('region', { name: 'The plan was updated' })
       await user.click(within(card).getByRole('button', { name: 'Got it' }))
-      expect(await within(card).findByRole('alert')).toHaveTextContent('That did not save')
+      expect(await within(card).findByRole('alert')).toHaveTextContent(
+        'The update was not marked as read',
+      )
       expect(within(card).getByRole('button', { name: 'Got it' })).toBeInTheDocument()
     })
 

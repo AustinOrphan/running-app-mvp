@@ -46,9 +46,12 @@ export function MondayBrief({ item, reviewDue, units }: MondayBriefProps) {
   useEffect(
     () => () => {
       if (!acknowledged.current) return
+      // The card is already out of the page here, so focus that was inside it reads as lost. Focus
+      // the runner has moved elsewhere (the check-in, say) stays where it is.
+      if (!isFocusLost()) return
       const line = document.querySelector<HTMLElement>('[data-slot="brief"] a')
       if (line !== null) line.focus({ preventScroll: true })
-      else if (isFocusLost()) focusMain()
+      else focusMain()
     },
     [],
   )
