@@ -167,6 +167,60 @@ describe('RacePage', () => {
     expectCleanCopy(region)
   })
 
+  test('sets the long runs beside the course in the Rehearsal block, in plain figures', async () => {
+    const sec = [0, 0, 0, 0, 3000, 0, 2400, 0, 0]
+    const plan = planWith({}, 'aided', [], {
+      activities: [
+        makeActivity({
+          id: 'long',
+          date: '2026-03-10',
+          type: 'run',
+          startUtc: null,
+          durationSec: 7200,
+          movingSec: 7200,
+          distanceM: 20_000,
+          elevationGainM: 100,
+          elevationLossM: 80,
+          terrainBins: {
+            v: 1,
+            windowM: 60,
+            walkMps: 1,
+            edgesPct: [-15, -10, -6, -3, 3, 6, 10, 15],
+            sec,
+            m: sec,
+            walkSec: [0, 0, 0, 0, 0, 0, 600, 0, 0],
+            flatCv: null,
+          },
+        }),
+      ],
+      homeLat: 41.88,
+      homeLng: -87.63,
+    })
+    mockApi({
+      'GET /api/race/plan': () => ({ plan, reason: null }),
+      'GET /api/settings': () => SETTINGS,
+    })
+    renderWithProviders(<RacePage />, { route: '/race' })
+    const region = await screen.findByRole('region', { name: 'Rehearsal' })
+    expect(
+      within(region).getByText('The course climbs 37 m and descends 37 m per km.'),
+    ).toBeVisible()
+    expect(
+      within(region).getByText(/with a median of 5 m climb and 4 m descent per km\.$/),
+    ).toBeVisible()
+    expect(
+      within(region).getByText('Long runs with as much climb per km as the course: 0.'),
+    ).toBeVisible()
+    expect(
+      within(region).getByText(
+        'Long runs: 40 min on uphill grades of 3% or steeper, 25% of it walking.',
+      ),
+    ).toBeVisible()
+    const lines = describeRacePlan(plan, 'km').rehearsal!.lines
+    for (const line of lines) expect(within(region).getByText(line)).toBeInTheDocument()
+    expectCleanCopy(region)
+  })
+
   test('shows the Rehearsal block empty-handed without a red word or a target', async () => {
     const plan = planWith({}, 'aided', [], { activities: [], homeLat: null, homeLng: null })
     mockApi({

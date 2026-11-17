@@ -41,7 +41,7 @@ function isDocumentedRule(rule: string): boolean {
 
 describe('parameter registry', () => {
   it('has a dated version', () => {
-    expect(PARAMS_VERSION).toBe('2026-11-16.5')
+    expect(PARAMS_VERSION).toBe('2026-11-17.1')
   })
 
   it('holds the adaptive critical-speed window as grade D defaults with a note (A6)', () => {
@@ -368,7 +368,7 @@ describe('parameter registry', () => {
     expect(lintText(text)).toEqual([])
   })
 
-  it('carries the race plan of rule H14 as eleven labelled defaults, read by the plan', () => {
+  it('carries the race plan of rule H14 as twelve labelled defaults, read by the plan', () => {
     const r1 = [
       P.r1.thirds,
       P.r1.arrivalRoundMin,
@@ -381,6 +381,7 @@ describe('parameter registry', () => {
       P.r1.longRunMin,
       P.r1.descentBandMaxPct,
       P.r1.sustainedDescentMin,
+      P.r1.climbBandMinPct,
     ]
     expect(r1.map((p) => [p.id, p.value, p.unit, p.grade, p.rule, p.evidence])).toEqual([
       ['r1.thirds', 3, 'parts', 'D', 'H14', []],
@@ -394,6 +395,7 @@ describe('parameter registry', () => {
       ['r1.longRunMin', 90, 'min', 'D', 'H14', []],
       ['r1.descentBandMaxPct', -6, '% grade', 'D', 'H14', []],
       ['r1.sustainedDescentMin', 10, 'min', 'D', 'H14', []],
+      ['r1.climbBandMinPct', 3, '% grade', 'D', 'H14', []],
     ])
     for (const p of r1) {
       expect(p.note, p.id).toMatch(/^Default:/)
@@ -419,6 +421,7 @@ describe('parameter registry', () => {
       'r1.longRunMin',
       'r1.descentBandMaxPct',
       'r1.sustainedDescentMin',
+      'r1.climbBandMinPct',
     ]) {
       expect(text, id).toContain(`\`${id}\``)
     }
