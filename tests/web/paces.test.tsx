@@ -650,7 +650,7 @@ describe('MyPacesPage: climbs and descents [I13]', () => {
 })
 
 /** Twelve cool, steady, flat runs with recorded weather and clean heart rate, on HR = 90 + 20 x speed. */
-function coolRuns(count: number, intercept: number) {
+function coolRuns(count: number, intercept: number, scatter = false) {
   return Array.from({ length: count }, (_, i) => {
     const speed = 2.3 + (0.9 * i) / Math.max(count - 1, 1)
     return run(
@@ -675,22 +675,27 @@ function coolRuns(count: number, intercept: number) {
           gapDecouplingPct: null,
         },
       },
-      Math.round(intercept + 20 * speed),
+      // The last two runs sit off the line, so the three nested readings differ.
+      Math.round(intercept + 20 * speed + (scatter ? ([0, 6, -6][count - 1 - i] ?? 0) : 0)),
     )
   })
 }
 
 describe('MyPacesPage: the easy ceiling from your runs', () => {
   test('shows the range your runs give beside the ceiling in use, and applies nothing', async () => {
-    const { view, routes } = serve(stateWith(FITNESS), coolRuns(12, 70))
+    const { view, routes } = serve(stateWith(FITNESS), coolRuns(12, 70, true))
     mockApi(routes)
     const { container } = renderWithProviders(<MyPacesPage />, { route: '/paces' })
     const section = await screen.findByRole('region', { name: 'Easy ceiling from your runs' })
     const reading = view.easy.ownCeiling.reading
     if (reading.status !== 'ready') throw new Error('not ready')
+    expect(reading.low).toBeLessThan(reading.high)
     expect(within(section).getByText('Ceiling in use')).toBeInTheDocument()
     expect(within(section).getByText(`${String(reading.inUse.bpm)} bpm`)).toBeInTheDocument()
     expect(within(section).getByText('What your runs say')).toBeInTheDocument()
+    expect(
+      within(section).getByText(`${String(reading.low)} bpm to ${String(reading.high)} bpm`),
+    ).toBeInTheDocument()
     expect(within(section).getByText('Middle reading')).toBeInTheDocument()
     expect(within(section).getByText(`${String(reading.mid)} bpm`)).toBeInTheDocument()
     expect(within(section).getByText(/^The ceiling in use sits/)).toBeInTheDocument()
@@ -703,6 +708,19 @@ describe('MyPacesPage: the easy ceiling from your runs', () => {
     expect(within(section).queryByRole('button', { name: /accept|apply|use/i })).toBeNull()
     expect(within(section).getByText('Evidence grade D')).toBeInTheDocument()
     expectCleanCopy(container)
+  })
+
+  test('readings that agree to the beat are one figure, not a range', async () => {
+    const { view, routes } = serve(stateWith(FITNESS), coolRuns(12, 70))
+    mockApi(routes)
+    renderWithProviders(<MyPacesPage />, { route: '/paces' })
+    const section = await screen.findByRole('region', { name: 'Easy ceiling from your runs' })
+    const reading = view.easy.ownCeiling.reading
+    if (reading.status !== 'ready') throw new Error('not ready')
+    expect(reading.low).toBe(reading.high)
+    expect(within(section).getByText('What your runs say')).toBeInTheDocument()
+    expect(within(section).queryByText('Middle reading')).toBeNull()
+    expect(within(section).queryByText(/ bpm to /)).toBeNull()
   })
 
   test('with too few runs says how many qualify of how many, and what makes a run qualify', async () => {

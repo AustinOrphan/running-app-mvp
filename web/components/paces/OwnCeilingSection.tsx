@@ -65,18 +65,28 @@ function ReadingRows({ reading, units }: { reading: Ready; units: Units }) {
         label={pacesText('paces.ceiling.row-in-use')}
         value={render(T['paces.ceiling.value-one'], { bpm: bpm(reading.inUse.bpm) }, units)}
       />
-      <Row
-        label={pacesText('paces.ceiling.row-range')}
-        value={render(
-          T['paces.ceiling.value-range'],
-          { low: bpm(reading.low), high: bpm(reading.high) },
-          units,
-        )}
-      />
-      <Row
-        label={pacesText('paces.ceiling.row-mid')}
-        value={render(T['paces.ceiling.value-one'], { bpm: bpm(reading.mid) }, units)}
-      />
+      {reading.low === reading.high ? (
+        // Three readings that round to the same figure are one figure, not a range.
+        <Row
+          label={pacesText('paces.ceiling.row-range')}
+          value={render(T['paces.ceiling.value-one'], { bpm: bpm(reading.mid) }, units)}
+        />
+      ) : (
+        <>
+          <Row
+            label={pacesText('paces.ceiling.row-range')}
+            value={render(
+              T['paces.ceiling.value-range'],
+              { low: bpm(reading.low), high: bpm(reading.high) },
+              units,
+            )}
+          />
+          <Row
+            label={pacesText('paces.ceiling.row-mid')}
+            value={render(T['paces.ceiling.value-one'], { bpm: bpm(reading.mid) }, units)}
+          />
+        </>
+      )}
     </dl>
   )
 }
