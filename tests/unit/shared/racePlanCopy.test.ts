@@ -267,7 +267,8 @@ describe('figures that restate a Param come from the Param', () => {
       { date: RACE, kind: 'race', durationMin: 1800 },
     ]
     const week = describeRacePlan(racePlanFor(input({ raceWeekSessions: sessions })), 'km').raceWeek
-    expect(week?.shake).toBe('The training plan has 15 min on the day before.')
+    expect(week?.shake).toBe('The training plan has a 15 min strides session on the day before.')
+    expect(lintText(week?.shake ?? '')).toEqual([])
     expect(week?.shakeNote).not.toBeNull()
   })
 

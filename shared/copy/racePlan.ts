@@ -35,6 +35,7 @@ import type {
 } from '../engine/racePlan.ts'
 import type { SplitRow } from '../engine/raceSplits.ts'
 import { P } from '../engine/params/index.ts'
+import type { SessionKind } from '../engine/types.ts'
 import type { RacePlanReason, Units } from '../types.ts'
 import { HOW_TO_READ } from './runCharts.ts'
 import { RACE_CARB_ROUND_G } from './limits.ts'
@@ -263,6 +264,14 @@ export const RACE_PLAN_TEMPLATES = {
   'race.plan.week.shake-held': tpl('The training plan has {min} on the day before.', {
     min: 'minutes',
   }),
+  'race.plan.week.shake-held-kind': tpl('The training plan has a {min} {kind} on the day before.', {
+    min: 'minutes',
+    kind: 'text',
+  }),
+  'race.plan.week.shake-held-kind-from': tpl(
+    'The training plan has a {min} {kind} on the day before, and easy running only from {date}.',
+    { min: 'minutes', kind: 'text', date: 'date' },
+  ),
   'race.plan.week.shake-held-from': tpl(
     'The training plan has {min} on the day before, and easy running only from {date}.',
     { min: 'minutes', date: 'date' },
@@ -1160,9 +1169,29 @@ function shakeText(week: RaceWeek, units: Units): string {
     return say(T['race.plan.week.shake'], { min: minutes(shakeOut.maxMin), date: from }, units)
   }
   const min = minutes(shakeOut.held.min)
+  const named = HELD_KIND_NAMES[shakeOut.held.kind]
+  if (named !== undefined) {
+    return shakeOut.easyFrom > shakeOut.dayBefore
+      ? say(T['race.plan.week.shake-held-kind'], { min, kind: named }, units)
+      : say(T['race.plan.week.shake-held-kind-from'], { min, kind: named, date: from }, units)
+  }
   return shakeOut.easyFrom > shakeOut.dayBefore
     ? say(T['race.plan.week.shake-held'], { min }, units)
     : say(T['race.plan.week.shake-held-from'], { min, date: from }, units)
+}
+
+/** What a saved day before that is not easy running is called in the line (kinds that are not easy). */
+const HELD_KIND_NAMES: Partial<Record<SessionKind, string>> = {
+  long: 'long run',
+  'long-fast-finish': 'long run with a fast finish',
+  threshold: 'threshold session',
+  intervals: 'interval session',
+  'race-pace': 'race-pace session',
+  strides: 'strides session',
+  hills: 'hill session',
+  hike: 'hike',
+  b2b: 'back-to-back run',
+  race: 'race',
 }
 
 /** The race-week lines (rule K6); the K6 line itself needs no weight, the grams do. */

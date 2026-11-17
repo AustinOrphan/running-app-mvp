@@ -81,7 +81,10 @@ export interface RaceWeekSession {
 
 /** The kinds of the run-in before a long race that count as easy running [rule K6]. */
 const EASY_RUN_KINDS: ReadonlySet<SessionKind> = new Set<SessionKind>(['easy', 'recovery'])
-/** The kinds that are runs, and so count toward the day before's minutes. */
+/**
+ * The kinds that are runs, and so count toward the day before's minutes. An entered B or C race in
+ * the taper stays as entered (K6), so a `race` dated before the goal race is a run that is not easy.
+ */
 const RUN_KINDS_BEFORE_RACE: ReadonlySet<SessionKind> = new Set<SessionKind>([
   'easy',
   'recovery',
@@ -94,6 +97,7 @@ const RUN_KINDS_BEFORE_RACE: ReadonlySet<SessionKind> = new Set<SessionKind>([
   'hills',
   'hike',
   'b2b',
+  'race',
 ])
 
 /**

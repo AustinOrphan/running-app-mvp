@@ -664,6 +664,22 @@ describe('racePlanFor: race week from the stored plan', () => {
     expect(out?.easyFrom).toBe(RACE)
   })
 
+  it('treats an entered B race on the day before as held, with its minutes', () => {
+    const withRace = unedited().map((s) =>
+      s.date === addDays(RACE, -1) ? { ...s, kind: 'race' as const, durationMin: 25 } : s,
+    )
+    const out = shakeOutOf(withRace)
+    expect(out?.held).toEqual({ min: 25, kind: 'race' })
+    expect(out?.easyFrom).toBe(RACE)
+  })
+
+  it('moves the start of the easy run-in after an entered B race on day -2', () => {
+    const withRace = [...unedited(), session(addDays(RACE, -2), 'race', 60)]
+    const out = shakeOutOf(withRace)
+    expect(out?.easyFrom).toBe(addDays(RACE, -1))
+    expect(out?.held).toBeUndefined()
+  })
+
   it('ignores a skipped session and a rest day', () => {
     const skipped = unedited().map((s) =>
       s.date === addDays(RACE, -1) ? { ...s, durationMin: 45, status: 'skipped' } : s,
