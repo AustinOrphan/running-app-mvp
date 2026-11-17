@@ -27,6 +27,7 @@ import { localiseEngineText } from '../components/engineText.ts'
 import { ExplainButton } from '../components/ExplainButton.tsx'
 import { Field, Input, Select, Textarea } from '../components/Field.tsx'
 import { PageHeader } from '../components/PageHeader.tsx'
+import { PlaceSearch } from '../components/PlaceSearch.tsx'
 import { PredictionTrackRecord } from '../components/PredictionTrackRecord.tsx'
 import { Segmented } from '../components/Segmented.tsx'
 import { Sheet } from '../components/Sheet.tsx'
@@ -471,6 +472,12 @@ function GoalSheet({ goal, units, onClose }: GoalFormProps) {
           options={SUPPORT_OPTIONS}
           value={support}
           onChange={setSupport}
+        />
+        <PlaceSearch
+          onChoose={(place) => {
+            setRaceLat(String(place.lat))
+            setRaceLng(String(place.lng))
+          }}
         />
         <Field
           label="Race latitude"

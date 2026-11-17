@@ -31,12 +31,15 @@ import { formatDuration, heightCm, heightText, milesToM } from '../../shared/uni
 import { ApiError, fieldErrors } from '../api/client.ts'
 import { rulesRef } from '../api/explain.ts'
 import { usePlanNotice } from '../api/planNotice.ts'
+import { useUsualStart } from '../api/places.ts'
 import { useProfile, useUpdateProfile } from '../api/profile.ts'
 import { useSaveScreening, useScreenings } from '../api/screenings.ts'
 import { useSettings } from '../api/settings.ts'
 import { useRunnerToday, useRunnerZone, useServerZone } from '../api/today.ts'
 import { useZones } from '../api/zones.ts'
 import { Button } from '../components/Button.tsx'
+import { PlaceSearch } from '../components/PlaceSearch.tsx'
+import { useOnline } from '../components/useOnline.ts'
 import { PlanNoticeStanding } from '../components/PlanNotice.tsx'
 import { ErrorState } from '../components/ErrorState.tsx'
 import { useLoadView } from '../components/loadView.ts'
@@ -357,6 +360,8 @@ function ProfileForm({ initial, units, weightUnit }: { initial: AthleteProfile }
   const [localErrors, setLocalErrors] = useState<Record<string, string>>({})
   const [locationNote, setLocationNote] = useState<string | undefined>()
   const [locating, setLocating] = useState(false)
+  const usualStart = useUsualStart()
+  const online = useOnline()
   // The fallback timer of a location request; null when none is waiting.
   const locationTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const mounted = useRef(true)
@@ -403,6 +408,43 @@ function ProfileForm({ initial, units, weightUnit }: { initial: AthleteProfile }
         setDraft(toDraft(saved, body, false))
         toast.show('Profile saved')
       },
+    })
+  }
+
+  function fillFromUsualStart() {
+    const sayStart = (
+      id: 'places.start.none' | 'places.start.unavailable' | 'places.start.offline',
+    ) => {
+      setLocationNote(render(TEMPLATES[id], {}, 'km'))
+    }
+    if (!online) {
+      sayStart('places.start.offline')
+      return
+    }
+    setLocationNote(undefined)
+    void usualStart.refetch().then(({ data, isError }) => {
+      if (!mounted.current) return
+      if (isError || data === undefined) {
+        sayStart('places.start.unavailable')
+        return
+      }
+      const start = data.start
+      if (start === null) {
+        sayStart('places.start.none')
+        return
+      }
+      setDraft((current) => ({
+        ...current,
+        homeLat: String(start.lat),
+        homeLng: String(start.lng),
+      }))
+      setLocationNote(
+        render(
+          TEMPLATES['places.start.found'],
+          { runs: { kind: 'count', n: start.runs }, of: { kind: 'count', n: start.of } },
+          'km',
+        ),
+      )
     })
   }
 
@@ -858,9 +900,22 @@ function ProfileForm({ initial, units, weightUnit }: { initial: AthleteProfile }
             The home location is kept to 0.01 degrees, about one kilometre. It supplies weather for
             runs without a recorded start.
           </p>
-          <div>
+          <PlaceSearch
+            onChoose={(place) => {
+              setLocationNote(undefined)
+              setDraft((current) => ({
+                ...current,
+                homeLat: String(place.lat),
+                homeLng: String(place.lng),
+              }))
+            }}
+          />
+          <div className={styles.actions}>
             <Button busy={locating} onClick={useMyLocation}>
               Use my location
+            </Button>
+            <Button loading={usualStart.isFetching} onClick={fillFromUsualStart}>
+              {render(TEMPLATES['places.start.button'], {}, 'km')}
             </Button>
           </div>
           {locationNote !== undefined ? <p className={styles.note}>{locationNote}</p> : null}
