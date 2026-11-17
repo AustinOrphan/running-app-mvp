@@ -1,4 +1,4 @@
-import { act, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, test, vi } from 'vitest'
 import { PARQ_PLUS_URL, PLAN_NOTICE_VERSION } from '../../shared/domain/planNotice.ts'
@@ -421,6 +421,173 @@ describe('ProfilePage', () => {
       'Enter a whole number.',
     )
     expect(puts(api)).toHaveLength(0)
+  })
+
+  describe('place search and the usual start (PL2)', () => {
+    const exampleton = {
+      name: 'Exampleton',
+      region: 'Sample County',
+      country: 'Testland',
+      lat: 12.35,
+      lng: -65.43,
+    }
+
+    test('searches only on submit, fills the fields on choose and saves on Save', async () => {
+      const { api, user } = setup(makeProfile(), {
+        'POST /api/places/search': () => ({
+          places: [exampleton, { ...exampleton, region: 'Other Province', lat: 23.46 }],
+        }),
+      })
+      await loaded()
+      const searches = () => api.calls.filter((c) => c.url === '/api/places/search')
+      await user.type(screen.getByRole('textbox', { name: 'Town or postcode' }), 'Exampleton')
+      expect(searches()).toHaveLength(0)
+      await user.click(screen.getByRole('button', { name: 'Search' }))
+      await user.click(
+        await screen.findByRole('button', { name: 'Exampleton, Sample County, Testland' }),
+      )
+      // Focus stayed on Search while it ran: the button is busy, not disabled.
+      expect(searches()).toHaveLength(1)
+      expect(screen.getByRole('textbox', { name: 'Home latitude' })).toHaveValue('12.35')
+      expect(screen.getByRole('textbox', { name: 'Home longitude' })).toHaveValue('-65.43')
+      expect(puts(api)).toHaveLength(0)
+      expect(
+        screen.getByText(
+          'Coordinates filled from Exampleton, Sample County, Testland. Save to keep them.',
+        ),
+      ).toBeVisible()
+      // The list stays, the pick is marked and focus is on the latitude field.
+      expect(
+        screen.getByRole('button', { name: 'Exampleton, Sample County, Testland' }),
+      ).toHaveAttribute('aria-pressed', 'true')
+      expect(
+        screen.getByRole('button', { name: 'Exampleton, Other Province, Testland' }),
+      ).toHaveAttribute('aria-pressed', 'false')
+      expect(screen.getByRole('textbox', { name: 'Home latitude' })).toHaveFocus()
+      await user.click(screen.getByRole('button', { name: 'Save profile' }))
+      await waitFor(() => {
+        expect(puts(api)).toHaveLength(1)
+      })
+      expect(puts(api)[0]?.body).toMatchObject({ homeLat: 12.35, homeLng: -65.43 })
+      expectCleanCopy(document.body)
+    })
+
+    test('says so for input that is too short, no match and a 502', async () => {
+      let answer: { status: number; body: unknown } | { places: never[] } = { places: [] }
+      const { api, user } = setup(makeProfile(), {
+        'POST /api/places/search': () => answer,
+      })
+      await loaded()
+      const box = screen.getByRole('textbox', { name: 'Town or postcode' })
+      await user.type(box, 'x{Enter}')
+      expect(screen.getByText('Type at least 2 characters of a town or postcode.')).toBeVisible()
+      expect(api.calls.filter((c) => c.url === '/api/places/search')).toHaveLength(0)
+
+      await user.clear(box)
+      await user.type(box, 'Nowhere{Enter}')
+      expect(
+        await screen.findByText('No place matched. Try another spelling, or a larger town nearby.'),
+      ).toBeVisible()
+
+      answer = {
+        status: 502,
+        body: { error: { code: 'places.unavailable', message: 'Place search is down.' } },
+      }
+      await user.click(screen.getByRole('button', { name: 'Search' }))
+      expect(
+        await screen.findByText(
+          'Place search is not available right now. Try again in a moment, or enter the coordinates.',
+        ),
+      ).toBeVisible()
+    })
+
+    test('keeps focus on Search, drops a stale list when the text changes and skips IME Enter', async () => {
+      const { api, user } = setup(makeProfile(), {
+        'POST /api/places/search': () => ({ places: [exampleton] }),
+      })
+      await loaded()
+      const box = screen.getByRole('textbox', { name: 'Town or postcode' })
+      await user.type(box, 'Exampleton')
+      const search = screen.getByRole('button', { name: 'Search' })
+      await user.click(search)
+      await screen.findByRole('button', { name: 'Exampleton, Sample County, Testland' })
+      expect(search).toHaveFocus()
+      expect(search).not.toBeDisabled()
+      await user.type(box, 'x')
+      expect(screen.queryByRole('list', { name: 'Matching places' })).not.toBeInTheDocument()
+      fireEvent.keyDown(box, { key: 'Enter', isComposing: true })
+      expect(api.calls.filter((c) => c.url === '/api/places/search')).toHaveLength(1)
+    })
+
+    test.each([429, 500, 504])('says the search is unavailable on a %i', async (status) => {
+      const { user } = setup(makeProfile(), {
+        'POST /api/places/search': () => ({
+          status,
+          body: { error: { code: 'internal', message: 'No.' } },
+        }),
+      })
+      await loaded()
+      await user.type(
+        screen.getByRole('textbox', { name: 'Town or postcode' }),
+        'Exampleton{Enter}',
+      )
+      expect(
+        await screen.findByText(
+          'Place search is not available right now. Try again in a moment, or enter the coordinates.',
+        ),
+      ).toBeVisible()
+    })
+
+    test('says it needs a connection only when the request never reached the server', async () => {
+      const { user } = setup(makeProfile())
+      await loaded()
+      vi.stubGlobal('fetch', () => Promise.reject(new TypeError('Failed to fetch')))
+      await user.type(
+        screen.getByRole('textbox', { name: 'Town or postcode' }),
+        'Exampleton{Enter}',
+      )
+      expect(
+        await screen.findByText('Place search needs a connection. Enter the coordinates instead.'),
+      ).toBeVisible()
+    })
+
+    test('announces the usual-start line in a status region and keeps focus on the button', async () => {
+      const { user } = setup(makeProfile(), {
+        'GET /api/places/usual-start': () => ({ start: null }),
+      })
+      await loaded()
+      const button = screen.getByRole('button', { name: 'Use where my runs start' })
+      await user.click(button)
+      const note = await screen.findByText('No run with a recorded track was found.')
+      expect(note).toHaveAttribute('role', 'status')
+      expect(button).toHaveFocus()
+    })
+
+    test('"Use where my runs start" fills the fields and says how many runs', async () => {
+      const { api, user } = setup(makeProfile(), {
+        'GET /api/places/usual-start': () => ({
+          start: { lat: 12.35, lng: -65.43, runs: 18, of: 24 },
+        }),
+      })
+      await loaded()
+      expect(api.calls.some((c) => c.url === '/api/places/usual-start')).toBe(false)
+      await user.click(screen.getByRole('button', { name: 'Use where my runs start' }))
+      expect(
+        await screen.findByText('18 of 24 runs start here. Save to keep the place.'),
+      ).toBeVisible()
+      expect(screen.getByRole('textbox', { name: 'Home latitude' })).toHaveValue('12.35')
+      expect(screen.getByRole('textbox', { name: 'Home longitude' })).toHaveValue('-65.43')
+    })
+
+    test('"Use where my runs start" says when no run has a track', async () => {
+      const { user } = setup(makeProfile(), {
+        'GET /api/places/usual-start': () => ({ start: null }),
+      })
+      await loaded()
+      await user.click(screen.getByRole('button', { name: 'Use where my runs start' }))
+      expect(await screen.findByText('No run with a recorded track was found.')).toBeVisible()
+      expect(screen.getByRole('textbox', { name: 'Home latitude' })).toHaveValue('')
+    })
   })
 
   describe('"Use my location"', () => {

@@ -404,6 +404,44 @@ describe('Goals page', () => {
     })
   })
 
+  test('a searched place fills the race coordinates and posts them only on save (PL2)', async () => {
+    const user = userEvent.setup()
+    const { calls } = mockApi(
+      routes([], kmUser, {
+        'POST /api/goals': () => ({ status: 201, body: makeGoal() }),
+        'POST /api/places/search': () => ({
+          places: [
+            {
+              name: 'Exampleton',
+              region: 'Sample County',
+              country: 'Testland',
+              lat: 46.81,
+              lng: 8.23,
+            },
+          ],
+        }),
+      }),
+    )
+    renderWithProviders(<GoalsPage />)
+
+    const dialog = await openAddSheet(user)
+    await fillBasics(user, dialog, 'Mountain 50')
+    await user.type(within(dialog).getByLabelText('Town or postcode'), 'Exampleton')
+    const search = within(dialog).getByRole('button', { name: 'Search' })
+    await user.click(search)
+    const pick = await within(dialog).findByRole('button', {
+      name: 'Exampleton, Sample County, Testland',
+    })
+    expect(search).toHaveFocus()
+    await user.click(pick)
+    expect(pick).toHaveAttribute('aria-pressed', 'true')
+    expect(within(dialog).getByLabelText('Race latitude')).toHaveFocus()
+    expect(within(dialog).getByLabelText('Race latitude')).toHaveValue('46.81')
+    expect(within(dialog).getByLabelText('Race longitude')).toHaveValue('8.23')
+    expect(calls.some((c) => c.method === 'POST' && c.url === '/api/goals')).toBe(false)
+    expect(calls.find((c) => c.url === '/api/places/search')?.body).toEqual({ query: 'Exampleton' })
+  })
+
   test('a time goal asks for a target time and posts it in seconds; a distance above 42.2 km defaults to a finish goal', async () => {
     const user = userEvent.setup()
     const { calls } = mockApi(

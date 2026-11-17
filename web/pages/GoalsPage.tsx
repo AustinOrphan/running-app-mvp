@@ -27,6 +27,7 @@ import { localiseEngineText } from '../components/engineText.ts'
 import { ExplainButton } from '../components/ExplainButton.tsx'
 import { Field, Input, Select, Textarea } from '../components/Field.tsx'
 import { PageHeader } from '../components/PageHeader.tsx'
+import { PlaceSearch } from '../components/PlaceSearch.tsx'
 import { PredictionTrackRecord } from '../components/PredictionTrackRecord.tsx'
 import { Segmented } from '../components/Segmented.tsx'
 import { Sheet } from '../components/Sheet.tsx'
@@ -204,6 +205,7 @@ function GoalSheet({ goal, units, onClose }: GoalFormProps) {
   const [raceLng, setRaceLng] = useState(goal?.raceLng == null ? '' : String(goal.raceLng))
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [formError, setFormError] = useState<string | null>(null)
+  const raceLatRef = useRef<HTMLInputElement>(null)
 
   const shownDistance =
     presetM ??
@@ -472,6 +474,13 @@ function GoalSheet({ goal, units, onClose }: GoalFormProps) {
           value={support}
           onChange={setSupport}
         />
+        <PlaceSearch
+          onChoose={(place) => {
+            setRaceLat(String(place.lat))
+            setRaceLng(String(place.lng))
+            raceLatRef.current?.focus()
+          }}
+        />
         <Field
           label="Race latitude"
           hint="Optional. Race-day heat comes from this place and date. Kept to 0.01 degrees."
@@ -480,6 +489,7 @@ function GoalSheet({ goal, units, onClose }: GoalFormProps) {
           {(a) => (
             <Input
               {...a}
+              ref={raceLatRef}
               inputMode="decimal"
               value={raceLat}
               onChange={(e) => {

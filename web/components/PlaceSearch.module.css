@@ -1,0 +1,43 @@
+.search {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.row {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+}
+
+.row > :first-child {
+  flex: 1;
+}
+
+/* The same height as the input at every width (Button.module.css makes it shorter from 900 px). */
+.row > button {
+  min-height: var(--control-h);
+}
+
+.status {
+  margin: 0;
+  min-height: var(--lh-sm);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.results {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.result {
+  width: 100%;
+  justify-content: flex-start;
+  text-align: left;
+}

@@ -177,6 +177,7 @@ export const keys = {
   trends: 'trends',
   wrist: 'wrist',
   mapArea: 'mapArea',
+  usualStart: 'usualStart',
 } as const
 
 /**

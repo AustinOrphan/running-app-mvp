@@ -26,6 +26,18 @@
   font-weight: 500;
 }
 
+.locationBlock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
 .note {
   margin: 0;
   color: var(--text-muted);
