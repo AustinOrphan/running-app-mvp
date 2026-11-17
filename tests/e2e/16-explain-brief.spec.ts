@@ -290,6 +290,44 @@ test('an unopened brief with changes stands under the session in a card, at 360 
   }
 })
 
+test('Got it on the Monday card marks the update seen, the card gives way to the quiet line and focus follows', async () => {
+  // As the card test above, but the payload follows the write: the update reads as unseen until
+  // the seen request has gone through the server.
+  let acknowledged = false
+  const todayRoute = '**/api/today'
+  const seenRoute = '**/api/briefs/*/seen'
+  await page.route(todayRoute, async (handler) => {
+    const headers = { ...handler.request().headers() }
+    delete headers['if-none-match']
+    const response = await handler.fetch({ headers })
+    const view = (await response.json()) as TodayView
+    const brief = view.coach.slots.brief
+    const slots = {
+      ...view.coach.slots,
+      brief:
+        brief === null ? null : { ...brief, seen: acknowledged, changeCount: 3, undone: false },
+    }
+    await handler.fulfill({ response, json: { ...view, coach: { ...view.coach, slots } } })
+  })
+  await page.route(seenRoute, async (handler) => {
+    await handler.continue()
+    acknowledged = true
+  })
+  try {
+    await page.setViewportSize({ width: 360, height: 740 })
+    await page.goto('/')
+    const card = page.getByRole('region', { name: 'The plan was updated' })
+    await card.getByRole('button', { name: 'Got it' }).click()
+    await expect(card).toBeHidden()
+    const line = page.getByRole('region', { name: 'Weekly brief' })
+    await expect(line).toBeVisible()
+    await expect(line.getByRole('link')).toBeFocused()
+  } finally {
+    await page.unroute(todayRoute)
+    await page.unroute(seenRoute)
+  }
+})
+
 test('the brief lists a change with its cause, in one column at every width', async () => {
   const { thisMonday } = relativeDates()
   const monday = addDays(thisMonday, 7)
