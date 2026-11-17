@@ -2,6 +2,7 @@ import { Router } from 'express'
 import type { Deps } from '../app.ts'
 import { sqliteFilePath } from '../dbPath.ts'
 import { backupDirectory, listOrdinaryBackups } from '../services/backup.ts'
+import { APP_VERSION } from '../version.ts'
 
 /**
  * The oldest newest-backup that the deep probe still calls healthy: 26 hours. The job runs once a
@@ -24,6 +25,8 @@ export interface DeepHealth {
   database: 'ok' | 'error'
   backup: { ageSeconds: number | null; maxAgeSeconds: number; fresh: boolean }
   jobs: Array<{ job: string; status: string; ageSeconds: number }>
+  /** The release the server runs (`package.json`, named by the tag `v<version>`). */
+  version: string
 }
 
 const ageSeconds = (now: Date, at: Date): number =>
@@ -79,6 +82,7 @@ export async function deepHealth(deps: Deps, now: Date): Promise<DeepHealth> {
     database: databaseOk ? 'ok' : 'error',
     backup: { ageSeconds: age, maxAgeSeconds, fresh },
     jobs,
+    version: APP_VERSION,
   }
 }
 
