@@ -1,8 +1,22 @@
 import { readFileSync } from 'node:fs'
-import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, test, vi } from 'vitest'
 import type { ImportBatch, ParsedActivity } from '../../shared/types.ts'
 import { buildFit } from '../fixtures/fit/buildFit.ts'
 import { client, createTestCtx, seedUser, type TestCtx, type TestUser } from './helpers.ts'
+
+// The zone the resolver answers with, injected until step 5 makes it the stored one.
+const injected = vi.hoisted(() => ({ zone: null as string | null }))
+vi.mock('../../server/runnerDay.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../server/runnerDay.ts')>()
+  return {
+    ...actual,
+    runnerZone: (stored: string | null | undefined) => injected.zone ?? actual.runnerZone(stored),
+    runnerDay: (now: Date, stored: string | null | undefined) => {
+      const tz = injected.zone ?? actual.runnerZone(stored)
+      return { tz, today: actual.runnerDay(now, stored).today, now }
+    },
+  }
+})
 
 const START = Date.UTC(2026, 0, 5, 7, 0, 0) / 1000
 const GPX = readFileSync(new URL('../fixtures/files/run-with-hr.gpx', import.meta.url))
@@ -245,6 +259,24 @@ describe('POST /api/imports/parsed', () => {
     expect(again.status).toBe(201)
     expect(again.body).toMatchObject({ rowCount: 1, accepted: 1, skippedDuplicate: 0 })
     expect(await ctx.prisma.activity.count()).toBe(1)
+  })
+
+  test('an offset-less start keeps its dating zone, not the runner zone (D10, owner Q7)', async () => {
+    // 23:30 UTC on the 5th is 13:30 on the 6th at +14: the runner zone would move the date.
+    injected.zone = 'Pacific/Kiritimati'
+    try {
+      const { status } = await postParsed({
+        source: 'apple-health',
+        activities: [parsed({ startUtc: '2026-01-05T23:30:00Z', utcOffsetMin: null })],
+        wellness: [],
+      })
+      expect(status).toBe(201)
+      const row = await ctx.prisma.activity.findFirstOrThrow({ where: { userId: user.id } })
+      expect(row.date).toBe('2026-01-05')
+      expect(row.startTime).toBe('23:30')
+    } finally {
+      injected.zone = null
+    }
   })
 
   test('an unknown source is a validation error', async () => {

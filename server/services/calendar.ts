@@ -16,6 +16,7 @@ import type { CalendarTokenIssued } from '../../shared/types.ts'
 import { CALENDAR_DAYS } from '../../shared/workouts/horizon.ts'
 import { publicTitle, publishable } from '../../shared/workouts/labels.ts'
 import type { Deps } from '../app.ts'
+import { runnerZone } from '../runnerDay.ts'
 import { hashToken, newToken, tokensEqual, userTagOf } from '../crypto.ts'
 import { loadAthleteContext } from './athleteState.ts'
 import { icsOutline, icsUid, renderIcs, type IcsEvent } from './ics.ts'
@@ -163,7 +164,7 @@ export async function calendarFeed(
   entries.sort(byDay)
 
   return renderIcs({
-    timeZone: knownZone(context.profile.timezone),
+    timeZone: knownZone(runnerZone(context.profile.timezone)),
     stamp: inWindow.reduce((newest, s) => (s.updatedAt > newest ? s.updatedAt : newest), NO_STAMP),
     events: entries.map(({ uid, date, title, description }) => ({ uid, date, title, description })),
   })

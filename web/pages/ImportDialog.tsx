@@ -7,6 +7,7 @@ import { ApiError } from '../api/client.ts'
 import { useImportedRuns } from '../api/activities.ts'
 import { useImportFile, useImportFiles, useImportParsed } from '../api/imports.ts'
 import { useSettings } from '../api/settings.ts'
+import { useRunnerZone } from '../api/today.ts'
 import { Button } from '../components/Button.tsx'
 import { Segmented } from '../components/Segmented.tsx'
 import { Sheet } from '../components/Sheet.tsx'
@@ -123,6 +124,7 @@ export function ImportDialog(props: ImportDialogProps) {
 function ImportDialogSheet({ onClose }: ImportDialogProps) {
   const formId = useId()
   const settings = useSettings()
+  const runnerZone = useRunnerZone()
   const importFile = useImportFile()
   const importFiles = useImportFiles()
   const importParsed = useImportParsed()
@@ -235,7 +237,8 @@ function ImportDialogSheet({ onClose }: ImportDialogProps) {
   }
 
   async function submitApple(file: File) {
-    const run = startAppleExport(file, browserTimezone(), (p) => {
+    // The zone counts only for a time with no offset: the runner's, so it dates like the rest.
+    const run = startAppleExport(file, runnerZone ?? browserTimezone(), (p) => {
       setProgress({
         label:
           p.phase === 'workouts'

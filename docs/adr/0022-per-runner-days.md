@@ -26,13 +26,13 @@ the server's zone.
   canonicalised: `Etc/UTC` is how a runner asks for UTC days.
 - Requests carry `req.runnerDay` (`{ tz, today, now }`, read once in `requireAuth`) and jobs read
   `runnerDays`. `today` is a required argument of the services, so the type checker finds a caller
-  that was not given a day. After step 6, nothing under `server/` reads the process zone except the
+  that was not given a day. Since step 6, nothing under `server/` reads the process zone except the
   backup slot, the log clock and the named UTC exceptions (the Garmin and intervals.icu pull windows,
-  the backup's retention buckets, the duplicate pass's date shift, the climate archive bound). Until
-  then the scanner allowlists name what remains, among them the Smashrun offset
-  (`server/routes/imports.ts`, step 6) and the two offset-less `Date` constructions in
-  `server/services/brief.ts` (the brief's week bounds, owned by the step that makes the brief take a
-  runner's day). The scanner tests hold this and their allowlists only shrink.
+  the backup's retention buckets, the duplicate pass's date shift, the climate archive bound). The
+  Smashrun offset, the browser's Apple export, the forecast wall clock, the map area's `tz` and the
+  calendar feed's `X-WR-TIMEZONE` read the runner's zone (`runnerZone`, or the `req.runnerDay.tz`
+  built from it); the import contexts keep the stored zone. The scanner tests hold this and their
+  allowlists only shrink.
 - Matching, the Monday re-plan and the forced publish run on the runner's clock; the backup runs on
   the server's. The week's update is guarded by the week's brief and by a weekly revision written
   since the runner's Monday 00:00. A brief that failed to write, in a week with a move of more than

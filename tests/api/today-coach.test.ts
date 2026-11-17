@@ -25,6 +25,7 @@ import {
   client,
   createTestCtx,
   expectNoRefusedFetches,
+  gmtServerHours,
   noNetwork,
   refreshWeatherCachesToday as refreshWeatherCaches,
   seedUser,
@@ -197,10 +198,8 @@ async function fillForecast(userId: string, options: { sun?: boolean } = {}): Pr
   const sun = options.sun ?? true
   ctx.fetch = fakeFetch({
     'GET https://api.open-meteo.com/v1/forecast': () => {
-      const times = Array.from(
-        { length: 24 },
-        (_, h) => `${today}T${String(h).padStart(2, '0')}:00`,
-      )
+      // The hours are the server's wall clock (D10 step 6), sent as Open-Meteo sends them, in GMT.
+      const times = gmtServerHours(today, 24)
       return Response.json({
         hourly: {
           time: times,

@@ -38,11 +38,10 @@ const SERVER_TODAY_ISO: Record<string, number> = {
 
 /**
  * Server files calling a local-clock getter or setter: the backup slot functions (`dueSlot`,
- * `lastSlotStart`) and the Smashrun offset.
+ * `lastSlotStart`).
  */
 const SERVER_LOCAL_CLOCK: Record<string, number> = {
   'server/jobs/scheduler.ts': 6,
-  'server/routes/imports.ts': 1,
 }
 
 /**

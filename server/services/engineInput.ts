@@ -11,6 +11,7 @@ import { localWallTime } from '../../shared/dates.ts'
 import type { EngineInput, EnteredRace, GoalModel, ZoneSet } from '../../shared/engine/types.ts'
 import type { AthleteProfile } from '../../shared/types.ts'
 import type { PrismaClient } from '../db.ts'
+import { runnerZone } from '../runnerDay.ts'
 import {
   goalModelFor,
   loadAthleteContext,
@@ -52,10 +53,12 @@ export async function loadForecast(
   const cached = await cachedForecast(prisma, userId, now, profile)
   if (!cached) return null
   const hours: NonNullable<EngineInput['forecast']> = []
+  // The zone the runner's days follow, so the forecast hours and the engine's `today` share one.
+  const zone = runnerZone(profile.timezone)
   for (const hour of cached.hours) {
     if (hour.tempC === null || hour.dewPointC === null) continue
     hours.push({
-      time: localWallTime(hour.time, profile.timezone),
+      time: localWallTime(hour.time, zone),
       tempC: hour.tempC,
       dewPointC: hour.dewPointC,
       humidityPct: hour.humidityPct ?? 50,
