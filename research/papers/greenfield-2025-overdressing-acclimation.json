@@ -1,0 +1,35 @@
+{
+  "id": "greenfield-2025-overdressing-acclimation",
+  "title": "Exercise with overdressing for heat acclimation: a multilayered approach using biophysical modeling and two randomized crossover trials",
+  "authors": "Greenfield AM, Brazelton SC, Alba BK, Bodurtha PO, Bradbury KE, Caldwell AR, Chapman CL, Charkoudian N, Connor KR, Conz K, Fry BA, Giersch GEW, Gonzalez-Rojas DH, Heikkinen ME, Looney DP, Mayer TA, McCarthy KG, Potter AW, Rioux TP, Salgado RM, Seeley AD, Shaw MA, Xu X, Ryan BJ",
+  "year": 2025,
+  "journal": "Journal of Applied Physiology",
+  "doi": "10.1152/japplphysiol.00624.2025",
+  "pmid": "40912903",
+  "url": "https://doi.org/10.1152/japplphysiol.00624.2025",
+  "design": "experimental-crossover",
+  "population": "Fit males and females; study I n = 15 (one session), study II n = 12 (five sessions); the split by sex is not stated in the abstract",
+  "sampleSize": 12,
+  "evidenceLevel": "B",
+  "topics": ["heat-weather"],
+  "findings": [
+    "Biophysical modelling chose a protocol for a gym-like environment (20 C, 50% relative humidity, 1 mph wind): a 6 mph run for 30 min, then a 3.5 mph walk for 60 min, in a standardised overdressing ensemble. It was tested against control exercise in shorts and a t-shirt in two randomised crossover trials.",
+    "Study I (n = 15), one session: overdressing gave a higher peak core temperature (38.9 +/- 0.4 against 38.5 +/- 0.3 C), skin temperature (35.3 +/- 0.6 against 32.5 +/- 0.7 C) and heart rate (166 +/- 20 against 147 +/- 16 beats per min), P < 0.01.",
+    "Study II (n = 12): heat stress tests (60 min at 50% of maximal oxygen uptake at 40 C, 40% relative humidity, 3 mph wind, in shorts and a t-shirt) were done before and after five sessions of overdressed or control exercise.",
+    "After five overdressed sessions, resting core temperature fell 0.3 +/- 0.2 C, peak core temperature 0.4 +/- 0.2 C, skin temperature 0.5 +/- 0.6 C and heart rate 11 +/- 11 beats per min during exercise in the heat (all P < 0.01); these adaptations were superior to control exercise (interactions P < 0.05).",
+    "The authors conclude that the protocol induces heat acclimation in fit males and females without hot weather."
+  ],
+  "limitations": "Twelve participants completed the acclimation trial and the abstract states no sex split. A modelled, supervised protocol in a standardised ensemble: 30 min of running at 6 mph (about 9.7 km/h, derived) then 60 min of walking, in a gym-like room at 20 C, not a runner's own easy run in everyday layers or in mild weather outdoors. The outcome was a heat stress test in the same lab after five sessions; no race or time-trial performance is reported in the abstract and no decay was followed. Abstract read on Europe PMC; the full text was not read.",
+  "implications": [
+    "This is a randomised crossover that found acclimation from exercising overdressed, which differs from the one earlier trial of extra clothing (stevens-2018-additional-clothing-training: 15 triathletes, two weeks, unsupervised, in mild outdoor weather, no acclimation). The two used different protocols: a modelled, supervised, indoor, controlled-temperature session here, free outdoor training there.",
+    "Rule I8 item 2 therefore cannot call the earlier trial the only evidence. Whether a runner's own layers on an easy run can match the dose studied is not shown."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Added 2026-11-17 for task RU2 (rule I8). Crossref: J Appl Physiol 139(4):889-901, online 2025-10-01, 24 authors, no updated-by notice. Abstract read on Europe PMC (PMID 40912903). The 6 mph conversion to km/h is derived (6 x 1.609). Found by author and year on Europe PMC. Graded B as a randomised crossover, with the small n (12 in the acclimation trial) stated.",
+    "checkedAt": "2026-11-17"
+  }
+}

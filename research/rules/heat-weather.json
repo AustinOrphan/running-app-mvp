@@ -130,7 +130,7 @@
   },
   {
     "id": "heat-acclimation-warm-room-day",
-    "statement": "Count a run indoors in a room at 25 C or more, marked by the runner, as a heat day on the same terms as an outdoor run at 25 C or more (at least 30 min); it is the same exposure. Do not count extra clothing in mild weather: the one trial found no acclimation.",
+    "statement": "Count a run indoors in a room at 25 C or more, marked by the runner, as a heat day on the same terms as an outdoor run at 25 C or more (at least 30 min); it is the same exposure. Do not count extra clothing in mild weather: the one trial of unsupervised training in extra clothing found no acclimation, and a later modelled, supervised indoor protocol (two randomised crossover trials, 12 in the acclimation one) found it; whether a runner's own layers count is an owner decision, so nothing is counted.",
     "parameter": "warm_room_heat_day",
     "value": "25 C or more, at least 30 min, indoors or out",
     "unit": "C, min",
@@ -140,7 +140,8 @@
     "evidence": [
       "racinais-2015-heat-consensus",
       "tyler-2016-heat-adaptation-meta",
-      "stevens-2018-additional-clothing-training"
+      "stevens-2018-additional-clothing-training",
+      "greenfield-2025-overdressing-acclimation"
     ]
   },
   {
