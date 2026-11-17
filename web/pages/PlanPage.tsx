@@ -1141,37 +1141,45 @@ function UpdateStrip({
   revision,
   units,
   tz,
+  titleRef,
 }: {
   revision: PlanRevisionView
   units: Units
   tz: string
+  titleRef: RefObject<HTMLHeadingElement | null>
 }) {
   const created = isoDateInZone(new Date(revision.createdAt), tz)
   const markSeen = useMarkRevisionsSeen()
   const online = useOnline()
   const [closing, setClosing] = useState(false)
   const [failed, setFailed] = useState(false)
-  const closed = useRef(false)
-  // The button stays focused and busy until the answer arrives; when the strip then leaves, focus
-  // goes to the page title instead of dropping to the document.
-  useEffect(
-    () => () => {
-      if (!closed.current) return
-      const title = document.querySelector<HTMLElement>('h1')
-      if (title === null) return
-      title.tabIndex = -1
-      title.focus({ preventScroll: true })
-    },
-    [],
-  )
+  const [dismissed, setDismissed] = useState(false)
+  const section = useRef<HTMLElement>(null)
+  // The button stays focused and busy until the answer arrives. The strip then leaves whatever the
+  // refetch does, and focus goes to the page title when it was in the strip or already lost. The
+  // callbacks run only while the page is mounted, so leaving mid-request moves no focus.
   function close() {
     setFailed(false)
     setClosing(true)
-    closed.current = true
-    markSeen([revision.id], () => {
-      closed.current = false
-      setClosing(false)
-      setFailed(true)
+    markSeen([revision.id], {
+      onSuccess: () => {
+        const active = document.activeElement
+        const title = titleRef.current
+        if (
+          title !== null &&
+          (active === null ||
+            active === document.body ||
+            section.current?.contains(active) === true)
+        ) {
+          title.tabIndex = -1
+          title.focus({ preventScroll: true })
+        }
+        setDismissed(true)
+      },
+      onFailed: () => {
+        setClosing(false)
+        setFailed(true)
+      },
     })
   }
   const sentence = planStripSentence(
@@ -1179,8 +1187,13 @@ function UpdateStrip({
     visibleLines(revision).length,
     units,
   )
+  if (dismissed) return null
   return (
-    <section aria-label={planStripText('plan.strip.label', units)} className={styles.updateStrip}>
+    <section
+      ref={section}
+      aria-label={planStripText('plan.strip.label', units)}
+      className={styles.updateStrip}
+    >
       <p className={styles.updateText}>{sentence}</p>
       <div className={styles.updateActions}>
         <Link to={`/brief/${mondayOf(created)}`} className={styles.updateLink}>
@@ -1656,6 +1669,7 @@ export function PlanPage() {
   const [updating, setUpdating] = useState(false)
   const [reveal, setReveal] = useState<WeekReveal | null>(null)
   const settings = useRef<HTMLDivElement>(null)
+  const title = useRef<HTMLHeadingElement>(null)
   const units = useSettings().data?.units
   // Only a plan that has sessions has revisions with a diff to show.
   const revisions = usePlanRevisions({ enabled: (plan.data?.generatorVersion ?? 1) >= 2 })
@@ -1747,6 +1761,7 @@ export function PlanPage() {
     <>
       <PageHeader
         title="Plan"
+        titleRef={title}
         context={`${plan.data.name}. Race week of ${formatShortDate(plan.data.raceWeekStart)}.`}
         actions={
           hasSessions ? (
@@ -1778,7 +1793,12 @@ export function PlanPage() {
       />
       {hasSessions ? <PlanWindows /> : null}
       {update !== null && update.seenAt === null ? (
-        <UpdateStrip revision={update} units={units ?? 'mi'} tz={serverToday?.tz ?? 'UTC'} />
+        <UpdateStrip
+          revision={update}
+          units={units ?? 'mi'}
+          tz={serverToday?.tz ?? 'UTC'}
+          titleRef={title}
+        />
       ) : null}
       <SeasonStrip
         plan={plan.data}

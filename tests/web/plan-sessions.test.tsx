@@ -93,7 +93,7 @@ function routes(plan: PlanWithSessions | PlanWithWeeks | null, extra: MockRoutes
 }
 
 function renderPlan() {
-  renderWithProviders(
+  return renderWithProviders(
     <ToastProvider>
       <PlanPage />
     </ToastProvider>,
@@ -2477,6 +2477,62 @@ describe('Plan page, the strip after the weekly update', () => {
     expect(
       within(await screen.findByRole('button', { name: /Hill strides/ })).getByText('Changed'),
     ).toBeInTheDocument()
+  })
+
+  test('the strip leaves when the revisions refetch fails after the stamp was stored', async () => {
+    const user = userEvent.setup()
+    let stamped = false
+    mockApi(
+      routes(makeV2Plan(), {
+        ...serverDay(),
+        'GET /api/plan/revisions': () =>
+          stamped
+            ? { status: 503, body: { error: { code: 'internal', message: 'No connection.' } } }
+            : [twoSessions()],
+        'POST /api/plan/revisions/r9/seen': () => {
+          stamped = true
+          return { status: 204, body: undefined }
+        },
+      }),
+    )
+    renderPlan()
+    const region = await strip()
+    await user.click(within(region).getByRole('button', { name: 'Got it' }))
+    await waitFor(() => {
+      expect(screen.queryByRole('region', { name: 'The latest plan update' })).toBeNull()
+    })
+  })
+
+  test('moves no focus on the next page when the runner leaves while the stamp is sent', async () => {
+    const user = userEvent.setup()
+    let release: () => void = () => undefined
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    mockApi(
+      routes(makeV2Plan(), {
+        ...serverDay(),
+        'GET /api/plan/revisions': () => [twoSessions()],
+        'POST /api/plan/revisions/r9/seen': () => ({ status: 204, body: undefined }),
+      }),
+    )
+    const answer = globalThis.fetch
+    vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
+      if ((init?.method ?? 'GET').toUpperCase() === 'POST') await gate
+      return answer(input, init)
+    })
+    const view = renderPlan()
+    const region = await strip()
+    await user.click(within(region).getByRole('button', { name: 'Got it' }))
+    view.unmount()
+    const next = document.createElement('h1')
+    next.textContent = 'Next page'
+    document.body.append(next)
+    release()
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(next).not.toHaveFocus()
+    expect(next).not.toHaveAttribute('tabindex')
+    next.remove()
   })
 
   test('keeps the strip and says so when marking it seen fails', async () => {
