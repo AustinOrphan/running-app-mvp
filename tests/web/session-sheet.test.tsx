@@ -153,6 +153,21 @@ describe('SessionSheet', () => {
     expect(within(plain).queryByText(/descents of/)).not.toBeInTheDocument()
   })
 
+  test('a hiking-practice session shows its label and the cue (rule H4)', async () => {
+    renderSheet(makeSession({ id: 's13', kind: 'long', flags: ['hike-practice'] }))
+    const dialog = await screen.findByRole('dialog', { name: 'Threshold intervals' })
+    expect(within(dialog).getByText('Hiking practice')).toBeInTheDocument()
+    expect(
+      within(dialog).getByText(
+        /^Hiking practice: walk the climbs steeper than about 12\.6 percent/,
+      ),
+    ).toBeInTheDocument()
+    cleanup()
+    renderSheet(makeSession({ id: 's14', flags: [] }))
+    const plain = await screen.findByRole('dialog', { name: 'Threshold intervals' })
+    expect(within(plain).queryByText(/Hiking practice/)).not.toBeInTheDocument()
+  })
+
   test('a single work step is named as the workout names it', async () => {
     renderSheet(
       makeSession({
