@@ -40,6 +40,29 @@ describe('easy pace from the heart-rate line [C9, A8, C2]', () => {
     expect(pace?.confidence).toBe('low')
   })
 
+  it('is low for a maximum typed as an estimate, with the same band as the age estimate [C3, C7]', () => {
+    const typed = paces({ profile: { ...profileFixture, hrMax: 188, hrMaxSource: 'estimated' } })
+    const aged = paces({ profile: { ...profileFixture, hrMax: null, hrMaxSource: null } })
+    expect(typed.zones.lt1Hr!.source).toBe('profile')
+    expect(typed.view.easy.pace!.basis).toBe('hr-model')
+    expect(typed.view.easy.pace!.confidence).toBe('low')
+    expect(aged.view.easy.pace!.confidence).toBe('low')
+    // The zones round the band to whole beats on each side.
+    expect(typed.view.easy.pace!.ceilingBandBpm).toBeCloseTo(
+      P.c3.priorBandBpm.value * P.c2.lt1FractionOfHrMax.value,
+      0,
+    )
+    expect(typed.view.easy.pace!.ceilingBandBpm).toBe(aged.view.easy.pace!.ceilingBandBpm)
+  })
+
+  it('stays moderate for a measured maximum and for a typed threshold heart rate', () => {
+    const measured = paces({ profile: { ...profileFixture, hrMaxSource: 'measured' } })
+    expect(measured.view.easy.pace!.confidence).toBe('moderate')
+    const lthr = paces({ profile: { ...profileFixture, lthr: 168 } })
+    expect(lthr.zones.lt1Hr!.source).toBe('profile')
+    expect(lthr.view.easy.pace!.confidence).toBe('moderate')
+  })
+
   it('moves the hot day by the line heat term, from the heat-steering WBGT', () => {
     const { zones, view } = paces({})
     const model = fitHrModel(RUNS, TODAY)!

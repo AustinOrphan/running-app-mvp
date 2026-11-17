@@ -54,7 +54,7 @@ import {
 } from '../dataVersion.ts'
 import {
   loadActivities,
-  loadProfile,
+  loadProfileSaved,
   parsePlanOptions,
   toDisruption,
   toGoal,
@@ -509,7 +509,7 @@ async function buildContext(
   // One round. The driver is synchronous, so the round saves await hops, not time on the file;
   // the saving is that it runs once per change instead of once per request.
   const [
-    profile,
+    { profile, savedOn: profileSavedOn },
     newestFirst,
     wellnessRows,
     reviewRows,
@@ -520,7 +520,7 @@ async function buildContext(
     goal,
     disruptionRows,
   ] = await Promise.all([
-    loadProfile(prisma, userId),
+    loadProfileSaved(prisma, userId),
     loadActivities(prisma, userId, {
       from: addDays(today, -P.a5.historyWindowDays.value),
       to: today,
@@ -609,7 +609,11 @@ async function buildContext(
   // plan adds, so it is the same for every reader. Readiness is the exception: the masters gate
   // reads the sessions already done, so it is computed with the stored plan.
   const state = estimateState(base)
-  const zones = buildZones(profile, state, today)
+  // The days the runner's own anchors were set: the profile's last save, the offer's acceptance.
+  const zones = buildZones(profile, state, today, {
+    savedOn: profileSavedOn,
+    ownCeilingOn: zoneChanges.lt1Hr ?? null,
+  })
   const readiness = readinessSnapshot({ ...base, existing }, today)
   // The estimate follows the paces as they are now; the stored sessions and `existing` do not.
   const recentPace = recentPaceSecPerKm({ activities, state, zones })

@@ -316,3 +316,98 @@ describe('the own easy ceiling (rules C4, C8)', () => {
     )
   })
 })
+
+describe('the day a boundary stands from', () => {
+  const dates = { savedOn: '2026-11-10', ownCeilingOn: '2026-11-12' }
+
+  it('gives a typed maximum, and what is derived from it, the day the profile was saved', () => {
+    const zones = buildZones(
+      profile({ hrMax: 190, hrMaxSource: 'measured' }),
+      state(),
+      TODAY,
+      dates,
+    )
+    expect(zones.hrMax).toMatchObject({ source: 'hrmax-observed', since: '2026-11-10' })
+    expect(zones.lt1Hr).toMatchObject({ source: 'hrmax-observed', since: '2026-11-10' })
+    expect(zones.lt2Hr).toMatchObject({ source: 'hrmax-observed', since: '2026-11-10' })
+    // Every boundary was still worked out today.
+    expect(zones.hrMax!.asOf).toBe(TODAY)
+  })
+
+  it('does the same for an estimate the runner typed, a typed LTHR and a typed threshold pace', () => {
+    const zones = buildZones(
+      profile({ hrMax: 188, hrMaxSource: 'estimated', lthr: 168, thresholdPaceSecPerKm: 300 }),
+      state(),
+      TODAY,
+      dates,
+    )
+    expect(zones.hrMax).toMatchObject({ source: 'profile', since: '2026-11-10' })
+    expect(zones.lt2Hr).toMatchObject({ source: 'profile', since: '2026-11-10' })
+    expect(zones.thresholdPaceSecPerKm).toMatchObject({ source: 'profile', since: '2026-11-10' })
+  })
+
+  it('gives an accepted own ceiling the day of the offer, and no day without it', () => {
+    const own = profile({ hrMax: 190, hrMaxSource: 'measured', ownLt1Hr: 140 })
+    expect(buildZones(own, state(), TODAY, dates).lt1Hr).toMatchObject({
+      source: 'own-line',
+      since: '2026-11-12',
+    })
+    // The accepting revision is gone: the profile's save day is not the offer's day.
+    const orphan = buildZones(own, state(), TODAY, { savedOn: '2026-11-10' })
+    expect(orphan.lt1Hr!.source).toBe('own-line')
+    expect(orphan.lt1Hr).not.toHaveProperty('since')
+  })
+
+  it('marks what is a share of another anchor, and a maximum typed as an estimate', () => {
+    const lt1 = P.c2.lt1FractionOfHrMax.value
+    const lt2 = P.c2.lt2FractionOfHrMax.value
+    // The display fields are asked for by passing the dates; the engine's own call has none.
+    const plain = buildZones(profile({ hrMax: 190, hrMaxSource: 'estimated' }), state(), TODAY)
+    for (const boundary of [plain.hrMax, plain.lt1Hr, plain.lt2Hr]) {
+      expect(boundary).not.toHaveProperty('derivation')
+      expect(boundary).not.toHaveProperty('typedAs')
+      expect(boundary).not.toHaveProperty('since')
+    }
+    const measured = buildZones(
+      profile({ hrMax: 190, hrMaxSource: 'measured' }),
+      state(),
+      TODAY,
+      {},
+    )
+    expect(measured.hrMax).not.toHaveProperty('derivation')
+    expect(measured.lt1Hr!.derivation).toEqual({ from: 'hrmax', share: lt1 })
+    expect(measured.lt2Hr!.derivation).toEqual({ from: 'hrmax', share: lt2 })
+    const estimated = buildZones(
+      profile({ hrMax: 188, hrMaxSource: 'estimated' }),
+      state(),
+      TODAY,
+      {},
+    )
+    expect(estimated.hrMax!.typedAs).toBe('estimate')
+    expect(measured.hrMax).not.toHaveProperty('typedAs')
+    const lthr = buildZones(profile({ lthr: 168 }), state(), TODAY, {})
+    expect(lthr.lt2Hr).not.toHaveProperty('derivation')
+    expect(lthr.lt1Hr!.derivation).toEqual({ from: 'lthr', share: lt1 / lt2 })
+    const pace = buildZones(profile({ thresholdPaceSecPerKm: 300 }), state(), TODAY, {})
+    expect(pace.lt1PaceSecPerKm!.derivation).toEqual({ from: 'threshold-pace' })
+    expect(pace.thresholdPaceSecPerKm).not.toHaveProperty('derivation')
+    expect(buildZones(profile(), withCs(3.5), TODAY, {}).lt1PaceSecPerKm).not.toHaveProperty(
+      'derivation',
+    )
+  })
+
+  it('gives a computed boundary no such day, even when one is passed', () => {
+    const aged = buildZones(profile({ birthYear: 1990 }), state({ age: 36 }), TODAY, dates)
+    expect(aged.hrMax!.source).toBe('hrmax-age')
+    expect(aged.hrMax).not.toHaveProperty('since')
+    expect(aged.lt1Hr).not.toHaveProperty('since')
+    const fromRuns = buildZones(profile(), withCs(3.5), TODAY, dates)
+    expect(fromRuns.csMps).not.toHaveProperty('since')
+    expect(fromRuns.thresholdPaceSecPerKm).not.toHaveProperty('since')
+  })
+
+  it('states no day when none is known', () => {
+    const zones = buildZones(profile({ hrMax: 190, hrMaxSource: 'measured' }), state(), TODAY)
+    expect(zones.hrMax).not.toHaveProperty('since')
+  })
+})
