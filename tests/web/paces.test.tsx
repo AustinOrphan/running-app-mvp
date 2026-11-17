@@ -461,7 +461,7 @@ describe('MyPacesPage: a critical speed from training [A6]', () => {
     const events = await screen.findByRole('region', { name: 'What you can run now' })
     expect(
       within(events).getAllByText(
-        /^Rows marked at most rest on your best efforts in training since 11 Aug/,
+        /^It rests on your best efforts in training since 11 Aug, not on races\. A short test would likely show faster\./,
       ),
     ).toHaveLength(1)
     expect(within(events).getByRole('link', { name: 'A short test' })).toHaveAttribute(
@@ -471,6 +471,9 @@ describe('MyPacesPage: a critical speed from training [A6]', () => {
     const half = within(events).getByRole('article', { name: 'Half marathon' })
     expect(within(half).getByText('Time, at most')).toBeInTheDocument()
     expect(within(half).queryByText(/in training since/)).not.toBeInTheDocument()
+    // The shared estimate text (PF1): a time as the other surfaces word it, never `1:45:00`.
+    expect(within(half).getAllByText(/^\d+ h( \d+ min)?$/).length).toBeGreaterThan(0)
+    expect(within(half).queryByText(/^\d+:\d\d:\d\d$/)).toBeNull()
   })
 
   test('the test section says the fit is from training and keeps the steps open', async () => {
@@ -502,7 +505,7 @@ describe('MyPacesPage: a critical speed that needed efforts older than three mon
     const events = await screen.findByRole('region', { name: 'What you can run now' })
     expect(
       within(events).getAllByText(
-        /^Rows from training rest on your best efforts since 1 Jun, some older than three months\./,
+        /^From your best efforts in training since 1 Jun, some older than three months\./,
       ),
     ).toHaveLength(1)
     const half = within(events).getByRole('article', { name: 'Half marathon' })

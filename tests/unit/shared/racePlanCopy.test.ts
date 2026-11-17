@@ -369,12 +369,12 @@ describe('figures that restate a Param come from the Param', () => {
     )
     const expected = describeRacePlan(from, 'km').expected
     const notes = expected.notes.join(' ')
-    expect(expected.source).toMatch(/^At most about this long\./)
+    expect(expected.source).toMatch(/^At most about .+\. Finish estimate /)
     expect(notes).toMatch(/best efforts in training since 11 Aug/)
     expect(notes).toMatch(/not on races/)
     expect(lintText(notes)).toEqual([])
     expect(base.expected.notes.join(' ')).not.toMatch(/in training/)
-    expect(base.expected.source).toMatch(/^Most likely time/)
+    expect(base.expected.source).toMatch(/^Finish estimate .+, most likely about /)
   })
 
   it('says a prediction from older training efforts is no "at most" and may be stale (A6)', () => {
@@ -392,7 +392,7 @@ describe('figures that restate a Param come from the Param', () => {
     const expected = describeRacePlan(from, 'km').expected
     const notes = expected.notes.join(' ')
     expect(expected.source).not.toMatch(/At most/)
-    expect(expected.source).toMatch(/^Most likely time/)
+    expect(expected.source).toMatch(/^Finish estimate .+, most likely about /)
     expect(notes).toMatch(
       /From your best efforts in training since 1 Jun, some older than three months/,
     )

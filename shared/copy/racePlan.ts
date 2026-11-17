@@ -43,6 +43,7 @@ import { HOW_TO_READ } from './runCharts.ts'
 import { RACE_CARB_ROUND_G } from './limits.ts'
 import { milesToM } from '../units.ts'
 import { render, tpl, type SlotSpec, type SlotValues, type Template } from './template.ts'
+import { describeEstimate } from './raceEstimate.ts'
 import { TODAY_TEMPLATES } from './today.ts'
 
 export const RACE_PLAN_TEMPLATES = {
@@ -92,13 +93,8 @@ export const RACE_PLAN_TEMPLATES = {
     'Every line is a sketch from rules and your own runs. Ranges are wide on purpose.',
   ),
 
-  // ---- Expected time (the range comes from `today.race.estimate` and `today.race.wide`) --------
+  // ---- Expected time (the figure, range and basis come from `raceEstimate.ts`; the wide note from `today.race.wide`) --
   'race.plan.expected.heading': tpl('Expected time', {}, { shape: 'label' }),
-  'race.plan.expected.figure': tpl('{duration}', { duration: 'duration' }, { shape: 'label' }),
-  'race.plan.expected.source-range': tpl('Most likely time. Finish estimate {low} to {high}.', {
-    low: 'duration',
-    high: 'duration',
-  }),
   'race.plan.expected.source-goal': tpl(
     'From the goal. A recent race or a few long runs would give a range.',
   ),
@@ -108,21 +104,6 @@ export const RACE_PLAN_TEMPLATES = {
   'race.plan.firm.link-heart-rate': tpl('Set your heart rate', {}, { shape: 'label' }),
   'race.plan.firm.link-climate': tpl('Save the climate', {}, { shape: 'label' }),
   'race.plan.firm.about': tpl('About these ranges', {}, { shape: 'label' }),
-  'race.plan.expected.source-floor': tpl(
-    'At most about this long. Finish estimate {low} to {high}.',
-    {
-      low: 'duration',
-      high: 'duration',
-    },
-  ),
-  'race.plan.expected.training': tpl(
-    'The time rests on your best efforts in training since {date}, not on races. A race or a short test would likely show faster.',
-    { date: 'date' },
-  ),
-  'race.plan.expected.training-widened': tpl(
-    'From your best efforts in training since {date}, some older than three months. Fitness may have changed since. A short test narrows it.',
-    { date: 'date' },
-  ),
   'race.plan.expected.clock': tpl('Start {start}. Finish about {range}.', {
     start: 'text',
     range: 'text',
@@ -1060,18 +1041,20 @@ function instructionText(effort: RacePlan['effort'], units: Units): string {
 function expectedText(plan: RacePlan, units: Units): RaceExpectedText {
   const { expected } = plan
   const notes: string[] = []
-  const figure = say(T['race.plan.expected.figure'], { duration: duration(expected.midSec) }, units)
+  const estimate = describeEstimate(
+    {
+      lowSec: expected.lowSec,
+      highSec: expected.highSec,
+      predictedSec: expected.midSec,
+      trainingSince: expected.trainingSince,
+      trainingWidened: expected.trainingWidened,
+    },
+    units,
+  )
+  const figure = estimate.figure
   const source =
     expected.basis === 'prediction'
-      ? say(
-          T[
-            expected.trainingSince == null || expected.trainingWidened === true
-              ? 'race.plan.expected.source-range'
-              : 'race.plan.expected.source-floor'
-          ],
-          { low: duration(expected.lowSec), high: duration(expected.highSec) },
-          units,
-        )
+      ? estimate.summary
       : say(T['race.plan.expected.source-goal'], {}, units)
   const clock =
     expected.start === null || expected.finish === null
@@ -1093,19 +1076,7 @@ function expectedText(plan: RacePlan, units: Units): RaceExpectedText {
       ),
     )
   }
-  if (expected.trainingSince != null) {
-    notes.push(
-      say(
-        T[
-          expected.trainingWidened === true
-            ? 'race.plan.expected.training-widened'
-            : 'race.plan.expected.training'
-        ],
-        { date: { kind: 'date', iso: expected.trainingSince, style: 'short' } },
-        units,
-      ),
-    )
-  }
+  if (estimate.note !== null) notes.push(estimate.note)
   if (expected.climb !== null) {
     notes.push(
       say(

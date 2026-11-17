@@ -92,6 +92,20 @@ export function roundEstimateSec(sec: number): number {
 }
 
 /**
+ * The ends of a finish range at the precision of `roundEstimateSec`, rounded outward (the low end
+ * down, the high end up) as the race plan does, so a range never reads narrower than the engine's.
+ * Not finite or negative gives NaN for that end; an end already on a step stays.
+ */
+export function roundEstimateRangeSec(lowSec: number, highSec: number): [number, number] {
+  const outward = (sec: number, round: (value: number) => number): number => {
+    if (!Number.isFinite(sec) || sec < 0) return Number.NaN
+    const step = sec >= COARSE_ESTIMATE_FROM_SEC ? COARSE_ESTIMATE_STEP_SEC : FINE_ESTIMATE_STEP_SEC
+    return round(sec / step) * step
+  }
+  return [outward(lowSec, Math.floor), outward(highSec, Math.ceil)]
+}
+
+/**
  * A predicted time as a person says it: "48 min", "3 h 47 min", "31 h 50 min", "28 h". Rounded by
  * `roundEstimateSec`. Not finite or negative gives a dash. The copy system prints the same text
  * from a `duration` quantity whose seconds went through `roundEstimateSec`.

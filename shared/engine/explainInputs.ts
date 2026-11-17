@@ -18,6 +18,7 @@ import {
   presetGrade,
 } from '../copy/method.ts'
 import { countPhrase } from '../copy/quantity.ts'
+import { METHOD_WORDS } from '../copy/raceEstimate.ts'
 import { ZONE_BOUNDARY_WORDS } from '../copy/revision.ts'
 import { STRENGTH_TEMPLATES } from '../copy/strengthTemplates.ts'
 import type { SlotValues } from '../copy/template.ts'
@@ -1468,16 +1469,6 @@ function breakFacts(scope: Scope): InputFact[] {
 // ---------------------------------------------------------------------------------------------
 // L1 to L6: the prediction
 // ---------------------------------------------------------------------------------------------
-
-export const METHOD_WORDS: Readonly<Record<string, string>> = {
-  'personal-exponent': 'a personal exponent fitted to your race times',
-  riegel: 'a recent race scaled to this distance',
-  'same-distance': 'a race at about this distance',
-  'single-anchor': 'one shorter race',
-  'critical-speed': 'your critical speed',
-  'cs-durability': 'your critical speed, adjusted for how well you hold pace',
-  'cs-fraction': 'a share of your critical speed for long events',
-}
 
 /** "a", "a and b", "a, b and c". */
 function joinWords(words: readonly string[]): string {
