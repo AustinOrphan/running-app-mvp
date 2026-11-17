@@ -1,4 +1,4 @@
-import { Router, type Request } from 'express'
+import { Router } from 'express'
 import { z } from 'zod'
 import { toWeightUnit } from '../serialize.ts'
 import type { SessionUser, Units } from '../../shared/types.ts'
@@ -12,7 +12,7 @@ import {
   createSignInAccountLimiter,
   createSignInAddressLimiter,
 } from './rateLimit.ts'
-import { clearSessionCookie, setSessionCookie, signSession } from './session.ts'
+import { clearSessionCookie, isSecure, setSessionCookie, signSession } from './session.ts'
 
 const email = z.string().trim().toLowerCase()
 
@@ -62,10 +62,6 @@ function toSessionUser(row: UserRow, tz: string): SessionUser {
     tz,
     serverTz: serverTimeZone(),
   }
-}
-
-function isSecure(req: Request): boolean {
-  return req.secure || req.get('x-forwarded-proto') === 'https'
 }
 
 function isUniqueViolation(error: unknown): boolean {
