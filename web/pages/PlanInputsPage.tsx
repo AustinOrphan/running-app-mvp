@@ -14,7 +14,8 @@ import { ErrorState } from '../components/ErrorState.tsx'
 import { useLoadView } from '../components/loadView.ts'
 import { PageHeader } from '../components/PageHeader.tsx'
 import { Skeleton } from '../components/Skeleton.tsx'
-import { boundarySourceText, ZONE_BOUNDARY_LABELS } from '../components/zoneFormat.ts'
+import { boundaryOriginText } from '../../shared/copy/zoneSources.ts'
+import { ZONE_BOUNDARY_LABELS } from '../components/zoneFormat.ts'
 import styles from '../components/paces/Paces.module.css'
 
 const number = (n: number) => line('plan-inputs.value', { n: count(n) })
@@ -198,9 +199,7 @@ function Body({ view }: { view: PlanInputsView }) {
           ({ key, boundary }) =>
             [
               ZONE_BOUNDARY_LABELS[key],
-              boundary === null
-                ? text('plan-inputs.zones.none')
-                : `${boundarySourceText(boundary)}, as of ${boundary.asOf}`,
+              boundary === null ? text('plan-inputs.zones.none') : boundaryOriginText(boundary),
             ] as const,
         )}
       />

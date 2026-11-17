@@ -161,7 +161,14 @@ export interface Boundary {
     | 'hrr'
     | 'profile'
     | 'own-line'
+  /** The day the boundary was worked out: today, since every boundary is read again on each build. */
   asOf: string
+  /**
+   * The day the runner's own anchor was last set, on a boundary whose source is the profile, a
+   * typed maximum or an accepted own ceiling: the day the profile was last saved, or the day the
+   * offer was accepted. Absent when no such day is known; a computed boundary never carries one.
+   */
+  since?: string
   /**
    * True on a boundary found from a critical speed that uses the stretches of training runs (rule
    * A6): a floor, so the boundary may sit low. Absent otherwise.

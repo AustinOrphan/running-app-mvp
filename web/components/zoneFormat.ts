@@ -1,36 +1,7 @@
-import type { Boundary, ZoneProposal } from '../../shared/engine/types.ts'
+import type { ZoneProposal } from '../../shared/engine/types.ts'
 import type { ZoneBoundaryKey } from '../../shared/domain/planInputs.ts'
 import type { Units } from '../../shared/types.ts'
 import { formatDuration, formatPace, milesToM } from '../../shared/units.ts'
-
-/** How each zone boundary was found, in words. Mirrors the anchor hierarchy [rules C2]. */
-export const BOUNDARY_SOURCE_LABELS: Record<Boundary['source'], string> = {
-  tested: 'From a test',
-  cs: 'From critical speed',
-  dfa: 'From DFA alpha1',
-  rpe: 'From perceived effort',
-  'hrmax-observed': 'From the highest heart rate seen',
-  'hrmax-age': 'Estimated from age',
-  hrr: 'From heart rate reserve',
-  profile: 'From the profile',
-  'own-line': 'From your own heart-rate line on cool runs',
-}
-
-/**
- * How a boundary was found, in words, with the training note of rule A6: the one wording the zone
- * summary and the page that says what the plan can see both use.
- */
-export function boundarySourceText(
-  boundary: Pick<Boundary, 'source' | 'fromTraining' | 'windowWidened'>,
-): string {
-  const training =
-    boundary.fromTraining === true
-      ? boundary.windowWidened === true
-        ? ' (from training, some older than three months)'
-        : ' (from training)'
-      : ''
-  return `${BOUNDARY_SOURCE_LABELS[boundary.source]}${training}`
-}
 
 /** The names of the six zone boundaries, by their key in the zone set. */
 export const ZONE_BOUNDARY_LABELS: Record<ZoneBoundaryKey, string> = {

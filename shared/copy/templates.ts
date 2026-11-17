@@ -51,6 +51,7 @@ import { STANDOUT_TEMPLATES } from './standoutTemplates.ts'
 import { CopyError, isCopyStrict, render, tpl, type Template } from './template.ts'
 import { SURFACE_TEMPLATES } from './surface.ts'
 import { ZONE_TEMPLATES } from './zone.ts'
+import { ZONE_SOURCE_TEMPLATES } from './zoneSources.ts'
 import { PLACES_TEMPLATES } from './places.ts'
 import { SYNC_TEMPLATES } from './sync.ts'
 import { TODAY_TEMPLATES } from './today.ts'
@@ -101,6 +102,7 @@ export const TEMPLATES = {
   ...SURFACE_TEMPLATES,
   ...PLACES_TEMPLATES,
   ...ZONE_TEMPLATES,
+  ...ZONE_SOURCE_TEMPLATES,
   ...FEEDBACK_TEMPLATES,
   ...ERROR_TEMPLATES,
   ...REVIEW_PREFILL_TEMPLATES,

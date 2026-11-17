@@ -944,13 +944,15 @@ describe('ProfilePage', () => {
       expect(within(hrMax as HTMLElement).getByText('188 bpm')).toBeInTheDocument()
       expect(within(hrMax as HTMLElement).getByText('Range 182 bpm to 194 bpm')).toBeInTheDocument()
       expect(
-        within(hrMax as HTMLElement).getByText('Estimated from age, as of 2026-10-01'),
+        within(hrMax as HTMLElement).getByText(
+          'Estimated from your age (maximum = 208 - 0.7 x age), as of Thu 1 Oct 2026',
+        ),
       ).toBeInTheDocument()
 
       const threshold = within(section).getByText('Threshold pace').closest('li')
       expect(within(threshold as HTMLElement).getByText('5:30 /km')).toBeInTheDocument()
       expect(
-        within(threshold as HTMLElement).getByText('From critical speed, as of 2026-10-20'),
+        within(threshold as HTMLElement).getByText('From critical speed, as of Tue 20 Oct 2026'),
       ).toBeInTheDocument()
 
       const cs = within(section).getByText('Critical speed').closest('li')
@@ -966,6 +968,72 @@ describe('ProfilePage', () => {
       const drawer = await screen.findByRole('dialog', { name: 'Evidence' })
       expect(drawer).toHaveTextContent('C1,C2')
       expect(explainOf(drawer)).toEqual({ subject: 'zone' })
+    })
+
+    test('labels a typed maximum as typed and dates it by the profile save, not today', async () => {
+      setup(makeProfile(), {
+        'GET /api/zones': () =>
+          emptyZones({
+            hrMax: {
+              value: 190,
+              band: [185, 195],
+              source: 'hrmax-observed',
+              asOf: '2026-11-17',
+              since: '2026-11-10',
+            },
+            lt1Hr: { value: 148, band: [144, 152], source: 'hrmax-observed', asOf: '2026-11-17' },
+          }),
+      })
+      const section = await screen.findByRole('region', { name: 'Zones' })
+      const hrMax = (await within(section).findByText('Maximum heart rate')).closest(
+        'li',
+      ) as HTMLElement
+      expect(
+        within(hrMax).getByText(
+          'Typed on your profile, as measured in a test or race, profile last saved Tue 10 Nov 2026',
+        ),
+      ).toBeInTheDocument()
+      expect(section).not.toHaveTextContent(/highest heart rate seen/)
+      // No day is known for this one, so none is shown: never today's.
+      const easy = within(section).getByText('Easy heart rate limit').closest('li') as HTMLElement
+      expect(easy).toHaveTextContent('Typed on your profile, as measured in a test or race')
+      expect(easy).not.toHaveTextContent(/as of|2026/)
+    })
+
+    test('says what moves the zones, in three parts', async () => {
+      setup(makeProfile())
+      const section = await screen.findByRole('region', { name: 'Zones' })
+      expect(section).toHaveTextContent(/Pace boundaries follow your recent runs/)
+      expect(section).toHaveTextContent(/type a new value here, when a new year moves the age/)
+      expect(section).toHaveTextContent(/accept an offer/)
+      expect(section).not.toHaveTextContent(/only when a proposal is accepted/)
+    })
+
+    test('says why there is no heart-rate table when only a threshold heart rate stands', async () => {
+      setup(makeProfile(), {
+        'GET /api/zones': () =>
+          emptyZones({
+            lt2Hr: { value: 168, band: [163, 173], source: 'profile', asOf: '2026-11-17' },
+          }),
+      })
+      const section = await screen.findByRole('region', { name: 'Zones' })
+      expect(
+        await within(section).findByText(
+          'Heart-rate zones need a maximum heart rate or a birth year. Add one on the Profile.',
+        ),
+      ).toBeInTheDocument()
+    })
+
+    test('does not give that reason once a maximum stands', async () => {
+      setup(makeProfile(), {
+        'GET /api/zones': () =>
+          emptyZones({
+            hrMax: { value: 190, band: [185, 195], source: 'hrmax-age', asOf: '2026-11-17' },
+          }),
+      })
+      const section = await screen.findByRole('region', { name: 'Zones' })
+      await within(section).findByText('Maximum heart rate')
+      expect(section).not.toHaveTextContent(/Heart-rate zones need a maximum/)
     })
 
     test('a failed load is stated and the form still works', async () => {
