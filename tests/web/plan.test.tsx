@@ -1043,7 +1043,8 @@ describe('PlanPage: a failed load', () => {
 
 describe('PlanPage: the race plan and the race week', () => {
   const racePlan = {
-    plan: { name: 'Spring half', date: '2027-03-06', daysToRace: 52 },
+    // the goal was renamed after the plan was made: the header uses the race plan's name
+    plan: { name: 'Renamed half', date: '2027-03-06', daysToRace: 52 },
     reason: null,
   }
 
@@ -1051,7 +1052,7 @@ describe('PlanPage: the race plan and the race week', () => {
     mockApi(routes(makePlan(), { 'GET /api/race/plan': () => racePlan }))
     const { container } = renderWithProviders(<PlanPage />)
     expect(
-      await screen.findByText('Spring half plan, Sat 6 Mar 2027. 52 days to go.'),
+      await screen.findByText('Renamed half, Sat 6 Mar 2027. 52 days to go.'),
     ).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Open the race plan' })).toHaveAttribute(
       'href',
@@ -1067,7 +1068,7 @@ describe('PlanPage: the race plan and the race week', () => {
       }),
     )
     renderWithProviders(<PlanPage />)
-    expect(await screen.findByText('Spring half plan, Sat 6 Mar 2027.')).toBeInTheDocument()
+    expect(await screen.findByText('Renamed half, Sat 6 Mar 2027.')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Open the race plan' })).toBeInTheDocument()
   })
 

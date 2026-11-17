@@ -364,7 +364,7 @@ test('the Plan and the Race plan link each way, and the race week opens on the P
   await expect(page).toHaveURL(/\/race$/)
 
   const week = page.getByRole('region', { name: 'The last two days' })
-  const toPlan = week.getByRole('link', { name: "Open the plan's race week" })
+  const toPlan = week.getByRole('link', { name: 'Open race week in the training plan' })
   await expect(toPlan).toHaveAttribute('href', `/plan?week=${mondayOf(raceDay)}`)
   await toPlan.click()
   await expect(page).toHaveURL(new RegExp(`/plan\\?week=${mondayOf(raceDay)}$`))

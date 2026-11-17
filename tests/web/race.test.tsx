@@ -197,10 +197,9 @@ describe('RacePage', () => {
     renderWithProviders(<RacePage />, { route: '/race' })
     const week = await screen.findByRole('region', { name: 'The last two days' })
     // 2026-03-20 is a Friday; its week starts Monday 16 March
-    expect(within(week).getByRole('link', { name: "Open the plan's race week" })).toHaveAttribute(
-      'href',
-      '/plan?week=2026-03-16',
-    )
+    expect(
+      within(week).getByRole('link', { name: 'Open race week in the training plan' }),
+    ).toHaveAttribute('href', '/plan?week=2026-03-16')
     const dark = screen.getByRole('region', { name: 'Dark hours' })
     expect(within(dark).getByRole('link', { name: 'Open the training plan' })).toHaveAttribute(
       'href',

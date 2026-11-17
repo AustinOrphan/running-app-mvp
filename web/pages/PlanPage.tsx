@@ -1631,7 +1631,7 @@ export function PlanPage() {
   const units = useSettings().data?.units
   // The race plan is one of the reads the service worker keeps; a goal with none (5 km, no goal)
   // keeps the plain header.
-  const race = useRacePlan({ enabled: plan.data != null })
+  const race = useRacePlan()
   const phoneCopy = usePhoneCopy(race.data)
   const raceNamed = hasRacePlan(race.data) ? (race.data?.plan ?? race.data?.road ?? null) : null
   // Only a plan that has sessions has revisions with a diff to show.
@@ -1725,13 +1725,14 @@ export function PlanPage() {
       <PageHeader
         title="Plan"
         context={
-          raceNamed === null ? (
+          // Held until the race read settles (data or error), so the line is not swapped after it shows.
+          race.isPending ? undefined : raceNamed === null ? (
             `${plan.data.name}. Race week of ${formatShortDate(plan.data.raceWeekStart)}.`
           ) : (
             <>
               {planRaceContextText(
                 {
-                  name: plan.data.name,
+                  name: raceNamed.name,
                   date: raceNamed.date,
                   daysToRace: raceNamed.daysToRace,
                 },

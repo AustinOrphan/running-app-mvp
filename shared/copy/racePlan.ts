@@ -82,7 +82,7 @@ export const RACE_PLAN_TEMPLATES = {
   }),
   'race.plan.on-plan-saved': tpl('{name}, {date}.', { name: 'text', date: 'date' }),
   // Links from the Race page to the Plan page (RPB).
-  'race.plan.to-plan-week': tpl("Open the plan's race week", {}, { shape: 'label' }),
+  'race.plan.to-plan-week': tpl('Open race week in the training plan', {}, { shape: 'label' }),
   'race.plan.to-plan': tpl('Open the training plan', {}, { shape: 'label' }),
   'race.plan.sketch': tpl(
     'Every line is a sketch from rules and your own runs. Ranges are wide on purpose.',
