@@ -988,6 +988,8 @@ describe('who talks to Open-Meteo', () => {
   test('only the client, the cache and the weather job reach for the service', () => {
     expect(named(/open-meteo|openMeteo/)).toEqual([
       'server/providers/openMeteo.ts',
+      // The place search (PL1, ADR 0024): the geocoder, called by the places route's service.
+      'server/services/places.ts',
       // The job's activity backfill; no request handler imports it.
       'server/services/weather.ts',
       'server/services/weatherCache.ts',

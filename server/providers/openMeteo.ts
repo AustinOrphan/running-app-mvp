@@ -1,7 +1,8 @@
 // Open-Meteo client (no key). Every call takes the injected `fetch`; hours are requested in GMT so
 // they line up with `Activity.startUtc`, except the climatology, which is read in the place's local
 // time because a race window is a clock window. Only `services/weatherCache.ts` and the weather
-// job's activity backfill (`services/weather.ts`) call it; a request handler never does.
+// job's activity backfill (`services/weather.ts`) call it; a request handler never does. The one
+// exception is the place search (`searchPlaces`, below; PL1, ADR 0024), which a request waits on.
 
 const ARCHIVE_URL = 'https://archive-api.open-meteo.com/v1/archive'
 const FORECAST_URL = 'https://api.open-meteo.com/v1/forecast'
@@ -184,4 +185,79 @@ export async function fetchClimateHours(
     })
   })
   return hours
+}
+
+const GEOCODING_URL = 'https://geocoding-api.open-meteo.com/v1/search'
+/** A place search waits for the geocoder no longer than this: a runner is looking at the screen. */
+export const GEOCODING_TIMEOUT_MS = 5_000
+
+export interface PlaceMatch {
+  name: string
+  region: string | null
+  country: string | null
+  /** Rounded to 0.01 degrees (about 1 km), the precision a stored place keeps. */
+  lat: number
+  lng: number
+}
+
+function text(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() !== '' ? value.trim() : null
+}
+
+function cell(value: number): number {
+  const rounded = Math.round(value * 100) / 100
+  return rounded === 0 ? 0 : rounded
+}
+
+/**
+ * Places that match a typed town or postcode, from Open-Meteo's geocoder. Only the typed text is
+ * sent. An error status, a timeout (`GEOCODING_TIMEOUT_MS`) or a body that is not JSON throws an
+ * error that never holds the query. Entries that round to the same cell with the same name are
+ * merged; at most `limit` places come back, in the geocoder's order.
+ */
+export async function searchPlaces(
+  fetchFn: typeof fetch,
+  query: string,
+  limit = 8,
+): Promise<PlaceMatch[]> {
+  const params = new URLSearchParams({ name: query, count: '10', language: 'en', format: 'json' })
+  const response = await fetchFn(`${GEOCODING_URL}?${params.toString()}`, {
+    signal: AbortSignal.timeout(GEOCODING_TIMEOUT_MS),
+  })
+  if (!response.ok) throw new Error(`Open-Meteo geocoding answered HTTP ${response.status}.`)
+  let body: { results?: unknown }
+  try {
+    body = (await response.json()) as { results?: unknown }
+  } catch {
+    throw new Error('Open-Meteo geocoding sent a response that is not JSON.')
+  }
+  // No match is an answer with no `results` member, not an error.
+  const results = Array.isArray(body?.results) ? (body.results as unknown[]) : []
+  const seen = new Set<string>()
+  const places: PlaceMatch[] = []
+  for (const entry of results) {
+    if (typeof entry !== 'object' || entry === null) continue
+    const row = entry as Record<string, unknown>
+    const name = text(row.name)
+    const { latitude, longitude } = row
+    if (
+      name === null ||
+      typeof latitude !== 'number' ||
+      typeof longitude !== 'number' ||
+      !Number.isFinite(latitude) ||
+      !Number.isFinite(longitude) ||
+      Math.abs(latitude) > 90 ||
+      Math.abs(longitude) > 180
+    ) {
+      continue
+    }
+    const lat = cell(latitude)
+    const lng = cell(longitude)
+    const key = `${name.toLowerCase()}|${lat.toFixed(2)}|${lng.toFixed(2)}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    places.push({ name, region: text(row.admin1), country: text(row.country), lat, lng })
+    if (places.length === limit) break
+  }
+  return places
 }
