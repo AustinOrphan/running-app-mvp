@@ -426,10 +426,16 @@ describe('Goals page', () => {
 
     const dialog = await openAddSheet(user)
     await fillBasics(user, dialog, 'Mountain 50')
-    await user.type(within(dialog).getByLabelText('Town or postcode'), 'Exampleton{Enter}')
-    await user.click(
-      await within(dialog).findByRole('button', { name: 'Exampleton, Sample County, Testland' }),
-    )
+    await user.type(within(dialog).getByLabelText('Town or postcode'), 'Exampleton')
+    const search = within(dialog).getByRole('button', { name: 'Search' })
+    await user.click(search)
+    const pick = await within(dialog).findByRole('button', {
+      name: 'Exampleton, Sample County, Testland',
+    })
+    expect(search).toHaveFocus()
+    await user.click(pick)
+    expect(pick).toHaveAttribute('aria-pressed', 'true')
+    expect(within(dialog).getByLabelText('Race latitude')).toHaveFocus()
     expect(within(dialog).getByLabelText('Race latitude')).toHaveValue('46.81')
     expect(within(dialog).getByLabelText('Race longitude')).toHaveValue('8.23')
     expect(calls.some((c) => c.method === 'POST' && c.url === '/api/goals')).toBe(false)

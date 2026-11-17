@@ -37,12 +37,15 @@ export function PlaceSearch({ onChoose }: PlaceSearchProps) {
   const [query, setQuery] = useState('')
   const [line, setLine] = useState<string | undefined>()
   const [chosen, setChosen] = useState<string | undefined>()
+  // The match last chosen, marked `aria-pressed`; the list stays so a wrong pick can be changed.
+  const [chosenKey, setChosenKey] = useState<string | undefined>()
   const search = usePlaceSearch()
   const online = useOnline()
 
   function submit() {
     if (search.isPending) return
     setChosen(undefined)
+    setChosenKey(undefined)
     search.reset()
     if (query.trim().length < MIN_QUERY) {
       setLine(say('places.search.too-short'))
@@ -55,11 +58,12 @@ export function PlaceSearch({ onChoose }: PlaceSearchProps) {
     setLine(undefined)
     search.mutate(query.trim(), {
       onError: (error) => {
-        // The 502 carries the app's own sentence; anything else (no network) is the offline line.
+        // Status 0 is a rejected fetch (no network): the offline line. Every other failure (502,
+        // 429, 500, 504) is the geocoder or the server being unavailable.
         setLine(
-          error instanceof ApiError && error.status === 502
-            ? say('places.unavailable')
-            : say('places.search.offline'),
+          error instanceof ApiError && error.status === 0
+            ? say('places.search.offline')
+            : say('places.unavailable'),
         )
       },
     })
@@ -85,32 +89,44 @@ export function PlaceSearch({ onChoose }: PlaceSearchProps) {
               maxLength={80}
               onChange={(event) => {
                 setQuery(event.target.value)
+                // A list of an earlier text never sits under new text.
+                if (search.data !== undefined || line !== undefined) {
+                  search.reset()
+                  setLine(undefined)
+                  setChosen(undefined)
+                  setChosenKey(undefined)
+                }
               }}
               onKeyDown={(event) => {
-                if (event.key !== 'Enter') return
+                // Enter that confirms an IME composition is not a submit.
+                if (event.key !== 'Enter' || event.nativeEvent.isComposing) return
                 event.preventDefault()
                 submit()
               }}
             />
           )}
         </Field>
-        <Button loading={search.isPending} onClick={submit}>
+        <Button busy={search.isPending} onClick={submit}>
           {say('places.search.button')}
         </Button>
       </div>
       <p className={styles.status} role="status" aria-live="polite">
         {status}
       </p>
-      {places !== undefined && places.length > 0 && line === undefined && chosen === undefined ? (
+      {places !== undefined && places.length > 0 && line === undefined ? (
         <ul className={styles.results} aria-label={say('places.search.list')}>
           {places.map((place) => {
             const label = placeLabel(place)
+            const key = `${place.lat},${place.lng},${label}`
             return (
-              <li key={`${place.lat},${place.lng},${label}`}>
+              <li key={key}>
                 <Button
                   className={styles.result}
+                  variant={chosenKey === key ? 'primary' : 'secondary'}
                   aria-label={label}
+                  aria-pressed={chosenKey === key}
                   onClick={() => {
+                    setChosenKey(key)
                     setChosen(render(TEMPLATES['places.search.chosen'], { place: label }, 'km'))
                     onChoose(place)
                   }}

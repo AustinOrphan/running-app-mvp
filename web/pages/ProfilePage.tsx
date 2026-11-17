@@ -360,6 +360,7 @@ function ProfileForm({ initial, units, weightUnit }: { initial: AthleteProfile }
   const [localErrors, setLocalErrors] = useState<Record<string, string>>({})
   const [locationNote, setLocationNote] = useState<string | undefined>()
   const [locating, setLocating] = useState(false)
+  const latRef = useRef<HTMLInputElement>(null)
   const usualStart = useUsualStart()
   const online = useOnline()
   // The fallback timer of a location request; null when none is waiting.
@@ -908,22 +909,29 @@ function ProfileForm({ initial, units, weightUnit }: { initial: AthleteProfile }
                 homeLat: String(place.lat),
                 homeLng: String(place.lng),
               }))
+              latRef.current?.focus()
             }}
           />
-          <div className={styles.actions}>
-            <Button busy={locating} onClick={useMyLocation}>
-              Use my location
-            </Button>
-            <Button loading={usualStart.isFetching} onClick={fillFromUsualStart}>
-              {render(TEMPLATES['places.start.button'], {}, 'km')}
-            </Button>
+          <div className={styles.locationBlock}>
+            <div className={styles.actions}>
+              <Button busy={locating} onClick={useMyLocation}>
+                Use my location
+              </Button>
+              <Button busy={usualStart.isFetching} onClick={fillFromUsualStart}>
+                {render(TEMPLATES['places.start.button'], {}, 'km')}
+              </Button>
+            </div>
+            {/* Mounted while empty, so the first message is announced. */}
+            <p className={styles.note} role="status">
+              {locationNote}
+            </p>
           </div>
-          {locationNote !== undefined ? <p className={styles.note}>{locationNote}</p> : null}
           <div className={styles.grid}>
             <Field label="Home latitude" error={errors['homeLat']}>
               {(control) => (
                 <Input
                   {...control}
+                  ref={latRef}
                   type="text"
                   inputMode="decimal"
                   value={draft.homeLat}

@@ -14,6 +14,11 @@
   flex: 1;
 }
 
+/* The same height as the input at every width (Button.module.css makes it shorter from 900 px). */
+.row > button {
+  min-height: var(--control-h);
+}
+
 .status {
   margin: 0;
   min-height: var(--lh-sm);

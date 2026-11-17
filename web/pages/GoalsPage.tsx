@@ -205,6 +205,7 @@ function GoalSheet({ goal, units, onClose }: GoalFormProps) {
   const [raceLng, setRaceLng] = useState(goal?.raceLng == null ? '' : String(goal.raceLng))
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [formError, setFormError] = useState<string | null>(null)
+  const raceLatRef = useRef<HTMLInputElement>(null)
 
   const shownDistance =
     presetM ??
@@ -477,6 +478,7 @@ function GoalSheet({ goal, units, onClose }: GoalFormProps) {
           onChoose={(place) => {
             setRaceLat(String(place.lat))
             setRaceLng(String(place.lng))
+            raceLatRef.current?.focus()
           }}
         />
         <Field
@@ -487,6 +489,7 @@ function GoalSheet({ goal, units, onClose }: GoalFormProps) {
           {(a) => (
             <Input
               {...a}
+              ref={raceLatRef}
               inputMode="decimal"
               value={raceLat}
               onChange={(e) => {
