@@ -442,6 +442,11 @@ export const TODAY_TEMPLATES = {
   'today.rate.caption': tpl(
     'Optional. A rating of effort or feel is what lets the plan adjust. Rate any or all of it.',
   ),
+  // The short ask for a run the watch already rated (FP1): feel and pain only, no effort.
+  'today.rate.short-heading': tpl('How did this run feel?', {}, { shape: 'label' }),
+  'today.rate.short-caption': tpl(
+    'Optional. The watch gave the effort. Add how it felt, or any pain.',
+  ),
   'today.rate.save': tpl('Save rating', {}, { shape: 'label' }),
   'today.rate.saved': tpl('Rating saved.'),
   // A save that changed only the Heat mark.

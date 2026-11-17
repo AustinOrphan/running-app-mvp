@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { ActivityListItem, Units } from '../../../shared/types.ts'
+import { ratingAsk } from '../../../shared/domain/ratingAsk.ts'
 import { formatDistance, formatDuration } from '../../../shared/units.ts'
 import {
   useQueuedRating,
@@ -51,6 +52,8 @@ function FeedbackItem({
   heatDays: boolean
 }) {
   const save = useSaveRating(activity.id)
+  // A run the watch rated asks for feel and pain only (FP1); the patch then carries no rpe.
+  const short = ratingAsk(activity) === 'short'
   const queued = useQueuedRating(activity.id)
   // Starts from the saved pain and heat mark so a save that only sets RPE or feel does not clear them.
   const [value, setValue] = useState<FeedbackValues>({
@@ -88,10 +91,16 @@ function FeedbackItem({
       </p>
       {/* Waiting on the phone, the pickers stay in view but cannot be changed (there is no Save). */}
       <div ref={pickers}>
+        {short ? (
+          <p className={styles.caption}>
+            {render(TEMPLATES['today.rate.short-caption'], {}, units)}
+          </p>
+        ) : null}
         <FeedbackFields
           value={value}
           onChange={setValue}
           showHeat={showHeatMark(activity, heatDays)}
+          showRpe={!short}
           units={units}
         />
       </div>

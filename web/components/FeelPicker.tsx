@@ -119,6 +119,8 @@ export interface FeedbackFieldsProps {
   /** Show the Heat mark: see `showHeatMark`. */
   showHeat?: boolean
   units?: Units
+  /** False for the short ask (FP1): the watch gave the effort, so only feel and pain are asked. */
+  showRpe?: boolean
 }
 
 /** RPE, feel, pain and the heat mark together: the fields of the "How did it go?" card and the detail page. */
@@ -127,20 +129,23 @@ export function FeedbackFields({
   onChange,
   showHeat = false,
   units = 'km',
+  showRpe = true,
 }: FeedbackFieldsProps) {
   return (
     <div className={styles.fields}>
-      <ScalePicker
-        legend="RPE"
-        min={1}
-        max={10}
-        touch
-        value={value.rpe}
-        onChange={(rpe) => {
-          onChange({ ...value, rpe })
-        }}
-        hint="1 is very easy, 10 is all out."
-      />
+      {showRpe ? (
+        <ScalePicker
+          legend="RPE"
+          min={1}
+          max={10}
+          touch
+          value={value.rpe}
+          onChange={(rpe) => {
+            onChange({ ...value, rpe })
+          }}
+          hint="1 is very easy, 10 is all out."
+        />
+      ) : null}
       <FeelPicker
         value={value.feel}
         onChange={(feel) => {

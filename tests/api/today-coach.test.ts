@@ -1095,6 +1095,29 @@ describe('GET /api/today: unrated runs', () => {
     const { unrated } = await view(u)
     expect(unrated.map((a) => a.id)).toEqual([newest.id, race.id])
   })
+
+  test('a watch rating alone keeps the run in the list until a feel or a pain is set (FP1)', async () => {
+    const u = await seedUser(ctx, { email: 'unrated-watch@example.com' })
+    const add = (date: string, over: Record<string, unknown> = {}) =>
+      ctx.prisma.activity.create({
+        data: {
+          userId: u.id,
+          date,
+          type: 'run',
+          durationSec: 1800,
+          movingSec: 1800,
+          distanceM: 5000,
+          source: 'manual',
+          ...over,
+        },
+      })
+    const watch = await add(today, { rpe: 6, rpeSource: 'watch' })
+    await add(addDays(today, -1), { rpe: 6, rpeSource: 'watch', feel: 0 })
+    await add(addDays(today, -2), { rpe: 6, rpeSource: 'watch', pain: 0 })
+    await add(addDays(today, -3), { rpe: 6, rpeSource: 'app' })
+
+    expect((await view(u)).unrated.map((a) => a.id)).toEqual([watch.id])
+  })
 })
 
 // ---------------------------------------------------------------------------------------------

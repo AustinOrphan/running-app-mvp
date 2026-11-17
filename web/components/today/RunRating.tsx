@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { render } from '../../../shared/copy/template.ts'
 import { TEMPLATES } from '../../../shared/copy/templates.ts'
+import { ratingAsk } from '../../../shared/domain/ratingAsk.ts'
 import type { Activity, Units } from '../../../shared/types.ts'
 import {
   ratingUrl,
@@ -19,11 +20,6 @@ import styles from './RunRating.module.css'
 /** The activities the rating ask is for: runs and races, as the server's list of unrated runs is. */
 export function isRunLike(activity: Pick<Activity, 'type'>): boolean {
   return activity.type === 'run' || activity.type === 'race'
-}
-
-/** A run counts as unrated on Today while it has neither an effort rating nor a feel. */
-export function isUnrated(run: Pick<Activity, 'rpe' | 'feel'>): boolean {
-  return run.rpe === null && run.feel === null
 }
 
 /**
@@ -83,18 +79,23 @@ export function RunRating({
       </p>
     )
   }
-  if (!isUnrated(run)) return null
+  const ask = ratingAsk(run)
+  if (ask === null) return null
+  const short = ask === 'short'
 
   return (
     <section aria-labelledby={headingId} className={styles.rating}>
       <h3 id={headingId} className={styles.heading}>
-        {render(TEMPLATES['today.rate.heading'], {}, units)}
+        {render(TEMPLATES[short ? 'today.rate.short-heading' : 'today.rate.heading'], {}, units)}
       </h3>
-      <p className={styles.caption}>{render(TEMPLATES['today.rate.caption'], {}, units)}</p>
+      <p className={styles.caption}>
+        {render(TEMPLATES[short ? 'today.rate.short-caption' : 'today.rate.caption'], {}, units)}
+      </p>
       <FeedbackFields
         value={value}
         onChange={setValue}
         showHeat={showHeatMark(run, heatDays)}
+        showRpe={!short}
         units={units}
       />
       <div className={styles.actions}>
