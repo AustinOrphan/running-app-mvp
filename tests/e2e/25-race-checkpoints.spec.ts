@@ -62,7 +62,7 @@ test('a plan with no rows says it works without them, and offers the editor', as
   await page.goto('/race')
   const heading = page.getByRole('heading', { level: 2, name: 'Checkpoints' })
   await expect(heading).toBeVisible()
-  await expect(page.getByText(/The plan works without them/)).toBeVisible()
+  await expect(page.getByText(/The race plan works without them/)).toBeVisible()
   await expect(page.getByRole('button', { name: 'Edit checkpoints' })).toBeVisible()
   expect(await scrollsSideways()).toBe(false)
 })
@@ -227,7 +227,7 @@ test('imports a course GPX file: proposes its waypoints, draws the profile, and 
   await expect(
     list
       .getByRole('article', { name: 'Lower station' })
-      .getByText('Cutoff 9 h 30 min into the race'),
+      .getByText(/^Cutoff (\d\d:\d\d.*, )?9 h 30 min into the race$/),
   ).toBeVisible()
   await expect(list.getByRole('article', { name: 'Station C' })).toBeVisible()
   await expect(list.getByRole('article', { name: 'Station B' })).toHaveCount(0)
