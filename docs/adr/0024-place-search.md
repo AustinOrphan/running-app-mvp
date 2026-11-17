@@ -50,9 +50,12 @@ picker may come later).
 - **Fact.** Open-Meteo already receives the home place's coordinates for the weather cache, so the
   search adds one request to a host the app already talks to and no new third party. Known from
   `server/providers/openMeteo.ts` and `server/services/weatherCache.ts`.
-- **Fact.** Open-Meteo's geocoder takes place names and postal codes without a key. Source: the
-  owner's brief of 2026-11-16; the service's documentation was not re-read for this ADR, and the
-  PL1 tests plan the answer, so no test called the live service.
+- **Fact (checked 2026-11-17 by sample requests).** Open-Meteo's geocoder takes place names without
+  a key and matches postcodes only in part: `90210` returned Beverly Hills, California, United
+  States; `60601` Chicago, Illinois, United States; `SW1A` Westminster Abbey, England, United
+  Kingdom; `75001` Paris, Île-de-France, France first and then a US town; `10115` (a Berlin
+  postcode) only New York, United States. A town name returned several same-named towns with their
+  regions. The PL1 tests plan the answer, so no test calls the live service.
 - **Fact.** The stored places are kept at 0.01 degrees, about 1 km, which is all weather and climate
   read, so a street address would add no precision the product uses. Known from
   `server/routes/profile.ts` (`round2`, the home place), `server/routes/goals.ts` (the race place)
@@ -87,6 +90,9 @@ picker may come later).
 
 ## Consequences
 
+- Postcode matching is partial (Fact above), so each result carries its region and country for the
+  runner to tell a wrong match, and a postcode that finds nothing or the wrong place falls back to
+  the town name or to coordinates, which stay.
 - `ApiErrorCode` gains `places.unavailable`.
 - `shared/copy/places.ts` holds the one sentence, under the G5 lint.
 - A new web PR adds the two controls; nothing here changes a stored place, a plan or a prediction.
