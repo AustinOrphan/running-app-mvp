@@ -232,6 +232,7 @@ async function storedSignals(
   const actions = new Map(reviewed.map((r) => [r.weekStart, r.action]))
   for (const row of rows) {
     if (row.decision === null || actions.get(row.week) !== row.decision.decision) continue
+    if (!Array.isArray(row.decision.signals)) continue
     // Ascending by time: a later revision of the same week replaces an earlier one.
     found.set(row.week, row.decision.signals)
   }

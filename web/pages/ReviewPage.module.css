@@ -148,13 +148,51 @@
 }
 
 .historyRow {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: 5rem minmax(0, 1fr) minmax(0, 1fr) 9rem;
+  grid-template-areas:
+    'week suggested decided min'
+    'signals signals signals signals';
   align-items: baseline;
-  gap: var(--space-3);
+  gap: var(--space-1) var(--space-3);
   padding: var(--space-3) 0;
   border-top: 1px solid var(--border);
   font-variant-numeric: lining-nums tabular-nums;
+}
+
+.historyWeek {
+  grid-area: week;
+}
+
+.historySuggested {
+  grid-area: suggested;
+  white-space: nowrap;
+}
+
+.historyDecided {
+  grid-area: decided;
+  white-space: nowrap;
+}
+
+.historyMin {
+  grid-area: min;
+  justify-self: end;
+  white-space: nowrap;
+}
+
+/* Phone: the week and its minutes on the first row, the two actions on the second. */
+@media (max-width: 40rem) {
+  .historyRow {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas:
+      'week min'
+      'suggested decided'
+      'signals signals';
+  }
+
+  .historyMin {
+    justify-self: end;
+  }
 }
 
 .historyRow:last-child {
@@ -164,7 +202,7 @@
 .historySignals {
   display: flex;
   flex-wrap: wrap;
-  flex-basis: 100%;
+  grid-area: signals;
   gap: var(--space-1) var(--space-3);
   margin: 0;
   padding: 0;

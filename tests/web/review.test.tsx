@@ -725,7 +725,8 @@ describe('ReviewPage', () => {
     expect(item).toHaveTextContent('Hold')
     expect(item).toHaveTextContent('300 min next week')
     expect(item).not.toHaveTextContent('Suggested')
-    expect(item).not.toHaveTextContent('Decided')
+    // The decision keeps its label, so a bare value never reads as a suggestion.
+    expect(item).toHaveTextContent('Decided Hold')
     expect(within(item).queryByRole('list')).not.toBeInTheDocument()
   })
 

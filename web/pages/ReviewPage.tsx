@@ -362,24 +362,20 @@ function ReviewBody({ today, from, thisWeek, reviews, weeks, plan, activities }:
               <li key={item.weekStart} className={styles.historyRow}>
                 <span className={styles.historyWeek}>{formatShortDate(item.weekStart)}</span>
                 {isListedAction(item.suggestedAction) ? (
-                  <span>
+                  <span className={styles.historySuggested}>
                     <span className={styles.muted}>{REVIEWED_ROW.suggested}</span>{' '}
                     {SUGGESTED_ACTION_LABEL[item.suggestedAction]}
                   </span>
                 ) : null}
-                <span>
-                  {isListedAction(item.suggestedAction) ? (
-                    <>
-                      <span className={styles.muted}>{REVIEWED_ROW.decided}</span>{' '}
-                    </>
-                  ) : null}
+                <span className={styles.historyDecided}>
+                  <span className={styles.muted}>{REVIEWED_ROW.decided}</span>{' '}
                   {item.finalDecision === null
                     ? REVIEWED_ROW.noDecision
                     : capitalise(item.finalDecision)}
                 </span>
                 {item.finalNextMin !== null ? (
                   <span
-                    className={styles.muted}
+                    className={`${styles.muted} ${styles.historyMin}`}
                   >{`${String(item.finalNextMin)} min next week`}</span>
                 ) : null}
                 {item.signals !== undefined && signalLabels(item.signals).length > 0 ? (

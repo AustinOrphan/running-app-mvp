@@ -21,7 +21,7 @@ export const REVIEWED_ROW = {
   suggested: 'Suggested',
   decided: 'Decided',
   signals: 'Signals for the suggestion',
-  noDecision: 'No decision',
+  noDecision: 'none yet',
 } as const
 
 /**
@@ -32,13 +32,13 @@ export const SIGNAL_LABEL: Readonly<Record<string, string>> = {
   'completion-low': 'Fewer of the planned minutes run',
   'sleep-warning': 'Short sleep',
   reds: 'Energy-availability screen',
-  heat: 'First hot days',
-  'subjective-decline': 'Check-ins lower than usual',
-  'efficiency-decline': 'Efficiency index lower',
+  heat: 'First hot days coming',
+  'subjective-decline': 'Effort, fatigue or check-ins',
+  'efficiency-decline': 'Pace at a given heart rate slower',
   'sleep-efficiency-drop': 'Sleep efficiency lower',
-  illness: 'Illness',
-  pain: 'Pain',
-  'pain-mild': 'Mild pain',
+  illness: 'Illness reported',
+  pain: 'Pain reported',
+  'pain-mild': 'Mild pain reported',
   'persistent-suppression': 'Readiness lower than usual',
   'readiness-flag': 'Readiness flag',
   'hrv-suppressed': 'HRV lower than usual',
