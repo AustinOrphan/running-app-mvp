@@ -20,7 +20,35 @@ export const ZONE_SOURCE_TEMPLATES = {
   // A maximum typed on the Profile and marked as measured in a test or race. The app has not seen
   // a heart rate of its own: this is the runner's figure.
   'zones.source.hrmax-observed': tpl(
-    'Typed on your profile, as measured in a test or race',
+    'Typed on your profile, marked as measured in a test or race',
+    {},
+    { shape: 'label' },
+  ),
+  // The same maximum, when the runner marked it as an estimate.
+  'zones.source.hrmax-typed-estimate': tpl(
+    'Typed on your profile, marked as an estimate',
+    {},
+    { shape: 'label' },
+  ),
+  // A boundary that is a share of, or follows, another anchor: the label names that anchor and
+  // not the anchor's own source, so a share of a typed maximum is not itself called typed.
+  'zones.derived.hrmax': tpl(
+    '{share} of the maximum heart rate on your profile',
+    { share: 'share' },
+    { shape: 'label' },
+  ),
+  'zones.derived.hrmax-age': tpl(
+    '{share} of the maximum heart rate estimated from your age',
+    { share: 'share' },
+    { shape: 'label' },
+  ),
+  'zones.derived.lthr': tpl(
+    '{share} of the threshold heart rate on your profile',
+    { share: 'share' },
+    { shape: 'label' },
+  ),
+  'zones.derived.threshold-pace': tpl(
+    'From the threshold pace on your profile',
     {},
     { shape: 'label' },
   ),
@@ -60,7 +88,7 @@ export const ZONE_SOURCE_TEMPLATES = {
   // The Profile's note on when zones change.
   'zones.note.ranges': tpl('Zones are ranges, not single points.'),
   'zones.note.pace': tpl(
-    'Pace boundaries follow your recent runs and are worked out again whenever your data changes.',
+    'Pace boundaries follow your recent runs, unless you type a threshold pace on the Profile, which they then follow.',
   ),
   'zones.note.hr': tpl(
     'Heart-rate boundaries change when you type a new value here, when a new year moves the age estimate, or when you accept an offer.',
@@ -88,14 +116,33 @@ const SOURCE_IDS = {
  * summary and the page that says what the plan can see both use.
  */
 export function boundarySourceText(
-  boundary: Pick<Boundary, 'source' | 'fromTraining' | 'windowWidened'>,
+  boundary: Pick<Boundary, 'source' | 'fromTraining' | 'windowWidened' | 'derivation' | 'typedAs'>,
   units: Units = 'km',
 ): string {
   const T = ZONE_SOURCE_TEMPLATES
-  const label =
-    boundary.source === 'hrmax-age'
-      ? render(T['zones.source.hrmax-age'], { formula: ageFormulaText() }, units)
-      : render(T[SOURCE_IDS[boundary.source]], {}, units)
+  let label: string
+  const { derivation } = boundary
+  if (derivation !== undefined) {
+    // Whole percent: the share of the threshold heart rate is 0.78 / 0.88, shown as 89%.
+    const share = {
+      kind: 'share',
+      fraction: Math.round((derivation.share ?? 0) * 100) / 100,
+    } as const
+    if (derivation.from === 'threshold-pace') {
+      label = render(T['zones.derived.threshold-pace'], {}, units)
+    } else if (derivation.from === 'lthr') {
+      label = render(T['zones.derived.lthr'], { share }, units)
+    } else {
+      const id = boundary.source === 'hrmax-age' ? 'zones.derived.hrmax-age' : 'zones.derived.hrmax'
+      label = render(T[id], { share }, units)
+    }
+  } else if (boundary.source === 'hrmax-age') {
+    label = render(T['zones.source.hrmax-age'], { formula: ageFormulaText() }, units)
+  } else if (boundary.source === 'profile' && boundary.typedAs === 'estimate') {
+    label = render(T['zones.source.hrmax-typed-estimate'], {}, units)
+  } else {
+    label = render(T[SOURCE_IDS[boundary.source]], {}, units)
+  }
   if (boundary.fromTraining !== true) return label
   const training =
     boundary.windowWidened === true
@@ -109,7 +156,10 @@ export function boundarySourceText(
  * computed boundary was worked out, and no day for an own anchor with none known.
  */
 export function boundaryOriginText(
-  boundary: Pick<Boundary, 'source' | 'fromTraining' | 'windowWidened' | 'asOf' | 'since'>,
+  boundary: Pick<
+    Boundary,
+    'source' | 'fromTraining' | 'windowWidened' | 'asOf' | 'since' | 'derivation' | 'typedAs'
+  >,
   units: Units = 'km',
 ): string {
   const T = ZONE_SOURCE_TEMPLATES

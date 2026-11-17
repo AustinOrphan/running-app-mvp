@@ -170,6 +170,14 @@ export interface Boundary {
    */
   since?: string
   /**
+   * Set on a boundary that is a share of, or follows, another anchor of the runner's: the maximum
+   * heart rate (`share` of it), the typed threshold heart rate (`share` of it) or the typed
+   * threshold pace. Its label says so instead of repeating the anchor's.
+   */
+  derivation?: { from: 'hrmax' | 'lthr' | 'threshold-pace'; share?: number }
+  /** Set on a maximum heart rate the runner typed and marked as an estimate (source `profile`). */
+  typedAs?: 'estimate'
+  /**
    * True on a boundary found from a critical speed that uses the stretches of training runs (rule
    * A6): a floor, so the boundary may sit low. Absent otherwise.
    */

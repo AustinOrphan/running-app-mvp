@@ -7,6 +7,7 @@ import {
   boundarySourceText,
   ZONE_SOURCE_TEMPLATES,
 } from '../../../shared/copy/zoneSources.ts'
+import { P } from '../../../shared/engine/params/index.ts'
 import type { Boundary } from '../../../shared/engine/types.ts'
 
 const SOURCES: Boundary['source'][] = [
@@ -37,7 +38,10 @@ describe('zone source copy', () => {
 
   test('says typed for a typed maximum, the formula for an age estimate, accepted for an offer', () => {
     expect(boundarySourceText({ source: 'hrmax-observed' })).toBe(
-      'Typed on your profile, as measured in a test or race',
+      'Typed on your profile, marked as measured in a test or race',
+    )
+    expect(boundarySourceText({ source: 'profile', typedAs: 'estimate' })).toBe(
+      'Typed on your profile, marked as an estimate',
     )
     expect(boundarySourceText({ source: 'profile' })).toBe('Set on your profile')
     expect(boundarySourceText({ source: 'hrmax-age' })).toBe(
@@ -45,6 +49,33 @@ describe('zone source copy', () => {
     )
     expect(ageFormulaText()).toBe('208 - 0.7 x age')
     expect(boundarySourceText({ source: 'own-line' })).toMatch(/^From an offer you accepted/)
+  })
+
+  test('labels a derived boundary as derived, with the shares from the Params', () => {
+    expect(
+      boundarySourceText({
+        source: 'hrmax-observed',
+        derivation: { from: 'hrmax', share: P.c2.lt1FractionOfHrMax.value },
+      }),
+    ).toBe('78% of the maximum heart rate on your profile')
+    expect(
+      boundarySourceText({
+        source: 'hrmax-age',
+        derivation: { from: 'hrmax', share: P.c2.lt2FractionOfHrMax.value },
+      }),
+    ).toBe('88% of the maximum heart rate estimated from your age')
+    expect(
+      boundarySourceText({
+        source: 'profile',
+        derivation: {
+          from: 'lthr',
+          share: P.c2.lt1FractionOfHrMax.value / P.c2.lt2FractionOfHrMax.value,
+        },
+      }),
+    ).toBe('89% of the threshold heart rate on your profile')
+    expect(boundarySourceText({ source: 'profile', derivation: { from: 'threshold-pace' } })).toBe(
+      'From the threshold pace on your profile',
+    )
   })
 
   test('keeps the training notes of rule A6', () => {
@@ -62,7 +93,7 @@ describe('zone source copy', () => {
     test('is the profile save for a typed anchor, never the day it was worked out', () => {
       const text = boundaryOriginText({ ...base, source: 'hrmax-observed', since: '2026-11-10' })
       expect(text).toBe(
-        'Typed on your profile, as measured in a test or race, profile last saved Tue 10 Nov 2026',
+        'Typed on your profile, marked as measured in a test or race, profile last saved Tue 10 Nov 2026',
       )
       expect(text).not.toContain('17 Nov')
     })
