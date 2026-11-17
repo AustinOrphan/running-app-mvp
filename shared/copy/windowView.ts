@@ -61,6 +61,8 @@ export const WINDOW_VIEW_TEMPLATES = {
     { page: 'text' },
   ),
   'window-view.prefill': tpl('Filled in from your check-ins. Change anything.'),
+  // The offer for a long or back-to-back run rated with pain (rule J11): the rating of the run.
+  'window-view.prefill-run': tpl('Filled in from your rating of the run. Change anything.'),
 
   // While a niggle window is open and no bone sign is reported (rule J11): an option, no promise.
   'window-view.cross-training': tpl(
@@ -345,8 +347,8 @@ export function repeatSignsLine(units: Units): string {
 }
 
 /** The hint under a sheet whose area and pain came from the check-ins. */
-export function prefillHint(units: Units): string {
-  return render(t['window-view.prefill'], {}, units)
+export function prefillHint(units: Units, from: 'check-ins' | 'run' = 'check-ins'): string {
+  return render(t[from === 'run' ? 'window-view.prefill-run' : 'window-view.prefill'], {}, units)
 }
 
 /** The one sentence about cycling or pool work, for a niggle window and no bone sign. */
