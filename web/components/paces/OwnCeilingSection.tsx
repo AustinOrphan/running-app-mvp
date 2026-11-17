@@ -5,6 +5,7 @@ import { PACES_TEMPLATES, pacesText } from '../../../shared/copy/myPaces.ts'
 import { render } from '../../../shared/copy/template.ts'
 import type { MyPaces } from '../../../shared/engine/myPaces.ts'
 import type { OwnCeilingReading } from '../../../shared/engine/ownCeiling.ts'
+import { P } from '../../../shared/engine/params/index.ts'
 import type { Units } from '../../../shared/types.ts'
 import { GradeBadge } from '../GradeBadge.tsx'
 import { HowMade } from './HowMade.tsx'
@@ -16,16 +17,16 @@ type Ready = Extract<OwnCeilingReading, { status: 'ready' }>
 
 /** How far the ceiling in use sits from the range the runs give, in words. */
 function relationLine(reading: Ready, units: Units): string {
-  if (reading.relation === 'within') return pacesText('paces.ceiling.within')
-  return render(
-    T[reading.relation === 'below' ? 'paces.ceiling.below' : 'paces.ceiling.above'],
-    { gap: { kind: 'bpm', bpm: reading.gapBpm } },
-    units,
-  )
+  const one = reading.low === reading.high
+  if (reading.relation === 'within') {
+    return pacesText(one ? 'paces.ceiling.within-one' : 'paces.ceiling.within')
+  }
+  const id = `paces.ceiling.${reading.relation}${one ? '-one' : ''}` as const
+  return render(T[id], { gap: { kind: 'bpm', bpm: reading.gapBpm } }, units)
 }
 
-/** The runs a reading stands on: how many, in which window, and since when they count. */
-function basisLines(reading: OwnCeilingReading, units: Units): string[] {
+/** The runs a reading stands on: how many, and in which window; the range line only for a range. */
+function basisLines(reading: Ready, units: Units): string[] {
   return [
     render(
       T['paces.ceiling.basis'],
@@ -35,16 +36,7 @@ function basisLines(reading: OwnCeilingReading, units: Units): string[] {
       },
       units,
     ),
-    pacesText('paces.ceiling.range'),
-    ...(reading.since === null
-      ? []
-      : [
-          render(
-            T['paces.ceiling.since'],
-            { date: { kind: 'date', iso: reading.since, style: 'short' } },
-            units,
-          ),
-        ]),
+    ...(reading.low === reading.high ? [] : [pacesText('paces.ceiling.range')]),
   ]
 }
 
@@ -63,7 +55,11 @@ function ReadingRows({ reading, units }: { reading: Ready; units: Units }) {
     <dl className={styles.scenarios}>
       <Row
         label={pacesText('paces.ceiling.row-in-use')}
-        value={render(T['paces.ceiling.value-one'], { bpm: bpm(reading.inUse.bpm) }, units)}
+        value={render(
+          T['paces.ceiling.value-band'],
+          { bpm: bpm(reading.inUse.bpm), band: bpm(Math.round(reading.inUse.bandBpm)) },
+          units,
+        )}
       />
       {reading.low === reading.high ? (
         // Three readings that round to the same figure are one figure, not a range.
@@ -192,6 +188,16 @@ export function OwnCeilingSection({ ownCeiling, units }: OwnCeilingSectionProps)
       </h2>
       <p className={styles.note}>{pacesText('paces.ceiling.context')}</p>
       <Body reading={reading} units={units} />
+      {reading.since === null ? null : (
+        // Only runs after the last accepted change count, in every state.
+        <p className={styles.note}>
+          {render(
+            T['paces.ceiling.since'],
+            { date: { kind: 'date', iso: reading.since, style: 'short' } },
+            units,
+          )}
+        </p>
+      )}
       {reading.status === 'ready' ? (
         <>
           <div className={styles.badges}>
@@ -204,6 +210,14 @@ export function OwnCeilingSection({ ownCeiling, units }: OwnCeilingSectionProps)
               {
                 lower: { kind: 'count', n: reading.needLower },
                 higher: { kind: 'count', n: reading.needHigher },
+              },
+              units,
+            )}{' '}
+            {render(
+              T['paces.ceiling.offer-gates'],
+              {
+                under: { kind: 'bpm', bpm: P.c8.ownLt1MinDeltaLowerBpm.value },
+                over: { kind: 'bpm', bpm: P.c8.ownLt1MinDeltaRaiseBpm.value },
               },
               units,
             )}{' '}

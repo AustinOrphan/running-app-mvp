@@ -36,6 +36,21 @@ export const PACES_TEMPLATES = {
     { low: 'bpm', high: 'bpm' },
     { shape: 'label' },
   ),
+  'paces.ceiling.value-band': tpl(
+    '{bpm}, plus or minus {band}',
+    { bpm: 'bpm', band: 'bpm' },
+    { shape: 'label' },
+  ),
+  'paces.ceiling.within-one': tpl('The ceiling in use matches the reading your runs give.'),
+  'paces.ceiling.below-one': tpl(
+    'The ceiling in use sits {gap} under the reading your runs give.',
+    {
+      gap: 'bpm',
+    },
+  ),
+  'paces.ceiling.above-one': tpl('The ceiling in use sits {gap} over the reading your runs give.', {
+    gap: 'bpm',
+  }),
   'paces.ceiling.within': tpl('The ceiling in use sits inside the range your runs give.'),
   'paces.ceiling.below': tpl('The ceiling in use sits {gap} under the range your runs give.', {
     gap: 'bpm',
@@ -55,8 +70,12 @@ export const PACES_TEMPLATES = {
     { date: 'date' },
   ),
   'paces.ceiling.offer': tpl(
-    'Nothing here is applied. The review page offers a lower ceiling when the readings agree on {lower} or more cool runs, and a higher one on {higher} or more; you decide.',
+    'Nothing here is applied. The review page offers a lower ceiling on {lower} or more cool runs and a higher one on {higher} or more; you decide.',
     { lower: 'count', higher: 'count' },
+  ),
+  'paces.ceiling.offer-gates': tpl(
+    'An offer also needs an active plan, and all three readings at least {under} under or {over} over the ceiling in use.',
+    { under: 'bpm', over: 'bpm' },
   ),
   'paces.ceiling.few-heading': tpl('Not enough runs yet', {}, { shape: 'label' }),
   'paces.ceiling.few-count': tpl(

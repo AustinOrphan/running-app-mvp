@@ -691,7 +691,16 @@ describe('MyPacesPage: the easy ceiling from your runs', () => {
     if (reading.status !== 'ready') throw new Error('not ready')
     expect(reading.low).toBeLessThan(reading.high)
     expect(within(section).getByText('Ceiling in use')).toBeInTheDocument()
-    expect(within(section).getByText(`${String(reading.inUse.bpm)} bpm`)).toBeInTheDocument()
+    expect(
+      within(section).getByText(
+        `${String(reading.inUse.bpm)} bpm, plus or minus ${String(Math.round(reading.inUse.bandBpm))} bpm`,
+      ),
+    ).toBeInTheDocument()
+    expect(
+      within(section).getByText(/^The ceiling in use sits .* the range your runs give\.$/),
+    ).toBeInTheDocument()
+    expect(within(section).getByText(/^The range is the lowest and highest/)).toBeInTheDocument()
+    expect(within(section).getByText(/An offer also needs an active plan/)).toBeInTheDocument()
     expect(within(section).getByText('What your runs say')).toBeInTheDocument()
     expect(
       within(section).getByText(`${String(reading.low)} bpm to ${String(reading.high)} bpm`),
@@ -721,6 +730,39 @@ describe('MyPacesPage: the easy ceiling from your runs', () => {
     expect(within(section).getByText('What your runs say')).toBeInTheDocument()
     expect(within(section).queryByText('Middle reading')).toBeNull()
     expect(within(section).queryByText(/ bpm to /)).toBeNull()
+    expect(within(section).queryByText(/The range is the lowest and highest/)).toBeNull()
+    expect(
+      within(section).getByText(/^The ceiling in use sits .* the reading your runs give\.$/),
+    ).toBeInTheDocument()
+    expect(within(section).queryByText(/the range your runs give/)).toBeNull()
+  })
+
+  test('says that only runs after the accepted change count, in the too-few state too', async () => {
+    const { view, routes } = serve(stateWith(FITNESS), coolRuns(3, 90))
+    const answer = routes['GET /api/paces']!
+    mockApi({
+      ...routes,
+      'GET /api/paces': (request) => {
+        const full = answer(request) as MyPacesView
+        const own = full.easy.ownCeiling
+        return {
+          ...full,
+          easy: {
+            ...full.easy,
+            ownCeiling: { ...own, reading: { ...own.reading, since: '2026-06-20' } },
+          },
+        }
+      },
+    })
+    renderWithProviders(<MyPacesPage />, { route: '/paces' })
+    const section = await screen.findByRole('region', { name: 'Easy ceiling from your runs' })
+    expect(view.easy.ownCeiling.reading.status).toBe('too-few')
+    expect(
+      within(section).getByText('3 of 10 runs qualify so far, in the last 8 weeks.'),
+    ).toBeInTheDocument()
+    expect(
+      within(section).getByText(/^Only runs after .*, when this ceiling was set/),
+    ).toBeInTheDocument()
   })
 
   test('with too few runs says how many qualify of how many, and what makes a run qualify', async () => {
