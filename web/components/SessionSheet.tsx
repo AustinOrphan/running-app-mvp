@@ -36,6 +36,7 @@ import { WarningSignsText } from './WarningSignsText.tsx'
 import {
   formatClimb,
   formatLongDate,
+  formatSessionMinutes,
   formatShortDate,
   formatWeekday,
   sessionKindLabel,
@@ -112,7 +113,7 @@ const NBSP = ' '
  */
 export function sessionSummary(session: PlanSessionView, units: Units | undefined): string {
   const parts: string[] = []
-  if (session.durationMin > 0) parts.push(`${String(session.durationMin)}${NBSP}min`)
+  if (session.durationMin > 0) parts.push(formatSessionMinutes(session.durationMin))
   if (units !== undefined) {
     // `?? null`: a Today answer the phone kept from before the estimate existed has no field.
     const estimate = session.distanceEstimate ?? null
@@ -428,7 +429,7 @@ export function SessionSheet({ session, onClose }: SessionSheetProps) {
   const facts = (
     <>
       {session.durationMin > 0 ? (
-        <Row label="Time">{`${String(session.durationMin)}${NBSP}min`}</Row>
+        <Row label="Time">{formatSessionMinutes(session.durationMin)}</Row>
       ) : null}
       {units === undefined ? null : parts !== null ? (
         <Row label="Distance" caption={parts.caption}>
@@ -455,7 +456,7 @@ export function SessionSheet({ session, onClose }: SessionSheetProps) {
           {original !== null ? (
             <p className={styles.muted}>
               First planned: {original.title ?? session.title},{' '}
-              {String(original.durationMin ?? session.durationMin)} min
+              {formatSessionMinutes(original.durationMin ?? session.durationMin)}
               {original.date !== undefined && original.date !== session.date
                 ? `, on ${formatLongDate(original.date)}`
                 : ''}

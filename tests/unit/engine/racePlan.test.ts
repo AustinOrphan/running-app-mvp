@@ -156,7 +156,8 @@ describe('racePlanFor: the parts', () => {
       if (i > 0) expect(third.fromSec).toBe(plan.thirds[i - 1]?.toSec)
     })
     const last = plan.thirds.at(-1)
-    expect(Math.abs((last?.toSec ?? 0) - plan.expected.midSec)).toBeLessThanOrEqual(step / 2)
+    // The last part ends at the expected time itself, so the figure and the part read the same.
+    expect(last?.toSec).toBe(plan.expected.midSec)
     expect(plan.thirds.map((t) => t.late)).toEqual([false, false, true])
   })
 

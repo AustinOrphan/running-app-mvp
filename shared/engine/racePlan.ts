@@ -313,7 +313,11 @@ function thirdsOf(midSec: number, start: string | null, fuel: RaceFuel): RaceThi
   const startMin = startMinutes(start)
   const dawn = P.d1Dark.dawnHour.value * MIN_PER_HOUR
   const dusk = P.d1Dark.duskHour.value * MIN_PER_HOUR
-  const edge = (i: number) => Math.round((midSec * i) / parts / step) * step
+  // The inner edges are rounded to the arrival step; the last edge is the expected time itself, so
+  // the end of the last part and the figure above it name the same instant ("32 h 9 min", not
+  // "32 h 10 min").
+  const edge = (i: number) =>
+    i === parts ? midSec : Math.round((midSec * i) / parts / step) * step
   const [rateLow, rateHigh] = fuel.range ?? [fuel.gPerH, fuel.gPerH]
   return Array.from({ length: parts }, (_unused, index) => {
     const fromSec = edge(index)

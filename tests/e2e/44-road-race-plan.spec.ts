@@ -93,7 +93,7 @@ test('a marathon on the road has the full road plan: time, pace, fuel, race week
   await expect(headings.filter({ hasText: 'Expected time' })).toBeVisible()
   await expect(headings.filter({ hasText: 'Average pace' })).toBeVisible()
   await expect(headings.filter({ hasText: 'Fuel and fluid' })).toBeVisible()
-  await expect(headings.filter({ hasText: 'Race week' })).toBeVisible()
+  await expect(headings.filter({ hasText: 'The last two days' })).toBeVisible()
   await expect(headings.filter({ hasText: 'Not in this plan' })).toBeVisible()
   // The ultra page's blocks do not appear for a road race.
   await expect(headings.filter({ hasText: 'Effort' })).toHaveCount(0)
@@ -126,7 +126,7 @@ test('a 10 km has the time and pace blocks only', async () => {
   await expect(headings.filter({ hasText: 'Expected time' })).toBeVisible()
   await expect(headings.filter({ hasText: 'Average pace' })).toBeVisible()
   await expect(headings.filter({ hasText: 'Fuel and fluid' })).toHaveCount(0)
-  await expect(headings.filter({ hasText: 'Race week' })).toHaveCount(0)
+  await expect(headings.filter({ hasText: 'The last two days' })).toHaveCount(0)
   await expect(headings.filter({ hasText: 'First half' })).toHaveCount(0)
 })
 

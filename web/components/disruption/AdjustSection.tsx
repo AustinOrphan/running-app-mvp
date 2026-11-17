@@ -25,7 +25,7 @@ import { useToday } from '../../api/today.ts'
 import { Button } from '../Button.tsx'
 import { Field, Input, Select } from '../Field.tsx'
 import { useToast } from '../Toast.tsx'
-import { formatShortDate, formatWeekday } from '../format.ts'
+import { formatSessionMinutes, formatShortDate, formatWeekday } from '../format.ts'
 import { PlanDiffView } from '../revisions/PlanDiffView.tsx'
 import { RevisionDiff } from '../revisions/RevisionDiff.tsx'
 // The section, heading, muted and inline classes of the session sheet it sits in.
@@ -40,8 +40,6 @@ export interface AdjustSectionProps {
    */
   onApplied?: () => void
 }
-
-const NBSP = ' '
 
 /** The longest session a shorten can name: a full day of minutes (the route's limit). */
 const MAX_SESSION_MIN = 24 * 60
@@ -306,7 +304,7 @@ export function AdjustSection({ session, onApplied }: AdjustSectionProps) {
                       <option value="">Choose a session</option>
                       {partners.map((other) => (
                         <option key={other.id} value={other.id}>
-                          {`${formatWeekday(other.date)} ${formatShortDate(other.date)}, ${other.title}, ${String(other.durationMin)}${NBSP}min`}
+                          {`${formatWeekday(other.date)} ${formatShortDate(other.date)}, ${other.title}, ${formatSessionMinutes(other.durationMin)}`}
                         </option>
                       ))}
                     </Select>

@@ -97,15 +97,14 @@ test('enters two points and reads their arrival ranges, the cutoff and the finis
   await expect(rows).toHaveCount(3)
   const a = list.getByRole('article', { name: 'Checkpoint A' })
   await expect(a.getByText(/^About \d\d:\d\d( the next day)? to \d\d:\d\d/)).toBeVisible()
-  // the cutoff stands in its own lines, in the clock and in time into the race
-  await expect(a.getByText('Cutoff 14:30')).toBeVisible()
-  await expect(a.getByText('Cutoff 8 h 30 min into the race')).toBeVisible()
+  // the cutoff stands in one line, in the clock and in time into the race
+  await expect(a.getByText('Cutoff 14:30, 8 h 30 min into the race')).toBeVisible()
   await expect(
     a.getByText('900 m of climb, as entered.').or(a.getByText(/ft of climb, as entered/)),
   ).toBeVisible()
   const b = list.getByRole('article', { name: 'Checkpoint B' })
   await expect(b.getByText(/of descent, shown and not counted/)).toBeVisible()
-  await expect(b.getByText(/^Cutoff 03:00 the next day$/)).toBeVisible()
+  await expect(b.getByText(/^Cutoff 03:00 the next day, .+ into the race$/)).toBeVisible()
   const finish = list.getByRole('article', { name: 'Finish' })
   await expect(finish.getByText(/^About \d\d:\d\d/)).toBeVisible()
   // grams to carry for an aided race, labelled an estimate
