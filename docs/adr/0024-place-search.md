@@ -50,16 +50,23 @@ picker may come later).
 - **Fact.** Open-Meteo already receives the home place's coordinates for the weather cache, so the
   search adds one request to a host the app already talks to and no new third party. Known from
   `server/providers/openMeteo.ts` and `server/services/weatherCache.ts`.
-- **Fact.** Open-Meteo's geocoder takes place names and postal codes without a key (its
-  documentation, read 2026-11-16).
-- **Fact.** Weather needs about 1 km, so a street address adds no accuracy to the product.
+- **Fact.** Open-Meteo's geocoder takes place names and postal codes without a key. Source: the
+  owner's brief of 2026-11-16; the service's documentation was not re-read for this ADR, and the
+  PL1 tests plan the answer, so no test called the live service.
+- **Fact.** The stored places are kept at 0.01 degrees, about 1 km, which is all weather and climate
+  read, so a street address would add no precision the product uses. Known from
+  `server/routes/profile.ts` (`round2`, the home place), `server/routes/goals.ts` (the race place)
+  and the README section "Weather and privacy".
 - **Opinion.** A home address typed into a search box is a more sensitive thing to send to a third
   party than a town name. Sending only a town or postcode keeps the outbound request to what the
   feature needs, so street-address search is left out.
-- **Rule.** Network access goes only through `Deps.fetch` and a place's precision is 0.01 degrees
-  (CLAUDE.md, Providers; ADR 0009 for what counts as engine data).
-- **Rule.** The stored polyline is never served except by the track route (CLAUDE.md, run tracks),
-  so the usual start returns a rounded cell.
+- **Rule.** Network access goes only through `Deps.fetch`, never a global `fetch` (CLAUDE.md,
+  Providers).
+- **Fact.** A run counted twice would skew the cell count, so the usual start leaves out activities
+  a duplicate pass marked `possible` or `confirmed`, as `server/serialize.ts` and
+  `server/services/trendsDurability.ts` do.
+- **Rule.** The stored polyline is never served except by the track route (CLAUDE.md, Providers,
+  "Run tracks (M1a)"), so the usual start returns a rounded cell.
 - **Opinion.** A POST for the search is worth its small departure from REST: a place a runner types
   is health-adjacent location data and should not sit in a URL or an access log.
 - **Opinion.** The first recorded position of a run is a better guess of "home" than a centre of the

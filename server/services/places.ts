@@ -9,7 +9,6 @@ import type { Deps } from '../app.ts'
 import type { PrismaClient } from '../db.ts'
 import { HttpError } from '../errors.ts'
 import { searchPlaces as geocode, type PlaceMatch } from '../providers/openMeteo.ts'
-import { loadRunnerDay } from '../runnerDay.ts'
 import { PLACES_TEMPLATES } from '../../shared/copy/places.ts'
 import { render } from '../../shared/copy/template.ts'
 import { addDays } from '../../shared/dates.ts'
@@ -44,6 +43,17 @@ export async function searchPlaces(
   }
 }
 
+/** A decoded position a start can be read from: finite, on the globe, and not the null island. */
+function plausiblePosition(lat: number, lng: number): boolean {
+  return (
+    Number.isFinite(lat) &&
+    Number.isFinite(lng) &&
+    Math.abs(lat) <= 90 &&
+    Math.abs(lng) <= 180 &&
+    !(lat === 0 && lng === 0)
+  )
+}
+
 /**
  * The most common 0.01-degree cell among the first recorded positions of the runner's runs and
  * races with a stored track over the last `USUAL_START_DAYS` days, or null when none has one. The
@@ -53,14 +63,15 @@ export async function searchPlaces(
 export async function loadUsualStart(
   prisma: PrismaClient,
   userId: string,
-  now: Date = new Date(),
+  today: string,
 ): Promise<UsualStart | null> {
-  const { today } = await loadRunnerDay(prisma, userId, now)
   const rows = await prisma.activityTrack.findMany({
     where: {
       activity: {
         userId,
         type: { in: ['run', 'race'] },
+        // A run recorded twice counts once: the copy a duplicate pass marked is left out.
+        duplicateStatus: { in: ['none', 'dismissed'] },
         date: { gte: addDays(today, -USUAL_START_DAYS) },
       },
     },
@@ -69,7 +80,8 @@ export async function loadUsualStart(
   const starts: RunStart[] = []
   for (const row of rows) {
     const first = decodePolyline(row.polyline)[0]
-    if (first) starts.push({ lat: first[0], lng: first[1], date: row.activity.date })
+    if (first && plausiblePosition(first[0], first[1]))
+      starts.push({ lat: first[0], lng: first[1], date: row.activity.date })
   }
   return usualStart(starts)
 }

@@ -2,7 +2,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test, vi 
 import { trackRow } from '../../server/services/activityStore.ts'
 import { loadRunnerDay } from '../../server/runnerDay.ts'
 import { addDays } from '../../shared/dates.ts'
-import { TRACK_VERSION, buildTrack } from '../../shared/importers/files/track.ts'
+import { TRACK_VERSION, buildTrack, encodePolyline } from '../../shared/importers/files/track.ts'
 import type { ApiErrorBody } from '../../shared/types.ts'
 import { fakeFetch } from '../fakeFetch.ts'
 import {
@@ -155,6 +155,45 @@ describe('POST /api/places/search', () => {
     ])
   })
 
+  test('drops malformed and out-of-range entries', async () => {
+    geocoder(() =>
+      json({
+        results: [
+          null,
+          'text',
+          { latitude: 1, longitude: 2 },
+          { name: '   ', latitude: 1, longitude: 2 },
+          { name: 'Text Coordinates', latitude: '1', longitude: 2 },
+          { name: 'Null Latitude', latitude: null, longitude: 2 },
+          { name: 'Too North', latitude: 90.5, longitude: 2 },
+          { name: 'Too South', latitude: -91, longitude: 2 },
+          { name: 'Too East', latitude: 1, longitude: 180.5 },
+          { name: 'Too West', latitude: 1, longitude: -181 },
+          { name: 'Pole', admin1: '  ', country: 7, latitude: 90, longitude: -180 },
+        ],
+      }),
+    )
+    const res = await search('Anywhere')
+    expect(res.status).toBe(200)
+    expect(placesOf(res)).toEqual([
+      { name: 'Pole', region: null, country: null, lat: 90, lng: -180 },
+    ])
+  })
+
+  test('merges names that differ only in case', async () => {
+    geocoder(() =>
+      json({
+        results: [
+          { name: 'Exampleton', latitude: 10, longitude: 20 },
+          { name: 'EXAMPLETON', latitude: 10.001, longitude: 20.001 },
+        ],
+      }),
+    )
+    expect(placesOf(await search('Exampleton'))).toEqual([
+      { name: 'Exampleton', region: null, country: null, lat: 10, lng: 20 },
+    ])
+  })
+
   test('answers at most 8 places', async () => {
     geocoder(() =>
       json({
@@ -198,7 +237,14 @@ describe('POST /api/places/search', () => {
       signals.push(init?.signal ?? undefined)
       return Promise.reject(new DOMException('The operation timed out.', 'TimeoutError'))
     }
-    const res = await search('Exampleton')
+    const timeout = vi.spyOn(AbortSignal, 'timeout')
+    let res: Awaited<ReturnType<typeof search>>
+    try {
+      res = await search('Exampleton')
+      expect(timeout).toHaveBeenCalledWith(5000)
+    } finally {
+      timeout.mockRestore()
+    }
     expect(res.status).toBe(502)
     expect((res.body as ApiErrorBody).error.code).toBe('places.unavailable')
     expect(signals[0]).toBeInstanceOf(AbortSignal)
@@ -239,14 +285,19 @@ describe('POST /api/places/search', () => {
   })
 })
 
-/** A run whose recorded route starts at `lat`, `lng` and goes about 300 m north. */
+/**
+ * A run whose recorded route starts at `lat`, `lng` and goes `lengthM` metres north (300 m unless
+ * said), one fix every 10 m.
+ */
 async function addRun(
   userId: string,
   start: { lat: number; lng: number },
   date: string,
   type = 'run',
+  opts: { lengthM?: number; duplicateStatus?: string } = {},
 ): Promise<void> {
-  const route = Array.from({ length: 31 }, (_, i) => ({
+  const lengthM = opts.lengthM ?? 300
+  const route = Array.from({ length: lengthM / 10 + 1 }, (_, i) => ({
     lat: start.lat + (i * 10) / 111_320,
     lng: start.lng,
     d: i * 10,
@@ -254,7 +305,15 @@ async function addRun(
   }))
   const track = buildTrack(route)!
   const activity = await ctx.prisma.activity.create({
-    data: { userId, type, date, durationSec: 1800, distanceM: 300, trackV: TRACK_VERSION },
+    data: {
+      userId,
+      type,
+      date,
+      durationSec: 1800,
+      distanceM: lengthM,
+      trackV: TRACK_VERSION,
+      ...(opts.duplicateStatus ? { duplicateStatus: opts.duplicateStatus } : {}),
+    },
   })
   await ctx.prisma.activityTrack.create({ data: { activityId: activity.id, ...trackRow(track) } })
 }
@@ -292,9 +351,40 @@ describe('GET /api/places/usual-start', () => {
   })
 
   test('uses the first position, not the middle or the end, and counts a race', async () => {
-    await addRun(user.id, { lat: 45.0, lng: -93.0 }, ago(5), 'race')
+    // 4 km north: the end is about 0.036 degrees from the start, so a cell read from the end (or
+    // from the middle of a route with a kept point there) would be a different one.
+    await addRun(user.id, { lat: 45.0, lng: -93.0 }, ago(5), 'race', { lengthM: 4000 })
+    await addRun(user.id, { lat: 45.0, lng: -93.0 }, ago(4), 'run', { lengthM: 4000 })
     const res = await usual()
-    expect(startOf(res)).toEqual({ lat: 45, lng: -93, runs: 1, of: 1 })
+    expect(startOf(res)).toEqual({ lat: 45, lng: -93, runs: 2, of: 2 })
+  })
+
+  test('counts a run once: a copy marked possible or confirmed is left out', async () => {
+    await addRun(user.id, { lat: 47.0, lng: -91.0 }, ago(3))
+    await addRun(user.id, { lat: 47.0, lng: -91.0 }, ago(3), 'run', {
+      duplicateStatus: 'confirmed',
+    })
+    await addRun(user.id, { lat: 45.0, lng: -93.0 }, ago(2), 'run', { duplicateStatus: 'possible' })
+    await addRun(user.id, { lat: 47.0, lng: -91.0 }, ago(1), 'run', {
+      duplicateStatus: 'dismissed',
+    })
+    expect((await usual()).body).toEqual({ start: { lat: 47, lng: -91, runs: 2, of: 2 } })
+  })
+
+  test('skips a run whose first position is 0, 0', async () => {
+    // `buildTrack` never keeps a 0, 0 fix, so the row is written with a polyline made by hand.
+    await addRun(user.id, { lat: 45, lng: -93 }, ago(2))
+    await ctx.prisma.activityTrack.updateMany({
+      data: {
+        polyline: encodePolyline([
+          [0, 0],
+          [0.03, 0],
+        ]),
+      },
+    })
+    expect((await usual()).body).toEqual({ start: null })
+    await addRun(user.id, { lat: 47.0, lng: -91.0 }, ago(1))
+    expect((await usual()).body).toEqual({ start: { lat: 47, lng: -91, runs: 1, of: 1 } })
   })
 
   test('breaks a tie by the cell with the most recent run', async () => {

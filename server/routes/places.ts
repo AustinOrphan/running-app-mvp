@@ -23,7 +23,7 @@ export function placesRouter(deps: Deps): Router {
   })
 
   router.get('/usual-start', async (req, res) => {
-    const start = await loadUsualStart(deps.prisma, req.userId)
+    const start = await loadUsualStart(deps.prisma, req.userId, req.runnerDay.today)
     res.set('Cache-Control', 'no-store')
     res.json({ start })
   })
