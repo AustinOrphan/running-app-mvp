@@ -6,8 +6,8 @@ import { getForecastView } from '../services/weatherCache.ts'
 export function weatherRouter(deps: Deps): Router {
   const router = Router()
 
-  // The one request path that may wait on Open-Meteo, because the runner asked for the forecast:
-  // a filled cell answers at once (and refreshes in the background when stale), an empty one
+  // A request path that may wait on Open-Meteo, because the runner asked for the forecast (the
+  // other is the place search, `routes/places.ts`): a filled cell answers at once (and refreshes in the background when stale), an empty one
   // waits for a single fetch of at most five seconds.
   router.get('/forecast', async (req, res) => {
     const forecast = await getForecastView(deps, req.userId)
