@@ -205,3 +205,69 @@ export function repeatPainPattern(args: {
     pain: Math.max(...best.matches.map((report) => report.score)),
   }
 }
+
+/** The part of a stored run this module reads. */
+export interface PainRun {
+  date: string
+  type?: string
+  pain?: number | null
+  duplicateStatus?: string | null
+}
+
+/** The part of a planned session this module reads. */
+export interface PainSession {
+  date: string
+  kind: string
+  status: string
+}
+
+/** What the offer for pain on a long or back-to-back run fills in. */
+export interface RunPain {
+  /** The highest rating among the qualifying runs. */
+  pain: number
+  /** The area in the runner's words from the newest check-in of the two days that names one, else empty. */
+  area: string
+}
+
+/** The planned kinds that `easedSession` cannot make short: it keeps the minutes (rule J11). */
+const LONG_DAY_KINDS: ReadonlySet<string> = new Set(['long', 'b2b'])
+
+/**
+ * Pain rated on a run of today or yesterday, at or above `pain.flagScore`, when that day's plan
+ * holds a long or back-to-back session (rule J11). The easy downgrade of J3 keeps a session's
+ * minutes, so it does not help such a day and the question is the way in. A run flagged as a
+ * duplicate is not read, and a skipped session does not make a long day. The run has no area of
+ * its own, so the area comes from the check-ins of the two days. Null when there is none.
+ */
+export function longDayRunPain(args: {
+  activities: readonly PainRun[]
+  sessions: readonly PainSession[]
+  wellness: readonly PainCheckin[]
+  date: string
+}): RunPain | null {
+  const { date } = args
+  const days = new Set([date, addDays(date, -1)])
+  const flag = P.pain.flagScore.value
+  const longDays = new Set(
+    args.sessions
+      .filter(
+        (session) =>
+          days.has(session.date) &&
+          session.status !== 'skipped' &&
+          LONG_DAY_KINDS.has(session.kind),
+      )
+      .map((session) => session.date),
+  )
+  let pain: number | null = null
+  for (const run of args.activities) {
+    if (!longDays.has(run.date) || (run.type !== undefined && run.type !== 'run')) continue
+    if (run.duplicateStatus === 'possible' || run.duplicateStatus === 'confirmed') continue
+    if (run.pain == null || run.pain < flag) continue
+    if (pain === null || run.pain > pain) pain = run.pain
+  }
+  if (pain === null) return null
+  const named = args.wellness
+    .filter((day) => days.has(day.date) && (day.painArea ?? '').trim() !== '')
+    .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))[0]
+  return { pain, area: (named?.painArea ?? '').trim() }
+}

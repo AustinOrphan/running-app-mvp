@@ -12,7 +12,7 @@
 // - `disruptionViews` and `listDisruptions` say where each window stands, from the engine.
 // - `disruptionSlot` and `todayDisruptions` are the Today parts.
 import { addDays } from '../../shared/dates.ts'
-import { repeatPainPattern } from '../../shared/domain/painArea.ts'
+import { longDayRunPain, repeatPainPattern } from '../../shared/domain/painArea.ts'
 import { bandWindows } from '../../shared/domain/windowDay.ts'
 import {
   describeIssue,
@@ -166,7 +166,9 @@ export function todayDisruptions(context: AthleteContext, date: string): Disrupt
  * The Today slot of the disruption band (design 9.6): every window open on the viewed day (an
  * illness and an injury are separate windows with their own dates, and the band gives each a line),
  * else the next one ahead; with none, an offer when today's check-in reports illness or pain at or
- * above `pain.flagScore`. The offer creates nothing by itself, and a day ahead has none.
+ * above `pain.flagScore`, or a run of today or yesterday on a long or back-to-back day was rated at
+ * or above it (J11), or one area repeats. The offer creates nothing by itself, and a day ahead has
+ * none.
  */
 export function disruptionSlot(args: {
   context: AthleteContext
@@ -181,21 +183,38 @@ export function disruptionSlot(args: {
     (checkin.illness === true ||
       (checkin.painScore != null && checkin.painScore >= P.pain.flagScore.value))
   const open = windows.length === 0 && !preview
-  // A report today takes the offer as it always did; the repeat pattern is the second way in (J11).
-  const repeat =
+  // A report today takes the offer as it always did; pain rated on a long or back-to-back run is
+  // the second way in and the repeat pattern the third (J11).
+  const runPain =
     open && !reportsNow
+      ? longDayRunPain({
+          activities: context.activities,
+          sessions: context.planSessions,
+          wellness: context.wellness,
+          date: context.asOf,
+        })
+      : null
+  const repeat =
+    open && !reportsNow && runPain === null
       ? repeatPainPattern({
           wellness: context.wellness,
           windows: context.disruptions,
           date: context.asOf,
         })
       : null
-  const offer = open && (reportsNow || repeat !== null)
+  const offer = open && (reportsNow || runPain !== null || repeat !== null)
   if (windows.length === 0 && !offer) return null
   return {
     windows,
     offer,
-    offerReason: !offer ? null : reportsNow ? 'check-in' : 'pain-repeat',
+    offerReason: !offer
+      ? null
+      : reportsNow
+        ? 'check-in'
+        : runPain !== null
+          ? 'run-pain'
+          : 'pain-repeat',
+    runPain,
     repeat,
   }
 }
