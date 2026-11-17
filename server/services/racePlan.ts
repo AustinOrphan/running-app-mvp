@@ -6,14 +6,14 @@
 import { daysBetween } from '../../shared/dates.ts'
 import { courseSilhouettePoints } from '../../shared/domain/courseSilhouette.ts'
 import { racePlanFor, summaryOf } from '../../shared/engine/racePlan.ts'
-import type { RacePlanSummary } from '../../shared/engine/racePlan.ts'
+import type { RacePlanSummary, RaceWeekSession } from '../../shared/engine/racePlan.ts'
 import {
   isRoadPlanClass,
   roadRacePlanFor,
   roadSummaryOf,
 } from '../../shared/engine/racePlanRoad.ts'
 import type { RoadRacePlanSummary } from '../../shared/engine/racePlanRoad.ts'
-import type { CourseSilhouettePoint, RacePlanView } from '../../shared/types.ts'
+import type { CourseSilhouettePoint, PlanSessionView, RacePlanView } from '../../shared/types.ts'
 import { goalModelFor, goalPrediction, loadAthleteContext, memoByVersion } from './athleteState.ts'
 import type { SnapshotDeps } from './athleteState.ts'
 import { loadFuelState } from './fuel.ts'
@@ -37,6 +37,21 @@ export function loadRacePlan(
   return memoByVersion(deps, { userId, today, name: 'race.plan' }, () =>
     buildRacePlan(deps, userId, today),
   )
+}
+
+/**
+ * The stored plan's sessions the race-week lines read (the snapshot's rows, by data version, so the
+ * memo drops with any session write); null without a plan, which keeps the Param-derived lines.
+ */
+function raceWeekSessionsOf(sessions: readonly PlanSessionView[]): RaceWeekSession[] | null {
+  return sessions.length === 0
+    ? null
+    : sessions.map((s) => ({
+        date: s.date,
+        kind: s.kind,
+        durationMin: s.durationMin,
+        status: s.status,
+      }))
 }
 
 async function buildRacePlan(deps: RaceDeps, userId: string, today: string): Promise<RacePlanView> {
@@ -74,6 +89,7 @@ async function buildRacePlan(deps: RaceDeps, userId: string, today: string): Pro
       ladder: fuel.ladder,
       weightKg: context.profile.weightKg,
       acclimationCredit: context.state.heatAcclimation,
+      raceWeekSessions: raceWeekSessionsOf(context.planSessions),
       today,
     })
     return { plan: null, reason: 'not-ultra', road }
@@ -94,6 +110,7 @@ async function buildRacePlan(deps: RaceDeps, userId: string, today: string): Pro
     weightKg: context.profile.weightKg,
     acclimationCredit: context.state.heatAcclimation,
     checkpoints,
+    raceWeekSessions: raceWeekSessionsOf(context.planSessions),
     history: {
       activities: context.activities,
       homeLat: context.profile.homeLat,

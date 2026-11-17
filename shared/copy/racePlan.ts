@@ -260,6 +260,17 @@ export const RACE_PLAN_TEMPLATES = {
     'The plan keeps the day before to at most {min} of easy running, and easy running only from {date}.',
     { min: 'minutes', date: 'date' },
   ),
+  'race.plan.week.shake-held': tpl('The training plan has {min} on the day before.', {
+    min: 'minutes',
+  }),
+  'race.plan.week.shake-held-from': tpl(
+    'The training plan has {min} on the day before, and easy running only from {date}.',
+    { min: 'minutes', date: 'date' },
+  ),
+  'race.plan.week.shake-rule': tpl(
+    'The rule for a race this long suggests at most {min} of easy running the day before.',
+    { min: 'minutes' },
+  ),
   'race.plan.week.heat': tpl(
     'The race is expected to be hot. Heat adaptation from your recent runs stands at {credit} of a full block.',
     { credit: 'share' },
@@ -857,6 +868,8 @@ export interface RaceWeekText {
   days: string
   evidence: string
   shake: string
+  /** What the rule suggests, when the saved day before holds more than it (a fact, not a verdict). */
+  shakeNote: string | null
   heat: string[]
   fluid: string
 }
@@ -1135,6 +1148,23 @@ export function describeRaceFuel(
   }
 }
 
+/**
+ * The shake-out line (rule K6). The rule's wording stands while the saved day before holds no more
+ * than the rule's minutes; otherwise the line states what the training plan holds, and the easy-days
+ * clause is left out when the plan has no easy run-in to state.
+ */
+function shakeText(week: RaceWeek, units: Units): string {
+  const { shakeOut } = week
+  const from = { kind: 'date', iso: shakeOut.easyFrom, style: 'weekday' } as const
+  if (shakeOut.held === undefined) {
+    return say(T['race.plan.week.shake'], { min: minutes(shakeOut.maxMin), date: from }, units)
+  }
+  const min = minutes(shakeOut.held.min)
+  return shakeOut.easyFrom > shakeOut.dayBefore
+    ? say(T['race.plan.week.shake-held'], { min }, units)
+    : say(T['race.plan.week.shake-held-from'], { min, date: from }, units)
+}
+
 /** The race-week lines (rule K6); the K6 line itself needs no weight, the grams do. */
 export function describeRaceWeek(week: RaceWeek, units: Units): RaceWeekText {
   const [fromH, toH] = week.finalHours
@@ -1174,14 +1204,11 @@ export function describeRaceWeek(week: RaceWeek, units: Units): RaceWeekText {
       units,
     ),
     evidence: `${say(T['race.plan.week.evidence'], {}, units)} ${say(T['race.plan.week.engine'], {}, units)}`,
-    shake: say(
-      T['race.plan.week.shake'],
-      {
-        min: minutes(week.shakeOut.maxMin),
-        date: { kind: 'date', iso: week.shakeOut.easyFrom, style: 'weekday' },
-      },
-      units,
-    ),
+    shake: shakeText(week, units),
+    shakeNote:
+      week.shakeOut.held === undefined
+        ? null
+        : say(T['race.plan.week.shake-rule'], { min: minutes(week.shakeOut.maxMin) }, units),
     heat,
     fluid: eahText(false).lines[0] ?? '',
   }

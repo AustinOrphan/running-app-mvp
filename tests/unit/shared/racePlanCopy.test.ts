@@ -23,7 +23,7 @@ import { addDays } from '../../../shared/dates.ts'
 import { replayLadder } from '../../../shared/engine/fuel.ts'
 import { P } from '../../../shared/engine/params/index.ts'
 import { racePlanFor, summaryOf } from '../../../shared/engine/racePlan.ts'
-import type { RacePlan, RacePlanInput } from '../../../shared/engine/racePlan.ts'
+import type { RacePlan, RacePlanInput, RaceWeekSession } from '../../../shared/engine/racePlan.ts'
 import type { FuelRunInput, GoalModel } from '../../../shared/engine/types.ts'
 import { TERRAIN_BINS_VERSION, TERRAIN_EDGES_PCT } from '../../../shared/domain/terrainShape.ts'
 import type { Activity, Units } from '../../../shared/types.ts'
@@ -230,6 +230,45 @@ describe('figures that restate a Param come from the Param', () => {
     expect(week?.shake).toContain(`${String(P.k6.dayBeforeMaxMin.value)} min`)
     expect(week?.evidence).toMatch(/eight endurance-trained men 10 g per kg a day for 3 days/)
     expect(week?.evidence).toMatch(/lower end of the range .* engine choices/)
+  })
+
+  it('keeps the rule wording and no note while the saved day before is within the rule', () => {
+    const week = base.raceWeek
+    expect(week?.shake).toMatch(/^The plan keeps the day before to at most 20 min of easy running/)
+    expect(week?.shakeNote).toBeNull()
+  })
+
+  it('states what the training plan holds after an edit, with the rule as a plain fact', () => {
+    const sessions: RaceWeekSession[] = [
+      { date: addDays(RACE, -1), kind: 'easy', durationMin: 45 },
+      { date: RACE, kind: 'race', durationMin: 1800 },
+    ]
+    for (const units of UNITS) {
+      const week = describeRacePlan(
+        racePlanFor(input({ raceWeekSessions: sessions })),
+        units,
+      ).raceWeek
+      expect(week?.shake).toBe(
+        'The training plan has 45 min on the day before, and easy running only from Thu 11 Jun.',
+      )
+      expect(week?.shakeNote).toBe(
+        `The rule for a race this long suggests at most ${String(P.k6.dayBeforeMaxMin.value)} min of easy running the day before.`,
+      )
+      for (const line of [week?.shake ?? '', week?.shakeNote ?? '']) {
+        expect(lintText(line), line).toEqual([])
+        expect(line).not.toMatch(/\b(behind|missed|too|should|must|red)\b/i)
+      }
+    }
+  })
+
+  it('leaves out the easy-days clause when the day before is not easy running', () => {
+    const sessions: RaceWeekSession[] = [
+      { date: addDays(RACE, -1), kind: 'strides', durationMin: 15 },
+      { date: RACE, kind: 'race', durationMin: 1800 },
+    ]
+    const week = describeRacePlan(racePlanFor(input({ raceWeekSessions: sessions })), 'km').raceWeek
+    expect(week?.shake).toBe('The training plan has 15 min on the day before.')
+    expect(week?.shakeNote).not.toBeNull()
   })
 
   it('asks for the weight when the profile holds none', () => {
