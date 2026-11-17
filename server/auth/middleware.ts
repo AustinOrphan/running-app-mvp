@@ -1,6 +1,6 @@
 import type { RequestHandler } from 'express'
 import type { Deps } from '../app.ts'
-import { unauthorized } from '../errors.ts'
+import { passwordChangeRequired, unauthorized } from '../errors.ts'
 import { runnerDay, type RunnerDay } from '../runnerDay.ts'
 import {
   isSecure,
@@ -18,6 +18,8 @@ declare global {
       userId: string
       /** The runner's day, resolved once per request in `requireAuth` (D10, ADR 0022). */
       runnerDay: RunnerDay
+      /** True while the account still holds a temporary password (read in `requireAuth`). */
+      mustChangePassword: boolean
     }
   }
 }
@@ -56,6 +58,23 @@ export function sameOriginGuard(): RequestHandler {
 }
 
 /**
+ * The change-password gate (PW1): while the account holds a temporary password (`create-user`,
+ * `reset-password`), every route below `requireAuth` answers 403 `auth.password-change-required`.
+ * The change-password flow itself (`/api/auth/me`, `PUT /api/auth/password`, logout, `/api/setup`)
+ * is routed above `requireAuth`, so it needs no entry here. The one exception is the page's error
+ * report, which the change-password page may need to send.
+ */
+export function requirePasswordChanged(): RequestHandler {
+  return (req, _res, next) => {
+    if (req.mustChangePassword && !req.path.startsWith('/client-errors')) {
+      next(passwordChangeRequired())
+      return
+    }
+    next()
+  }
+}
+
+/**
  * Resolves the session cookie to an existing user and sets `req.userId` and `req.runnerDay` (the
  * zone is read with the user row, and `now` once, so one request never mixes two days); otherwise
  * 401.
@@ -73,7 +92,12 @@ export function requireAuth(deps: Deps): RequestHandler {
       }
       const user = await deps.prisma.user.findUnique({
         where: { id: session.userId },
-        select: { id: true, sessionVersion: true, profile: { select: { timezone: true } } },
+        select: {
+          id: true,
+          sessionVersion: true,
+          mustChangePassword: true,
+          profile: { select: { timezone: true } },
+        },
       })
       // A cookie signed with another version than the account's is refused (the counter is raised
       // by a password change or reset).
@@ -96,6 +120,7 @@ export function requireAuth(deps: Deps): RequestHandler {
         }
       }
       req.userId = user.id
+      req.mustChangePassword = user.mustChangePassword
       req.runnerDay = runnerDay(new Date(), user.profile?.timezone, user.id)
       next()
     } catch (error) {

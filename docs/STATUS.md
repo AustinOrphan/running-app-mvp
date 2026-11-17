@@ -2452,9 +2452,9 @@ things stand" gives counts and percentages without a weekly total or a date.
     output (a `PARAMS_VERSION` bump and a `plan:report` delta).
 33. The race plan models no late fade, so no end of an arrival range is ranked (#709); that waits
     for a pacing cohort in the corpus (Lambert 2004 and Hoffman 2010 are not in it).
-34. An invited account's forced password change is enforced by the client gate, not the server: a
-    client holding the temporary password can call other routes until it changes it (#698). The
-    invited-account flow was tried in chromium only, with no phone, HTTPS or proxy.
+34. The invited-account flow was tried in chromium only, with no phone, HTTPS or proxy (#698). The
+    server now refuses every route but the password change while the temporary password stands
+    (PW1: 403 `auth.password-change-required`; `reset-password` issues a temporary password).
 35. `delete-user` leaves the rows in backups until they are pruned (about five weeks; `pre-migrate`
     and `pre-restore` copies by hand), in the live file's free pages until `VACUUM`, and in
     calendar events the intervals.icu publisher wrote (#711).
