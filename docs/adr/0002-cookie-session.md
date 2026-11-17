@@ -91,3 +91,12 @@ Against this decision:
 
 - **Fact:** A copied cookie in use now lives up to 120 days, not 30. Mitigation: the cap, and
   `sessionVersion`, which a password change raises.
+- **Fact:** Known limitation, found in the #766 security review. The renewed cookie is set in
+  `requireAuth`, before the handler runs. A slow request that carries a cookie older than 24 hours
+  and finishes after `POST /api/auth/logout` can deliver its renewed cookie after the logout's
+  clear, and the device then stays signed in until that cookie's end, never past the cap. After a
+  password change the same overlap signs the device out, because the renewed cookie holds the old
+  `sessionVersion`. Mitigation: the web logout cancels in-flight queries before it sends the
+  request (`useLogout`, `web/api/auth.ts`); a request that React Query cannot abort is not stopped.
+- **Rule:** A cookie with no `exp` is refused in `verifySession` (`jwt.verify` does not require
+  one), so every accepted cookie ends at or before the cap.

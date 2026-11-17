@@ -42,7 +42,8 @@ export function signSession(
 }
 
 /**
- * Returns the claims of a valid, unexpired token signed with `secret`; otherwise null. A token
+ * Returns the claims of a valid, unexpired token signed with `secret`; otherwise null (a token with
+ * no `exp` or `iat` is refused). A token
  * without a version (issued before the counter existed) reads as 0, and one without `sat` (issued
  * before the cap existed) takes its `iat` as the sign-in time.
  */
@@ -53,14 +54,15 @@ export function verifySession(token: string, secret: string): SessionClaims | nu
       return null
     }
     const { sv, sat, iat, exp } = payload as Record<string, unknown>
-    if (typeof iat !== 'number') return null
+    // jwt.verify does not require `exp`; a token without one is refused here, so every accepted
+    // cookie has an end that the cap bounds.
+    if (typeof iat !== 'number' || typeof exp !== 'number') return null
     return {
       userId: payload.sub,
       version: typeof sv === 'number' ? sv : 0,
       issuedAt: iat,
       signedInAt: typeof sat === 'number' ? sat : iat,
-      // A token with no `exp` was never issued by this code; it reads as a full life from `iat`.
-      expiresAt: typeof exp === 'number' ? exp : iat + SESSION_MAX_AGE_SEC,
+      expiresAt: exp,
     }
   } catch {
     return null
