@@ -1095,6 +1095,56 @@ describe('GET /api/today: unrated runs', () => {
     const { unrated } = await view(u)
     expect(unrated.map((a) => a.id)).toEqual([newest.id, race.id])
   })
+
+  test('a watch rating alone keeps the run in the list until a feel or a pain is set (FP1)', async () => {
+    const u = await seedUser(ctx, { email: 'unrated-watch@example.com' })
+    const add = (date: string, over: Record<string, unknown> = {}) =>
+      ctx.prisma.activity.create({
+        data: {
+          userId: u.id,
+          date,
+          type: 'run',
+          durationSec: 1800,
+          movingSec: 1800,
+          distanceM: 5000,
+          source: 'manual',
+          ...over,
+        },
+      })
+    const watch = await add(today, { rpe: 6, rpeSource: 'watch' })
+    await add(addDays(today, -1), { rpe: 6, rpeSource: 'watch', feel: 0 })
+    await add(addDays(today, -2), { rpe: 6, rpeSource: 'watch', pain: 0 })
+    await add(addDays(today, -3), { rpe: 6, rpeSource: 'app' })
+
+    expect((await view(u)).unrated.map((a) => a.id)).toEqual([watch.id])
+  })
+
+  test('a run with nothing answered is kept ahead of watch-rated runs when the list is cut (FP1)', async () => {
+    const u = await seedUser(ctx, { email: 'unrated-order@example.com' })
+    const add = (date: string, over: Record<string, unknown> = {}) =>
+      ctx.prisma.activity.create({
+        data: {
+          userId: u.id,
+          date,
+          type: 'run',
+          durationSec: 1800,
+          movingSec: 1800,
+          distanceM: 5000,
+          source: 'manual',
+          ...over,
+        },
+      })
+    const watchIds: string[] = []
+    for (let i = 0; i < 6; i += 1) {
+      watchIds.push((await add(addDays(today, -i), { rpe: 6, rpeSource: 'watch' })).id)
+    }
+    const open = await add(addDays(today, -6))
+
+    const ids = (await view(u)).unrated.map((a) => a.id)
+    expect(ids).toHaveLength(5)
+    expect(ids[0]).toBe(open.id)
+    expect(ids.slice(1)).toEqual(watchIds.slice(0, 4))
+  })
 })
 
 // ---------------------------------------------------------------------------------------------

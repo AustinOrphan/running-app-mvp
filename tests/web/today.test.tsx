@@ -3,7 +3,14 @@ import { join } from 'node:path'
 import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
-import type { Checkin, DisruptionSlot, DisruptionView, TodayView } from '../../shared/types.ts'
+import { addDays } from '../../shared/dates.ts'
+import type {
+  Activity,
+  Checkin,
+  DisruptionSlot,
+  DisruptionView,
+  TodayView,
+} from '../../shared/types.ts'
 import { buildPlan } from '../../shared/engine/index.ts'
 import { P } from '../../shared/engine/params/index.ts'
 import { resolveTargets } from '../../shared/engine/targets.ts'
@@ -323,6 +330,68 @@ describe("Today: today's session", () => {
         'aria-pressed',
         'true',
       )
+    })
+  })
+
+  describe('a logged run the watch rated (FP1)', () => {
+    const session = makeSession({ status: 'completed', activityId: 'r1' })
+    const dayOf = (run: Activity, unrated: Activity[]) =>
+      makeToday({
+        sessions: [{ session, advice: 'as-planned', reasons: [] }],
+        coach: makeCoach({ hero: makeHero({ session, linkedRun: run }) }),
+        unrated,
+      })
+    const watchRun = makeActivity({
+      id: 'r1',
+      date: TODAY,
+      durationSec: 2700,
+      distanceM: 8047,
+      rpe: 6,
+      rpeSource: 'watch',
+    })
+
+    test('asks for feel and pain only, and a save sends no rpe', async () => {
+      const user = userEvent.setup()
+      const { api } = render(dayOf(watchRun, [watchRun]), {
+        'PUT /api/activities/r1/feedback': () => ({}),
+      })
+      const ask = await screen.findByRole('region', { name: 'How did this run feel?' })
+      expect(within(ask).queryByRole('group', { name: 'RPE' })).not.toBeInTheDocument()
+      expect(within(ask).getByRole('group', { name: 'Pain' })).toBeInTheDocument()
+      await user.click(within(ask).getByRole('button', { name: 'Harder' }))
+      await user.click(within(ask).getByRole('button', { name: 'Save rating' }))
+      expect(await screen.findByText('Rating saved.')).toBeInTheDocument()
+      const put = api.calls.find((call) => call.method === 'PUT')
+      expect(put?.body).toEqual({ feel: 1, pain: null, heatExposure: null })
+      expect(put?.body).not.toHaveProperty('rpe')
+    })
+
+    test('the card below shows the short ask too, without the RPE row', async () => {
+      const other = makeActivity({
+        id: 'r2',
+        date: addDays(TODAY, -1),
+        rpe: 5,
+        rpeSource: 'watch',
+      })
+      render(dayOf(makeActivity({ id: 'r1', date: TODAY }), [other]))
+      const card = await screen.findByRole('region', { name: 'How did it go?' })
+      expect(within(card).queryByRole('group', { name: 'RPE' })).not.toBeInTheDocument()
+      expect(within(card).getByRole('group', { name: 'How it felt' })).toBeInTheDocument()
+    })
+
+    test('an app-rated run is not asked', async () => {
+      const appRun = { ...watchRun, rpeSource: 'app' as const }
+      render(dayOf(appRun, []))
+      await screen.findByRole('article', { name: 'Easy run' })
+      expect(screen.queryByRole('region', { name: 'How did this run feel?' })).toBeNull()
+      expect(screen.queryByRole('region', { name: 'Rate this run' })).toBeNull()
+    })
+
+    test('answered by a feel, the watch-rated run shows no ask', async () => {
+      const answered = { ...watchRun, feel: 0 as const }
+      render(dayOf(answered, []))
+      await screen.findByRole('article', { name: 'Easy run' })
+      expect(screen.queryByRole('region', { name: 'How did this run feel?' })).toBeNull()
     })
   })
 

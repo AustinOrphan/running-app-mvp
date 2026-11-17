@@ -9,6 +9,7 @@
 // `readiness`, `unrated`) and adds `tz` and `coach`. Later epics add fields under `TodayCoach`
 // only: slots in `todaySlots.ts`, health notes in `todayHealth.ts`.
 import { addDays, daysBetween, isIsoDate, mondayOf } from '../../shared/dates.ts'
+import { ratingAsk } from '../../shared/domain/ratingAsk.ts'
 import { plannedWeek } from '../../shared/domain/plannedWeek.ts'
 import { isToRun } from '../../shared/domain/sessionStatus.ts'
 import { weekStrip as buildWeekStrip } from '../../shared/domain/weekStrip.ts'
@@ -247,22 +248,27 @@ function stripFor(context: AthleteContext, date: string): WeekStrip {
 }
 
 /**
- * Runs and races of the last `UNRATED_DAYS` days (today included) that carry neither an effort
- * rating nor a feel, newest first: the runs the "How did it go?" card offers to rate.
+ * Runs and races of the last `UNRATED_DAYS` days (today included) that `ratingAsk` leaves open,
+ * newest first: the runs the "How did it go?" card offers to rate (a watch rating alone leaves
+ * the feel and the pain open, FP1).
  */
 function unratedRuns(context: AthleteContext): TodayView['unrated'] {
   const since = addDays(context.asOf, 1 - UNRATED_DAYS)
-  return context.activities
-    .filter(
-      (a) =>
-        (a.type === 'run' || a.type === 'race') &&
-        a.rpe === null &&
-        a.feel === null &&
-        (a.duplicateStatus === 'none' || a.duplicateStatus === 'dismissed') &&
-        a.date >= since,
-    )
-    .reverse()
-    .slice(0, UNRATED_LIMIT)
+  return (
+    context.activities
+      .filter(
+        (a) =>
+          (a.type === 'run' || a.type === 'race') &&
+          ratingAsk(a) !== null &&
+          (a.duplicateStatus === 'none' || a.duplicateStatus === 'dismissed') &&
+          a.date >= since,
+      )
+      .reverse()
+      // A run with nothing answered comes before one the watch rated, so a few watch-rated runs
+      // never push it off the list; the sort is stable, so each group stays newest first.
+      .sort((a, b) => Number(ratingAsk(a) === 'short') - Number(ratingAsk(b) === 'short'))
+      .slice(0, UNRATED_LIMIT)
+  )
 }
 
 /**

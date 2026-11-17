@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { render } from '../../../shared/copy/template.ts'
 import { TEMPLATES } from '../../../shared/copy/templates.ts'
+import { ratingAsk } from '../../../shared/domain/ratingAsk.ts'
 import type { Activity, Units } from '../../../shared/types.ts'
 import {
   ratingUrl,
@@ -21,15 +22,11 @@ export function isRunLike(activity: Pick<Activity, 'type'>): boolean {
   return activity.type === 'run' || activity.type === 'race'
 }
 
-/** A run counts as unrated on Today while it has neither an effort rating nor a feel. */
-export function isUnrated(run: Pick<Activity, 'rpe' | 'feel'>): boolean {
-  return run.rpe === null && run.feel === null
-}
-
 /**
  * The rating ask for the run logged against today's session: effort, feel and pain, saved through
  * the same write as the "How did it go?" card, through the outbox: with no connection it is kept on
- * the phone and the block says so until it goes up. It shows only while the run has no rating. A
+ * the phone and the block says so until it goes up. It shows only while `ratingAsk` leaves the run
+ * open: the full form with no rating, and feel and pain only for a run the watch rated (FP1). A
  * save keeps the block on the page as a line that says so (and takes focus, since the form it
  * replaces held it), because the fresh read of Today would otherwise remove the block under the
  * runner. A rating the server refused when it was sent later brings the form back.
@@ -83,18 +80,23 @@ export function RunRating({
       </p>
     )
   }
-  if (!isUnrated(run)) return null
+  const ask = ratingAsk(run)
+  if (ask === null) return null
+  const short = ask === 'short'
 
   return (
     <section aria-labelledby={headingId} className={styles.rating}>
       <h3 id={headingId} className={styles.heading}>
-        {render(TEMPLATES['today.rate.heading'], {}, units)}
+        {render(TEMPLATES[short ? 'today.rate.short-heading' : 'today.rate.heading'], {}, units)}
       </h3>
-      <p className={styles.caption}>{render(TEMPLATES['today.rate.caption'], {}, units)}</p>
+      <p className={styles.caption}>
+        {render(TEMPLATES[short ? 'today.rate.short-caption' : 'today.rate.caption'], {}, units)}
+      </p>
       <FeedbackFields
         value={value}
         onChange={setValue}
         showHeat={showHeatMark(run, heatDays)}
+        showRpe={!short}
         units={units}
       />
       <div className={styles.actions}>
