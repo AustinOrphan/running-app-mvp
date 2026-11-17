@@ -8,6 +8,7 @@ import { useLoadView } from '../components/loadView.ts'
 import { Skeleton } from '../components/Skeleton.tsx'
 import { EasyPaceSection } from '../components/paces/EasyPaceSection.tsx'
 import { EventsSection } from '../components/paces/EventsSection.tsx'
+import { OwnCeilingSection } from '../components/paces/OwnCeilingSection.tsx'
 import { TerrainSection } from '../components/paces/TerrainSection.tsx'
 import { TestSection } from '../components/paces/TestSection.tsx'
 import { ZonesSection } from '../components/paces/ZonesSection.tsx'
@@ -15,6 +16,7 @@ import styles from '../components/paces/Paces.module.css'
 
 const JUMPS = [
   { href: '#easy', label: 'Easy pace' },
+  { href: '#ceiling', label: 'Easy ceiling' },
   { href: '#zones', label: 'Zones' },
   { href: '#grades', label: 'Climbs and descents' },
   { href: '#events', label: 'What you can run now' },
@@ -88,6 +90,7 @@ export function MyPacesPage() {
           </ul>
         </nav>
         <EasyPaceSection easy={view.easy} units={units} />
+        <OwnCeilingSection ownCeiling={view.easy.ownCeiling} units={units} />
         <ZonesSection units={units} />
         <TerrainSection curve={view.terrain} units={units} />
         <EventsSection

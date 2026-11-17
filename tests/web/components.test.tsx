@@ -25,6 +25,7 @@ import {
   formatWeekday,
   phaseLabel,
 } from '../../web/components/format.ts'
+import { heroMinutes } from '../../web/components/today/SessionHero.tsx'
 import { sessionSummary } from '../../web/components/SessionSheet.tsx'
 import { makeWeekRow } from '../factories.ts'
 import { expectCleanCopy, expectTouchScale, mockApi, renderWithProviders } from './helpers.tsx'
@@ -771,6 +772,12 @@ describe('format helpers', () => {
     expect(formatSessionMinutes(125)).toBe('2 h 5 min')
     // The race session of a 100-mile goal, as the Race plan writes the expected time.
     expect(formatSessionMinutes(1929)).toBe('32 h 9 min')
+  })
+
+  test("Today's big figure splits into figure and unit, in hours from two hours", () => {
+    expect(heroMinutes(45)).toEqual({ figure: '45', unit: 'min' })
+    expect(heroMinutes(120)).toEqual({ figure: '2', unit: 'h' })
+    expect(heroMinutes(1929)).toEqual({ figure: '32 h 9', unit: 'min' })
   })
 
   test('the day card line of a race session gives hours and minutes, not 1929 min', () => {

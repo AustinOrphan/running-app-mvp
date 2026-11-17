@@ -11,7 +11,8 @@
 // - A figure that belongs to a study (the 65 km race, the 220 km race) is written as that study's
 //   own, with its population, as the H11 line of Explain does.
 // - No sentence compares a cutoff with the range, asks for a finish time or says "behind". The
-//   cutoff and the arrival range of a checkpoint are two plain facts in two separate lines.
+//   cutoff and the arrival range of a checkpoint are two plain facts in two separate lines (the
+//   cutoff's clock and elapsed forms share one).
 //
 // Pure. The sentences that fuel, fluid and the safety card already have (`fuelCopy.ts`) are
 // reused, not written again.
@@ -35,6 +36,7 @@ import type {
 } from '../engine/racePlan.ts'
 import type { SplitRow } from '../engine/raceSplits.ts'
 import { P } from '../engine/params/index.ts'
+import type { SessionKind } from '../engine/types.ts'
 import type { RacePlanReason, Units } from '../types.ts'
 import { HOW_TO_READ } from './runCharts.ts'
 import { RACE_CARB_ROUND_G } from './limits.ts'
@@ -275,6 +277,25 @@ export const RACE_PLAN_TEMPLATES = {
     'The training plan keeps the day before to at most {min} of easy running, and easy running only from {date}.',
     { min: 'minutes', date: 'date' },
   ),
+  'race.plan.week.shake-held': tpl('The training plan has {min} on the day before.', {
+    min: 'minutes',
+  }),
+  'race.plan.week.shake-held-kind': tpl('The training plan has a {min} {kind} on the day before.', {
+    min: 'minutes',
+    kind: 'text',
+  }),
+  'race.plan.week.shake-held-kind-from': tpl(
+    'The training plan has a {min} {kind} on the day before, and easy running only from {date}.',
+    { min: 'minutes', kind: 'text', date: 'date' },
+  ),
+  'race.plan.week.shake-held-from': tpl(
+    'The training plan has {min} on the day before, and easy running only from {date}.',
+    { min: 'minutes', date: 'date' },
+  ),
+  'race.plan.week.shake-rule': tpl(
+    'The rule for a race this long suggests at most {min} of easy running the day before.',
+    { min: 'minutes' },
+  ),
   'race.plan.week.heat': tpl(
     'The race is expected to be hot. Heat adaptation from your recent runs stands at {credit} of a full block.',
     { credit: 'share' },
@@ -291,6 +312,7 @@ export const RACE_PLAN_TEMPLATES = {
     { low: 'count', high: 'count' },
   ),
   // One figure when the two ends round to the same hour: the range form would read "About 10 to 10".
+  'race.plan.dark.hours-single': tpl('About 1 hour of the expected time falls outside daylight.'),
   'race.plan.dark.hours-one': tpl('About {n} hours of the expected time fall outside daylight.', {
     n: 'count',
   }),
@@ -402,7 +424,6 @@ export const RACE_PLAN_TEMPLATES = {
     low: 'count',
     high: 'count',
   }),
-  'race.plan.points.cutoff-clock': tpl('Cutoff {clock}', { clock: 'text' }, { shape: 'label' }),
   'race.plan.points.cutoff-elapsed': tpl(
     'Cutoff {elapsed} into the race',
     { elapsed: 'duration' },
@@ -913,6 +934,8 @@ export interface RaceWeekText {
   days: string
   evidence: string
   shake: string
+  /** What the rule suggests, when the saved day before holds more than it (a fact, not a verdict). */
+  shakeNote: string | null
   heat: string[]
   fluid: string
 }
@@ -1191,6 +1214,43 @@ export function describeRaceFuel(
   }
 }
 
+/**
+ * The shake-out line (rule K6). The rule's wording stands while the saved day before holds no more
+ * than the rule's minutes; otherwise the line states what the training plan holds, and the easy-days
+ * clause is left out when the plan has no easy run-in to state.
+ */
+function shakeText(week: RaceWeek, units: Units): string {
+  const { shakeOut } = week
+  const from = { kind: 'date', iso: shakeOut.easyFrom, style: 'weekday' } as const
+  if (shakeOut.held === undefined) {
+    return say(T['race.plan.week.shake'], { min: minutes(shakeOut.maxMin), date: from }, units)
+  }
+  const min = minutes(shakeOut.held.min)
+  const named = HELD_KIND_NAMES[shakeOut.held.kind]
+  if (named !== undefined) {
+    return shakeOut.easyFrom > shakeOut.dayBefore
+      ? say(T['race.plan.week.shake-held-kind'], { min, kind: named }, units)
+      : say(T['race.plan.week.shake-held-kind-from'], { min, kind: named, date: from }, units)
+  }
+  return shakeOut.easyFrom > shakeOut.dayBefore
+    ? say(T['race.plan.week.shake-held'], { min }, units)
+    : say(T['race.plan.week.shake-held-from'], { min, date: from }, units)
+}
+
+/** What a saved day before that is not easy running is called in the line (kinds that are not easy). */
+const HELD_KIND_NAMES: Partial<Record<SessionKind, string>> = {
+  long: 'long run',
+  'long-fast-finish': 'long run with a fast finish',
+  threshold: 'threshold session',
+  intervals: 'interval session',
+  'race-pace': 'race-pace session',
+  strides: 'strides session',
+  hills: 'hill session',
+  hike: 'hike',
+  b2b: 'back-to-back run',
+  race: 'race',
+}
+
 /** The race-week lines (rule K6); the K6 line itself needs no weight, the grams do. */
 export function describeRaceWeek(week: RaceWeek, units: Units): RaceWeekText {
   const [fromH, toH] = week.finalHours
@@ -1230,14 +1290,11 @@ export function describeRaceWeek(week: RaceWeek, units: Units): RaceWeekText {
       units,
     ),
     evidence: `${say(T['race.plan.week.evidence'], {}, units)} ${say(T['race.plan.week.engine'], {}, units)}`,
-    shake: say(
-      T['race.plan.week.shake'],
-      {
-        min: minutes(week.shakeOut.maxMin),
-        date: { kind: 'date', iso: week.shakeOut.easyFrom, style: 'weekday' },
-      },
-      units,
-    ),
+    shake: shakeText(week, units),
+    shakeNote:
+      week.shakeOut.held === undefined
+        ? null
+        : say(T['race.plan.week.shake-rule'], { min: minutes(week.shakeOut.maxMin) }, units),
     heat,
     fluid: eahText(false).lines[0] ?? '',
   }
@@ -1320,17 +1377,22 @@ export function describeRacePlan(plan: RacePlan, units: Units): RacePlanText {
   const dark = plan.dark
   const darkLines: string[] = []
   if (dark !== null) {
-    darkLines.push(
-      dark.hours === null
-        ? say(T['race.plan.dark.whole'], {}, units)
-        : Math.round(dark.hours[0]) === Math.round(dark.hours[1])
-          ? say(T['race.plan.dark.hours-one'], { n: count(Math.round(dark.hours[0])) }, units)
-          : say(
-              T['race.plan.dark.hours'],
-              { low: count(Math.round(dark.hours[0])), high: count(Math.round(dark.hours[1])) },
-              units,
-            ),
-    )
+    if (dark.hours === null) {
+      darkLines.push(say(T['race.plan.dark.whole'], {}, units))
+    } else {
+      const low = Math.round(dark.hours[0])
+      const high = Math.round(dark.hours[1])
+      // One figure when the ends agree; nothing at all when that figure is 0 hours.
+      if (low !== high) {
+        darkLines.push(
+          say(T['race.plan.dark.hours'], { low: count(low), high: count(high) }, units),
+        )
+      } else if (low === 1) {
+        darkLines.push(say(T['race.plan.dark.hours-single'], {}, units))
+      } else if (low > 0) {
+        darkLines.push(say(T['race.plan.dark.hours-one'], { n: count(low) }, units))
+      }
+    }
     darkLines.push(say(T['race.plan.dark.clock'], { dawn: dark.dawn, dusk: dark.dusk }, units))
     darkLines.push(
       say(
@@ -1407,7 +1469,7 @@ export interface RacePointRowText {
   /** Day or night, climb by effort: short labels. */
   tags: string[]
   carry: string | null
-  /** The cutoff, in the clock and in elapsed time with a start time: facts, never compared. */
+  /** The cutoff as one line: the clock and the elapsed time with a start time, facts never compared. */
   cutoff: string[]
 }
 
@@ -1577,7 +1639,7 @@ export interface RaceCardBlockText {
   windowElapsed: boolean
   /** The arrival window as the figure of the block ("13:25 to 14:00"); the start time on the start block. */
   window: string | null
-  /** The cutoff, in the clock and in elapsed time with a start time: facts, never compared. */
+  /** The cutoff as one line: the clock and the elapsed time with a start time, facts never compared. */
   cutoff: string[]
   /** Said only where the plan holds that the arrival falls outside daylight. */
   headlamp: string | null

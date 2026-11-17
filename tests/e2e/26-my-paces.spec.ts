@@ -302,7 +302,7 @@ test('the page works from the keyboard: Tab to a jump link, Enter, and open a di
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('/paces')
   const nav = page.getByRole('navigation', { name: 'On this page' })
-  await nav.getByRole('link', { name: 'Easy pace' }).focus()
+  await nav.getByRole('link', { name: 'Easy ceiling' }).focus()
   await page.keyboard.press('Tab')
   const zones = nav.getByRole('link', { name: 'Zones' })
   await expect(zones).toBeFocused()

@@ -70,6 +70,7 @@ export function RaceWeekBlock({
           <p className={styles.note}>{week.days}</p>
           <p className={styles.note}>{week.evidence}</p>
           <p className={styles.note}>{week.shake}</p>
+          {week.shakeNote === null ? null : <p className={styles.note}>{week.shakeNote}</p>}
           {week.heat.map((line) => (
             <p key={line} className={styles.note}>
               {line}

@@ -23,7 +23,7 @@ import { addDays } from '../../../shared/dates.ts'
 import { replayLadder } from '../../../shared/engine/fuel.ts'
 import { P } from '../../../shared/engine/params/index.ts'
 import { racePlanFor, summaryOf } from '../../../shared/engine/racePlan.ts'
-import type { RacePlan, RacePlanInput } from '../../../shared/engine/racePlan.ts'
+import type { RacePlan, RacePlanInput, RaceWeekSession } from '../../../shared/engine/racePlan.ts'
 import type { FuelRunInput, GoalModel } from '../../../shared/engine/types.ts'
 import { TERRAIN_BINS_VERSION, TERRAIN_EDGES_PCT } from '../../../shared/domain/terrainShape.ts'
 import type { Activity, Units } from '../../../shared/types.ts'
@@ -232,6 +232,48 @@ describe('figures that restate a Param come from the Param', () => {
     expect(week?.evidence).toMatch(/lower end of the range .* engine choices/)
   })
 
+  it('keeps the rule wording and no note while the saved day before is within the rule', () => {
+    const week = base.raceWeek
+    expect(week?.shake).toMatch(
+      /^The training plan keeps the day before to at most 20 min of easy running/,
+    )
+    expect(week?.shakeNote).toBeNull()
+  })
+
+  it('states what the training plan holds after an edit, with the rule as a plain fact', () => {
+    const sessions: RaceWeekSession[] = [
+      { date: addDays(RACE, -1), kind: 'easy', durationMin: 45 },
+      { date: RACE, kind: 'race', durationMin: 1800 },
+    ]
+    for (const units of UNITS) {
+      const week = describeRacePlan(
+        racePlanFor(input({ raceWeekSessions: sessions })),
+        units,
+      ).raceWeek
+      expect(week?.shake).toBe(
+        'The training plan has 45 min on the day before, and easy running only from Thu 11 Jun.',
+      )
+      expect(week?.shakeNote).toBe(
+        `The rule for a race this long suggests at most ${String(P.k6.dayBeforeMaxMin.value)} min of easy running the day before.`,
+      )
+      for (const line of [week?.shake ?? '', week?.shakeNote ?? '']) {
+        expect(lintText(line), line).toEqual([])
+        expect(line).not.toMatch(/\b(behind|missed|too|should|must|red)\b/i)
+      }
+    }
+  })
+
+  it('leaves out the easy-days clause when the day before is not easy running', () => {
+    const sessions: RaceWeekSession[] = [
+      { date: addDays(RACE, -1), kind: 'strides', durationMin: 15 },
+      { date: RACE, kind: 'race', durationMin: 1800 },
+    ]
+    const week = describeRacePlan(racePlanFor(input({ raceWeekSessions: sessions })), 'km').raceWeek
+    expect(week?.shake).toBe('The training plan has a 15 min strides session on the day before.')
+    expect(lintText(week?.shake ?? '')).toEqual([])
+    expect(week?.shakeNote).not.toBeNull()
+  })
+
   it('asks for the weight when the profile holds none', () => {
     const none = describeRacePlan(PLANS[6]![1], 'km')
     expect(none.raceWeek?.carbMass).toMatch(/Add your weight/)
@@ -291,6 +333,22 @@ describe('figures that restate a Param come from the Param', () => {
     )
     expect(describeRacePlan(wide, 'km').dark?.lines[0]).toMatch(
       /^About \d+ to \d+ hours of the expected time/,
+    )
+  })
+
+  it('says "1 hour" in the singular and leaves the line out when the dark hours round to 0', () => {
+    const plan = PLANS[5]![1]
+    const withHours = (hours: [number, number]): RacePlan => ({
+      ...plan,
+      dark: { ...plan.dark!, hours },
+    })
+    const lines = (hours: [number, number]) =>
+      describeRacePlan(withHours(hours), 'km').dark?.lines ?? []
+    expect(lines([1.2, 0.8])[0]).toBe('About 1 hour of the expected time falls outside daylight.')
+    expect(lines([0.2, 0.4]).join(' ')).not.toMatch(/outside daylight/)
+    expect(lines([0.2, 0.4])[0]).toMatch(/^Daylight here is/)
+    expect(lines([0.2, 2.4])[0]).toBe(
+      'About 0 to 2 hours of the expected time fall outside daylight.',
     )
   })
 

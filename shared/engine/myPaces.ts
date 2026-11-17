@@ -25,6 +25,7 @@ import {
   type GradeBand,
   type GradeCurve,
 } from './gradeCurve.ts'
+import { ownCeilingReading, type OwnCeilingReading } from './ownCeiling.ts'
 import { P } from './params/index.ts'
 import { anchorRaceFor, CS_METHODS, predictFromState, rangeLabel } from './predict.ts'
 import { gradeAdjustedSpeed } from './terrain.ts'
@@ -149,6 +150,12 @@ export interface MyPaces {
     /** The Z1 pace range of the zones, whatever the basis, for a comparison; null without one. */
     zoneRange: PaceBand | null
     hr: HrLineNeeds
+    /**
+     * What the runner's cool, clean runs say about the top of Z1, beside the ceiling in use (rules C4,
+     * C8): shown whether or not an offer stands, never applied. `grade` is the lowest of the Params
+     * it reads.
+     */
+    ownCeiling: { reading: OwnCeilingReading; grade: Grade; rules: string[] }
   }
   /** The runner's speed by grade next to Minetti's, rule I13. Display only. */
   terrain: GradeCurve
@@ -162,6 +169,8 @@ export interface MyPacesInput {
   hrModel: HrModel | null
   activities: Activity[]
   today: string
+  /** The day of the last accepted change of the easy ceiling: only runs after it are read (C8). */
+  lt1ChangedOn?: string | null
 }
 
 const GRADE_ORDER: readonly Grade[] = ['A', 'B', 'C', 'D']
@@ -214,6 +223,15 @@ function climbOf(range: PaceBand, curve: GradeCurve): EasyPace['climb'] {
 /** The top of Z1, the ceiling a heart-rate easy pace answers to; null without a heart-rate zone. */
 function ceilingOf(zones: ZoneSet): number | null {
   return zones.hr?.z1[1] ?? null
+}
+
+/**
+ * Whether the easy limit's band is wider than a default band (`c7.bandDefaultBpm`): the figure then
+ * rests on a predicted maximum, an age estimate or a maximum the runner typed as an estimate, and the
+ * zones show the same wide band. Confidence reads the band, so the two cannot disagree.
+ */
+function ceilingIsWide(lt1Hr: ZoneSet['lt1Hr']): boolean {
+  return lt1Hr !== null && (lt1Hr.band[1] - lt1Hr.band[0]) / 2 > P.c7.bandDefaultBpm.value
 }
 
 /** The speed at which the line meets a heart rate, or null when the line cannot say. */
@@ -305,7 +323,7 @@ function hrPaceAt(
     ceilingBpm: ceiling,
     ceilingBandBpm: zones.lt1Hr === null ? null : (zones.lt1Hr.band[1] - zones.lt1Hr.band[0]) / 2,
     sample: { runs: hrModel.runs, since },
-    confidence: zones.lt1Hr?.source === 'hrmax-age' ? 'low' : 'moderate',
+    confidence: ceilingIsWide(zones.lt1Hr) ? 'low' : 'moderate',
     grade: lowestGrade(
       gradesOf([
         P.hrModel.minQualifyingRuns,
@@ -508,6 +526,18 @@ export function myPaces(input: MyPacesInput, events: readonly EventSpec[]): MyPa
         windowWeeks: P.hrModel.windowWeeks.value,
         minDurationMin: P.hrModel.minDurationMin.value,
         ceiling: ceilingOf(zones) !== null,
+      },
+      ownCeiling: {
+        reading: ownCeilingReading(input.activities, today, zones, input.lt1ChangedOn ?? null),
+        grade: lowestGrade(
+          gradesOf([
+            P.c8.ownLt1MaxWbgtC,
+            P.c8.ownLt1MinRunsLower,
+            P.c9.lineSpeedMargin,
+            P.c9.lineMinSlopeBpmPerMps,
+          ]),
+        ),
+        rules: ['C4', 'C8', 'C9', 'A8'],
       },
     },
     terrain,

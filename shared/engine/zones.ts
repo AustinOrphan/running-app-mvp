@@ -46,6 +46,31 @@ function paceBoundary(
   }
 }
 
+/**
+ * The days the runner's own anchors were set, when the caller knows them: the day the profile was
+ * last saved (typed values) and the day the own easy ceiling was accepted. `asOf` of every boundary
+ * is the day it was worked out, so these are the only dates that say when a typed value stands from.
+ */
+export interface ZoneAnchorDates {
+  savedOn?: string | null
+  ownCeilingOn?: string | null
+}
+
+/** The sources that are the runner's own anchor: a typed value or an accepted offer. */
+const OWN_ANCHOR_SOURCES: ReadonlySet<Boundary['source']> = new Set([
+  'profile',
+  'hrmax-observed',
+  'own-line',
+])
+
+function withSince(boundary: Boundary | null, dates: ZoneAnchorDates): Boundary | null {
+  if (boundary === null || !OWN_ANCHOR_SOURCES.has(boundary.source)) return boundary
+  // An own ceiling is dated by its accepting revision alone: with the revision gone, no day is
+  // known, and the profile's save day would be a false one for the offer.
+  const since = boundary.source === 'own-line' ? dates.ownCeilingOn : dates.savedOn
+  return since == null ? boundary : { ...boundary, since }
+}
+
 /** Age in whole years at `today`, from the state or from the profile's birth year. */
 function ageAt(profile: AthleteProfile, state: AthleteState, today: string): number | null {
   if (state.age !== null) return state.age
@@ -69,7 +94,10 @@ function hrMaxBoundary(
     // An unmeasured value is a prediction, so it keeps the predicted-HRmax band [rules C7].
     const halfWidth = measured ? P.c7.bandDefaultBpm.value : P.c3.priorBandBpm.value
     return {
-      boundary: hrBoundary(profile.hrMax, halfWidth, source, today),
+      boundary: {
+        ...hrBoundary(profile.hrMax, halfWidth, source, today),
+        ...(measured ? {} : { typedAs: 'estimate' as const }),
+      },
       source,
     }
   }
@@ -96,7 +124,12 @@ function hrMaxBoundary(
  * grade D) with the band of the HRmax anchor. %HRR is not used: it is ranked last and no better
  * than %HRmax [rules C2]. Every boundary keeps its band [rules C7] and its source.
  */
-export function buildZones(profile: AthleteProfile, state: AthleteState, today: string): ZoneSet {
+export function buildZones(
+  profile: AthleteProfile,
+  state: AthleteState,
+  today: string,
+  dates?: ZoneAnchorDates,
+): ZoneSet {
   const hrMaxAnchor = hrMaxBoundary(profile, state, today)
   const hrMax = hrMaxAnchor?.boundary ?? null
   const hrRest = profile.hrRest
@@ -146,7 +179,11 @@ export function buildZones(profile: AthleteProfile, state: AthleteState, today: 
     csEquivalentMps !== null ? paceOf(csEquivalentMps * P.c4.lt1CsFraction.value) : null
   const lt1PaceSecPerKm =
     lt1PaceValue !== null
-      ? paceBoundary(lt1PaceValue, paceSource, today, fromTraining, windowWidened)
+      ? {
+          ...paceBoundary(lt1PaceValue, paceSource, today, fromTraining, windowWidened),
+          // Under a typed threshold pace the easy limit follows it (rule C4).
+          ...(paceSource === 'profile' ? { derivation: { from: 'threshold-pace' as const } } : {}),
+        }
       : null
   const thresholdPaceSecPerKm =
     thresholdPace !== null
@@ -161,12 +198,21 @@ export function buildZones(profile: AthleteProfile, state: AthleteState, today: 
   let lt2Hr: Boundary | null = null
   if (profile.lthr !== null && profile.lthr > 0) {
     lt2Hr = hrBoundary(profile.lthr, bandDefault, 'profile', today)
-    lt1Hr = hrBoundary(profile.lthr * (lt1Frac / lt2Frac), bandDefault, 'profile', today)
+    lt1Hr = {
+      ...hrBoundary(profile.lthr * (lt1Frac / lt2Frac), bandDefault, 'profile', today),
+      derivation: { from: 'lthr', share: lt1Frac / lt2Frac },
+    }
   } else if (hrMaxAnchor) {
     const halfWidth = (hrMaxAnchor.boundary.band[1] - hrMaxAnchor.boundary.band[0]) / 2
     const hrMaxValue = hrMaxAnchor.boundary.value
-    lt1Hr = hrBoundary(hrMaxValue * lt1Frac, halfWidth * lt1Frac, hrMaxAnchor.source, today)
-    lt2Hr = hrBoundary(hrMaxValue * lt2Frac, halfWidth * lt2Frac, hrMaxAnchor.source, today)
+    lt1Hr = {
+      ...hrBoundary(hrMaxValue * lt1Frac, halfWidth * lt1Frac, hrMaxAnchor.source, today),
+      derivation: { from: 'hrmax', share: lt1Frac },
+    }
+    lt2Hr = {
+      ...hrBoundary(hrMaxValue * lt2Frac, halfWidth * lt2Frac, hrMaxAnchor.source, today),
+      derivation: { from: 'hrmax', share: lt2Frac },
+    }
   }
 
   // The ceiling the runner accepted from their own heart-rate line stands ahead of the other
@@ -196,14 +242,23 @@ export function buildZones(profile: AthleteProfile, state: AthleteState, today: 
     }
   }
 
+  // The display fields (`since`, `derivation`, `typedAs`) are the caller's to ask for, by passing
+  // `dates`: the engine's own zones carry none, so its output is unchanged (the oracle, rule P1).
+  const stamp = (boundary: Boundary | null): Boundary | null => {
+    if (boundary === null) return null
+    if (dates !== undefined) return withSince(boundary, dates)
+    const { derivation: _derivation, typedAs: _typedAs, ...plain } = boundary
+    return plain
+  }
+
   return {
-    hrMax,
+    hrMax: stamp(hrMax),
     hrRest,
-    lt1Hr,
-    lt2Hr,
+    lt1Hr: stamp(lt1Hr),
+    lt2Hr: stamp(lt2Hr),
     csMps,
-    lt1PaceSecPerKm,
-    thresholdPaceSecPerKm,
+    lt1PaceSecPerKm: stamp(lt1PaceSecPerKm),
+    thresholdPaceSecPerKm: stamp(thresholdPaceSecPerKm),
     hr,
     pace,
     rpe: { z1: P.c4.rpeZ1.value, z2: P.c4.rpeZ2.value, z3: P.c4.rpeZ3.value },

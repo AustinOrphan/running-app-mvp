@@ -1,7 +1,8 @@
 import type { Boundary, ZoneSet } from '../../shared/engine/types.ts'
 import type { Units } from '../../shared/types.ts'
+import { render as renderCopy } from '../../shared/copy/template.ts'
+import { boundaryOriginText, ZONE_SOURCE_TEMPLATES } from '../../shared/copy/zoneSources.ts'
 import {
-  boundarySourceText,
   ZONE_BOUNDARY_LABELS,
   bpmRangeText,
   bpmText,
@@ -63,15 +64,18 @@ export function ZoneSummary({ set, units }: { set: ZoneSet; units: Units }) {
                   <span className={styles.note}>
                     {`Range ${row.show(boundary.band[0], units)} to ${row.show(boundary.band[1], units)}`}
                   </span>
-                  <span className={styles.note}>
-                    {`${boundarySourceText(boundary)}, as of ${boundary.asOf}`}
-                  </span>
+                  <span className={styles.note}>{boundaryOriginText(boundary, units)}</span>
                 </>
               )}
             </li>
           )
         })}
       </ul>
+      {set.hrMax === null ? (
+        <p className={styles.note}>
+          {renderCopy(ZONE_SOURCE_TEMPLATES['zones.hr.needs-max'], {}, units)}
+        </p>
+      ) : null}
       <table className={styles.zoneTable}>
         <thead>
           <tr>

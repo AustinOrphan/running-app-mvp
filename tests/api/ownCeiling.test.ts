@@ -146,6 +146,10 @@ describe('the own easy ceiling proposal', () => {
     expect(accepted.status, JSON.stringify(accepted.body)).toBe(200)
     const zones = accepted.body as ZoneSet
     expect(zones.lt1Hr).toMatchObject({ value: offer!.to, source: 'own-line' })
+    // The days the anchors stand from: the offer's acceptance, and the profile's last save for
+    // the typed maximum. Both are days of the runner's own, not the day the zones were worked out.
+    expect(zones.lt1Hr!.since).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+    expect(zones.hrMax!.since).toMatch(/^\d{4}-\d{2}-\d{2}$/)
     // Every reader of the first threshold follows: the Z1 ceiling that the targets, the watch and
     // the race plan read.
     expect(zones.hr!.z1[1]).toBe(offer!.to)

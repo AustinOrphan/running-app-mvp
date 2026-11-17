@@ -47,6 +47,19 @@ function nextLine(next: PlanSessionView | null, units: Units): string | null {
 }
 
 /** What a day with no session says, and the next session when there is one. */
+/**
+ * The hero's big figure and its unit: minutes under two hours, hours and minutes from there on
+ * ("32 h 9" beside "min"; a whole number of hours is "2" beside "h"), as `formatSessionMinutes`.
+ */
+export function heroMinutes(min: number): { figure: string; unit: string } {
+  if (min < 120) return { figure: String(min), unit: 'min' }
+  const hours = Math.floor(min / 60)
+  const rest = min % 60
+  return rest === 0
+    ? { figure: String(hours), unit: 'h' }
+    : { figure: `${String(hours)} h ${String(rest)}`, unit: 'min' }
+}
+
 export function NoSession({ next, units }: { next: PlanSessionView | null; units: Units }) {
   const line = nextLine(next, units)
   return (
@@ -129,6 +142,9 @@ export function SessionHero({ hero, heat, next, units, readOnly = false }: Sessi
   // it, and the plan becomes the quiet line under it (owner decision 2026-11-07). A strength
   // session has no run to show.
   const ran = linkedRun !== null && !strengthHero ? linkedRun : null
+  const heroLength = heroMinutes(
+    ran === null ? shown.durationMin : Math.round(ran.durationSec / 60),
+  )
   const plannedLine =
     ran !== null
       ? null
@@ -202,10 +218,8 @@ export function SessionHero({ hero, heat, next, units, readOnly = false }: Sessi
         <>
           <div className={styles.figureRow}>
             <p className={styles.figure}>
-              <span className={`${styles.display} figure-type`}>
-                {String(ran === null ? shown.durationMin : Math.round(ran.durationSec / 60))}
-              </span>{' '}
-              <span className={styles.unit}>min</span>
+              <span className={`${styles.display} figure-type`}>{heroLength.figure}</span>{' '}
+              <span className={styles.unit}>{heroLength.unit}</span>
             </p>
             {extent.length === 0 ? null : (
               <p className={styles.extent}>

@@ -12,6 +12,8 @@ export const PLAN_STRIP_TEMPLATES = {
   }),
   'plan.strip.brief': tpl('See the brief', {}, { shape: 'label' }),
   'plan.strip.label': tpl('The latest plan update', {}, { shape: 'label' }),
+  'plan.strip.close': tpl('Got it', {}, { shape: 'label' }),
+  'plan.strip.close-failed': tpl('The update was not marked as seen. Try again.'),
   'plan.strip.changed-mark': tpl('Changed', {}, { shape: 'label' }),
 } as const
 
@@ -27,7 +29,12 @@ export function planStripSentence(day: string, sessions: number, units: Units): 
 }
 
 export function planStripText(
-  id: 'plan.strip.brief' | 'plan.strip.label' | 'plan.strip.changed-mark',
+  id:
+    | 'plan.strip.brief'
+    | 'plan.strip.label'
+    | 'plan.strip.close'
+    | 'plan.strip.close-failed'
+    | 'plan.strip.changed-mark',
   units: Units,
 ): string {
   return render(PLAN_STRIP_TEMPLATES[id], {}, units)
