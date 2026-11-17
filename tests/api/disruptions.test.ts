@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { afterAll, afterEach, beforeAll, describe, expect, test, vi } from 'vitest'
 import { addDays, mondayOf } from '../../shared/dates.ts'
 import { P } from '../../shared/engine/params/index.ts'
@@ -1142,6 +1143,7 @@ describe('GET /api/today', () => {
       windows: [],
       offer: true,
       offerReason: 'check-in',
+      runPain: null,
       repeat: null,
     })
     await api(f).put(`/api/checkins/${THURSDAY}`).send({ painScore: 0, illness: true }).expect(200)
@@ -1149,6 +1151,7 @@ describe('GET /api/today', () => {
       windows: [],
       offer: true,
       offerReason: 'check-in',
+      runPain: null,
       repeat: null,
     })
     // a day ahead is read-only: no offer
@@ -1161,6 +1164,113 @@ describe('GET /api/today', () => {
       offer: false,
       offerReason: null,
       repeat: null,
+    })
+  })
+
+  describe('the offer for pain rated on a long or back-to-back run (rule J11)', () => {
+    const slot = async (f: Awaited<ReturnType<typeof fixture>>, date?: string) =>
+      ((await api(f).get(`/api/today${date ? `?date=${date}` : ''}`)).body as TodayView).coach.slots
+        .disruption
+    /** Makes the plan's session of `date` a `kind` (the plan is a plain build, so a day may hold none). */
+    const planKind = async (f: Awaited<ReturnType<typeof fixture>>, date: string, kind: string) => {
+      const rows = await ctx.prisma.planSession.findMany({ where: { planId: f.plan.id, date } })
+      if (rows.length > 0) {
+        await ctx.prisma.planSession.update({ where: { id: rows[0]!.id }, data: { kind } })
+        return
+      }
+      // a rest day: the copy of another session of the plan, moved to the day
+      const {
+        id: _id,
+        activityId: _activity,
+        ...template
+      } = (await ctx.prisma.planSession.findFirst({
+        where: { planId: f.plan.id, kind: { not: 'rest' } },
+      }))!
+      await ctx.prisma.planSession.create({
+        data: {
+          ...template,
+          externalId: randomUUID(),
+          date,
+          kind,
+          linkSource: null,
+          status: 'planned',
+        },
+      })
+    }
+    const run = (f: Awaited<ReturnType<typeof fixture>>, date: string, pain: number | null) =>
+      ctx.prisma.activity.create({
+        data: {
+          userId: f.u.id,
+          date,
+          type: 'run',
+          durationSec: 7200,
+          movingSec: 7200,
+          distanceM: 20_000,
+          rpe: 4,
+          pain,
+          source: 'manual',
+        },
+      })
+    const FLAG = P.pain.flagScore.value
+
+    test("is made for today's long run, with the rating and the check-in's area to fill in", async () => {
+      const f = await fixture('today-runpain-today@example.com')
+      await planKind(f, THURSDAY, 'long')
+      await run(f, THURSDAY, FLAG)
+      await api(f)
+        .put(`/api/checkins/${THURSDAY}`)
+        .send({ painScore: 1, painArea: 'left calf' })
+        .expect(200)
+      expect(await slot(f)).toEqual({
+        windows: [],
+        offer: true,
+        offerReason: 'run-pain',
+        runPain: { area: 'left calf', pain: FLAG },
+        repeat: null,
+      })
+      // asking creates nothing, and a day ahead has none
+      expect(await ctx.prisma.disruption.count({ where: { userId: f.u.id } })).toBe(0)
+      expect(await slot(f, FRIDAY)).toBeNull()
+    })
+
+    test("is made for yesterday's back-to-back run, with an empty area when no check-in names one", async () => {
+      const f = await fixture('today-runpain-yesterday@example.com')
+      await planKind(f, WEDNESDAY, 'b2b')
+      await run(f, WEDNESDAY, FLAG + 1)
+      expect(await slot(f)).toEqual({
+        windows: [],
+        offer: true,
+        offerReason: 'run-pain',
+        runPain: { area: '', pain: FLAG + 1 },
+        repeat: null,
+      })
+    })
+
+    test('is not made below the flag score, nor for a run two days back', async () => {
+      const f = await fixture('today-runpain-below@example.com')
+      await planKind(f, WEDNESDAY, 'long')
+      await planKind(f, TUESDAY, 'long')
+      await run(f, WEDNESDAY, FLAG - 1)
+      await run(f, TUESDAY, FLAG)
+      expect(await slot(f)).toBeNull()
+    })
+
+    test('is not made when the day holds no long or back-to-back session', async () => {
+      const f = await fixture('today-runpain-easy@example.com')
+      await planKind(f, THURSDAY, 'easy')
+      await run(f, THURSDAY, FLAG)
+      expect(await slot(f)).toBeNull()
+    })
+
+    test('is not made again while a window is open, and the check-in reason keeps its precedence', async () => {
+      const f = await fixture('today-runpain-window@example.com')
+      await planKind(f, THURSDAY, 'long')
+      await run(f, THURSDAY, FLAG)
+      expect(await slot(f)).toMatchObject({ offer: true, offerReason: 'run-pain' })
+      await api(f).put(`/api/checkins/${THURSDAY}`).send({ painScore: FLAG }).expect(200)
+      expect(await slot(f)).toMatchObject({ offer: true, offerReason: 'check-in', runPain: null })
+      await createWindow(f, cold({ startDate: THURSDAY, endDate: THURSDAY }))
+      expect(await slot(f)).toMatchObject({ offer: false, offerReason: null, runPain: null })
     })
   })
 
@@ -1189,6 +1299,7 @@ describe('GET /api/today', () => {
         windows: [],
         offer: true,
         offerReason: 'pain-repeat',
+        runPain: null,
         repeat: {
           area: 'my left calf is sore',
           reports: P.pain.repeatReports.value,

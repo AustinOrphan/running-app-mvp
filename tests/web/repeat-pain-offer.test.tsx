@@ -159,6 +159,56 @@ describe('the repeat offer on Today', () => {
   })
 })
 
+describe('the offer for pain on a long or back-to-back run', () => {
+  const RUN_PAIN: DisruptionSlotData = {
+    windows: [],
+    offer: true,
+    offerReason: 'run-pain',
+    runPain: { area: 'left calf', pain: 5 },
+    repeat: null,
+  }
+
+  test('keeps the plain question and the two answers', async () => {
+    renderSlot(RUN_PAIN)
+    const offer = await screen.findByRole('region', { name: 'Rest window offer' })
+    expect(within(offer).getByText('Set a rest window and a return plan?')).toBeInTheDocument()
+    expect(within(offer).getByRole('button', { name: 'Set one up' })).toBeInTheDocument()
+    expect(within(offer).getByRole('button', { name: 'Not now' })).toBeInTheDocument()
+    expectCleanCopy(offer)
+  })
+
+  test('"Set one up" opens the sheet on a niggle with the area and the rating filled in, and the signs pointer', async () => {
+    const user = userEvent.setup()
+    renderSlot(RUN_PAIN)
+    await user.click(await screen.findByRole('button', { name: 'Set one up' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Not 100%' })
+    expect(await within(dialog).findByRole('heading', { name: 'When' })).toBeInTheDocument()
+    expect(within(dialog).getByLabelText('Where is it?')).toHaveValue('left calf')
+    expect(within(dialog).getByRole('button', { name: 'Pain (0 to 10) 5' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+    expect(
+      within(dialog).getByText('Filled in from your rating of the run. Change anything.'),
+    ).toBeInTheDocument()
+    const note = within(dialog).getByText(/If the pain is in one small spot on a bone/)
+    expect(within(note).getByRole('link', { name: 'Warning signs' })).toHaveAttribute(
+      'href',
+      '/warning-signs',
+    )
+    expectCleanCopy(dialog)
+  })
+
+  test('"Not now" ends it for the visit and stores nothing', async () => {
+    const user = userEvent.setup()
+    renderSlot(RUN_PAIN)
+    await user.click(await screen.findByRole('button', { name: 'Not now' }))
+    expect(screen.queryByRole('region', { name: 'Rest window offer' })).not.toBeInTheDocument()
+    expect(window.localStorage.length).toBe(0)
+    expect(window.sessionStorage.length).toBe(0)
+  })
+})
+
 describe('the cross-training line in the preview', () => {
   async function previewFor(reason: 'niggle' | 'illness-above-neck' | 'travel', bone = false) {
     const user = userEvent.setup()
