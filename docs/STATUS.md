@@ -73,13 +73,13 @@ Answered on 2026-11-14, one item at a time (the owner's answers to D1 to D11 of 
 - **D9. Accessibility scan.** `@axe-core/playwright` as a devDependency, a scan of the main pages in
   e2e, the backlog triaged and then a failure on new violations (#724). A VoiceOver pass is still
   needed for what scanners miss.
-- **D10. Time zones.** Built (2026-11-16, ADR 0022, steps 1 to 5: #742, #744, #747, #750, #746,
-  #753 and the cutover #754). A runner's day is the calendar date in the zone saved on the Profile
+- **D10. Time zones.** Built (2026-11-16, ADR 0022, steps 1 to 6: #742, #744, #747, #750, #746,
+  #753, the cutover #754 and the zone reads outside the day). A runner's day is the calendar date in the zone saved on the Profile
   page; with none saved (the stored `UTC`) it is the server's zone. The limit that invited accounts
   share the server's zone is lifted. Matching, the Monday re-plan and the forced publish follow
-  each runner's clock, the backup the server's. Left: step 6, the zone reads outside the day (the
-  Smashrun offset, the browser's Apple export, the forecast wall clock, the map area, the calendar
-  header). Imports keep dating an offset-less time in the stored zone (owner answer, question 7).
+  each runner's clock, the backup the server's. The Smashrun offset, the browser's Apple
+  export, the forecast wall clock, the map area and the calendar header read that zone too.
+  Imports keep dating an offset-less time in the stored zone (owner answer, question 7).
   A zone is changed by hand on the Profile page; there is no travel prompt (question 5).
 - **D11. Road races.** Built (2026-11-16, ADR 0023: #741, #743, #745, #748 and #752). Half and
   marathon get the full plan and the 10 km the time, pace and heat blocks (`racePlanRoad.ts`; the
