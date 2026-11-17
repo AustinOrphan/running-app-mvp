@@ -225,6 +225,15 @@ function ceilingOf(zones: ZoneSet): number | null {
   return zones.hr?.z1[1] ?? null
 }
 
+/**
+ * Whether the easy limit's band is wider than a default band (`c7.bandDefaultBpm`): the figure then
+ * rests on a predicted maximum, an age estimate or a maximum the runner typed as an estimate, and the
+ * zones show the same wide band. Confidence reads the band, so the two cannot disagree.
+ */
+function ceilingIsWide(lt1Hr: ZoneSet['lt1Hr']): boolean {
+  return lt1Hr !== null && (lt1Hr.band[1] - lt1Hr.band[0]) / 2 > P.c7.bandDefaultBpm.value
+}
+
 /** The speed at which the line meets a heart rate, or null when the line cannot say. */
 function speedAtHr(model: HrModel, bpm: number): number | null {
   if (!(model.slopeBpmPerMps > 0)) return null
@@ -314,7 +323,7 @@ function hrPaceAt(
     ceilingBpm: ceiling,
     ceilingBandBpm: zones.lt1Hr === null ? null : (zones.lt1Hr.band[1] - zones.lt1Hr.band[0]) / 2,
     sample: { runs: hrModel.runs, since },
-    confidence: zones.lt1Hr?.source === 'hrmax-age' ? 'low' : 'moderate',
+    confidence: ceilingIsWide(zones.lt1Hr) ? 'low' : 'moderate',
     grade: lowestGrade(
       gradesOf([
         P.hrModel.minQualifyingRuns,

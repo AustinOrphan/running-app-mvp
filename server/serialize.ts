@@ -285,8 +285,26 @@ export function toProfile(row: AthleteProfileRow): AthleteProfile {
 
 /** The saved profile, or the defaults when the user has none. */
 export async function loadProfile(prisma: PrismaClient, userId: string): Promise<AthleteProfile> {
+  return (await loadProfileSaved(prisma, userId)).profile
+}
+
+/**
+ * The saved profile and the local day it was last saved (null when none is saved). The day is
+ * the runner's own, in the profile's zone; an unknown zone reads in UTC.
+ */
+export async function loadProfileSaved(
+  prisma: PrismaClient,
+  userId: string,
+): Promise<{ profile: AthleteProfile; savedOn: string | null }> {
   const row = await prisma.athleteProfile.findUnique({ where: { userId } })
-  return row ? toProfile(row) : defaultProfile()
+  if (!row) return { profile: defaultProfile(), savedOn: null }
+  let savedOn: string
+  try {
+    savedOn = isoDateInZone(row.updatedAt, row.timezone)
+  } catch {
+    savedOn = isoDateInZone(row.updatedAt, 'UTC')
+  }
+  return { profile: toProfile(row), savedOn }
 }
 
 export function toWellnessDay(row: WellnessDayRow): WellnessDay {

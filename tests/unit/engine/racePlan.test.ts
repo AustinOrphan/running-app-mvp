@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { addDays } from '../../../shared/dates.ts'
 import { raceFuelFor, replayLadder } from '../../../shared/engine/fuel.ts'
 import { darkHoursFor, racePlanFor, summaryOf } from '../../../shared/engine/racePlan.ts'
-import type { RacePlan, RacePlanInput } from '../../../shared/engine/racePlan.ts'
+import type { RacePlan, RacePlanInput, RaceWeekSession } from '../../../shared/engine/racePlan.ts'
 import { P } from '../../../shared/engine/params/index.ts'
 import { resolveTargets } from '../../../shared/engine/targets.ts'
 import { shakeOutFor } from '../../../shared/engine/micro.ts'
@@ -596,5 +596,102 @@ describe('racePlanFor: the checkpoint table (step 4)', () => {
 
   it('is determined by its input', () => {
     expect(planOf({ checkpoints: POINTS })).toEqual(planOf({ checkpoints: POINTS }))
+  })
+})
+
+// The race-week lines read the stored plan's sessions once the plan holds its race week (rule K6,
+// owner decision 2026-11-17): the day before and the start of the easy-only run-in.
+describe('racePlanFor: race week from the stored plan', () => {
+  const rule = () => shakeOutFor(RACE, 30 * 60)
+  const session = (
+    date: string,
+    kind: RaceWeekSession['kind'],
+    durationMin: number,
+  ): RaceWeekSession => ({ date, kind, durationMin })
+  /** The unedited race week: strides on Monday, easy on Wednesday and Friday, the race on Saturday. */
+  const unedited = (): RaceWeekSession[] => [
+    session(addDays(RACE, -5), 'strides', 46),
+    session(addDays(RACE, -3), 'easy', 45),
+    session(addDays(RACE, -1), 'easy', P.k6.dayBeforeMaxMin.value),
+    session(RACE, 'race', 1929),
+  ]
+  const shakeOutOf = (sessions: RaceWeekSession[] | null | undefined) =>
+    planOf({ raceWeekSessions: sessions }).raceWeek?.shakeOut
+
+  it('leaves an unedited plan as the Params give it', () => {
+    expect(shakeOutOf(unedited())).toEqual(rule())
+    expect(planOf({ raceWeekSessions: unedited() })).toEqual(planOf())
+  })
+
+  it('keeps the Param wording with no plan, and with a plan that has no race week yet', () => {
+    expect(shakeOutOf(null)).toEqual(rule())
+    expect(shakeOutOf([])).toEqual(rule())
+    expect(shakeOutOf([session(addDays(RACE, -30), 'long', 120)])).toEqual(rule())
+    expect(planOf({ raceWeekSessions: null })).toEqual(planOf())
+  })
+
+  it('states what an edited day before holds, with the kind', () => {
+    const edited = unedited().map((s) =>
+      s.date === addDays(RACE, -1) ? { ...s, durationMin: 45 } : s,
+    )
+    expect(shakeOutOf(edited)).toEqual({ ...rule(), held: { min: 45, kind: 'easy' } })
+  })
+
+  it('follows a swap that puts the long easy day before the race and the short one earlier', () => {
+    const swapped = unedited().map((s) => {
+      if (s.date === addDays(RACE, -1)) return { ...s, durationMin: 45 }
+      if (s.date === addDays(RACE, -3)) return { ...s, durationMin: 20 }
+      return s
+    })
+    expect(shakeOutOf(swapped)?.held).toEqual({ min: 45, kind: 'easy' })
+  })
+
+  it('moves the start of the easy run-in after a quality session placed inside it', () => {
+    const moved = unedited().map((s) =>
+      s.date === addDays(RACE, -5) ? { ...s, date: addDays(RACE, -2) } : s,
+    )
+    const out = shakeOutOf(moved)
+    expect(out?.easyFrom).toBe(addDays(RACE, -1))
+    expect(out?.held).toBeUndefined()
+  })
+
+  it('holds a day before that is not easy running even when it is short', () => {
+    const strides = unedited().map((s) =>
+      s.date === addDays(RACE, -1) ? { ...s, kind: 'strides' as const, durationMin: 15 } : s,
+    )
+    const out = shakeOutOf(strides)
+    expect(out?.held).toEqual({ min: 15, kind: 'strides' })
+    expect(out?.easyFrom).toBe(RACE)
+  })
+
+  it('treats an entered B race on the day before as held, with its minutes', () => {
+    const withRace = unedited().map((s) =>
+      s.date === addDays(RACE, -1) ? { ...s, kind: 'race' as const, durationMin: 25 } : s,
+    )
+    const out = shakeOutOf(withRace)
+    expect(out?.held).toEqual({ min: 25, kind: 'race' })
+    expect(out?.easyFrom).toBe(RACE)
+  })
+
+  it('moves the start of the easy run-in after an entered B race on day -2', () => {
+    const withRace = [...unedited(), session(addDays(RACE, -2), 'race', 60)]
+    const out = shakeOutOf(withRace)
+    expect(out?.easyFrom).toBe(addDays(RACE, -1))
+    expect(out?.held).toBeUndefined()
+  })
+
+  it('ignores a skipped session and a rest day', () => {
+    const skipped = unedited().map((s) =>
+      s.date === addDays(RACE, -1) ? { ...s, durationMin: 45, status: 'skipped' } : s,
+    )
+    expect(shakeOutOf(skipped)).toEqual(rule())
+    const rest = unedited().filter((s) => s.date !== addDays(RACE, -1))
+    expect(shakeOutOf(rest)).toEqual(rule())
+  })
+
+  it('is deterministic', () => {
+    expect(planOf({ raceWeekSessions: unedited() })).toEqual(
+      planOf({ raceWeekSessions: unedited() }),
+    )
   })
 })

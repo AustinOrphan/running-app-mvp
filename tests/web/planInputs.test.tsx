@@ -138,10 +138,10 @@ describe('PlanInputsPage', () => {
     renderWithProviders(<PlanInputsPage />, { route: '/plan-inputs' })
     const zones = await screen.findByRole('region', { name: 'Zones' })
     expect(rowOf(zones, 'Maximum heart rate')).toHaveTextContent(
-      'Estimated from age, as of 2026-06-01',
+      'Estimated from your age (maximum = 208 - 0.7 x age), as of Mon 1 Jun 2026',
     )
     expect(rowOf(zones, 'Critical speed')).toHaveTextContent(
-      'From critical speed (from training), as of 2026-06-02',
+      'From critical speed (from training), as of Tue 2 Jun 2026',
     )
     expect(rowOf(zones, 'Threshold pace')).toHaveTextContent('From a test')
     expect(rowOf(zones, 'Threshold heart rate')).toHaveTextContent('Not estimated yet.')

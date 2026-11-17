@@ -135,7 +135,7 @@ export const PACES_TEMPLATES = {
   ),
   'paces.easy.confidence-moderate': tpl('Confidence is moderate.'),
   'paces.easy.confidence-low-age': tpl(
-    'Confidence is low: your top heart rate is estimated from your age, so the ceiling could be off by about {band}.',
+    'Confidence is low: your top heart rate is an estimate, from your age or one you typed, so the ceiling could be off by about {band}.',
     { band: 'bpm' },
   ),
   'paces.easy.confidence-low-cs': tpl(
