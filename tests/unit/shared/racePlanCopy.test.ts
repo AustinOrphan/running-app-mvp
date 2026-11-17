@@ -234,7 +234,7 @@ describe('figures that restate a Param come from the Param', () => {
 
   it('keeps the rule wording and no note while the saved day before is within the rule', () => {
     const week = base.raceWeek
-    expect(week?.shake).toMatch(/^The plan keeps the day before to at most 20 min of easy running/)
+    expect(week?.shake).toMatch(/^The training plan keeps the day before to at most 20 min of easy running/)
     expect(week?.shakeNote).toBeNull()
   })
 
