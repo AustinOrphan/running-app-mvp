@@ -1027,8 +1027,10 @@ function ZonesSection({ units }: { units: Units }) {
         Zones
       </h2>
       <p className={styles.note}>
-        Zones are ranges, not single points. They change only when a proposal is accepted on the{' '}
-        <Link to="/review">review page</Link>.
+        {render(TEMPLATES['zones.note.ranges'], {}, 'km')}{' '}
+        {render(TEMPLATES['zones.note.pace'], {}, 'km')}{' '}
+        {render(TEMPLATES['zones.note.hr'], {}, 'km')}{' '}
+        <Link to="/review">{render(TEMPLATES['paces.link.review'], {}, 'km')}</Link>
       </p>
       {body}
       <div>
