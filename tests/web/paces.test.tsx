@@ -649,6 +649,101 @@ describe('MyPacesPage: climbs and descents [I13]', () => {
   })
 })
 
+/** Twelve cool, steady, flat runs with recorded weather and clean heart rate, on HR = 90 + 20 x speed. */
+function coolRuns(count: number, intercept: number) {
+  return Array.from({ length: count }, (_, i) => {
+    const speed = 2.3 + (0.9 * i) / Math.max(count - 1, 1)
+    return run(
+      i,
+      speed,
+      {
+        tempC: 8,
+        humidityPct: 55,
+        windKph: 5,
+        hrQuality: {
+          v: 1,
+          th: 'test',
+          source: 'strap',
+          movingSec: 2400,
+          cleanSec: 2400,
+          lockSec: 0,
+          spikeSec: 0,
+          dropSec: 0,
+          flatSec: 0,
+          mismatchSec: 0,
+          halves: null,
+          gapDecouplingPct: null,
+        },
+      },
+      Math.round(intercept + 20 * speed),
+    )
+  })
+}
+
+describe('MyPacesPage: the easy ceiling from your runs', () => {
+  test('shows the range your runs give beside the ceiling in use, and applies nothing', async () => {
+    const { view, routes } = serve(stateWith(FITNESS), coolRuns(12, 70))
+    mockApi(routes)
+    const { container } = renderWithProviders(<MyPacesPage />, { route: '/paces' })
+    const section = await screen.findByRole('region', { name: 'Easy ceiling from your runs' })
+    const reading = view.easy.ownCeiling.reading
+    if (reading.status !== 'ready') throw new Error('not ready')
+    expect(within(section).getByText('Ceiling in use')).toBeInTheDocument()
+    expect(within(section).getByText(`${String(reading.inUse.bpm)} bpm`)).toBeInTheDocument()
+    expect(within(section).getByText('What your runs say')).toBeInTheDocument()
+    expect(within(section).getByText('Middle reading')).toBeInTheDocument()
+    expect(within(section).getByText(`${String(reading.mid)} bpm`)).toBeInTheDocument()
+    expect(within(section).getByText(/^The ceiling in use sits/)).toBeInTheDocument()
+    expect(within(section).getByText(/From 12 cool runs in the last 8 weeks/)).toBeInTheDocument()
+    expect(within(section).getByText(/Nothing here is applied/)).toBeInTheDocument()
+    expect(within(section).getByRole('link', { name: 'Open the review page' })).toHaveAttribute(
+      'href',
+      '/review',
+    )
+    expect(within(section).queryByRole('button', { name: /accept|apply|use/i })).toBeNull()
+    expect(within(section).getByText('Evidence grade D')).toBeInTheDocument()
+    expectCleanCopy(container)
+  })
+
+  test('with too few runs says how many qualify of how many, and what makes a run qualify', async () => {
+    const { view, routes } = serve(stateWith(FITNESS), coolRuns(4, 90))
+    mockApi(routes)
+    const { container } = renderWithProviders(<MyPacesPage />, { route: '/paces' })
+    const section = await screen.findByRole('region', { name: 'Easy ceiling from your runs' })
+    expect(view.easy.ownCeiling.reading.status).toBe('too-few')
+    expect(within(section).getByText('Not enough runs yet')).toBeInTheDocument()
+    expect(
+      within(section).getByText('4 of 10 runs qualify so far, in the last 8 weeks.'),
+    ).toBeInTheDocument()
+    const what = within(section).getByText(/A run qualifies when it is cool/)
+    expect(what).toHaveTextContent('recorded weather')
+    expect(what).toHaveTextContent('flat and steady')
+    expect(what).toHaveTextContent('clean heart-rate data')
+    expect(what).toHaveTextContent('A run with no weather recorded does not count.')
+    expect(within(section).queryByText('Middle reading')).toBeNull()
+    expectCleanCopy(container)
+  })
+
+  test('says what is missing rather than hiding the block', async () => {
+    const noMax = { ...profileFixture, hrMax: null, hrMaxSource: null, birthYear: null }
+    const { view, routes } = serve({ ...stateWith({}), age: null }, [], 'km', noMax)
+    mockApi(routes)
+    const { container } = renderWithProviders(<MyPacesPage />, { route: '/paces' })
+    const section = await screen.findByRole('region', { name: 'Easy ceiling from your runs' })
+    expect(view.easy.ownCeiling.reading).toMatchObject({
+      status: 'missing',
+      missing: ['maximum', 'pace'],
+    })
+    expect(within(section).getByText(/A maximum heart rate is missing/)).toBeInTheDocument()
+    expect(within(section).getByText(/A pace anchor is missing/)).toBeInTheDocument()
+    expect(within(section).getByRole('link', { name: 'Open Profile' })).toHaveAttribute(
+      'href',
+      '/profile',
+    )
+    expectCleanCopy(container)
+  })
+})
+
 describe('MyPacesPage: states', () => {
   test('says it did not load, as an alert', async () => {
     mockApi({
@@ -686,7 +781,7 @@ describe('MyPacesPage: states', () => {
       within(nav)
         .getAllByRole('link')
         .map((link) => link.getAttribute('href')),
-    ).toEqual(['#easy', '#zones', '#grades', '#events', '#test'])
+    ).toEqual(['#easy', '#ceiling', '#zones', '#grades', '#events', '#test'])
   })
 
   test('every sentence of the page passes the copy lint', async () => {

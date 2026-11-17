@@ -22,6 +22,81 @@ export const PACES_TEMPLATES = {
   'paces.link.from-profile': tpl('Your easy pace and what you can run now', {}, { shape: 'label' }),
   'paces.link.from-goal': tpl('See your paces at other distances', {}, { shape: 'label' }),
 
+  // The easy ceiling your runs point to (rules C4, C8): a reading beside the ceiling in use, never a change.
+  'paces.ceiling.heading': tpl('Easy ceiling from your runs', {}, { shape: 'label' }),
+  'paces.ceiling.context': tpl(
+    'The top of zone 1 your own cool runs point to, beside the one in use. A reading only: your zones change only if you accept an offer.',
+  ),
+  'paces.ceiling.row-in-use': tpl('Ceiling in use', {}, { shape: 'label' }),
+  'paces.ceiling.row-range': tpl('What your runs say', {}, { shape: 'label' }),
+  'paces.ceiling.row-mid': tpl('Middle reading', {}, { shape: 'label' }),
+  'paces.ceiling.value-one': tpl('{bpm}', { bpm: 'bpm' }, { shape: 'label' }),
+  'paces.ceiling.value-range': tpl(
+    '{low} to {high}',
+    { low: 'bpm', high: 'bpm' },
+    { shape: 'label' },
+  ),
+  'paces.ceiling.within': tpl('The ceiling in use sits inside the range your runs give.'),
+  'paces.ceiling.below': tpl('The ceiling in use sits {gap} under the range your runs give.', {
+    gap: 'bpm',
+  }),
+  'paces.ceiling.above': tpl('The ceiling in use sits {gap} over the range your runs give.', {
+    gap: 'bpm',
+  }),
+  'paces.ceiling.basis': tpl(
+    'From {runs} cool runs in the last {weeks} weeks, read where your heart-rate line meets your easy pace limit.',
+    { runs: 'count', weeks: 'count' },
+  ),
+  'paces.ceiling.range': tpl(
+    'The range is the lowest and highest of three readings, each from the runs up to one of your last three.',
+  ),
+  'paces.ceiling.since': tpl(
+    'Only runs after {date}, when this ceiling was set from your runs, count.',
+    { date: 'date' },
+  ),
+  'paces.ceiling.offer': tpl(
+    'Nothing here is applied. The review page offers a lower ceiling when the readings agree on {lower} or more cool runs, and a higher one on {higher} or more; you decide.',
+    { lower: 'count', higher: 'count' },
+  ),
+  'paces.ceiling.few-heading': tpl('Not enough runs yet', {}, { shape: 'label' }),
+  'paces.ceiling.few-count': tpl(
+    '{have} of {need} runs qualify so far, in the last {weeks} weeks.',
+    {
+      have: 'count',
+      need: 'count',
+      weeks: 'count',
+    },
+  ),
+  'paces.ceiling.few-what': tpl(
+    'A run qualifies when it is cool (recorded weather of {wbgt} WBGT or lower), flat and steady, at least {min} long, with clean heart-rate data.',
+    { wbgt: 'temp', min: 'minutes' },
+  ),
+  'paces.ceiling.few-weather': tpl('A run with no weather recorded does not count.'),
+  'paces.ceiling.unclear': tpl(
+    'Enough runs qualify, but the heart-rate line cannot be read at your easy pace limit yet: it is too flat, or that pace lies outside the speeds of these runs.',
+  ),
+  'paces.ceiling.missing-maximum': tpl(
+    'A maximum heart rate is missing, so there is no ceiling to set the runs against. Add your age or your maximum on Profile.',
+  ),
+  'paces.ceiling.missing-pace': tpl(
+    'A pace anchor is missing, so there is no easy pace limit to read the line at. A critical speed from your runs or a threshold pace on Profile gives one.',
+  ),
+  'paces.ceiling.how-line': tpl(
+    'The line of heart rate against speed (A8) is fitted on the qualifying runs and read at the speed of your easy pace limit (C4).',
+  ),
+  'paces.ceiling.how-nested': tpl(
+    'It is refit as each of your last three runs arrived (C8); the range is the lowest and highest of the three.',
+  ),
+  'paces.ceiling.how-cool': tpl(
+    'Only cool runs count, so that heat cannot lift the line (C8), and only runs whose heart-rate data passes the clean-signal checks (B2).',
+  ),
+  'paces.ceiling.how-offer': tpl(
+    'The review page offers a change only when the three readings agree and enough runs went into them (C8).',
+  ),
+  'paces.ceiling.how-raise': tpl(
+    'A higher ceiling needs more runs and a closer agreement than a lower one (C8).',
+  ),
+
   // Easy pace
   'paces.easy.heading': tpl('Easy pace', {}, { shape: 'label' }),
   'paces.easy.lead-hr': tpl(

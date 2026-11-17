@@ -229,6 +229,138 @@ describe('GET /api/paces: what the runner sees', () => {
   })
 })
 
+/**
+ * `count` cool, steady, flat runs with recorded weather and a heart-rate summary that passes the
+ * checks, on the line HR = `intercept` + 20 x speed, speeds 2.3 to 3.2 m/s, one every two days.
+ */
+async function withCoolRuns(user: TestUser, count: number, intercept: number): Promise<void> {
+  const durationSec = 40 * 60
+  const quality = {
+    v: 1,
+    th: 'test',
+    source: 'strap',
+    movingSec: durationSec,
+    cleanSec: durationSec,
+    lockSec: 0,
+    spikeSec: 0,
+    dropSec: 0,
+    flatSec: 0,
+    mismatchSec: 0,
+    halves: null,
+    gapDecouplingPct: null,
+  }
+  for (let i = 0; i < count; i += 1) {
+    const speed = 2.3 + (0.9 * i) / Math.max(count - 1, 1)
+    const avgHr = Math.round(intercept + 20 * speed)
+    const metres = Math.round(speed * durationSec)
+    await ctx.prisma.activity.create({
+      data: {
+        userId: user.id,
+        date: addDays(today, -(2 + i * 2)),
+        type: 'run',
+        durationSec,
+        distanceM: metres,
+        gapDistanceM: metres,
+        elevationGainM: 20,
+        avgHr,
+        tempC: 8,
+        humidityPct: 55,
+        windKph: 5,
+        hrQuality: JSON.stringify(quality),
+        hrHistogram: JSON.stringify({
+          start: 100,
+          width: 5,
+          sec: Array.from({ length: 20 }, (_, bin) =>
+            bin === Math.floor((avgHr - 100) / 5) ? durationSec : 0,
+          ),
+        }),
+      },
+    })
+  }
+}
+
+describe('GET /api/paces: the easy ceiling the runs point to', () => {
+  test('is present beside the ceiling in use, with no plan and no offer standing', async () => {
+    const user = await newUser()
+    await withMeasuredMax(user)
+    await ctx.prisma.athleteProfile.update({
+      where: { userId: user.id },
+      data: { thresholdPaceSecPerKm: 300 },
+    })
+    // The line gives 90 + 20 x 2.7 = 144 bpm near the easy pace limit, under the 148 in use.
+    await withCoolRuns(user, 12, 90)
+    expect(await ctx.prisma.plan.count({ where: { userId: user.id } })).toBe(0)
+    const { ownCeiling } = (await pacesOf(user)).easy
+    expect(ownCeiling.rules).toEqual(['C4', 'C8', 'C9', 'A8'])
+    expect(ownCeiling.grade).toBe('D')
+    expect(ownCeiling.reading).toMatchObject({
+      status: 'ready',
+      runs: 12,
+      need: 10,
+      windowWeeks: 8,
+      since: null,
+      inUse: { bpm: 148 },
+    })
+    const reading = ownCeiling.reading
+    if (reading.status !== 'ready') throw new Error('not ready')
+    expect(reading.low).toBeLessThanOrEqual(reading.mid)
+    expect(reading.high).toBeGreaterThanOrEqual(reading.mid)
+    expect(reading.mid).toBeGreaterThan(130)
+    expect(reading.mid).toBeLessThan(160)
+  })
+
+  test('is a reading only: the profile keeps the ceiling it had', async () => {
+    const user = await newUser()
+    await withMeasuredMax(user)
+    await ctx.prisma.athleteProfile.update({
+      where: { userId: user.id },
+      data: { thresholdPaceSecPerKm: 300 },
+    })
+    await withCoolRuns(user, 12, 60)
+    await pacesOf(user)
+    const profile = await ctx.prisma.athleteProfile.findUniqueOrThrow({
+      where: { userId: user.id },
+    })
+    expect(profile.ownLt1Hr).toBeNull()
+  })
+
+  test('says how many runs qualify of how many are needed when there are too few', async () => {
+    const user = await newUser()
+    await withMeasuredMax(user)
+    await ctx.prisma.athleteProfile.update({
+      where: { userId: user.id },
+      data: { thresholdPaceSecPerKm: 300 },
+    })
+    await withCoolRuns(user, 4, 90)
+    // Nine steady runs with no recorded weather feed the line but never the ceiling.
+    await withSteadyRuns(user)
+    const { ownCeiling } = (await pacesOf(user)).easy
+    expect(ownCeiling.reading).toMatchObject({
+      status: 'too-few',
+      runs: 4,
+      need: 10,
+      windowWeeks: 8,
+      maxWbgtC: P.c8.ownLt1MaxWbgtC.value,
+      minDurationMin: P.hrModel.minDurationMin.value,
+    })
+  })
+
+  test('says what is missing: a maximum, a pace anchor', async () => {
+    const empty = await pacesOf(await newUser())
+    expect(empty.easy.ownCeiling.reading).toMatchObject({
+      status: 'missing',
+      missing: ['maximum', 'pace'],
+      runs: 0,
+    })
+    const user = await newUser()
+    await withMeasuredMax(user)
+    expect((await pacesOf(user)).easy.ownCeiling.reading).toMatchObject({
+      status: 'missing',
+      missing: ['pace'],
+    })
+  })
+})
+
 describe('GET /api/paces: validators', () => {
   test('the tag follows the data version, the day and the course, and a current tag is a 304', async () => {
     const user = await newUser()
