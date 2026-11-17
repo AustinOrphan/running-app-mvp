@@ -1250,7 +1250,7 @@ describe('the rehearsal block', () => {
 
   it('carries no block without history or when the plan asks for neither kind', () => {
     expect(describeRacePlan(racePlanFor(input()), 'km').rehearsal).toBeNull()
-    const flat = goal({ crossesDarkness: false, lossM: 0 })
+    const flat = goal({ crossesDarkness: false, lossM: 0, gainM: 0 })
     expect(withRuns([], { goal: flat }).rehearsal).toBeNull()
   })
 
@@ -1284,7 +1284,7 @@ describe('the rehearsal block', () => {
 
   it('says when no run recorded altitude and when there are no runs', () => {
     const noAlt = withRuns([at('a', '2026-06-05', '2026-06-05T15:00:00Z')], {
-      goal: goal({ crossesDarkness: false }),
+      goal: goal({ crossesDarkness: false, gainM: 0 }),
     }).rehearsal!
     expect(noAlt.lines).toEqual([expect.stringMatching(/^No run since .* recorded altitude/)])
     expect(withRuns([]).rehearsal!.lines).toEqual([expect.stringMatching(/^No runs since /)])
@@ -1340,6 +1340,89 @@ describe('the rehearsal block', () => {
       'Dark here means the sun is more than 6 degrees below the horizon at the place of each run.',
     )
     expect(away.join(' ')).not.toMatch(/your home place/)
+  })
+
+  describe('the climb lines', () => {
+    const hilly = goal({ distanceM: 100_000, gainM: 1670, lossM: 1670, crossesDarkness: false })
+    const climbBins = (climbSec: number, walkSec: number) => {
+      const b = bins(0)
+      b.sec[6] = climbSec
+      b.walkSec[6] = walkSec
+      return b
+    }
+    const long = (id: string, over: Partial<Activity> = {}) =>
+      at(id, '2026-06-05', null, {
+        durationSec: 7200,
+        distanceM: 20_000,
+        elevationGainM: 100,
+        elevationLossM: 60,
+        terrainBins: climbBins(1800, 900),
+        ...over,
+      })
+    const linesOf = (runs: Activity[], units: 'km' | 'mi' = 'km') =>
+      describeRacePlan(
+        racePlanFor(input({ goal: hilly, history: { activities: runs, ...chicago } })),
+        units,
+      ).rehearsal!.lines
+
+    it('sets the long runs beside the course in plain figures, in km', () => {
+      const lines = linesOf([long('a'), long('b')])
+      expect(lines).toContain('The course climbs 17 m and descends 17 m per km.')
+      expect(lines).toContain(
+        'Long runs of 90 min or more since 18 Mar: 2, with a median of 5 m climb and 3 m descent per km.',
+      )
+      expect(lines).toContain('Long runs with as much climb per km as the course: 0.')
+      expect(lines).toContain(
+        'Long runs: 60 min on uphill grades of 3% or steeper, 50% of it walking.',
+      )
+    })
+
+    it('reads the same figures per mile in feet', () => {
+      const lines = linesOf([long('a')], 'mi')
+      expect(lines).toContain('The course climbs 88 ft and descends 88 ft per mile.')
+      expect(lines.join(' ')).toMatch(/median of 26 ft climb and 16 ft descent per mile\./)
+    })
+
+    it('says plainly when there are no long runs, no climb or no band time', () => {
+      const short = at('s', '2026-06-05', null, { durationSec: 3000 })
+      expect(linesOf([short])).toContain('Long runs of 90 min or more since 18 Mar: none.')
+      expect(linesOf([long('a', { elevationGainM: null, elevationLossM: null })])).toContain(
+        'Long runs of 90 min or more since 18 Mar: 1, none with climb recorded.',
+      )
+      expect(linesOf([long('a', { terrainBins: null })])).toContain(
+        'No long run has altitude time yet, so time on climbs cannot be counted.',
+      )
+      expect(linesOf([long('a', { terrainBins: bins(0) })])).toContain(
+        'Long runs: none on uphill grades of 3% or steeper.',
+      )
+    })
+
+    it('rounds the walked share to a whole percent', () => {
+      const lines = linesOf([long('a', { terrainBins: climbBins(3000, 1000) })])
+      expect(lines).toContain(
+        'Long runs: 50 min on uphill grades of 3% or steeper, 33% of it walking.',
+      )
+    })
+
+    it('counts the long runs at or above the course and passes the G5 lint in both units', () => {
+      const lines = linesOf([long('a', { elevationGainM: 400 })])
+      expect(lines).toContain('Long runs with as much climb per km as the course: 1.')
+      for (const units of UNITS) {
+        for (const line of linesOf([long('a'), long('b', { terrainBins: null })], units)) {
+          expect(lintText(line), line).toEqual([])
+          expect(line).not.toMatch(/behind|missed|streak|should|target/i)
+        }
+      }
+    })
+
+    it('gives a goal with no gain no climb line', () => {
+      const flat = goal({ gainM: 0, lossM: 0, crossesDarkness: true })
+      const lines = describeRacePlan(
+        racePlanFor(input({ goal: flat, history: { activities: [long('a')], ...chicago } })),
+        'km',
+      ).rehearsal!.lines
+      expect(lines.join(' ')).not.toMatch(/climb/i)
+    })
   })
 
   it('stays out of the summary and the race card', () => {

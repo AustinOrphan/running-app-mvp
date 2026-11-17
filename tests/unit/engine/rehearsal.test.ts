@@ -180,4 +180,153 @@ describe('rehearsalFor', () => {
     expect(rehearsalFor(input([], { downhill: false }))!.rules).toEqual(['H6'])
     expect(rehearsalFor(input([], { night: false }))!.rules).toEqual(['H5'])
   })
+
+  describe('the climb part', () => {
+    const COURSE = { gainPerKm: 16.7, lossPerKm: 16.7 }
+    const climbInput = (activities: Activity[], over: Partial<RehearsalInput> = {}) =>
+      input(activities, { night: false, downhill: false, course: COURSE, ...over })
+
+    /** Bins with `climbSec` on the 6 to 10 percent band, `walkSec` of it walked, and flat time. */
+    function climbBins(climbSec: number, walkSec: number, flatSec = 3000): TerrainBins {
+      const b = bins([], flatSec)
+      b.sec[6] = climbSec
+      b.walkSec[6] = walkSec
+      return b
+    }
+
+    /** A long run (2 h) of `km` kilometres with the given gain and loss in metres. */
+    const longRun = (id: string, km: number, gain: number | null, loss: number | null, over = {}) =>
+      runAt(id, '2026-10-05', null, {
+        durationSec: 7200,
+        movingSec: 7200,
+        distanceM: km * 1000,
+        elevationGainM: gain,
+        elevationLossM: loss,
+        ...over,
+      })
+
+    it('is null for a goal with no climb and no other ask', () => {
+      expect(rehearsalFor(climbInput([], { course: null }))).toBeNull()
+    })
+
+    it('carries no climb part when the goal holds none but another kind is asked', () => {
+      const r = rehearsalFor(input([longRun('a', 20, 100, 100)], { course: null }))!
+      expect(r.climb).toBeNull()
+      expect(r.rules).toEqual(['H6', 'H5'])
+    })
+
+    it('takes the median climb and descent per kilometre of the long runs', () => {
+      const r = rehearsalFor(
+        climbInput([
+          longRun('a', 20, 100, 60), // 5.0 and 3.0
+          longRun('b', 20, 300, 200), // 15.0 and 10.0
+          longRun('c', 10, 100, 20), // 10.0 and 2.0
+          runAt('short', '2026-10-06', null, {
+            durationSec: 3000,
+            distanceM: 5000,
+            elevationGainM: 500,
+            elevationLossM: 500,
+          }),
+        ]),
+      )!
+      expect(r.rules).toEqual(['H1'])
+      expect(r.climb).toMatchObject({
+        courseGainPerKm: 16.7,
+        courseLossPerKm: 16.7,
+        longRuns: 3,
+        medianGainPerKm: 10,
+        medianLossPerKm: 3,
+      })
+    })
+
+    it('averages the two middle values for an even count', () => {
+      const r = rehearsalFor(climbInput([longRun('a', 10, 40, 10), longRun('b', 10, 100, 30)]))!
+      expect(r.climb!.medianGainPerKm).toBe(7)
+      expect(r.climb!.medianLossPerKm).toBe(2)
+    })
+
+    it('counts the long runs at or above the course figure, the figure itself included', () => {
+      const r = rehearsalFor(
+        climbInput(
+          [
+            longRun('below', 10, 100, 0),
+            longRun('equal', 10, 167, 0),
+            longRun('above', 10, 300, 0),
+          ],
+          { course: { gainPerKm: 16.7, lossPerKm: 16.7 } },
+        ),
+      )!
+      expect(r.climb!.atOrAboveCourse).toBe(2)
+    })
+
+    it('reads minutes on the climbing bands and the walked share from the bins', () => {
+      const r = rehearsalFor(
+        climbInput([
+          longRun('a', 20, 100, 100, { terrainBins: climbBins(1800, 900) }),
+          longRun('b', 20, 100, 100, { terrainBins: climbBins(600, 0) }),
+          // A short run's bins are not read.
+          runAt('s', '2026-10-06', null, { durationSec: 3000, terrainBins: climbBins(900, 900) }),
+        ]),
+      )!
+      expect(r.climb).toMatchObject({
+        bandMinPct: 3,
+        minutes: 40,
+        walkedShare: 900 / 2400,
+        runsWithBins: 2,
+        runsWithoutBins: 0,
+      })
+    })
+
+    it('does not count the band below +3 percent as climbing', () => {
+      const flat = bins([], 4000) // band 4 is -3 to +3
+      const r = rehearsalFor(climbInput([longRun('a', 20, 10, 10, { terrainBins: flat })]))!
+      expect(r.climb).toMatchObject({ minutes: 0, walkedShare: null, runsWithBins: 1 })
+    })
+
+    it('has no medians, count or minutes without long runs', () => {
+      const r = rehearsalFor(
+        climbInput([runAt('s', '2026-10-06', null, { durationSec: 3000, distanceM: 5000 })]),
+      )!
+      expect(r.climb).toEqual({
+        courseGainPerKm: 16.7,
+        courseLossPerKm: 16.7,
+        longRuns: 0,
+        medianGainPerKm: null,
+        medianLossPerKm: null,
+        atOrAboveCourse: 0,
+        bandMinPct: 3,
+        minutes: 0,
+        walkedShare: null,
+        runsWithBins: 0,
+        runsWithoutBins: 0,
+      })
+    })
+
+    it('keeps the medians but reports no band time when the bins are null or all zero', () => {
+      const r = rehearsalFor(
+        climbInput([
+          longRun('null', 20, 200, 100, { terrainBins: null }),
+          longRun('zero', 20, 200, 100, { terrainBins: bins([], 0) }),
+        ]),
+      )!
+      expect(r.climb).toMatchObject({
+        longRuns: 2,
+        medianGainPerKm: 10,
+        minutes: 0,
+        walkedShare: null,
+        runsWithBins: 0,
+        runsWithoutBins: 2,
+      })
+    })
+
+    it('leaves a long run with no distance or no recorded climb out of the medians', () => {
+      const r = rehearsalFor(
+        climbInput([
+          longRun('nodist', 20, 100, 100, { distanceM: null }),
+          longRun('nogain', 20, null, null),
+        ]),
+      )!
+      expect(r.climb).toMatchObject({ longRuns: 2, medianGainPerKm: null, medianLossPerKm: null })
+    })
+  })
 })

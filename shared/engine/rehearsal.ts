@@ -2,7 +2,7 @@
 // the last `r1.rehearsalWindowWeeks` weeks were night runs, and how much time they spent on steep
 // descent. Pure: the runs arrive as data (the athlete snapshot), the sun comes from
 // `shared/domain/sun.ts`, and every number from `P`. It counts what was done and compares it with
-// nothing: the plan's own ask sits beside it and the words never call the gap a shortfall (G5).
+// nothing (the climb part sets the long runs beside the course's own figure and no more): the plan's own ask sits beside it and the words never call the gap a shortfall (G5).
 import { addDays } from '../dates.ts'
 import { darkMinutesOf } from '../domain/sun.ts'
 import type { Activity } from '../types.ts'
@@ -11,6 +11,7 @@ import { P } from './params/index.ts'
 
 const SEC_PER_MIN = 60
 const DAYS_PER_WEEK = 7
+const METRES_PER_KM = 1000
 
 export interface RehearsalInput {
   /** The snapshot's activities (flagged duplicates included; they are left out here). */
@@ -23,6 +24,11 @@ export interface RehearsalInput {
   night: boolean
   /** The plan asks for downhill preparation (the course descends at least `h12.hillyDescentMPerKm`). */
   downhill: boolean
+  /**
+   * The course's climb and descent per kilometre when the goal holds climbing (gain above zero and a
+   * distance); absent or null gives no climb part.
+   */
+  course?: { gainPerKm: number; lossPerKm: number } | null
 }
 
 export interface RehearsalNight {
@@ -51,6 +57,28 @@ export interface RehearsalDownhill {
   runsWithoutBins: number
 }
 
+export interface RehearsalClimb {
+  /** The course's own figures, metres per kilometre. */
+  courseGainPerKm: number
+  courseLossPerKm: number
+  /** Long runs of the window (`r1.longRunMin`): the ones the figures below read. */
+  longRuns: number
+  /** Medians over the long runs that carry a distance and the figure; null when none does. */
+  medianGainPerKm: number | null
+  medianLossPerKm: number | null
+  /** Long runs whose climb per kilometre reaches the course's. */
+  atOrAboveCourse: number
+  /** The grade (percent) the climbing bands start at: minutes at this grade or steeper. */
+  bandMinPct: number
+  /** Moving minutes on the climbing bands, summed over the long runs with bins. */
+  minutes: number
+  /** The part of those minutes spent walking, 0 to 1; null when the long runs hold no band time. */
+  walkedShare: number | null
+  /** Long runs whose bins hold time, and those without (no altitude, or not computed yet). */
+  runsWithBins: number
+  runsWithoutBins: number
+}
+
 export interface RaceRehearsal {
   /** The first and last day counted. */
   from: string
@@ -60,6 +88,8 @@ export interface RaceRehearsal {
   runs: number
   night: RehearsalNight | null
   downhill: RehearsalDownhill | null
+  /** Null when the goal holds no climbing. */
+  climb: RehearsalClimb | null
   rules: string[]
 }
 
@@ -159,9 +189,73 @@ function downhillOf(runs: readonly Activity[]): RehearsalDownhill {
   }
 }
 
-/** The rehearsal of the window up to `today`; null when the plan asks for neither kind. */
+function medianOf(values: number[]): number | null {
+  if (values.length === 0) return null
+  const sorted = [...values].sort((a, b) => a - b)
+  const mid = Math.floor(sorted.length / 2)
+  return sorted.length % 2 === 1 ? sorted[mid]! : (sorted[mid - 1]! + sorted[mid]!) / 2
+}
+
+/** Seconds and walked seconds on the bands that start at `r1.climbBandMinPct` or steeper. */
+function climbSeconds(a: Activity): { sec: number; walkSec: number } {
+  const bins = a.terrainBins
+  if (bins === null) return { sec: 0, walkSec: 0 }
+  const min = P.r1.climbBandMinPct.value
+  let sec = 0
+  let walkSec = 0
+  for (let i = 0; i < bins.sec.length; i++) {
+    const lower = i === 0 ? Number.NEGATIVE_INFINITY : (bins.edgesPct[i - 1] ?? Number.NaN)
+    if (lower >= min) {
+      sec += bins.sec[i] ?? 0
+      walkSec += bins.walkSec[i] ?? 0
+    }
+  }
+  return { sec, walkSec }
+}
+
+function climbOf(
+  runs: readonly Activity[],
+  course: { gainPerKm: number; lossPerKm: number },
+): RehearsalClimb {
+  const longSec = P.r1.longRunMin.value * SEC_PER_MIN
+  const long = runs.filter((a) => a.durationSec >= longSec)
+  const gains: number[] = []
+  const losses: number[] = []
+  for (const run of long) {
+    if (run.distanceM === null || run.distanceM <= 0) continue
+    const km = run.distanceM / METRES_PER_KM
+    if (run.elevationGainM !== null) gains.push(run.elevationGainM / km)
+    if (run.elevationLossM !== null) losses.push(run.elevationLossM / km)
+  }
+  let sec = 0
+  let walkSec = 0
+  let withBins = 0
+  for (const run of long) {
+    if (!hasBinTime(run)) continue
+    withBins++
+    const c = climbSeconds(run)
+    sec += c.sec
+    walkSec += c.walkSec
+  }
+  return {
+    courseGainPerKm: course.gainPerKm,
+    courseLossPerKm: course.lossPerKm,
+    longRuns: long.length,
+    medianGainPerKm: medianOf(gains),
+    medianLossPerKm: medianOf(losses),
+    atOrAboveCourse: gains.filter((g) => g >= course.gainPerKm).length,
+    bandMinPct: P.r1.climbBandMinPct.value,
+    minutes: Math.round(sec / SEC_PER_MIN),
+    walkedShare: sec > 0 ? Math.min(1, walkSec / sec) : null,
+    runsWithBins: withBins,
+    runsWithoutBins: long.length - withBins,
+  }
+}
+
+/** The rehearsal of the window up to `today`; null when the plan asks for none of the kinds. */
 export function rehearsalFor(input: RehearsalInput): RaceRehearsal | null {
-  if (!input.night && !input.downhill) return null
+  const course = input.course ?? null
+  if (!input.night && !input.downhill && course === null) return null
   const weeks = P.r1.rehearsalWindowWeeks.value
   const from = addDays(input.today, -weeks * DAYS_PER_WEEK + 1)
   const runs = input.activities.filter((a) => isCounted(a, from, input.today))
@@ -172,6 +266,11 @@ export function rehearsalFor(input: RehearsalInput): RaceRehearsal | null {
     runs: runs.length,
     night: input.night ? nightOf(runs, input) : null,
     downhill: input.downhill ? downhillOf(runs) : null,
-    rules: [...(input.night ? ['H6'] : []), ...(input.downhill ? ['H5'] : [])],
+    climb: course === null ? null : climbOf(runs, course),
+    rules: [
+      ...(input.night ? ['H6'] : []),
+      ...(input.downhill ? ['H5'] : []),
+      ...(course === null ? [] : ['H1']),
+    ],
   }
 }

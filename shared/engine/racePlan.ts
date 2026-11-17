@@ -546,6 +546,13 @@ export function racePlanFor(input: RacePlanInput): RacePlan {
           downhill:
             goal.distanceM > 0 &&
             goal.lossM / (goal.distanceM / 1000) >= P.h12.hillyDescentMPerKm.value,
+          course:
+            goal.distanceM > 0 && goal.gainM > 0
+              ? {
+                  gainPerKm: goal.gainM / (goal.distanceM / 1000),
+                  lossPerKm: goal.lossM / (goal.distanceM / 1000),
+                }
+              : null,
         })
 
   const raceWeek = raceWeekFor({

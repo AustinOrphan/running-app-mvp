@@ -588,6 +588,10 @@ export const hUltra = {
       unit: 'min',
       note: 'Default: a long run holds sustained descent when it spent this many minutes or more on the downhill bands. A choice of display; no study sets it.',
     }),
+    climbBandMinPct: param('r1.climbBandMinPct', 3, 'D', 'H14', [], {
+      unit: '% grade',
+      note: 'Default: time on grades at or above this (the bands of the terrain bins that start at +3% or steeper) is climbing time for the rehearsal count. It is the first climbing band of the bins; no study sets it.',
+    }),
   },
   h12: {
     reducedDays: param(
