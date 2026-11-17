@@ -39,6 +39,8 @@ const defaultRoutes: MockRoutes = {
   'GET /api/activities/glyphs': () => ({ glyphs: {} }),
   // The Settings page's "Trail and road" block reads the downloaded map area (M1d).
   'GET /api/map-area': () => ({ area: null, busy: false }),
+  // The Plan page's header asks whether a race plan exists (RPB); none unless a test plans one.
+  'GET /api/race/plan': () => ({ plan: null, reason: 'not-ultra' }),
   // The health notice (FS1) stands confirmed unless a test plans it otherwise.
   'GET /api/plan-notice': () => ({
     version: 1,

@@ -11,7 +11,10 @@ import {
   type RefObject,
   type SyntheticEvent,
 } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
+import { hasRacePlan, useRacePlan } from '../api/race.ts'
+import { usePhoneCopy } from '../components/today/phoneCopy.ts'
+import { planRaceContextText, raceOpenText } from '../../shared/copy/racePlan.ts'
 import { fieldErrors } from '../api/client.ts'
 import { ruleTarget, type WhyTarget } from '../api/explain.ts'
 import { useDisruptions } from '../api/disruptions.ts'
@@ -1417,8 +1420,11 @@ function PlanTable({
   const [handled, setHandled] = useState<WeekReveal | null>(null)
   if (reveal !== null && reveal !== handled) {
     setHandled(reveal)
-    if (reveal.weekStart < currentMonday) setShowEarlier(true)
-    setOpen((current) => new Set(current).add(reveal.weekStart))
+    // A week the plan does not hold (a stale link, a mistyped `?week=`) asks for nothing.
+    if (plan.weeks.some((week) => week.weekStart === reveal.weekStart)) {
+      if (reveal.weekStart < currentMonday) setShowEarlier(true)
+      setOpen((current) => new Set(current).add(reveal.weekStart))
+    }
   }
   const body = useRef<HTMLTableSectionElement>(null)
   useEffect(() => {
@@ -1667,10 +1673,20 @@ export function PlanPage() {
   const [why, setWhy] = useState<WhyTarget | null>(null)
   const [notFull, setNotFull] = useState(false)
   const [updating, setUpdating] = useState(false)
-  const [reveal, setReveal] = useState<WeekReveal | null>(null)
+  // `?week=YYYY-MM-DD` (the Race plan's links) asks for a week like the season strip does; the table
+  // ignores a week the plan does not hold. It changes no data and is read once, on arrival.
+  const weekParam = useSearchParams()[0].get('week')
+  const [reveal, setReveal] = useState<WeekReveal | null>(() =>
+    weekParam === null ? null : { weekStart: weekParam },
+  )
   const settings = useRef<HTMLDivElement>(null)
   const title = useRef<HTMLHeadingElement>(null)
   const units = useSettings().data?.units
+  // The race plan is one of the reads the service worker keeps; a goal with none (5 km, no goal)
+  // keeps the plain header.
+  const race = useRacePlan()
+  const phoneCopy = usePhoneCopy(race.data)
+  const raceNamed = hasRacePlan(race.data) ? (race.data?.plan ?? race.data?.road ?? null) : null
   // Only a plan that has sessions has revisions with a diff to show.
   const revisions = usePlanRevisions({ enabled: (plan.data?.generatorVersion ?? 1) >= 2 })
   // The server's day is asked for only when an update could be worth a strip.
@@ -1762,7 +1778,27 @@ export function PlanPage() {
       <PageHeader
         title="Plan"
         titleRef={title}
-        context={`${plan.data.name}. Race week of ${formatShortDate(plan.data.raceWeekStart)}.`}
+        context={
+          // Held until the race read settles (data or error), so the line is not swapped after it shows.
+          race.isPending ? undefined : raceNamed === null ? (
+            `${plan.data.name}. Race week of ${formatShortDate(plan.data.raceWeekStart)}.`
+          ) : (
+            <>
+              {planRaceContextText(
+                {
+                  name: raceNamed.name,
+                  date: raceNamed.date,
+                  daysToRace: raceNamed.daysToRace,
+                },
+                phoneCopy,
+                units ?? 'km',
+              )}{' '}
+              <Link to="/race" className={styles.raceLink}>
+                {raceOpenText(units ?? 'km')}
+              </Link>
+            </>
+          )
+        }
         actions={
           hasSessions ? (
             <>

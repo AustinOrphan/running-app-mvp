@@ -5,12 +5,15 @@ import {
   describeRaceCard,
   describeRaceProfileHeading,
   describeRacePlan,
+  planLinkText,
+  planWeekLinkText,
   raceCopyNoteText,
   raceEmptyText,
   raceTitleText,
 } from '../../shared/copy/racePlan.ts'
 import type { RacePlan } from '../../shared/engine/racePlan.ts'
 import { raceProfileFor } from '../../shared/domain/raceProfile.ts'
+import { mondayOf } from '../../shared/dates.ts'
 import type { CourseSilhouettePoint, Units } from '../../shared/types.ts'
 import { rulesRef } from '../api/explain.ts'
 import { useRacePlan } from '../api/race.ts'
@@ -256,7 +259,14 @@ function PlanBody({
               <h2 id="race-week" className={cardStyles.heading}>
                 {raceWeek.heading}
               </h2>
-              <RaceWeekBlock week={raceWeek} full />
+              <RaceWeekBlock
+                week={raceWeek}
+                full
+                planWeek={{
+                  to: `/plan?week=${mondayOf(plan.date)}`,
+                  label: planWeekLinkText(units),
+                }}
+              />
               <div>
                 <ExplainButton
                   subject="the race week"
@@ -277,6 +287,9 @@ function PlanBody({
                   {line}
                 </p>
               ))}
+              <Link to="/plan" className={cardStyles.link}>
+                {planLinkText(units)}
+              </Link>
               <div>
                 <ExplainButton
                   subject="the dark hours"

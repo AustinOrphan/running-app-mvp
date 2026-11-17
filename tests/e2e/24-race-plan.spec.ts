@@ -347,3 +347,33 @@ test('the sheet of the race session of an ultra plan carries the race-day block 
     expect(await scrollsSideways()).toBe(false)
   }
 })
+
+test('the Plan and the Race plan link each way, and the race week opens on the Plan', async () => {
+  // Continues with the plan of the previous case: a plan for the 100-mile goal. The race is moved to
+  // tomorrow so that the last two days are on the page.
+  const { today } = relativeDates()
+  const raceDay = addDays(today, 1)
+  const goals = (await api.get('/goals')) as Array<{ id: string }>
+  await api.put(`/goals/${goals[0]?.id ?? ''}`, { targetDate: raceDay })
+  await page.setViewportSize({ width: 390, height: 844 })
+
+  await page.goto('/plan')
+  await expect(page.getByRole('heading', { level: 1, name: 'Plan' })).toBeVisible()
+  await expect(page.getByText(/^Race day ultra, .*\. 1 day to go\./)).toBeVisible()
+  await page.getByRole('link', { name: 'Open the race plan' }).click()
+  await expect(page).toHaveURL(/\/race$/)
+
+  const week = page.getByRole('region', { name: 'The last two days' })
+  const toPlan = week.getByRole('link', { name: 'Open race week in the training plan' })
+  await expect(toPlan).toHaveAttribute('href', `/plan?week=${mondayOf(raceDay)}`)
+  await toPlan.click()
+  await expect(page).toHaveURL(new RegExp(`/plan\\?week=${mondayOf(raceDay)}$`))
+  await expect(page.getByRole('heading', { level: 1, name: 'Plan' })).toBeVisible()
+  await expect(page.locator(`tr[data-week="${mondayOf(raceDay)}"]`)).toBeFocused()
+
+  // A week the plan does not hold leaves the page as it opens.
+  await page.goto('/plan?week=2001-01-01')
+  await expect(page.getByRole('heading', { level: 1, name: 'Plan' })).toBeVisible()
+  await expect(page.locator('tr[data-week="2001-01-01"]')).toHaveCount(0)
+  expect(await scrollsSideways()).toBe(false)
+})

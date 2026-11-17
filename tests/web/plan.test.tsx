@@ -1040,3 +1040,63 @@ describe('PlanPage: a failed load', () => {
     expect(api.calls.filter((call) => call.url === '/api/goals')).toHaveLength(1)
   })
 })
+
+describe('PlanPage: the race plan and the race week', () => {
+  const racePlan = {
+    // the goal was renamed after the plan was made: the header uses the race plan's name
+    plan: { name: 'Renamed half', date: '2027-03-06', daysToRace: 52 },
+    reason: null,
+  }
+
+  test('a goal with a race plan adds the race date, the days to go and a link to /race', async () => {
+    mockApi(routes(makePlan(), { 'GET /api/race/plan': () => racePlan }))
+    const { container } = renderWithProviders(<PlanPage />)
+    expect(
+      await screen.findByText('Renamed half, Sat 6 Mar 2027. 52 days to go.'),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Open the race plan' })).toHaveAttribute(
+      'href',
+      '/race',
+    )
+    expectCleanCopy(container)
+  })
+
+  test('the phone copy of the race plan leaves the days to go out', async () => {
+    mockApi(
+      routes(makePlan(), {
+        'GET /api/race/plan': () => ({ ...racePlan, servedFromCache: true }),
+      }),
+    )
+    renderWithProviders(<PlanPage />)
+    expect(await screen.findByText('Renamed half, Sat 6 Mar 2027.')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Open the race plan' })).toBeInTheDocument()
+  })
+
+  test('with no race plan the header and its links stay as they were', async () => {
+    mockApi(routes(makePlan()))
+    renderWithProviders(<PlanPage />)
+    expect(await screen.findByText('Spring half plan. Race week of 1 Mar.')).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Open the race plan' })).not.toBeInTheDocument()
+  })
+
+  test('?week= shows an earlier week and scrolls to it', async () => {
+    const scroll = vi.fn()
+    window.HTMLElement.prototype.scrollIntoView = scroll
+    mockApi(routes(makePlan()))
+    renderWithProviders(<PlanPage />, { route: `/plan?week=${START}` })
+    const toggle = await screen.findByRole('button', { name: 'Earlier weeks (2)' })
+    expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    expect(row(START)).toBeInTheDocument()
+    expect(scroll).toHaveBeenCalled()
+  })
+
+  test('?week= with a week the plan does not hold is ignored', async () => {
+    const scroll = vi.fn()
+    window.HTMLElement.prototype.scrollIntoView = scroll
+    mockApi(routes(makePlan()))
+    renderWithProviders(<PlanPage />, { route: '/plan?week=2031-05-05' })
+    const toggle = await screen.findByRole('button', { name: 'Earlier weeks (2)' })
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    expect(scroll).not.toHaveBeenCalled()
+  })
+})
