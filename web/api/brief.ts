@@ -18,16 +18,10 @@ export function useBrief(weekStart?: string, options: { enabled?: boolean } = {}
   })
 }
 
-/**
- * Stamps the revisions of a brief as seen (`POST /api/briefs/:weekStart/seen`), the one marker the
- * brief page, Today's line and the Plan page share. Returns a function that sends each week once
- * for the life of the component and refreshes what shows the marker; the answer is 204 and
- * idempotent, so a lost request is repaired by the next open.
- */
-export function useMarkBriefSeen(): (weekStart: string) => void {
+/** The seen write of `POST /api/briefs/:weekStart/seen` and the reads that show its marker. */
+function useSeenMutation() {
   const queryClient = useQueryClient()
-  const sent = useRef(new Set<string>())
-  const mutation = useMutation({
+  return useMutation({
     mutationFn: (weekStart: string) =>
       api<undefined>('POST', `/briefs/${encodeURIComponent(weekStart)}/seen`),
     onSuccess: () =>
@@ -36,18 +30,48 @@ export function useMarkBriefSeen(): (weekStart: string) => void {
           queryClient.invalidateQueries({ queryKey: [key] }),
         ),
       ),
-    // Nothing is shown for a failure: the marker stays, and the next open sends the week again.
-    onError: (_error, weekStart) => {
-      sent.current.delete(weekStart)
-    },
   })
-  const { mutate } = mutation
+}
+
+/**
+ * Stamps the revisions of a brief as seen (`POST /api/briefs/:weekStart/seen`), the one marker the
+ * brief page, Today's line and the Plan page share. Returns a function that sends each week once
+ * for the life of the component and refreshes what shows the marker; the answer is 204 and
+ * idempotent, so a lost request is repaired by the next open.
+ */
+export function useMarkBriefSeen(): (weekStart: string) => void {
+  const sent = useRef(new Set<string>())
+  // Nothing is shown for a failure: the marker stays, and the next open sends the week again.
+  const { mutate } = useSeenMutation()
   return useCallback(
     (weekStart: string) => {
       if (sent.current.has(weekStart)) return
       sent.current.add(weekStart)
+      mutate(weekStart, {
+        onError: () => {
+          sent.current.delete(weekStart)
+        },
+      })
+    },
+    [mutate],
+  )
+}
+
+/**
+ * The same stamp for a button the runner presses ("Got it" on Today's card): `pending` while the
+ * write runs, `failed` when it did not reach the server, so the card can say so and stay.
+ */
+export function useAcknowledgeBrief(): {
+  acknowledge: (weekStart: string) => void
+  pending: boolean
+  failed: boolean
+} {
+  const { mutate, isPending, isError } = useSeenMutation()
+  const acknowledge = useCallback(
+    (weekStart: string) => {
       mutate(weekStart)
     },
     [mutate],
   )
+  return { acknowledge, pending: isPending, failed: isError }
 }

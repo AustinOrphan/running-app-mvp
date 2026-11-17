@@ -178,9 +178,19 @@ export function useUndoRevision() {
 /**
  * Stamps revisions as seen (the one marker Today, the Plan page and the brief share). Returns a
  * function that sends each id once for the life of the component and refreshes what shows the
- * marker; the answer is 204 and idempotent, so a lost request is repaired by the next open.
+ * marker; the answer is 204 and idempotent, so a lost request is repaired by the next open. A caller
+ * that waits on the answer (a close control) passes callbacks, which run only while it is mounted.
  */
-export function useMarkRevisionsSeen(): (ids: readonly string[]) => void {
+export interface MarkSeenCallbacks {
+  /** Called when the stamp was stored, before the refetch of what shows the marker has finished. */
+  onSuccess?: () => void
+  onFailed?: () => void
+}
+
+export function useMarkRevisionsSeen(): (
+  ids: readonly string[],
+  callbacks?: MarkSeenCallbacks,
+) => void {
   const queryClient = useQueryClient()
   const sent = useRef(new Set<string>())
   const mutation = useMutation({
@@ -188,12 +198,12 @@ export function useMarkRevisionsSeen(): (ids: readonly string[]) => void {
       Promise.all(
         ids.map((id) => api<undefined>('POST', `/plan/revisions/${encodeURIComponent(id)}/seen`)),
       ),
-    onSuccess: () =>
-      Promise.all(
-        [keys.planRevisions, keys.brief, keys.today].map((key) =>
-          queryClient.invalidateQueries({ queryKey: [key] }),
-        ),
-      ),
+    // The refetch is not awaited: a caller's `onSuccess` must not wait on a slow or failing read.
+    onSuccess: () => {
+      for (const key of [keys.planRevisions, keys.brief, keys.today]) {
+        void queryClient.invalidateQueries({ queryKey: [key] })
+      }
+    },
     // Nothing is shown for a failure: the marker stays, and the next open sends the ids again.
     onError: (_error, ids) => {
       for (const id of ids) sent.current.delete(id)
@@ -201,11 +211,11 @@ export function useMarkRevisionsSeen(): (ids: readonly string[]) => void {
   })
   const { mutate } = mutation
   return useCallback(
-    (ids: readonly string[]) => {
+    (ids: readonly string[], callbacks?: MarkSeenCallbacks) => {
       const fresh = ids.filter((id) => !sent.current.has(id))
       if (fresh.length === 0) return
       for (const id of fresh) sent.current.add(id)
-      mutate(fresh)
+      mutate(fresh, { onSuccess: callbacks?.onSuccess, onError: callbacks?.onFailed })
     },
     [mutate],
   )
