@@ -2409,6 +2409,112 @@ describe('Plan page, the strip after the weekly update', () => {
     expect(await screen.findByText('The list of changes did not load.')).toBeInTheDocument()
     expect(screen.queryByRole('region', { name: 'The latest plan update' })).toBeNull()
   })
+
+  test('hides the strip once its revision is seen and keeps the Changed marks', async () => {
+    mockApi(
+      routes(makeV2Plan(), {
+        ...serverDay(),
+        'GET /api/plan/revisions': () => [twoSessions({ seenAt: '2027-01-12T08:00:00.000Z' })],
+      }),
+    )
+    renderPlan()
+    await screen.findByRole('region', { name: 'What changed' })
+    expect(screen.queryByRole('region', { name: 'The latest plan update' })).toBeNull()
+    const hill = await screen.findByRole('button', { name: /Hill strides/ })
+    expect(within(hill).getByText('Changed')).toBeInTheDocument()
+  })
+
+  test('shows the strip for an unseen update on the third day', async () => {
+    mockApi(
+      routes(makeV2Plan(), {
+        ...serverDay('2027-01-14'),
+        'GET /api/plan/revisions': () => [twoSessions()],
+      }),
+    )
+    renderPlan()
+    await strip()
+  })
+
+  test('hides the strip for an unseen update on the fourth day', async () => {
+    mockApi(
+      routes(makeV2Plan(), {
+        ...serverDay('2027-01-15'),
+        'GET /api/plan/revisions': () => [twoSessions()],
+      }),
+    )
+    renderPlan()
+    await screen.findByRole('region', { name: 'What changed' })
+    expect(screen.queryByRole('region', { name: 'The latest plan update' })).toBeNull()
+  })
+
+  test('the Got it button marks the revision seen, keeps focus until then and then moves it to the title', async () => {
+    const user = userEvent.setup()
+    let seen = false
+    const { calls } = mockApi(
+      routes(makeV2Plan(), {
+        ...serverDay(),
+        'GET /api/plan/revisions': () => [
+          twoSessions({ seenAt: seen ? '2027-01-13T12:00:00.000Z' : null }),
+        ],
+        'POST /api/plan/revisions/r9/seen': () => {
+          seen = true
+          return { status: 204, body: undefined }
+        },
+      }),
+    )
+    renderPlan()
+    const region = await strip()
+    const button = within(region).getByRole('button', { name: 'Got it' })
+    button.focus()
+    await user.click(button)
+    expect(button).toHaveAttribute('aria-busy', 'true')
+    await waitFor(() => {
+      expect(screen.queryByRole('region', { name: 'The latest plan update' })).toBeNull()
+    })
+    expect(calls.filter((c) => c.url === '/api/plan/revisions/r9/seen')).toHaveLength(1)
+    expect(screen.getByRole('heading', { level: 1, name: 'Plan' })).toHaveFocus()
+    // The marks on the days stay.
+    expect(
+      within(await screen.findByRole('button', { name: /Hill strides/ })).getByText('Changed'),
+    ).toBeInTheDocument()
+  })
+
+  test('keeps the strip and says so when marking it seen fails', async () => {
+    const user = userEvent.setup()
+    mockApi(
+      routes(makeV2Plan(), {
+        ...serverDay(),
+        'GET /api/plan/revisions': () => [twoSessions()],
+        'POST /api/plan/revisions/r9/seen': () => ({
+          status: 503,
+          body: { error: { code: 'internal', message: 'No connection.' } },
+        }),
+      }),
+    )
+    renderPlan()
+    const region = await strip()
+    const button = within(region).getByRole('button', { name: 'Got it' })
+    await user.click(button)
+    expect(await within(region).findByRole('alert')).toHaveTextContent(
+      'The update was not marked as seen. Try again.',
+    )
+    expect(button).not.toHaveAttribute('aria-busy')
+  })
+
+  test('offers no Got it button while the device is offline', async () => {
+    const online = vi.spyOn(window.navigator, 'onLine', 'get').mockReturnValue(false)
+    try {
+      mockApi(
+        routes(makeV2Plan(), { ...serverDay(), 'GET /api/plan/revisions': () => [twoSessions()] }),
+      )
+      renderPlan()
+      const region = await strip()
+      expect(within(region).queryByRole('button', { name: 'Got it' })).toBeNull()
+      expect(within(region).getByRole('link', { name: 'See the brief' })).toBeInTheDocument()
+    } finally {
+      online.mockRestore()
+    }
+  })
 })
 
 describe('Plan page, the strip reads the server day', () => {

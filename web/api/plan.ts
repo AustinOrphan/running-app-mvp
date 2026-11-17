@@ -178,9 +178,10 @@ export function useUndoRevision() {
 /**
  * Stamps revisions as seen (the one marker Today, the Plan page and the brief share). Returns a
  * function that sends each id once for the life of the component and refreshes what shows the
- * marker; the answer is 204 and idempotent, so a lost request is repaired by the next open.
+ * marker; the answer is 204 and idempotent, so a lost request is repaired by the next open. A caller
+ * that waits on the answer (a close control) passes `onFailed`, called when the request fails.
  */
-export function useMarkRevisionsSeen(): (ids: readonly string[]) => void {
+export function useMarkRevisionsSeen(): (ids: readonly string[], onFailed?: () => void) => void {
   const queryClient = useQueryClient()
   const sent = useRef(new Set<string>())
   const mutation = useMutation({
@@ -201,11 +202,11 @@ export function useMarkRevisionsSeen(): (ids: readonly string[]) => void {
   })
   const { mutate } = mutation
   return useCallback(
-    (ids: readonly string[]) => {
+    (ids: readonly string[], onFailed?: () => void) => {
       const fresh = ids.filter((id) => !sent.current.has(id))
       if (fresh.length === 0) return
       for (const id of fresh) sent.current.add(id)
-      mutate(fresh)
+      mutate(fresh, { onError: onFailed })
     },
     [mutate],
   )

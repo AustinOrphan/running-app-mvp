@@ -34,6 +34,7 @@ import { useWeeks } from '../api/weeks.ts'
 import { useWristStatus, weekZipHref } from '../api/wrist.ts'
 import type { PlanRevisionView } from '../../shared/types.ts'
 import { Button } from '../components/Button.tsx'
+import { useOnline } from '../components/useOnline.ts'
 import { EmptyPreview, EmptyState } from '../components/EmptyState.tsx'
 import { PlanNotice } from '../components/PlanNotice.tsx'
 import { usePlanNotice } from '../api/planNotice.ts'
@@ -1107,7 +1108,8 @@ function visibleLines(revision: PlanRevisionView) {
 
 /**
  * The most recent update the scheduler wrote that is still worth a line: a weekly revision from the
- * last few days that changed something and has not been undone. Null otherwise.
+ * last few days that changed something and has not been undone. Null otherwise. Seen or not, it
+ * marks the days it changed; the strip itself shows only while it is unseen.
  */
 function latestUpdate(
   revisions: PlanRevisionView[] | undefined,
@@ -1145,6 +1147,33 @@ function UpdateStrip({
   tz: string
 }) {
   const created = isoDateInZone(new Date(revision.createdAt), tz)
+  const markSeen = useMarkRevisionsSeen()
+  const online = useOnline()
+  const [closing, setClosing] = useState(false)
+  const [failed, setFailed] = useState(false)
+  const closed = useRef(false)
+  // The button stays focused and busy until the answer arrives; when the strip then leaves, focus
+  // goes to the page title instead of dropping to the document.
+  useEffect(
+    () => () => {
+      if (!closed.current) return
+      const title = document.querySelector<HTMLElement>('h1')
+      if (title === null) return
+      title.tabIndex = -1
+      title.focus({ preventScroll: true })
+    },
+    [],
+  )
+  function close() {
+    setFailed(false)
+    setClosing(true)
+    closed.current = true
+    markSeen([revision.id], () => {
+      closed.current = false
+      setClosing(false)
+      setFailed(true)
+    })
+  }
   const sentence = planStripSentence(
     formatWeekdayName(created),
     visibleLines(revision).length,
@@ -1157,7 +1186,17 @@ function UpdateStrip({
         <Link to={`/brief/${mondayOf(created)}`} className={styles.updateLink}>
           {planStripText('plan.strip.brief', units)}
         </Link>
+        {online ? (
+          <Button variant="quiet" busy={closing} onClick={close}>
+            {planStripText('plan.strip.close', units)}
+          </Button>
+        ) : null}
       </div>
+      {failed ? (
+        <p role="alert" className={styles.updateText}>
+          {planStripText('plan.strip.close-failed', units)}
+        </p>
+      ) : null}
       {revision.undo.available ? <UndoControl revision={revision} units={units} /> : null}
     </section>
   )
@@ -1738,7 +1777,7 @@ export function PlanPage() {
         }
       />
       {hasSessions ? <PlanWindows /> : null}
-      {update !== null ? (
+      {update !== null && update.seenAt === null ? (
         <UpdateStrip revision={update} units={units ?? 'mi'} tz={serverToday?.tz ?? 'UTC'} />
       ) : null}
       <SeasonStrip
