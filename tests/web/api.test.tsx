@@ -1097,6 +1097,21 @@ describe('auth hooks', () => {
     expect(queryClient.getQueryData([keys.activities, {}])).toBeUndefined()
     expect(queryClient.getQueryData([keys.me])).toBeNull()
   })
+
+  test('useLogout cancels in-flight queries before the logout request', async () => {
+    const { calls } = mockApi(allRoutes())
+    const { queryClient, wrapper } = setup()
+    const order: string[] = []
+    const cancel = vi.spyOn(queryClient, 'cancelQueries').mockImplementation(() => {
+      order.push(`cancel after ${calls.length} calls`)
+      return Promise.resolve()
+    })
+    const { result } = renderHook(() => useLogout(), { wrapper })
+    await act(() => result.current.mutateAsync())
+    expect(cancel).toHaveBeenCalledTimes(1)
+    expect(order).toEqual(['cancel after 0 calls'])
+    expect(calls.at(-1)?.url).toBe('/api/auth/logout')
+  })
 })
 
 describe('useActivityTrack', () => {

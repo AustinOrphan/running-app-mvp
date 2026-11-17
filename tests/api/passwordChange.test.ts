@@ -2,7 +2,7 @@ import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import { afterEach, describe, expect, test } from 'vitest'
 import { setPasswordByEmail } from '../../server/auth/password.ts'
-import { signSession } from '../../server/auth/session.ts'
+import { SESSION_MAX_AGE_SEC, signSession } from '../../server/auth/session.ts'
 import { client, createTestCtx, seedUser, type TestCtx } from './helpers.ts'
 
 const CURRENT = 'correct horse battery staple'
@@ -146,7 +146,11 @@ describe('PUT /api/auth/password', () => {
   test('a cookie with no version keeps working for an account at version 0, and a sign-in carries the version', async () => {
     const ctx = await ctxFor()
     const user = await seedUser(ctx)
-    const legacy = jwt.sign({}, ctx.config.sessionSecret, { algorithm: 'HS256', subject: user.id })
+    const legacy = jwt.sign({}, ctx.config.sessionSecret, {
+      algorithm: 'HS256',
+      subject: user.id,
+      expiresIn: SESSION_MAX_AGE_SEC,
+    })
     expect(
       (await client(ctx, { ...user, cookie: `rl_session=${legacy}` }).get('/api/auth/me')).status,
     ).toBe(200)

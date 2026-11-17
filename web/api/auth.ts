@@ -123,7 +123,12 @@ export function useChangePassword() {
 export function useLogout() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: () => api<void>('POST', '/auth/logout'),
+    // In-flight reads are cancelled first: one that the server answers after the logout could carry
+    // a renewed session cookie (ADR 0002, addendum SS1). Cancelling stops what React Query can stop.
+    mutationFn: async () => {
+      await queryClient.cancelQueries()
+      await api<void>('POST', '/auth/logout')
+    },
     onSuccess: async () => {
       queryClient.clear()
       queryClient.setQueryData([keys.me], null)
