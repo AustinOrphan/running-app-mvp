@@ -383,6 +383,14 @@ export const RACE_PLAN_TEMPLATES = {
     'The course climbs {gain} and descends {loss} per {per}.',
     { gain: 'climb', loss: 'climb', per: 'text' },
   ),
+  'race.plan.rehearsal.climb-course-gain': tpl('The course climbs {gain} per {per}.', {
+    gain: 'climb',
+    per: 'text',
+  }),
+  'race.plan.rehearsal.climb-bins-some': tpl(
+    'The climbing time comes from {n} of the {total} long runs; the others have no altitude time.',
+    { n: 'count', total: 'count' },
+  ),
   'race.plan.rehearsal.climb-long': tpl(
     'Long runs of {time} or more since {date}: {n}, with a median of {gain} climb and {loss} descent per {per}.',
     { time: 'minutes', date: 'date', n: 'count', gain: 'climb', loss: 'climb', per: 'text' },
@@ -1350,12 +1358,19 @@ function climbLines(
   const scale = miles ? milesToM(1) / 1000 : 1
   const perUnit = (mPerKm: number) => ({ kind: 'climb', m: mPerKm * scale }) as const
   const time = minutes(P.r1.longRunMin.value)
+  const courseLoss = climb.courseLossPerKm
   const lines = [
-    say(
-      T['race.plan.rehearsal.climb-course'],
-      { gain: perUnit(climb.courseGainPerKm), loss: perUnit(climb.courseLossPerKm), per },
-      units,
-    ),
+    courseLoss === null
+      ? say(
+          T['race.plan.rehearsal.climb-course-gain'],
+          { gain: perUnit(climb.courseGainPerKm), per },
+          units,
+        )
+      : say(
+          T['race.plan.rehearsal.climb-course'],
+          { gain: perUnit(climb.courseGainPerKm), loss: perUnit(courseLoss), per },
+          units,
+        ),
   ]
   if (climb.longRuns === 0) {
     lines.push(say(T['race.plan.rehearsal.climb-long-none'], { time, date }, units))
@@ -1367,7 +1382,7 @@ function climbLines(
   } else {
     const gain = perUnit(climb.medianGainPerKm)
     lines.push(
-      climb.medianLossPerKm === null
+      climb.medianLossPerKm === null || courseLoss === null
         ? say(T['race.plan.rehearsal.climb-long-gain'], { time, date, n, gain, per }, units)
         : say(
             T['race.plan.rehearsal.climb-long'],
@@ -1396,6 +1411,15 @@ function climbLines(
         units,
       ),
     )
+    if (climb.runsWithoutBins > 0) {
+      lines.push(
+        say(
+          T['race.plan.rehearsal.climb-bins-some'],
+          { n: count(climb.runsWithBins), total: count(climb.longRuns) },
+          units,
+        ),
+      )
+    }
   }
   return lines
 }
@@ -1469,7 +1493,8 @@ function rehearsalText(plan: RacePlan, units: Units): RacePlanText['rehearsal'] 
       }
     }
   }
-  const climb = r.runs === 0 ? null : r.climb
+  // A cached payload from before the climb part has no `climb` (ADR 0012): read as absent.
+  const climb = r.runs === 0 ? null : ((r.climb as RehearsalClimb | null | undefined) ?? null)
   if (climb !== null) lines.push(...climbLines(climb, date, units))
   return { heading: say(T['race.plan.rehearsal.heading'], {}, units), lines }
 }

@@ -1397,6 +1397,47 @@ describe('the rehearsal block', () => {
       )
     })
 
+    it('states no descent when the goal holds none', () => {
+      const noLoss = goal({
+        distanceM: 100_000,
+        gainM: 1670,
+        lossM: 0,
+        crossesDarkness: false,
+      })
+      const lines = describeRacePlan(
+        racePlanFor(input({ goal: noLoss, history: { activities: [long('a')], ...chicago } })),
+        'km',
+      ).rehearsal!.lines
+      expect(lines).toContain('The course climbs 17 m per km.')
+      expect(lines).toContain(
+        'Long runs of 90 min or more since 18 Mar: 1, with a median of 5 m climb per km.',
+      )
+      expect(lines.join(' ')).not.toMatch(/descen/i)
+    })
+
+    it('says how many long runs the climbing time comes from when some have no bins', () => {
+      const lines = linesOf([
+        long('a'),
+        long('b', { terrainBins: null }),
+        long('c', { terrainBins: null }),
+        long('d', { terrainBins: null }),
+      ])
+      expect(lines).toContain(
+        'The climbing time comes from 1 of the 4 long runs; the others have no altitude time.',
+      )
+      expect(linesOf([long('a'), long('b')]).join(' ')).not.toMatch(/comes from/)
+    })
+
+    it('reads a cached payload from before the climb part as having none', () => {
+      const plan = racePlanFor(
+        input({ goal: hilly, history: { activities: [long('a')], ...chicago } }),
+      )
+      const old = JSON.parse(JSON.stringify(plan)) as { rehearsal: { climb?: unknown } }
+      delete old.rehearsal.climb
+      const lines = describeRacePlan(old as unknown as typeof plan, 'km').rehearsal!.lines
+      expect(lines.join(' ')).not.toMatch(/climb/i)
+    })
+
     it('rounds the walked share to a whole percent', () => {
       const lines = linesOf([long('a', { terrainBins: climbBins(3000, 1000) })])
       expect(lines).toContain(

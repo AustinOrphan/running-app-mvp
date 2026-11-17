@@ -550,7 +550,7 @@ export function racePlanFor(input: RacePlanInput): RacePlan {
             goal.distanceM > 0 && goal.gainM > 0
               ? {
                   gainPerKm: goal.gainM / (goal.distanceM / 1000),
-                  lossPerKm: goal.lossM / (goal.distanceM / 1000),
+                  lossPerKm: goal.lossM > 0 ? goal.lossM / (goal.distanceM / 1000) : null,
                 }
               : null,
         })

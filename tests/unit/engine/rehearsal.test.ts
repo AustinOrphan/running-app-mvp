@@ -209,6 +209,11 @@ describe('rehearsalFor', () => {
       expect(rehearsalFor(climbInput([], { course: null }))).toBeNull()
     })
 
+    it('keeps a null course descent through to the part', () => {
+      const r = rehearsalFor(climbInput([], { course: { gainPerKm: 10, lossPerKm: null } }))!
+      expect(r.climb!.courseLossPerKm).toBeNull()
+    })
+
     it('carries no climb part when the goal holds none but another kind is asked', () => {
       const r = rehearsalFor(input([longRun('a', 20, 100, 100)], { course: null }))!
       expect(r.climb).toBeNull()

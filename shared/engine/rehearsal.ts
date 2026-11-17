@@ -28,7 +28,7 @@ export interface RehearsalInput {
    * The course's climb and descent per kilometre when the goal holds climbing (gain above zero and a
    * distance); absent or null gives no climb part.
    */
-  course?: { gainPerKm: number; lossPerKm: number } | null
+  course?: { gainPerKm: number; lossPerKm: number | null } | null
 }
 
 export interface RehearsalNight {
@@ -60,7 +60,8 @@ export interface RehearsalDownhill {
 export interface RehearsalClimb {
   /** The course's own figures, metres per kilometre. */
   courseGainPerKm: number
-  courseLossPerKm: number
+  /** Null when the goal holds no descent (none entered), so no descent is stated. */
+  courseLossPerKm: number | null
   /** Long runs of the window (`r1.longRunMin`): the ones the figures below read. */
   longRuns: number
   /** Medians over the long runs that carry a distance and the figure; null when none does. */
@@ -215,7 +216,7 @@ function climbSeconds(a: Activity): { sec: number; walkSec: number } {
 
 function climbOf(
   runs: readonly Activity[],
-  course: { gainPerKm: number; lossPerKm: number },
+  course: { gainPerKm: number; lossPerKm: number | null },
 ): RehearsalClimb {
   const longSec = P.r1.longRunMin.value * SEC_PER_MIN
   const long = runs.filter((a) => a.durationSec >= longSec)
