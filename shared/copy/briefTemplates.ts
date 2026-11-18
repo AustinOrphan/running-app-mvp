@@ -175,62 +175,13 @@ export const BRIEF_TEMPLATES = {
     minutes: 'weekMinutes',
   }),
 
-  // The plan's first back-to-back (b), night run (n) and downhill session (d) when the week holds
-  // one: a calendar fact, with no advice. The id lists the kinds in the order of their dates, one
-  // template per order because a stored fact holds slots and never a word (ADR 0010).
-  'brief.noticed-first-b': tpl("{day1} holds the plan's first back-to-back.", { day1: 'date' }),
-  'brief.noticed-first-n': tpl("{day1} holds the plan's first night run.", { day1: 'date' }),
-  'brief.noticed-first-d': tpl("{day1} holds the plan's first downhill session.", {
-    day1: 'date',
+  // The plan's first back-to-back, night run and downhill session, one fact each when the week
+  // holds it: a calendar fact, with no advice (BN1).
+  'brief.noticed-first-b2b': tpl("{day} holds the plan's first back-to-back.", { day: 'date' }),
+  'brief.noticed-first-night': tpl("{day} holds the plan's first night run.", { day: 'date' }),
+  'brief.noticed-first-downhill': tpl("{day} holds the plan's first downhill session.", {
+    day: 'date',
   }),
-  'brief.noticed-first-bn': tpl(
-    "{day1} holds the plan's first back-to-back, and {day2} its first night run.",
-    { day1: 'date', day2: 'date' },
-  ),
-  'brief.noticed-first-nb': tpl(
-    "{day1} holds the plan's first night run, and {day2} its first back-to-back.",
-    { day1: 'date', day2: 'date' },
-  ),
-  'brief.noticed-first-bd': tpl(
-    "{day1} holds the plan's first back-to-back, and {day2} its first downhill session.",
-    { day1: 'date', day2: 'date' },
-  ),
-  'brief.noticed-first-db': tpl(
-    "{day1} holds the plan's first downhill session, and {day2} its first back-to-back.",
-    { day1: 'date', day2: 'date' },
-  ),
-  'brief.noticed-first-nd': tpl(
-    "{day1} holds the plan's first night run, and {day2} its first downhill session.",
-    { day1: 'date', day2: 'date' },
-  ),
-  'brief.noticed-first-dn': tpl(
-    "{day1} holds the plan's first downhill session, and {day2} its first night run.",
-    { day1: 'date', day2: 'date' },
-  ),
-  'brief.noticed-first-bnd': tpl(
-    "{day1} holds the plan's first back-to-back, {day2} its first night run and {day3} its first downhill session.",
-    { day1: 'date', day2: 'date', day3: 'date' },
-  ),
-  'brief.noticed-first-bdn': tpl(
-    "{day1} holds the plan's first back-to-back, {day2} its first downhill session and {day3} its first night run.",
-    { day1: 'date', day2: 'date', day3: 'date' },
-  ),
-  'brief.noticed-first-nbd': tpl(
-    "{day1} holds the plan's first night run, {day2} its first back-to-back and {day3} its first downhill session.",
-    { day1: 'date', day2: 'date', day3: 'date' },
-  ),
-  'brief.noticed-first-ndb': tpl(
-    "{day1} holds the plan's first night run, {day2} its first downhill session and {day3} its first back-to-back.",
-    { day1: 'date', day2: 'date', day3: 'date' },
-  ),
-  'brief.noticed-first-dbn': tpl(
-    "{day1} holds the plan's first downhill session, {day2} its first back-to-back and {day3} its first night run.",
-    { day1: 'date', day2: 'date', day3: 'date' },
-  ),
-  'brief.noticed-first-dnb': tpl(
-    "{day1} holds the plan's first downhill session, {day2} its first night run and {day3} its first back-to-back.",
-    { day1: 'date', day2: 'date', day3: 'date' },
-  ),
 
   // The next key session.
   'brief.key-session': tpl(

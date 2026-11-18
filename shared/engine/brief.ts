@@ -268,7 +268,7 @@ interface Week {
   window: { from: string; to: string }
 }
 
-type Selection = (week: Week) => InputFact | null
+type Selection = (week: Week) => InputFact | InputFact[] | null
 
 const round1 = (x: number): number => Math.round(x * 10) / 10
 
@@ -513,20 +513,26 @@ function calendarFact(rule: 'K6' | 'K1' | 'E3'): Selection {
   }
 }
 
-/** The kinds of session whose first the brief names; the letter is the one the template ids use. */
+/** The kinds of session whose first the brief names, in the order that breaks a tie of dates. */
 const FIRST_KINDS = [
-  { letter: 'b', rule: 'H3', has: (s: SessionRow) => s.flags.includes('b2b-day1') },
-  { letter: 'n', rule: 'H6', has: (s: SessionRow) => s.flags.includes('night') },
+  { kind: 'b2b', rule: 'H3', has: (s: SessionRow) => s.flags.includes('b2b-day1') },
+  { kind: 'night', rule: 'H6', has: (s: SessionRow) => s.flags.includes('night') },
   {
-    letter: 'd',
+    kind: 'downhill',
     rule: 'H5',
     has: (s: SessionRow) => DOWNHILL_FLAGS.some((flag) => s.flags.includes(flag)),
   },
 ] as const
 
+const FIRST_TEMPLATES = {
+  b2b: 'brief.noticed-first-b2b',
+  night: 'brief.noticed-first-night',
+  downhill: 'brief.noticed-first-downhill',
+} as const
+
 /** A kind of session the plan holds for the first time in a week. */
 export interface FirstSession {
-  letter: 'b' | 'n' | 'd'
+  kind: 'b2b' | 'night' | 'downhill'
   rule: string
   date: string
 }
@@ -548,29 +554,24 @@ export function firstSessionsIn(
     if (dates.length === 0) continue
     const first = dates.reduce((a, b) => (b < a ? b : a))
     if (first >= window.from && first <= window.to) {
-      out.push({ letter: kind.letter, rule: kind.rule, date: first })
+      out.push({ kind: kind.kind, rule: kind.rule, date: first })
     }
   }
   return out.sort((a, b) => a.date.localeCompare(b.date))
 }
 
-/** The plan's first back-to-back, night run or downhill session, when the coming week holds it. */
-function firstSessionsFact({ args }: Week): InputFact | null {
+/** One fact for each first back-to-back, night run or downhill session the coming week holds, by date. */
+function firstSessionFacts({ args }: Week): InputFact[] {
   const sessions = args.input.existing?.sessions ?? []
   const window = { from: args.weekStart, to: addDays(args.weekStart, 6) }
-  const firsts = firstSessionsIn(sessions, window)
-  if (firsts.length === 0) return null
-  const slots = Object.fromEntries(
-    firsts.map((first, i) => [`day${String(i + 1)}`, day(first.date)]),
-  )
-  // One template per order of the kinds (`brief.noticed-first-bn` and so on); a test renders each.
-  const template = `brief.noticed-first-${firsts.map((first) => first.letter).join('')}`
-  return make(
-    firsts[0]!.rule,
-    'first-session',
-    template as 'brief.noticed-first-b',
-    slots as { day1: ReturnType<typeof day> },
-    { window },
+  return firstSessionsIn(sessions, window).map((first) =>
+    make(
+      first.rule,
+      `first-${first.kind}`,
+      FIRST_TEMPLATES[first.kind],
+      { day: day(first.date) },
+      { window },
+    ),
   )
 }
 
@@ -588,7 +589,7 @@ const NOTICED: readonly Selection[] = [
   calendarFact('K6'),
   calendarFact('K1'),
   calendarFact('E3'),
-  firstSessionsFact,
+  firstSessionFacts,
 ]
 
 /** At most `BRIEF_MAX_NOTICED` facts, in order. */
@@ -602,11 +603,11 @@ function noticedFacts(args: BriefArgs): InputFact[] {
   }
   const facts: InputFact[] = []
   for (const select of NOTICED) {
-    const fact = select(week)
-    if (fact !== null) facts.push(fact)
-    if (facts.length === BRIEF_MAX_NOTICED) break
+    const made = select(week)
+    if (made !== null) facts.push(...(Array.isArray(made) ? made : [made]))
+    if (facts.length >= BRIEF_MAX_NOTICED) break
   }
-  return facts
+  return facts.slice(0, BRIEF_MAX_NOTICED)
 }
 
 // ---------------------------------------------------------------------------------------------

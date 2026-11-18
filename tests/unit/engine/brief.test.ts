@@ -511,11 +511,11 @@ describe('the first back-to-back, night run and downhill session', () => {
   test('names the first of a kind that falls in the week', () => {
     expect(
       firsts([session(at(5), ['b2b-day1'], 'b2b'), session(at(6), ['b2b-day2'], 'b2b')]),
-    ).toEqual([{ letter: 'b', rule: 'H3', date: at(5) }])
+    ).toEqual([{ kind: 'b2b', rule: 'H3', date: at(5) }])
     // the cue of the first exposure counts as a downhill session too
-    expect(firsts([session(at(2), ['downhill-first'])])).toMatchObject([{ letter: 'd' }])
-    expect(firsts([session(at(2), ['downhill'])])).toMatchObject([{ letter: 'd' }])
-    expect(firsts([session(at(3), ['night'])])).toMatchObject([{ letter: 'n', date: at(3) }])
+    expect(firsts([session(at(2), ['downhill-first'])])).toMatchObject([{ kind: 'downhill' }])
+    expect(firsts([session(at(2), ['downhill'])])).toMatchObject([{ kind: 'downhill' }])
+    expect(firsts([session(at(3), ['night'])])).toMatchObject([{ kind: 'night', date: at(3) }])
   })
 
   test('names nothing when the week holds none, or the plan had one earlier', () => {
@@ -540,13 +540,13 @@ describe('the first back-to-back, night run and downhill session', () => {
       session(at(3), ['b2b-day1'], 'b2b'),
       session(at(12), ['night']),
     ]
-    expect(firsts(several).map((f) => f.letter)).toEqual(['n', 'b', 'd'])
+    expect(firsts(several).map((f) => f.kind)).toEqual(['night', 'b2b', 'downhill'])
     // one date, two kinds: the fixed order of the kinds breaks the tie
     expect(
       firsts([session(at(4), ['night', 'downhill']), session(at(4), ['b2b-day1'], 'b2b')]).map(
-        (f) => f.letter,
+        (f) => f.kind,
       ),
-    ).toEqual(['b', 'n', 'd'])
+    ).toEqual(['b2b', 'night', 'downhill'])
   })
 
   test('is the last fact the brief notices, one sentence in the words of the calendar', () => {
@@ -560,10 +560,10 @@ describe('the first back-to-back, night run and downhill session', () => {
         },
       ),
     )
-    expect(facts.noticed.map((f) => f.id)).toEqual(['n-2.pain', 'h3.first-session'])
+    expect(facts.noticed.map((f) => f.id)).toEqual(['n-2.pain', 'h3.first-b2b'])
     const last = facts.noticed[facts.noticed.length - 1]!
     expect(last).toMatchObject({
-      template: 'brief.noticed-first-b',
+      template: 'brief.noticed-first-b2b',
       window: { from: MONDAY, to: addDays(MONDAY, 6) },
       state: 'used',
     })
@@ -578,42 +578,34 @@ describe('the first back-to-back, night run and downhill session', () => {
         ]),
       ),
     )
-    expect(many.noticed).toHaveLength(1)
-    expect(renderFact(many.noticed[0]!, 'km')).toBe(
-      "Tue 20 Oct holds the plan's first night run, Thu 22 Oct its first downhill session and Sat 24 Oct its first back-to-back.",
+    // several firsts in one week are several facts, in the order of their dates
+    expect(many.noticed.map((f) => f.id)).toEqual([
+      'h6.first-night',
+      'h5.first-downhill',
+      'h3.first-b2b',
+    ])
+    expect(many.noticed.map((f) => renderFact(f, 'km'))).toEqual([
+      "Tue 20 Oct holds the plan's first night run.",
+      "Thu 22 Oct holds the plan's first downhill session.",
+      "Sat 24 Oct holds the plan's first back-to-back.",
+    ])
+    // the cap still applies: three other facts leave room for one
+    const capped = buildBriefFacts(
+      briefArgs(
+        { decision: decisionOf('reduce', ['persistent-suppression', 'readiness-flag']) },
+        {
+          wellness: [checkin(1, { illness: true }), checkin(2, { painScore: flag + 1 })],
+          ...withSessions([session(at(1), ['night']), session(at(5), ['b2b-day1'], 'b2b')]),
+        },
+      ),
     )
-  })
-
-  test('every order of the kinds has a sentence that renders', () => {
-    const kinds: Array<[string, SessionFlag, SessionKind]> = [
-      ['b', 'b2b-day1', 'b2b'],
-      ['n', 'night', 'long'],
-      ['d', 'downhill', 'long'],
-    ]
-    const orders = (list: typeof kinds): Array<typeof kinds> =>
-      list.length <= 1
-        ? [list]
-        : list.flatMap((k, i) =>
-            orders([...list.slice(0, i), ...list.slice(i + 1)]).map((rest) => [k, ...rest]),
-          )
-    const chosen = [
-      ...orders(kinds),
-      ...orders([kinds[0]!, kinds[1]!]),
-      ...orders([kinds[0]!, kinds[2]!]),
-      ...orders([kinds[1]!, kinds[2]!]),
-      ...kinds.map((k) => [k]),
-    ]
-    expect(chosen).toHaveLength(15)
-    for (const order of chosen) {
-      const extra = order.map(([, flag, kind], i) => session(at(i + 1), [flag], kind))
-      const facts = buildBriefFacts(briefArgs({}, withSessions(extra)))
-      const text = renderFact(facts.noticed[0]!, 'km')
-      expect(facts.noticed[0]!.template).toBe(
-        `brief.noticed-first-${order.map((k) => k[0]).join('')}`,
-      )
-      expect(text).toMatch(/^[A-Z][a-z]{2} \d+ \w+ holds the plan's first .+\.$/)
-      expect(text.match(/first/g)).toHaveLength(order.length)
-    }
+    expect(capped.noticed).toHaveLength(BRIEF_MAX_NOTICED)
+    expect(capped.noticed.map((f) => f.id)).toEqual([
+      'n-2.pain',
+      'n-3.illness',
+      'j8.readiness-low',
+      'j3.readiness-flag',
+    ])
   })
 })
 

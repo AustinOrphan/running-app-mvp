@@ -43,9 +43,9 @@ export const LONGEST: InputFact = {
 
 /** "Sat 16 Jan holds the plan's first back-to-back.", a calendar fact with no source records. */
 export const FIRST_B2B: InputFact = {
-  id: 'h3.first-session',
-  template: 'brief.noticed-first-b',
-  slots: { day1: { kind: 'date', iso: '2027-01-16', style: 'weekday' } },
+  id: 'h3.first-b2b',
+  template: 'brief.noticed-first-b2b',
+  slots: { day: { kind: 'date', iso: '2027-01-16', style: 'weekday' } },
   rule: 'H3',
   sources: [],
   moreSources: 0,
