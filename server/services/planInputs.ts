@@ -42,8 +42,9 @@ export function loadPlanInputs(
         : await loadRaceHeat(deps.prisma, context, goal, model, today)
     return planInputs({
       raceHeat,
+      windows: context.disruptions,
       today,
-      profile: context.profile,
+      profile: { sex: context.profile.sex, birthYear: context.profile.birthYear },
       wellness: context.wellness,
       wellnessWindowDays: context.inputs.wellness.windowDays,
       activities: context.activities,

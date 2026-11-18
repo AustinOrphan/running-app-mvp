@@ -633,6 +633,13 @@ export const RACE_PLAN_TEMPLATES = {
     'Headlamp: this arrival is outside daylight. Dusk is {dusk} and dawn {dawn}.',
     { dusk: 'text', dawn: 'text' },
   ),
+  'race.plan.card.hard-heading': tpl('When it gets hard', {}, { shape: 'label' }),
+  // The crew line restates what the nausea plan and the safety card already say (thirst-led
+  // fluid, simple familiar fuel, care for worsening symptoms), for the person at the stop
+  // (hoffman-2011, stuempfle-2015, hewbutler-2015, hewbutler-2017, hoffman-2013, hoffman-2015).
+  'race.plan.card.hard-crew': tpl(
+    'For the crew: offer simple, familiar food, and do not press fluids beyond thirst. If symptoms get worse, help the runner stop and get medical care.',
+  ),
   'race.plan.card.note-label': tpl('Crew note for {name}', { name: 'text' }, { shape: 'label' }),
   'race.plan.card.note-hint': tpl('Notes stay on this phone and are cleared when you sign out.'),
   'race.plan.card.note-unsaved': tpl('This browser would not keep the note.'),
@@ -1790,6 +1797,24 @@ export interface RaceCardSheet {
   rows: RaceCardSheetRow[]
 }
 
+/**
+ * The "When it gets hard" section at the foot of the card: the lines of the Race page's fuel block
+ * (`describeRaceFuel`), laid out once more for paper and for the crew. It states no figure of its own.
+ */
+export interface RaceCardHard {
+  /** The crew note's key: no stop's key can equal it. */
+  key: 'when-it-gets-hard'
+  heading: string
+  /** The nausea plan; null while the plan is not open (a cool race, a rate not yet near the ceiling). */
+  nausea: { heading: string; lines: string[] } | null
+  /** The thirst-led fluid line, said with the safety card and only where that card is stronger. */
+  fluid: string | null
+  /** The safety card about drinking too much; null where the stronger card does not apply. */
+  eah: { heading: string; lines: string[] } | null
+  crew: string
+  noteLabel: string
+}
+
 export interface RaceCardText {
   heading: string
   intro: string
@@ -1803,6 +1828,8 @@ export interface RaceCardText {
   empty: string
   sheet: RaceCardSheet | null
   blocks: RaceCardBlockText[]
+  /** Null when the plan holds no nausea plan and no stronger safety card. */
+  hard: RaceCardHard | null
   notes: string[]
   noteHint: string
   noteUnsaved: string
@@ -1920,7 +1947,7 @@ export function describeRaceCard(plan: RacePlan, units: Units): RaceCardText {
     noteUnsaved: say(T['race.plan.card.note-unsaved'], {}, units),
     notePrint: say(T['race.plan.card.note-print'], {}, units),
   }
-  if (splits === null) return { ...base, sheet: null, blocks: [], notes: [] }
+  if (splits === null) return { ...base, sheet: null, blocks: [], hard: null, notes: [] }
 
   const dark = plan.dark
   const label = (name: string) => say(T['race.plan.card.note-label'], { name }, units)
@@ -2033,7 +2060,31 @@ export function describeRaceCard(plan: RacePlan, units: Units): RaceCardText {
     notes.push(say(T['race.plan.card.estimate-note'], {}, units))
   }
   notes.push(say(T['race.plan.points.late'], {}, units))
-  return { ...base, sheet, blocks, notes }
+  return { ...base, sheet, blocks, hard: describeRaceHard(plan, units), notes }
+}
+
+/**
+ * The lines come from `describeRaceFuel`, so the card and the Race page say the same thing. The
+ * fluid line and the safety card go together and only where the plan holds the stronger card
+ * (over `n7.eahStrongerAlertHours` hours, or heat); the nausea plan only when it is open.
+ */
+function describeRaceHard(plan: RacePlan, units: Units): RaceCardHard | null {
+  const text = describeRaceFuel(plan, units)
+  const nausea = text.nausea.open
+    ? { heading: text.nausea.heading, lines: text.nausea.lines }
+    : null
+  const eah = plan.eahStronger ? text.eah : null
+  if (nausea === null && eah === null) return null
+  const heading = say(T['race.plan.card.hard-heading'], {}, units)
+  return {
+    key: 'when-it-gets-hard',
+    heading,
+    nausea,
+    fluid: eah === null ? null : text.fluid,
+    eah,
+    crew: say(T['race.plan.card.hard-crew'], {}, units),
+    noteLabel: say(T['race.plan.card.note-label'], { name: heading }, units),
+  }
 }
 
 /** The labels, hints and refusals of the checkpoint editor sheet. */

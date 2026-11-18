@@ -13,7 +13,9 @@ import { ToastProvider } from '../../web/components/Toast.tsx'
 import {
   DONE_DRAFT_PREFIX,
   FUEL_DRAFT_PREFIX,
+  hasCrewNotes,
   purgeDrafts,
+  RACE_CREW_HARD_KEY,
   RACE_CREW_PREFIX,
   STRENGTH_DRAFT_PREFIX,
   STRENGTH_PROMPT_PREFIX,
@@ -62,6 +64,7 @@ function seedDevice(): void {
   )
   writeCountNotNow('2026-03-18')
   window.localStorage.setItem(`${RACE_CREW_PREFIX}goal-1:point-50000`, 'Drop bag at the tent')
+  window.localStorage.setItem(`${RACE_CREW_PREFIX}goal-1:${RACE_CREW_HARD_KEY}`, 'Spare socks')
   window.localStorage.setItem('rl_today_more', 'open')
   window.localStorage.setItem('theme', 'dark')
 }
@@ -91,6 +94,28 @@ describe('purging the drafts', () => {
     expect(draftKeys()).toEqual([])
     expect(window.localStorage.getItem('rl_today_more')).toBe('open')
     expect(window.localStorage.getItem('theme')).toBe('dark')
+  })
+
+  test('removes the "When it gets hard" note, which is no stop\'s note', () => {
+    window.localStorage.clear()
+    window.localStorage.setItem(`${RACE_CREW_PREFIX}goal-1:${RACE_CREW_HARD_KEY}`, 'Spare socks')
+    expect(draftKeys()).toHaveLength(1)
+    purgeDrafts()
+    expect(draftKeys()).toEqual([])
+  })
+
+  test('counts a stop note for the goal, and not the "When it gets hard" note', () => {
+    window.localStorage.clear()
+    expect(hasCrewNotes('goal-1')).toBe(false)
+    window.localStorage.setItem(`${RACE_CREW_PREFIX}goal-1:${RACE_CREW_HARD_KEY}`, 'Spare socks')
+    expect(hasCrewNotes('goal-1')).toBe(false)
+    window.localStorage.setItem(`${RACE_CREW_PREFIX}goal-1:point-50000`, 'Drop bag')
+    expect(hasCrewNotes('goal-1')).toBe(true)
+    expect(hasCrewNotes('goal-2')).toBe(false)
+  })
+
+  test('the constant is the key the card uses', () => {
+    expect(RACE_CREW_HARD_KEY).toBe('when-it-gets-hard')
   })
 
   test('does not throw when storage is blocked', () => {
@@ -196,7 +221,7 @@ describe('opening the app with a session that has ended', () => {
       expect(result.current.data).toEqual(user)
     })
     expect(outbox.getState().entries).toHaveLength(1)
-    expect(draftKeys()).toHaveLength(6)
+    expect(draftKeys()).toHaveLength(7)
   })
 
   test('a server that cannot answer is not an expired session: nothing is purged', async () => {
@@ -213,7 +238,7 @@ describe('opening the app with a session that has ended', () => {
       expect(result.current.isError).toBe(true)
     })
     expect(outbox.getState().entries).toHaveLength(1)
-    expect(draftKeys()).toHaveLength(6)
+    expect(draftKeys()).toHaveLength(7)
   })
 })
 

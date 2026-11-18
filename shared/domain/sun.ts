@@ -73,3 +73,25 @@ export function darkMinutesOf(
   }
   return dark
 }
+
+const DUSK_SCAN_MIN = 20 * 60
+
+/**
+ * The first minute after `fromMs` at which the sun is below `belowDeg` degrees, for a start in
+ * daylight (the local noon of the day asked about). Null when the sun is already below the
+ * threshold at `fromMs` (polar night) or does not reach it within 20 hours (polar day). The answer
+ * is a Unix time on a whole minute after `fromMs`, like the minutes of `darkMinutesOf`.
+ */
+export function duskAfter(
+  fromMs: number,
+  lat: number,
+  lng: number,
+  belowDeg: number,
+): number | null {
+  if (sunAltitudeDeg(fromMs, lat, lng) < belowDeg) return null
+  for (let i = 1; i <= DUSK_SCAN_MIN; i++) {
+    const at = fromMs + i * MS_PER_MIN
+    if (sunAltitudeDeg(at, lat, lng) < belowDeg) return at
+  }
+  return null
+}

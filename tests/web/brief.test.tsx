@@ -13,7 +13,15 @@ import {
   renderWithProviders,
   type MockRoutes,
 } from './helpers.tsx'
-import { makeFacts, makeLater, makeUpdate, makeView, WEEK } from './brief-fixtures.ts'
+import {
+  FIRST_B2B,
+  LONGEST,
+  makeFacts,
+  makeLater,
+  makeUpdate,
+  makeView,
+  WEEK,
+} from './brief-fixtures.ts'
 import { makeRevision } from './plan-fixtures.ts'
 
 // Wednesday 13 Jan 2027, noon: the brief of Monday 11 Jan is the current week's.
@@ -313,6 +321,24 @@ describe('Brief page: a brief', () => {
     const drawer = await screen.findByRole('dialog', { name: 'Why' })
     expect(explainOf(drawer)).toEqual({ subject: 'brief', weekStart: WEEK })
     expect(drawer).toHaveTextContent('rules: a-3')
+  })
+
+  test('the first back-to-back of the plan is the last fact noticed', async () => {
+    renderBrief(
+      '/brief',
+      served(makeView({ facts: makeFacts({ noticed: [LONGEST, FIRST_B2B] }) })),
+      SEEN,
+    )
+    const section = await screen.findByRole('region', { name: 'What the plan noticed' })
+    const longest = within(section).getByText(/was the longest in the last 12 weeks\./)
+    const first = within(section).getByText("Sat 16 Jan holds the plan's first back-to-back.")
+    expect(longest.compareDocumentPosition(first) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    // a Why button for the fact, like the others, and no Today line is involved
+    expect(
+      within(section).getByRole('button', {
+        name: "Why: Sat 16 Jan holds the plan's first back-to-back.",
+      }),
+    ).toBeInTheDocument()
   })
 
   test('nothing noticed says so in the exact words', async () => {

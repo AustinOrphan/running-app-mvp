@@ -32,6 +32,12 @@ export const STRENGTH_PROMPT_PREFIX = 'strength-prompt:'
  */
 export const RACE_CREW_PREFIX = 'race-crew:'
 
+/**
+ * The key suffix of the card's "When it gets hard" note, which belongs to no stop (`RaceCardHard.key`
+ * in `shared/copy/racePlan.ts`, checked by a test). `hasCrewNotes` does not count it.
+ */
+export const RACE_CREW_HARD_KEY = 'when-it-gets-hard'
+
 /** The longest crew note, in characters. */
 export const RACE_CREW_NOTE_MAX = 500
 
@@ -97,13 +103,15 @@ export function writeCrewNote(id: string, text: string): boolean {
   }
 }
 
-/** Whether any crew note is kept for the goal. */
+/** Whether any stop's crew note is kept for the goal; the "When it gets hard" note is not a stop's. */
 export function hasCrewNotes(goalId: string): boolean {
   try {
     const prefix = `${RACE_CREW_PREFIX}${goalId}:`
+    const hard = `${prefix}${RACE_CREW_HARD_KEY}`
     const storage = window.localStorage
     for (let index = 0; index < storage.length; index += 1) {
-      if (storage.key(index)?.startsWith(prefix) === true) return true
+      const key = storage.key(index)
+      if (key?.startsWith(prefix) === true && key !== hard) return true
     }
     return false
   } catch {

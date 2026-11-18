@@ -13,7 +13,8 @@
 // safety first (pain, illness, the energy-availability screen, readiness that stayed low), then
 // what the weekly decision acted on (sleep, check-ins and ratings), then what the data shows
 // (efficiency, the longest run), then where the plan stands in its calendar (race week, the
-// taper, a recovery week).
+// taper, a recovery week), then the plan's first back-to-back, night run or downhill session when
+// the coming week holds it.
 import { BRIEF_MAX_NOTICED, KEY_LOOKAHEAD_DAYS } from '../copy/limits.ts'
 import { addDays, daysBetween } from '../dates.ts'
 import { isToRun } from '../domain/sessionStatus.ts'
@@ -34,6 +35,7 @@ import {
   minutes,
   percent,
 } from './explainInputs.ts'
+import { DOWNHILL_FLAGS, pausedOnRead } from './downhill.ts'
 import { isDuplicate } from './load.ts'
 import { P } from './params/index.ts'
 import { checkinOn, checkinsOf, poorSubjective, sleepAverageH } from './readiness.ts'
@@ -63,7 +65,7 @@ import type {
  * they name. A brief of another version is shown as it was stored. Raise it with any change to the
  * shape of `BriefFacts` or to which facts a week gets.
  */
-export const BRIEF_VERSION = 1
+export const BRIEF_VERSION = 2
 
 type SessionRow = NonNullable<EngineInput['existing']>['sessions'][number]
 
@@ -266,7 +268,7 @@ interface Week {
   window: { from: string; to: string }
 }
 
-type Selection = (week: Week) => InputFact | null
+type Selection = (week: Week) => InputFact | InputFact[] | null
 
 const round1 = (x: number): number => Math.round(x * 10) / 10
 
@@ -511,6 +513,80 @@ function calendarFact(rule: 'K6' | 'K1' | 'E3'): Selection {
   }
 }
 
+/** The kinds of session whose first the brief names, in the order that breaks a tie of dates. */
+const FIRST_KINDS = [
+  { kind: 'b2b', rule: 'H3', has: (s: SessionRow) => s.flags.includes('b2b-day1') },
+  { kind: 'night', rule: 'H6', has: (s: SessionRow) => s.flags.includes('night') },
+  {
+    kind: 'downhill',
+    rule: 'H5',
+    has: (s: SessionRow) => DOWNHILL_FLAGS.some((flag) => s.flags.includes(flag)),
+  },
+] as const
+
+const FIRST_TEMPLATES = {
+  b2b: 'brief.noticed-first-b2b',
+  night: 'brief.noticed-first-night',
+  downhill: 'brief.noticed-first-downhill',
+} as const
+
+/** A kind of session the plan holds for the first time in a week. */
+export interface FirstSession {
+  kind: 'b2b' | 'night' | 'downhill'
+  rule: string
+  date: string
+}
+
+/**
+ * The firsts of the week `from` to `to`: for the first back-to-back (the day-1 session of a pair),
+ * the first night-flagged session and the first downhill-flagged session, the date it falls on when
+ * no stored session of that kind is dated before `from`. Every stored session counts, whatever its
+ * status, so a first that is already past stays the first when the plan is drawn again. Ordered by
+ * date, then back-to-back, night, downhill.
+ */
+export function firstSessionsIn(
+  sessions: readonly SessionRow[],
+  window: { from: string; to: string },
+): FirstSession[] {
+  const out: FirstSession[] = []
+  for (const kind of FIRST_KINDS) {
+    const dates = sessions.filter(kind.has).map((s) => s.date)
+    if (dates.length === 0) continue
+    const first = dates.reduce((a, b) => (b < a ? b : a))
+    if (first >= window.from && first <= window.to) {
+      out.push({ kind: kind.kind, rule: kind.rule, date: first })
+    }
+  }
+  return out.sort((a, b) => a.date.localeCompare(b.date))
+}
+
+/**
+ * One fact for each first back-to-back, night run or downhill session the coming week holds, by date.
+ *
+ * The sessions are read as the pages show them (`pausedOnRead`, the same check-ins and as-of day):
+ * a quad report hides the downhill flags of the days still ahead until the pause ends, and a
+ * session the page shows without the flag is not named. The choice for a paused first: it is not
+ * named this week, and the brief does not hold the name back for later. Once the pause ends or the
+ * day has passed, the stored session counts as an earlier one, so no later brief names a first
+ * downhill session; the plan the runner sees is the record.
+ *
+ * "First" is per plan: it resets when a plan is regenerated, because the stored sessions of the
+ * old plan are gone.
+ */
+function firstSessionFacts({ args }: Week): InputFact[] {
+  const sessions = pausedOnRead(args.input.existing?.sessions ?? [], args.input.wellness, args.asOf)
+  const window = { from: args.weekStart, to: addDays(args.weekStart, 6) }
+  return firstSessionsIn(sessions, window).map((first) =>
+    make(
+      first.rule,
+      `first-${first.kind}`,
+      FIRST_TEMPLATES[first.kind],
+      { day: day(first.date) },
+      { window },
+    ),
+  )
+}
+
 /** The selections in the order a brief shows them. */
 const NOTICED: readonly Selection[] = [
   painFact,
@@ -525,6 +601,7 @@ const NOTICED: readonly Selection[] = [
   calendarFact('K6'),
   calendarFact('K1'),
   calendarFact('E3'),
+  firstSessionFacts,
 ]
 
 /** At most `BRIEF_MAX_NOTICED` facts, in order. */
@@ -538,11 +615,11 @@ function noticedFacts(args: BriefArgs): InputFact[] {
   }
   const facts: InputFact[] = []
   for (const select of NOTICED) {
-    const fact = select(week)
-    if (fact !== null) facts.push(fact)
-    if (facts.length === BRIEF_MAX_NOTICED) break
+    const made = select(week)
+    if (made !== null) facts.push(...(Array.isArray(made) ? made : [made]))
+    if (facts.length >= BRIEF_MAX_NOTICED) break
   }
-  return facts
+  return facts.slice(0, BRIEF_MAX_NOTICED)
 }
 
 // ---------------------------------------------------------------------------------------------

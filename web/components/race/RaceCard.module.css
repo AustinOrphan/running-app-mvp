@@ -260,6 +260,36 @@
   overflow-wrap: anywhere;
 }
 
+/* "When it gets hard": one block after the stops, drawn like a block without the stop's figure. */
+.hard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.hardLabel {
+  margin: var(--space-1) 0 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  line-height: var(--lh-sm);
+}
+
+.hardList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding-left: var(--space-4);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  overflow-wrap: anywhere;
+}
+
 /* The printed note: nothing on the screen, where the field above shows it. */
 .notePrint {
   display: none;
@@ -479,6 +509,28 @@
   .notePrint {
     font-size: 8.5pt;
     line-height: 1.2;
+  }
+
+  .hard {
+    gap: 0;
+    padding: 3pt 5pt;
+    border: 1px solid #000;
+    border-radius: 0;
+    break-inside: avoid;
+  }
+
+  .hardLabel,
+  .hardList {
+    font-size: 8.5pt;
+    line-height: 1.2;
+  }
+
+  .hardLabel {
+    margin: 1pt 0 0;
+  }
+
+  .hardList {
+    gap: 0;
   }
 }
 

@@ -41,6 +41,18 @@ export const LONGEST: InputFact = {
   window: { from: '2026-10-19', to: '2027-01-10' },
 }
 
+/** "Sat 16 Jan holds the plan's first back-to-back.", a calendar fact with no source records. */
+export const FIRST_B2B: InputFact = {
+  id: 'h3.first-b2b',
+  template: 'brief.noticed-first-b2b',
+  slots: { day: { kind: 'date', iso: '2027-01-16', style: 'weekday' } },
+  rule: 'H3',
+  sources: [],
+  moreSources: 0,
+  state: 'used',
+  window: { from: '2027-01-11', to: '2027-01-17' },
+}
+
 export function makeFacts(over: Partial<BriefFacts> = {}): BriefFacts {
   return {
     weekStart: WEEK,

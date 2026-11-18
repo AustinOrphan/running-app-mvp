@@ -273,6 +273,10 @@ export const hUltra = {
         note: 'Default: for races expected to cross darkness, 1-2 headlamp rehearsal runs in the specific phase. No sleep-deprivation training.',
       },
     ),
+    darkMinMin: param('h6.darkMinMin', 40, 'D', 'H6', [], {
+      unit: 'min',
+      note: 'Default: the "start by" clock on the sheet of a night session puts at least this many of its minutes after civil dusk at the home place. The point of a headlamp rehearsal is to run in the dark; no study says how many minutes make one.',
+    }),
   },
   h7: {
     carbFloorGPerH: param<[number, number]>('h7.carbFloorGPerH', [30, 50], 'A', 'H7', TILLER, {

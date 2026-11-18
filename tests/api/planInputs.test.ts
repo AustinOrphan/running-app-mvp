@@ -235,6 +235,94 @@ describe('GET /api/plan-inputs', () => {
     })
   })
 
+  test('your answers: check-ins, pain reports and run ratings are counted over the windows of J6 and J11', async () => {
+    const user = await newUser()
+    await ctx.prisma.athleteProfile.upsert({
+      where: { userId: user.id },
+      create: { userId: user.id, birthYear: Number(today.slice(0, 4)) - 45 },
+      update: { birthYear: Number(today.slice(0, 4)) - 45 },
+    })
+    for (let i = 1; i <= 8; i += 1) {
+      await ctx.prisma.wellnessDay.create({
+        data: {
+          userId: user.id,
+          date: addDays(today, -i),
+          fatigue: 3,
+          soreness: i === 8 ? null : 2,
+          painScore: i <= 3 ? P.pain.repeatMinScore.value : null,
+          painArea: i <= 3 ? 'left knee' : null,
+          source: 'manual',
+        },
+      })
+    }
+    await ctx.prisma.activity.createMany({
+      data: [
+        { date: addDays(today, -1), rpe: 5, rpeSource: 'app', feel: 1, pain: 2 },
+        { date: addDays(today, -2), rpe: 6, rpeSource: 'watch' },
+        { date: addDays(today, -20), rpe: 4, rpeSource: 'app' },
+      ].map((over) => ({ userId: user.id, type: 'run', durationSec: 1800, ...over })),
+    })
+    const view = await viewOf(user)
+    const { j6, j11 } = view.ownAnswers!
+    expect(j6).toMatchObject({
+      applies: 'on',
+      checkins: 8,
+      items: { fatigue: 8, soreness: 7, mood: 0 },
+      minCheckins: P.j6.medianMinCheckins.value,
+      reading: 8 >= P.j6.medianMinCheckins.value,
+      // The watch rating stays unread until it passes the spread check (rule B1).
+      ratings: { inApp: 2, watch: 0, feel: 1, pain: 1 },
+    })
+    expect(j11).toMatchObject({
+      windowDays: P.pain.repeatDays.value,
+      painCheckins: 3,
+      reports: 3,
+      mostOfOneArea: 3,
+      minReports: P.pain.repeatReports.value,
+      reading: 3 >= P.pain.repeatReports.value,
+      ratings: { inApp: 1, watch: 0, feel: 1, pain: 1 },
+    })
+  })
+
+  test('your answers: a recent niggle window for the same area makes J11 quiet', async () => {
+    const user = await newUser()
+    for (let i = 0; i < 3; i += 1) {
+      await ctx.prisma.wellnessDay.create({
+        data: {
+          userId: user.id,
+          date: addDays(today, -i),
+          painScore: P.pain.repeatMinScore.value,
+          painArea: 'left knee',
+          source: 'manual',
+        },
+      })
+    }
+    expect((await viewOf(user)).ownAnswers!.j11).toMatchObject({ reading: true, quiet: false })
+    await ctx.prisma.disruption.create({
+      data: {
+        userId: user.id,
+        reason: 'niggle',
+        mode: 'limited',
+        maxRunMin: 30,
+        area: 'knee',
+        startDate: addDays(today, -6),
+        endDate: addDays(today, -2),
+      },
+    })
+    expect((await viewOf(user)).ownAnswers!.j11).toMatchObject({
+      reading: false,
+      quiet: true,
+      mostOfOneArea: 3,
+      quietDays: P.pain.repeatQuietDays.value,
+    })
+  })
+
+  test('your answers: an empty log reads nothing and a profile with no birth year says so', async () => {
+    const { j6, j11 } = (await viewOf(await newUser())).ownAnswers!
+    expect(j6).toMatchObject({ applies: 'no-birth-year', checkins: 0, reading: false })
+    expect(j11).toMatchObject({ reports: 0, mostOfOneArea: 0, reading: false })
+  })
+
   test('the tag follows the data version: the same tag is a 304, a write changes it', async () => {
     const user = await newUser()
     const first = await client(ctx, user).get('/api/plan-inputs')

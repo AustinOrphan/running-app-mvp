@@ -10,7 +10,7 @@ import { homePlaceValue, raceHeatSentences, raceHeatText } from '../../shared/co
 import type { RaceHeatPlaces } from '../../shared/domain/raceHeat.ts'
 import { PACES_TEMPLATES } from '../../shared/copy/myPaces.ts'
 import { render } from '../../shared/copy/template.ts'
-import type { PlanInputsView } from '../../shared/domain/planInputs.ts'
+import type { OwnAnswers, PlanInputsView, RatingCounts } from '../../shared/domain/planInputs.ts'
 import { usePlanInputs } from '../api/planInputs.ts'
 import { ErrorState } from '../components/ErrorState.tsx'
 import { useLoadView } from '../components/loadView.ts'
@@ -118,8 +118,72 @@ function RaceHeatSection({ places }: { places: RaceHeatPlaces }) {
   )
 }
 
+function ratingRows(ratings: RatingCounts): Array<readonly [string, string]> {
+  return [
+    [text('plan-inputs.own.in-app'), number(ratings.inApp)],
+    [text('plan-inputs.own.watch'), number(ratings.watch)],
+    [text('plan-inputs.own.feel'), number(ratings.feel)],
+    [text('plan-inputs.own.pain'), number(ratings.pain)],
+  ]
+}
+
+/**
+ * The runner's own answers in the windows of rules J6 and J11: counts, the minimum each rule reads
+ * them from (the Params) and what the rule does at this count. A count under the minimum is
+ * worded as what the rule does with it.
+ */
+function OwnAnswersSections({ answers }: { answers: OwnAnswers }) {
+  const { j6, j11 } = answers
+  const j6State = {
+    on: j6.reading
+      ? line('plan-inputs.own.j6.reading', { min: count(j6.minCheckins) })
+      : line('plan-inputs.own.j6.waits', { min: count(j6.minCheckins) }),
+    under: line('plan-inputs.own.j6.under', { age: count(j6.mastersAge) }),
+    'no-birth-year': line('plan-inputs.own.j6.no-birth-year', { age: count(j6.mastersAge) }),
+  }[j6.applies]
+  return (
+    <>
+      <Section
+        heading={text('plan-inputs.own.j6.heading')}
+        notes={[line('plan-inputs.own.j6.window', { days: count(j6.windowDays) }), j6State]}
+        rows={[
+          [text('plan-inputs.own.checkins'), number(j6.checkins)],
+          [text('plan-inputs.own.fatigue'), number(j6.items.fatigue)],
+          [text('plan-inputs.own.soreness'), number(j6.items.soreness)],
+          [text('plan-inputs.own.mood'), number(j6.items.mood)],
+          ...ratingRows(j6.ratings),
+        ]}
+      />
+      <Section
+        heading={text('plan-inputs.own.j11.heading')}
+        notes={[
+          line('plan-inputs.own.j11.window', { days: count(j11.windowDays) }),
+          j11.reading
+            ? line('plan-inputs.own.j11.reading', { min: count(j11.minReports) })
+            : j11.quiet
+              ? line('plan-inputs.own.j11.quiet', {
+                  min: count(j11.minReports),
+                  days: count(j11.quietDays),
+                })
+              : line('plan-inputs.own.j11.waits', {
+                  min: count(j11.minReports),
+                  score: count(j11.minScore),
+                }),
+          line('plan-inputs.own.j11.run-pain', { flag: count(j11.flagScore) }),
+        ]}
+        rows={[
+          [text('plan-inputs.own.pain-checkins'), number(j11.painCheckins)],
+          [line('plan-inputs.own.reports', { score: count(j11.minScore) }), number(j11.reports)],
+          [text('plan-inputs.own.most-area'), number(j11.mostOfOneArea)],
+          ...ratingRows(j11.ratings),
+        ]}
+      />
+    </>
+  )
+}
+
 function Body({ view }: { view: PlanInputsView }) {
-  const { hrv, restingHr, sleep, runs, zones, sources, raceHeat } = view
+  const { hrv, restingHr, sleep, runs, zones, sources, raceHeat, ownAnswers } = view
   const named = sources.named.map((s) =>
     line('plan-inputs.sources.line', {
       label: s.label,
@@ -232,6 +296,7 @@ function Body({ view }: { view: PlanInputsView }) {
           ],
         ]}
       />
+      {ownAnswers === undefined ? null : <OwnAnswersSections answers={ownAnswers} />}
       <Section
         heading={text('plan-inputs.zones.heading')}
         notes={[text('plan-inputs.zones.context')]}
