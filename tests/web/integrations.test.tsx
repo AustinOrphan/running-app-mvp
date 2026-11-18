@@ -129,8 +129,9 @@ describe('IntegrationsPage', () => {
       .map((li) => li.textContent)
     expect(lines).toEqual([
       'Garmin, Coros, Suunto or Polar watch: connect intervals.icu, which pulls from them.',
-      'Strava: connect Strava to intervals.icu, then connect intervals.icu here.',
-      'Apple Watch: Apple Health sends the workouts. Create a push token under Apple Health.',
+      'Strava: intervals.icu cannot pass on runs it received from Strava. Use the Strava card below with your own API app.',
+      'Strava bulk export: import its activity files with Import on the Activities page.',
+      'Apple Watch: Health Auto Export sends the workouts from Apple Health; create a push token under Apple Health.',
       'FIT, GPX or TCX files from any watch or app: use Import on the Activities page.',
     ])
     const first = await screen.findByRole('region', { name: 'intervals.icu' })
@@ -162,29 +163,26 @@ describe('IntegrationsPage', () => {
     expect(screen.queryByText(/unofficial and experimental/)).toBeNull()
   })
 
-  test('folds the Strava card for another account, open for the owner and when connected', async () => {
-    const summaryText = /Strava with your own API app\. Most runners connect Strava through/
-    const notOwner = (over: Record<string, Partial<IntegrationStatus>> = {}) =>
-      allStatuses(over).map((s) => ({ ...s, installOwner: false }))
-
-    mockApi(routes(notOwner()))
-    const first = renderWithProviders(<IntegrationsPage />)
-    const summary = await screen.findByText(summaryText)
-    expect(summary.closest('details')?.open).toBe(false)
-    expectCleanCopy(document.body)
-    first.unmount()
-
-    mockApi(routes(notOwner({ strava: { status: 'connected' } })))
-    const second = renderWithProviders(<IntegrationsPage />)
-    const connected = await screen.findByText(summaryText)
-    expect(connected.closest('details')?.open).toBe(true)
-    second.unmount()
-
-    mockApi(routes(allStatuses()))
+  // intervals.icu does not expose runs it received from Strava (server/providers/intervals.ts skips
+  // `source === 'STRAVA'`), so the page must not send a Strava-only runner there for runs.
+  test('the Strava line never promises runs through intervals.icu, and the card is never folded', async () => {
+    const others = allStatuses().map((s) => ({ ...s, installOwner: false }))
+    mockApi(routes(others))
     renderWithProviders(<IntegrationsPage />)
-    const strava = await screen.findByRole('region', { name: 'Strava' })
+
+    const which = await screen.findByRole('region', { name: 'Which to use' })
+    const line = within(which)
+      .getAllByRole('listitem')
+      .map((li) => li.textContent ?? '')
+      .find((text) => text.startsWith('Strava'))
+    expect(line).toBeDefined()
+    expect(line).toMatch(/cannot pass on runs it received from Strava/)
+    expect(line).not.toMatch(/connect Strava to intervals\.icu/i)
+    expect(line).not.toMatch(/then connect intervals\.icu/i)
+
+    const strava = screen.getByRole('region', { name: 'Strava' })
     expect(strava.closest('details')).toBeNull()
-    expect(screen.queryByText(summaryText)).toBeNull()
+    expect(within(strava).getByLabelText('Client id')).toBeInTheDocument()
   })
 
   test('says what the training advice reads above the cards', async () => {

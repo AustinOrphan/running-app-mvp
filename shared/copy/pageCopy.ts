@@ -82,10 +82,13 @@ export const PAGE_TEMPLATES = {
     'Garmin, Coros, Suunto or Polar watch: connect intervals.icu, which pulls from them.',
   ),
   'integrations.which.strava': tpl(
-    'Strava: connect Strava to intervals.icu, then connect intervals.icu here.',
+    'Strava: intervals.icu cannot pass on runs it received from Strava. Use the Strava card below with your own API app.',
+  ),
+  'integrations.which.strava-export': tpl(
+    'Strava bulk export: import its activity files with Import on the Activities page.',
   ),
   'integrations.which.apple': tpl(
-    'Apple Watch: Apple Health sends the workouts. Create a push token under Apple Health.',
+    'Apple Watch: Health Auto Export sends the workouts from Apple Health; create a push token under Apple Health.',
   ),
   'integrations.which.files': tpl(
     'FIT, GPX or TCX files from any watch or app: use Import on the Activities page.',
@@ -93,11 +96,6 @@ export const PAGE_TEMPLATES = {
   // The experimental Garmin card, folded for every account but the install owner's.
   'integrations.garmin.folded': tpl(
     '{label}, unofficial and experimental. A Garmin watch connects through intervals.icu.',
-    { label: 'text' },
-  ),
-  // The Strava card needs the runner's own Strava API application, so it is folded the same way.
-  'integrations.strava.folded': tpl(
-    '{label} with your own API app. Most runners connect Strava through intervals.icu instead.',
     { label: 'text' },
   ),
   // The Watched folder card: a switch for the server's one import folder (F1), no path to type.

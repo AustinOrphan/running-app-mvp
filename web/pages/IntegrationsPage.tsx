@@ -764,6 +764,7 @@ function ProviderCard({ item }: { item: IntegrationStatus }) {
 const WHICH_LINES = [
   'integrations.which.intervals',
   'integrations.which.strava',
+  'integrations.which.strava-export',
   'integrations.which.apple',
   'integrations.which.files',
 ] as const
@@ -786,22 +787,20 @@ function WhichToUse() {
 }
 
 /**
- * The experimental Garmin card and the Strava card (own API app) are folded for every account but
- * the install owner's, as the server says (`installOwner`); a connected one stays open so its
- * status and Disconnect are in view.
+ * The experimental Garmin card is folded for every account but the install owner's, as the server
+ * says (`installOwner`); a connected one stays open so its status and Disconnect are in view. The
+ * Strava card is not folded: it is the one route for a Strava-only runner.
  */
 function isFolded(item: IntegrationStatus): boolean {
-  return !item.installOwner && (item.info.experimental || item.provider === 'strava')
+  return !item.installOwner && item.info.experimental
 }
 
 function FoldedCard({ item }: { item: IntegrationStatus }) {
-  const summary =
-    item.provider === 'strava'
-      ? render(TEMPLATES['integrations.strava.folded'], { label: item.info.label }, 'km')
-      : render(TEMPLATES['integrations.garmin.folded'], { label: item.info.label }, 'km')
   return (
     <details className={styles.folded} open={item.status !== 'disconnected'}>
-      <summary className={styles.summary}>{summary}</summary>
+      <summary className={styles.summary}>
+        {render(TEMPLATES['integrations.garmin.folded'], { label: item.info.label }, 'km')}
+      </summary>
       <ProviderCard item={item} />
     </details>
   )
