@@ -92,6 +92,7 @@ export type SessionFlag =
   | 'b2b-day2'
   | 'downhill'
   | 'downhill-first'
+  | 'hike-practice'
   | 'run-walk'
   | 'post-race'
   | 'injury-return'
