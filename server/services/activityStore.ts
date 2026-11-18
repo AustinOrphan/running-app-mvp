@@ -683,8 +683,8 @@ export async function markActivityAsRace(
 
 /**
  * The runner's own words about a run, handed from a row that is about to be deleted to the run that
- * stays: the rating (`rpe`, `rpeSource`), `feel`, `pain` and `notes` where the survivor has none
- * (`copyEffort`), the race type, and the race result that points at the run. A race result is
+ * stays (`copyEffort`): a runner's own rating replaces a watch rating on the survivor, and `feel`,
+ * `pain` and `notes` fill only empty fields; then the race type, and the race result that points at the run. A race result is
  * moved only when the survivor has none of its own (`activityId` is unique).
  */
 async function carryRunnersData(

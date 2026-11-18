@@ -535,6 +535,14 @@ describe('refused tokens (SC1)', () => {
     ['a 403', () => Response.json(REFUSED, { status: 403 })],
     ['a 408', () => new Response('', { status: 408 })],
     ['a 400 that does not name the refresh token', () => Response.json({}, { status: 400 })],
+    [
+      'a refresh_token field with code missing',
+      () =>
+        Response.json(
+          { errors: [{ resource: 'Application', field: 'refresh_token', code: 'missing' }] },
+          { status: 400 },
+        ),
+    ],
     ['a 503', () => Response.json({}, { status: 503 })],
     ['a 429', () => Response.json({}, { status: 429 })],
   ])('%s is a plain error that deletes nothing', async (_name, res) => {

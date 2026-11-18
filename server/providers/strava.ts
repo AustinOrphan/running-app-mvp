@@ -119,8 +119,12 @@ function isInvalidRefresh(status: number, body: unknown): boolean {
     Array.isArray(record.errors) &&
     record.errors.some((entry: unknown) => {
       if (typeof entry !== 'object' || entry === null) return false
-      const { resource, field } = entry as { resource?: unknown; field?: unknown }
-      return resource === 'RefreshToken' || field === 'refresh_token'
+      const { resource, field, code } = entry as {
+        resource?: unknown
+        field?: unknown
+        code?: unknown
+      }
+      return resource === 'RefreshToken' || (field === 'refresh_token' && code === 'invalid')
     })
   )
 }

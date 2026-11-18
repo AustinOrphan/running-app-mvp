@@ -342,6 +342,35 @@ describe('a revoked Strava grant', () => {
     expect((await ctx.prisma.raceResult.findFirstOrThrow()).activityId).toBe(survivor.id)
   })
 
+  test('a runner’s own rating replaces a watch rating; feel and notes fill only empty fields', async () => {
+    await connectStrava()
+    stub({ [REVOKE]: () => json({}) })
+    const original = await storeRun('strava', 'strava:3', 3, {
+      rpe: 8,
+      rpeSource: 'app',
+      feel: 1,
+      notes: 'Windy',
+      pain: 2,
+    })
+    const survivor = await storeRun('file', 'file:g', 3, {
+      duplicateOfId: original.id,
+      duplicateStatus: 'confirmed',
+      rpe: 5,
+      rpeSource: 'watch',
+      feel: 0,
+      notes: 'Own note',
+    })
+    expect((await client(ctx, user).delete('/api/integrations/strava')).status).toBe(204)
+    const kept = await ctx.prisma.activity.findUniqueOrThrow({ where: { id: survivor.id } })
+    expect(kept).toMatchObject({
+      rpe: 8,
+      rpeSource: 'app',
+      feel: 0,
+      notes: 'Own note',
+      pain: 2,
+    })
+  })
+
   test('a disconnect during a refused sync waits for the lock and deletes nothing twice', async () => {
     await connectStrava()
     await storeRun('strava', 'strava:1', 1)
