@@ -2452,9 +2452,9 @@ things stand" gives counts and percentages without a weekly total or a date.
     output (a `PARAMS_VERSION` bump and a `plan:report` delta).
 33. The race plan models no late fade, so no end of an arrival range is ranked (#709); that waits
     for a pacing cohort in the corpus (Lambert 2004 and Hoffman 2010 are not in it).
-34. An invited account's forced password change is enforced by the client gate, not the server: a
-    client holding the temporary password can call other routes until it changes it (#698). The
-    invited-account flow was tried in chromium only, with no phone, HTTPS or proxy.
+34. The invited-account flow was tried in chromium only, with no phone, HTTPS or proxy (#698). The
+    server now refuses every route but the password change while the temporary password stands
+    (PW1: 403 `auth.password-change-required`; `reset-password` issues a temporary password).
 35. `delete-user` leaves the rows in backups until they are pruned (about five weeks; `pre-migrate`
     and `pre-restore` copies by hand), in the live file's free pages until `VACUUM`, and in
     calendar events the intervals.icu publisher wrote (#711).
@@ -2476,7 +2476,13 @@ things stand" gives counts and percentages without a weekly total or a date.
     three thresholds of the spread check are defaults, not measured on real data.
 41. A plan that starts inside the downhill window gets no lead weeks for the weeks already past (the
     lead is anchored to the calendar), the cue is on the session sheet only and not on Today's
-    hero, and "heavy" has no metre dose because no study gives one (#728).
+    hero, and "heavy" has no metre dose because no study gives one (#728). Looked at 2026-11-17 (RU2)
+    and left open: the lead (`macro.ts`, `windowStart + repeatedBoutLeadWeeks`) is anchored to the
+    calendar so a re-plan inside the window does not start it again, and a plan opened inside the
+    window cannot be told from such a re-plan without reading the stored weeks' flags (and what a
+    stored plan from before the flags means). The fix moves the flags of every plan opened inside the
+    window, so the history oracle's digests, the matrix and `PARAMS_VERSION` move with it: a design
+    choice, not a small fix. The other two points are product decisions.
 42. The commit subject of #723's first commit ("leave cross-training out of the acute and chronic
     load") understates it: the commit holds the whole repeated-pain feature (a staging slip). The
     pain-repeat Params are defaults with no paper behind a count, window or score.

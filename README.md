@@ -58,7 +58,7 @@ only the address budgets are shared.
 | `npm run db:migrate`                | copy the database if a migration is pending, then apply  |
 | `npm run backup`                    | copy the database to `backups/` and check the copy       |
 | `npm run restore -- <file>`         | replace the database with a backup (server stopped)      |
-| `npm run reset-password -- <email>` | set a new password from the command line                 |
+| `npm run reset-password -- <email>` | replace a password with a temporary one (see Resetting)  |
 | `npm run create-user -- <email>`    | add an account with a temporary password (see Accounts)  |
 | `npm run delete-user -- <email>`    | show, or with `--yes` delete, an account and its data    |
 | `npm run icons`                     | render the PNG app icons in `web/public` from `icon.svg` |
@@ -695,18 +695,25 @@ intervals.icu publisher wrote stay in that person's own intervals.icu calendar.
 ## Resetting the password
 
 ```sh
-npm run reset-password -- you@example.com
+npm run -s reset-password -- you@example.com
 ```
 
-In Docker, run the compiled script inside the container (it prompts for the password, or reads one
-line from standard input):
+In Docker, run the compiled script inside the container:
 
 ```sh
 docker compose exec app node dist/scripts/reset-password.js you@example.com
 ```
 
-This is also how a tester's forgotten password is reset: the owner runs it for that email and tells
-the person the new password. A reset ends every session the account had open.
+The script prints a generated temporary password once, on standard output (the words around it go
+to standard error), the same way `create-user` does; only its hash is stored. This is also how a
+tester's forgotten password is reset: the owner runs it for that email and sends the person the
+temporary password by a private channel. A reset ends every session the account had open, and the
+next sign-in asks for a new password. Until it is changed the server answers every request except
+the password change, sign-out and the account read with 403 (`auth.password-change-required`), so
+the temporary password opens nothing else. Calendar-feed and ingest tokens are separate credentials
+and stay valid after a reset; replace them in the app (a new calendar link or push token ends the
+old one) if the old password was not trusted. The `-s` flag keeps npm's own lines off standard
+output when it is captured.
 
 ## Installing as an app
 

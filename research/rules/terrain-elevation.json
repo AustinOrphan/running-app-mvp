@@ -111,7 +111,7 @@
   },
   {
     "id": "terrain-elevation-downhill-priming-bout",
-    "statement": "A single unaccustomed 30 min downhill bout (-11.3 degrees, about -20% grade, 2.8 m/s) attenuated strength loss, quadriceps pain and biomechanical decline when repeated 3 weeks later; a first moderate downhill exposure about 3 weeks before heavy downhill work is a defensible default. Protection duration beyond 3 weeks is untested.",
+    "statement": "A single unaccustomed 30 min downhill bout (-11.3 degrees, about -20% grade, 2.8 m/s) attenuated strength loss, quadriceps pain and biomechanical decline when repeated 3 weeks later; a first moderate downhill exposure about 3 weeks before heavy downhill work is a defensible default. Protection beyond 3 weeks is untested in running; a laboratory study of eccentric knee-extensor exercise found it at 3 and 6 weeks, in part at 9 and not at 12.",
     "parameter": "downhill_priming_bout_interval",
     "value": 3,
     "unit": "weeks between first and second exposure",
@@ -121,7 +121,8 @@
     "evidence": [
       "khassetarash-2023-rbe-downhill",
       "mchugh-2003-repeated-bout",
-      "bontemps-2020-downhill-review"
+      "bontemps-2020-downhill-review",
+      "theodorou-2026-rbe-duration"
     ]
   },
   {
