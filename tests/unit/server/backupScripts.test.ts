@@ -227,7 +227,7 @@ describe('npm run backup', () => {
     const { status, out } = await run(backupCommand, ['--help'])
     expect(status).toBe(0)
     expect(out).toContain('7 most recent days')
-    expect(out).toContain('4 most recent ISO weeks')
+    expect(out).toContain('3 most recent ISO weeks')
     expect(out).toContain('--keep <n>')
     expect(out).toContain('--before-migrate')
   })

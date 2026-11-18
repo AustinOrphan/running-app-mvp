@@ -33,9 +33,10 @@ Each item names the default that holds until the owner answers.
 4. **The sftp target machine for the off-host backups** (D1). The owner names it at the move
    (item 2); the job is switched on only after the move. Default: the app's own daily copies only,
    on the same disk. Requirement on the restic job (DN1, 2026-11-17): it reads only the newest
-   `app-*.db`, never a `pre-migrate` or `pre-restore` file, and keeps 30 daily snapshots, so the
-   data notice's 35 days holds (README, "Data notice"); the job is in the private homelab
-   repository, outside this one.
+   `app-*.db`, never a `pre-migrate` or `pre-restore` file, and keeps 29 daily snapshots (30 until
+   SC1, 2026-11-18, ADR 0025: Strava API Policy 7.4 asks for deletion within 30 days, so the data
+   notice's bound is now 30 days, README "Data notice"). The homelab job still keeps 30 and must be
+   changed to 29 there before the cutover; it is in the private homelab repository, outside this one.
 5. **The Apple Watch companion, phase 0 spike** (design #701, plan
    `docs/superpowers/plans/2026-11-10-companion-phase0-spike.md`, #702): waiting on the owner's
    Task 1 steps in Xcode. Default: nothing is built.
@@ -56,6 +57,8 @@ Answered on 2026-11-14, one item at a time (the owner's answers to D1 to D11 of 
   says 35 days, taken from `deletedAccountRetention()`, with the newest 3 pre-update copies as the
   stated exception (PP1, 2026-11-18: the newest 3 pre-restore copies too; they are pruned by the same
   30-day rule), and adds that place search sends only the typed text to Open-Meteo (ADR 0024).
+  SC1 (2026-11-18, ADR 0025) then cut the ordinary copies to 3 ISO weeks and the off-host snapshots
+  to 29, so the notice now says 30 days and "up to 29 days".
 - **D2. The beta gate.** Invite after the move to the home server, with the off-site backups on, the
   data notice shown and the network change applied.
 - **D3. Ratings from the watch.** An empty rating is filled from intervals.icu with a source marker,
@@ -95,12 +98,17 @@ Answered on 2026-11-14, one item at a time (the owner's answers to D1 to D11 of 
   The wording fix for non-ultra goals landed first (#738).
 - **Break week.** A week run by choice at a fraction of its target counts as the cycle's recovery
   week, and the next week repeats the loading week (#736, #737).
-- **Strava.** One shared install-wide registration, built only when a tester needs Strava.
-  intervals.icu does not expose runs it received from Strava (`server/providers/intervals.ts` skips
-  them), so Strava users do not go through intervals.icu: they use the Strava card with their own
-  API app or import a Strava bulk export. The 2026-11-14 shared-registration decision rested on the
-  opposite premise and is open again for the owner. Strava's athlete-capacity review is to be
-  checked at build time.
+- **Strava.** Decided 2026-11-18 (ADR 0025, SC1): Strava stays on per-runner apps. Each runner
+  registers their own Strava API app and enters its client id and secret on the Strava card; no
+  install-wide registration is built, and the 2026-11-14 shared-registration decision is
+  superseded. intervals.icu does not expose runs it received from Strava
+  (`server/providers/intervals.ts` skips them), so Strava users use the Strava card or import a
+  Strava bulk export. SC1 built the deletion work: Disconnect revokes at Strava and deletes the
+  runner's Strava-sourced runs, a refused token schedules that deletion 25 days later (Today names
+  the date; a reconnect cancels it), and a daily check deletes local Strava runs that Strava no
+  longer lists, after a complete listing only. Still open: the start point the provider stores
+  (Policy 5.7, the owner has not decided), the 7-day cache of Policy 6.2 (each runner is the
+  developer of their own app) and no AI tool reading Strava-sourced rows (Policy 5.3).
 
 Answered on 2026-11-09, one item at a time with options:
 
@@ -2465,7 +2473,8 @@ things stand" gives counts and percentages without a weekly total or a date.
 34. The invited-account flow was tried in chromium only, with no phone, HTTPS or proxy (#698). The
     server now refuses every route but the password change while the temporary password stands
     (PW1: 403 `auth.password-change-required`; `reset-password` issues a temporary password).
-35. `delete-user` leaves the rows in backups until they are pruned (35 days; `pre-migrate` and
+35. `delete-user` leaves the rows in backups until they are pruned (30 days since SC1, was 35;
+    `pre-migrate` and
     `pre-restore` copies after 30 days except the newest 3 of each kind, DN1, PP1), in the live file's free
     pages until `VACUUM`, and in
     calendar events the intervals.icu publisher wrote (#711).
