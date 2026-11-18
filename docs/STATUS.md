@@ -67,7 +67,7 @@ Answered on 2026-11-14, one item at a time (the owner's answers to D1 to D11 of 
   silently, from cool runs only because heat drifts the heart rate (#734).
 - **D5. Downhill.** Ordering and cues, with no metre target: moderate exposure at least 3 weeks
   before a heavy one, a controlled-descent cue, none in the last 10 days, a pause on quad soreness
-  (#728).
+  (#728). The lead counts from the first downhill week the plan holds (2026-11-18, DL1).
 - **Repeated pain (Soon item 5).** 3 reports of one area in 7 days at pain 2 or more, 7 quiet days
   after a window; "Not now" is not stored; the cross-training line on niggle windows only; the
   pain-monitoring model as one background sentence on the Warning signs page (#722, #723).
@@ -2503,6 +2503,9 @@ things stand" gives counts and percentages without a weekly total or a date.
     stored plan from before the flags means). The fix moves the flags of every plan opened inside the
     window, so the history oracle's digests, the matrix and `PARAMS_VERSION` move with it: a design
     choice, not a small fix. The other two points are product decisions.
+    First point fixed 2026-11-18 (DL1, owner decision 2026-11-18: the lead counts from what the plan
+    prescribed). `PARAMS_VERSION` moved by rule; no oracle digest and no `plan:report` line moved, as
+    no oracle plan opens inside its window. The two other points stay open.
 42. The commit subject of #723's first commit ("leave cross-training out of the acute and chronic
     load") understates it: the commit holds the whole repeated-pain feature (a staging slip). The
     pain-repeat Params are defaults with no paper behind a count, window or score.

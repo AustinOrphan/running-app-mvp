@@ -158,6 +158,11 @@
 // line alone). 78 of the 142 digests move (the same two ultra classes as at DH1); the 64 of the
 // classes up to the marathon are those of the regeneration before.
 //
+// Checked 2026-11-18 (task DL1, rule H5, follow-up 41): the downhill lead now counts from the first
+// week of the window that has downhill work. The oracle's test compares the 142 digests as they
+// stand and passes, so none moved (the file was not regenerated). No plan of the oracle opens inside
+// its window, and the stored window weeks of its chains carry the downhill flag from the window start.
+//
 // The close of the load-progression plan (task L7) may remove this file with its test: from there
 // the owner validation is the oracle.
 import { createHash } from 'node:crypto'

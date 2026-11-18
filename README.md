@@ -629,6 +629,94 @@ A backup kept elsewhere goes into the volume first, for example
 `docker compose cp ./app-20261101T020000Z.db app:/data/backups/` (this works while the container is
 stopped, once `/data/backups` exists: run one backup first, as under Backups).
 
+### Restore drill
+
+A backup nobody has restored is a guess. The drill restores the newest copy into a scratch file and
+checks, for every account, that the app answers. It never touches the live database, and it prints
+no one's data. Run it after a change to the backup, the migrations or the host, and now and then
+without a reason.
+
+1. Copy the newest `app-*.db` in `backups/` to a scratch file outside the data folder, and point
+   `DATABASE_URL` at it for the rest of the drill. The server that made the backup must be the one
+   whose `SESSION_SECRET` you export: the drill signs its cookies with it, and the integrations'
+   tokens only decrypt with it.
+
+   ```sh
+   scratch=$(mktemp -d)   # a folder made for the drill; the clean-up removes all of it
+   cp prisma/data/backups/app-20261101T020000Z.db "$scratch/rehearse.db"
+   export DATABASE_URL="file:$scratch/rehearse.db"
+   export SESSION_SECRET=...   # the same value as the server's
+   ```
+
+2. Run the migrations on the copy, so that a backup from an older release is brought to the
+   current schema. `npm run db:migrate` first copies the scratch file to a `backups/` folder beside
+   it when a migration is pending.
+
+   ```sh
+   npm run db:migrate
+   ```
+
+3. Run the drill. It opens the copy in its own process (no scheduler, no outside request, nothing
+   listening beyond `127.0.0.1` for the length of the run), signs in as each account with a cookie
+   signed here, so no password is needed, and sends GET requests only for the reads of Today, Plan,
+   Race plan, Trends, Activities, Profile, Settings, Plan inputs and the Monday brief, then
+   `/api/health/deep`.
+
+   ```sh
+   npm run rehearse
+   ```
+
+A pass looks like this, one line per request (the number is the account's place in order of
+creation; nothing else about the account is printed):
+
+```
+1	/api/today	200	41 ms
+1	/api/plan	200	18 ms
+...
+2	/api/brief	200	9 ms
+-	/api/health/deep	503	3 ms
+2 account(s), 19 request(s), 0 failed.
+```
+
+The exit status is 0. It is 1 when any read answers 500 or above, or 401 after the cookie (the
+secret differs from the one the backup was made under, or the account's sessions were ended). The
+deep health probe answers 503 on a scratch copy because no fresh backup sits beside it; the drill
+accepts that when the database answers, and fails on any other 5xx. A 403 for an account that still
+holds a temporary password is normal. A failure line names the route and the status, nothing more:
+read the server's behaviour from the same route on a copy you can inspect, not from the drill's
+output.
+
+The drill refuses to run when `DATABASE_URL` is unset or names the default `file:./data/app.db`,
+which is the live database of a checkout; `npm run rehearse -- --yes-live` overrides that, and
+nothing in this guide needs it. The Monday brief is built when the current week's is missing, so
+the drill writes that one row to the scratch copy: another reason it is never run on the live file.
+
+To clean up, unset the variables and delete the scratch folder, which holds the copy, its `-wal`
+and `-shm` files and the `backups/` folder the migration made beside it:
+
+```sh
+unset DATABASE_URL SESSION_SECRET
+rm -r "$scratch"
+```
+
+A scratch copy holds every account's data unencrypted, so do not leave it on a shared disk.
+
+### Phone check (after the https change, Tailscale)
+
+Once the server is reached over https on the tailnet, check these on a real phone, signed in as a
+runner. Each is a pass or a note in the release's issue.
+
+- [ ] Offline Done: switch to airplane mode, mark today's session Done with a rating, switch the
+      connection back on, and confirm the run appears once on Today and in Activities.
+- [ ] Crew notes kept offline: on the Race card, write a crew note, go offline, reload the page,
+      and confirm the card and the note are still there.
+- [ ] Calendar feed: subscribe to the feed address from the Integrations page in the phone's calendar app, and
+      confirm the next sessions appear with their times.
+- [ ] Secure cookie flag: in the browser's developer tools (a desktop browser on the same address
+      does), confirm the `rl_session` cookie has `Secure` and `HttpOnly` set.
+- [ ] HSTS: confirm a response carries a `Strict-Transport-Security` header, and that the same
+      address over `http` redirects to https or refuses.
+
 ### Update
 
 Stop the server first, so that nothing writes to the database while it is migrated.

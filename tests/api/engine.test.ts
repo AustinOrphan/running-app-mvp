@@ -429,6 +429,37 @@ describe('re-plan', () => {
     expect(stored.weeks.some((w) => w.isRecovery && !w.flags.includes('recovery'))).toBe(true)
   })
 
+  test('a plan opened inside the downhill window keeps its lead through a later re-plan (DL1)', async () => {
+    const u = await seedUser(ctx, { email: 'replan-downhill-lead@example.com' })
+    await seedHistory(u.id)
+    // the race is 5 weeks out: its downhill window started 3 weeks ago
+    const goal = await ctx.prisma.goal.create({
+      data: {
+        userId: u.id,
+        name: 'Synthetic trail race',
+        priority: 'A',
+        targetDate: addDays(thisMonday, 7 * 5 + 5),
+        distanceM: 50_000,
+        gainM: 1000,
+        lossM: 1000,
+        goalType: 'finish',
+      },
+    })
+    const plan = await generated(u, goal.id)
+    const leadWeeks = (weeks: PlanWithSessions['weeks']) =>
+      weeks.filter((w) => w.flags.includes('downhill-first')).map((w) => w.weekStart)
+    expect(leadWeeks(plan.weeks)).toEqual([0, 1, 2].map((i) => addDays(thisMonday, 7 * i)))
+    expect(plan.weeks.some((w) => w.flags.includes('downhill'))).toBe(true)
+
+    // a week on, the re-plan reads the stored weeks and counts the lead from the first of them
+    const nextMonday = addDays(thisMonday, 7)
+    vi.setSystemTime(new Date(`${nextMonday}T12:00:00`))
+    const res = await client(ctx, u).post('/api/plan/replan').send({})
+    expect(res.status, JSON.stringify(res.body)).toBe(200)
+    const after = (await client(ctx, u).get('/api/plan')).body as PlanWithSessions
+    expect(leadWeeks(after.weeks)).toEqual(leadWeeks(plan.weeks))
+  })
+
   test('a finished session of the current week survives a re-plan', async () => {
     const u = await seedUser(ctx, { email: 'replan-kept@example.com' })
     await seedHistory(u.id)
