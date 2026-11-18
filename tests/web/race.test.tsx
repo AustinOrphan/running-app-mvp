@@ -1001,6 +1001,52 @@ describe('RacePage: the race card', () => {
     expect(container.textContent).not.toMatch(/\bpace\b|\bsplit|g\/h|per hour/i)
   })
 
+  test('ends with "When it gets hard": the fluid and safety lines, the crew line and a crew note', async () => {
+    const user = userEvent.setup()
+    const { container } = open(planWith({}, 'aided', CARD_POINTS))
+    const section = await screen.findByRole('region', { name: 'When it gets hard' })
+    expect(within(section).getByText(/^Drink to thirst and never force fluids\./)).toBeVisible()
+    expect(
+      within(section).getByRole('heading', { name: 'Low blood sodium from drinking too much' }),
+    ).toBeVisible()
+    expect(within(section).getByText(/^For the crew: offer simple, familiar food/)).toBeVisible()
+    // after the blocks, and not one of them
+    const list = screen.getByRole('list', { name: 'Race card, one block for each stop' })
+    expect(list.compareDocumentPosition(section) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(within(list).queryByRole('region', { name: 'When it gets hard' })).toBeNull()
+    expectCleanCopy(container)
+    await user.type(
+      within(section).getByRole('textbox', { name: 'Crew note for When it gets hard' }),
+      'Spare socks in the blue bag',
+    )
+    expect(window.localStorage.getItem('race-crew:goal-1:when-it-gets-hard')).toBe(
+      'Spare socks in the blue bag',
+    )
+    expect(within(section).getByText('Crew note:').closest('p')).toHaveTextContent(
+      'Crew note: Spare socks in the blue bag',
+    )
+  })
+
+  test('opens the nausea plan in the section when the plan holds it, and leaves it out otherwise', async () => {
+    const plan = planWith({}, 'aided', CARD_POINTS)
+    const view = open({ ...plan, fuel: { ...plan.fuel, nauseaPlanOpen: true } })
+    const section = await screen.findByRole('region', { name: 'When it gets hard' })
+    expect(within(section).getByRole('heading', { name: 'If your stomach turns' })).toBeVisible()
+    expect(within(section).getByText('Slow to an easy effort, or walk for a while.')).toBeVisible()
+    view.unmount()
+    open({ ...plan, fuel: { ...plan.fuel, nauseaPlanOpen: false } })
+    await screen.findByRole('region', { name: 'When it gets hard' })
+    expect(screen.queryByRole('heading', { name: 'If your stomach turns' })).toBeNull()
+  })
+
+  test('has no "When it gets hard" heading when the plan holds none of its lines', async () => {
+    const plan = planWith({}, 'aided', CARD_POINTS)
+    open({ ...plan, eahStronger: false, fuel: { ...plan.fuel, nauseaPlanOpen: false } })
+    await screen.findByRole('list', { name: 'Race card, one block for each stop' })
+    expect(screen.queryByText('When it gets hard')).toBeNull()
+    expect(screen.queryByRole('region', { name: 'When it gets hard' })).toBeNull()
+  })
+
   test('opens with the split sheet: a table of stops with distance, arrival, cutoff and fuel', async () => {
     const { container } = open(planWith({}, 'aided', CARD_POINTS))
     const table = await screen.findByRole('table', {
