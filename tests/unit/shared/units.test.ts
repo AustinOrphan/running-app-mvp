@@ -12,6 +12,7 @@ import {
   minutesToHours1,
   mToKm,
   mToMiles,
+  roundEstimateRangeSec,
   roundEstimateSec,
 } from '../../../shared/units.ts'
 
@@ -55,6 +56,20 @@ describe('finish estimates', () => {
     expect(roundEstimateSec(hms(3, 47, 31))).toBe(hms(3, 48))
     expect(roundEstimateSec(hms(5, 59, 29))).toBe(hms(5, 59))
     expect(roundEstimateSec(hms(5, 59, 30))).toBe(hms(6))
+  })
+
+  test('roundEstimateRangeSec rounds the low end down and the high end up at the same steps', () => {
+    expect(roundEstimateRangeSec(hms(3, 33, 14), hms(4, 1, 40))).toEqual([hms(3, 33), hms(4, 2)])
+    expect(roundEstimateRangeSec(hms(27, 41, 30), hms(36, 18, 5))).toEqual([
+      hms(27, 40),
+      hms(36, 20),
+    ])
+    // an end already on a step stays, so rounding twice changes nothing
+    expect(roundEstimateRangeSec(hms(12, 50), hms(42))).toEqual([hms(12, 50), hms(42)])
+    expect(roundEstimateRangeSec(hms(5, 59, 50), hms(5, 59, 50))).toEqual([hms(5, 59), hms(6)])
+    const [low, high] = roundEstimateRangeSec(Number.NaN, -1)
+    expect(low).toBeNaN()
+    expect(high).toBeNaN()
   })
 
   test('roundEstimateSec rounds to ten minutes from six hours', () => {

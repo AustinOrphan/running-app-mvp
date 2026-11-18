@@ -249,14 +249,6 @@ export const PACES_TEMPLATES = {
   'paces.events.context': tpl(
     'Worked out from your races and your critical speed, with no goal and no weather. Each is a range and a sketch.',
   ),
-  'paces.events.training': tpl(
-    'Rows marked at most rest on your best efforts in training since {date}, not on races. A race or a short test would likely show faster.',
-    { date: 'date' },
-  ),
-  'paces.events.training-widened': tpl(
-    'Rows from training rest on your best efforts since {date}, some older than three months. Fitness may have changed. A short test narrows them.',
-    { date: 'date' },
-  ),
   'paces.events.none': tpl('Not enough to say yet for this distance.'),
   'paces.event.basis-both': tpl('From your {distance} on {date} and your critical speed.', {
     distance: 'distance',
@@ -269,8 +261,6 @@ export const PACES_TEMPLATES = {
   'paces.event.basis-cs': tpl('From your critical speed, found from {efforts} efforts.', {
     efforts: 'count',
   }),
-  'paces.event.time-at-most': tpl('Time, at most', {}, { shape: 'label' }),
-  'paces.event.time-widened': tpl('Time, from training', {}, { shape: 'label' }),
   'paces.event.single': tpl('One source only, so the range is wider.'),
   'paces.event.climb': tpl(
     'Climb is counted as flat distance, and the range is widened for trail.',

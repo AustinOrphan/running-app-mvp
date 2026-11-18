@@ -112,6 +112,7 @@ function renderPage(
     },
     laps: null,
     hasFile: false,
+    hrUse: null,
   }
   mockApi({
     'GET /api/settings': () => ({ email: 'runner@example.com', displayName: null, units: 'km' }),

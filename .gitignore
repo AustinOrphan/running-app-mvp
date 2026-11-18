@@ -4,6 +4,7 @@ data/
 prisma/data/
 .env
 coverage/
+release-notes/
 playwright-report/
 test-results/
 generated/

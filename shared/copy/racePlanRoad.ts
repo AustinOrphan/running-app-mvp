@@ -32,13 +32,10 @@ import {
   type RaceWeekText,
 } from './racePlan.ts'
 import { render, tpl, type SlotSpec, type SlotValues, type Template } from './template.ts'
-import { raceEstimateSlots } from './today.ts'
+import { describeEstimate, RACE_ESTIMATE_TEMPLATES, type EstimateText } from './raceEstimate.ts'
 
 export const RACE_PLAN_ROAD_TEMPLATES = {
   // ---- Expected time ----------------------------------------------------------------------------
-  'race.plan.road.expected.round': tpl(
-    'Times are rounded as the countdown on Today rounds them, and the range is the prediction’s own.',
-  ),
   'race.plan.road.expected.goal': tpl('Goal time {time}, an average of {pace}.', {
     time: 'duration',
     pace: 'pace',
@@ -76,7 +73,7 @@ export const RACE_PLAN_ROAD_TEMPLATES = {
     { pace: 'pace' },
   ),
   'race.plan.road.first-half.training': tpl(
-    'Your critical speed comes from training, so this figure may be slower than one from a race or a short test.',
+    'Your critical speed comes from training, so this figure may be slower than one from a short test.',
   ),
 
   // ---- Heat -------------------------------------------------------------------------------------
@@ -291,46 +288,32 @@ function noticeText(notice: RoadRaceNotice, units: Units): RoadNoticeText | null
 }
 
 /** The range line: "at most" wording for a floor from training (A6), else the plain range. */
-function expectedSource(expected: RoadRacePlan['expected'], units: Units): string {
-  if (expected.basis !== 'prediction') return say(U['race.plan.expected.source-goal'], {}, units)
-  const slots = raceEstimateSlots({
-    lowSec: expected.lowSec,
-    highSec: expected.highSec,
-    predictedSec: expected.midSec,
-  })
-  return say(
-    U[
-      expected.trainingSince === null || expected.trainingWidened
-        ? 'race.plan.expected.source-range'
-        : 'race.plan.expected.source-floor'
-    ],
-    { low: slots.low, high: slots.high },
+function expectedEstimate(expected: RoadRacePlan['expected'], units: Units): EstimateText {
+  return describeEstimate(
+    {
+      lowSec: expected.lowSec,
+      highSec: expected.highSec,
+      predictedSec: expected.midSec,
+      trainingSince: expected.trainingSince,
+      trainingWidened: expected.trainingWidened,
+    },
     units,
   )
+}
+
+function expectedSource(expected: RoadRacePlan['expected'], units: Units): string {
+  if (expected.basis !== 'prediction') return say(U['race.plan.expected.source-goal'], {}, units)
+  return expectedEstimate(expected, units).summary
 }
 
 /** The A6 note when the range rests on a critical speed found from training; null otherwise. */
 function trainingNote(expected: RoadRacePlan['expected'], units: Units): string | null {
-  if (expected.trainingSince === null) return null
-  return say(
-    U[
-      expected.trainingWidened
-        ? 'race.plan.expected.training-widened'
-        : 'race.plan.expected.training'
-    ],
-    { date: { kind: 'date', iso: expected.trainingSince, style: 'short' } },
-    units,
-  )
+  return expectedEstimate(expected, units).note
 }
 
 function expectedText(plan: RoadRacePlan, units: Units): RoadExpectedText {
   const { expected } = plan
-  const slots = raceEstimateSlots({
-    lowSec: expected.lowSec,
-    highSec: expected.highSec,
-    predictedSec: expected.midSec,
-  })
-  const figure = say(U['race.plan.expected.figure'], { duration: slots.likely }, units)
+  const figure = expectedEstimate(expected, units).figure
   const source = expectedSource(expected, units)
   const clock =
     expected.start === null || expected.finish === null
@@ -367,7 +350,7 @@ function expectedText(plan: RoadRacePlan, units: Units): RoadExpectedText {
       ),
     )
   }
-  notes.push(say(T['race.plan.road.expected.round'], {}, units))
+  notes.push(render(RACE_ESTIMATE_TEMPLATES['race-estimate.round'], {}, units))
   return {
     heading: say(U['race.plan.expected.heading'], {}, units),
     figure,

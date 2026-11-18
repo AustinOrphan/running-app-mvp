@@ -18,6 +18,7 @@ import {
   presetGrade,
 } from '../copy/method.ts'
 import { countPhrase } from '../copy/quantity.ts'
+import { joinWords, methodWords } from '../copy/raceEstimate.ts'
 import { ZONE_BOUNDARY_WORDS } from '../copy/revision.ts'
 import { STRENGTH_TEMPLATES } from '../copy/strengthTemplates.ts'
 import type { SlotValues } from '../copy/template.ts'
@@ -1469,22 +1470,6 @@ function breakFacts(scope: Scope): InputFact[] {
 // L1 to L6: the prediction
 // ---------------------------------------------------------------------------------------------
 
-export const METHOD_WORDS: Readonly<Record<string, string>> = {
-  'personal-exponent': 'a personal exponent fitted to your race times',
-  riegel: 'a recent race scaled to this distance',
-  'same-distance': 'a race at about this distance',
-  'single-anchor': 'one shorter race',
-  'critical-speed': 'your critical speed',
-  'cs-durability': 'your critical speed, adjusted for how well you hold pace',
-  'cs-fraction': 'a share of your critical speed for long events',
-}
-
-/** "a", "a and b", "a, b and c". */
-function joinWords(words: readonly string[]): string {
-  if (words.length <= 1) return words.join('')
-  return `${words.slice(0, -1).join(', ')} and ${words[words.length - 1]!}`
-}
-
 function methodsOf(prediction: Prediction): string[] {
   return prediction.method.split('+')
 }
@@ -1524,7 +1509,7 @@ function modelFacts(scope: Scope): InputFact[] {
   if (prediction === null) {
     return [gap('L1', 'explain.l-gap', { need: count(P.a6.csMinEfforts.value) })]
   }
-  const basis = joinWords(methodsOf(prediction).map((method) => METHOD_WORDS[method] ?? method))
+  const basis = methodWords(prediction.method)
   const facts = [make('L1', 'basis', 'explain.l1-basis', { basis })]
   // A prediction from critical speed alone (an ultra with no race near its distance) read no race.
   const usesRace = methodsOf(prediction).some((method) => RACE_METHODS.has(method))
