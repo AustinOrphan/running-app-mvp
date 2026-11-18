@@ -3615,6 +3615,28 @@ describe('the goal on the course: H2, H4 to H6, H12 and O1', () => {
     })
   })
 
+  test('H5 names the lead weeks only where an emphasis week follows them (DL1)', () => {
+    const base = ctxOf('trail-50k')
+    const weeks = base.input.existing!.weeks
+    const withFlags = (keep: (flag: string) => boolean) =>
+      contextOf({
+        ...base.input,
+        existing: {
+          ...base.input.existing!,
+          weeks: weeks.map((w) => ({ ...w, flags: w.flags.filter(keep) })),
+        },
+      })
+    const order = (ctx: ExplainContext) =>
+      factsOf('H5', ctx).find((f) => f.id.endsWith('.order'))!.template
+    expect(weeks.some((w) => w.flags.includes('downhill-first'))).toBe(true)
+    expect(weeks.some((w) => w.flags.includes('downhill'))).toBe(true)
+    expect(order(base)).toBe('explain.h5-order')
+    // a plan opened late in the window holds lead weeks alone
+    expect(order(withFlags((f) => f !== 'downhill'))).toBe('explain.h5-cue')
+    // a plan from before the lead flags holds emphasis weeks alone
+    expect(order(withFlags((f) => f !== 'downhill-first'))).toBe('explain.h5-cue')
+  })
+
   test('H6 says whether the race runs into darkness and how many headlamp runs that adds', () => {
     const dark = factsOf('H6', ctxOf('first-100-mile'))[0]!
     expect(dark.template).toBe('explain.h6-dark')
