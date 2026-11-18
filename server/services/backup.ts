@@ -11,8 +11,10 @@ import { mondayOf } from '../../shared/dates.ts'
  *
  * Three kinds exist. `ordinary` copies (`app-<stamp>.db`) come from the daily job and from
  * `npm run backup`, and are pruned by the retention rule. `pre-migrate` copies are made before
- * `prisma migrate deploy` and are pruned by their own rule (`prunePreMigrateBackups`).
- * `pre-restore` copies, made by `npm run restore`, are never pruned automatically.
+ * `prisma migrate deploy` and `pre-restore` copies, made by `npm run restore`, are pruned by one
+ * shared rule (`prunePreMigrateBackups`, `prunePreRestoreBackups`): older than `KEEP_PRE_MIGRATE_DAYS`
+ * goes, except the newest `KEEP_PRE_MIGRATE_MIN` of the kind (owner decisions 2026-11-17 and
+ * 2026-11-18).
  */
 
 export type BackupKind = 'ordinary' | 'pre-migrate' | 'pre-restore'
@@ -24,6 +26,9 @@ const PREFIX: Record<BackupKind, string> = {
 }
 const ORDINARY_NAME = /^app-(\d{8}T\d{6}Z)\.db$/
 const PRE_MIGRATE_NAME = /^pre-migrate-(\d{8}T\d{6}Z)\.db$/
+const PRE_RESTORE_NAME = /^pre-restore-(\d{8}T\d{6}Z)\.db$/
+/** A copy of a damaged database is kept with its `-wal` and `-shm` files beside it. */
+const SIDECAR_SUFFIXES = ['-wal', '-shm']
 
 /** Days and ISO weeks that the default rule keeps a backup for (the newest of each). */
 export const KEEP_DAYS = 7
@@ -32,6 +37,10 @@ export const KEEP_WEEKS = 4
 /**
  * A pre-update (`pre-migrate`) copy is removed once it is older than this, unless it is one of the
  * newest `KEEP_PRE_MIGRATE_MIN`, which stay whatever their age (owner decision 2026-11-17).
+ * `pre-restore` copies follow the same two numbers, counted per kind (owner decision 2026-11-18):
+ * both kinds are a safety copy of the whole database taken before a change the operator runs, so one
+ * rule is the simplest true statement for the data notice, and nothing about a restore needs a
+ * different window. The names keep `PRE_MIGRATE` because the rule began there.
  */
 export const KEEP_PRE_MIGRATE_DAYS = 30
 export const KEEP_PRE_MIGRATE_MIN = 3
@@ -54,8 +63,11 @@ const DAY_MS = 86_400_000
  * - `offHostDays`: the off-host job reads only the newest `app-*.db`, which stops holding the
  *   account at the next daily copy (one day), and its snapshot lives `OFF_HOST_SNAPSHOT_DAYS`.
  *
- * Not counted: the newest `KEEP_PRE_MIGRATE_MIN` pre-update copies, which stay until later updates
- * push them out; `pre-restore` copies; copies made by hand; `npm run backup -- --keep`.
+ * A `pre-restore` copy goes after the same `KEEP_PRE_MIGRATE_DAYS`, so `localDays` is unchanged.
+ *
+ * Not counted: the newest `KEEP_PRE_MIGRATE_MIN` copies of each of the pre-update and pre-restore
+ * kinds, which stay until later ones push them out; copies made by hand;
+ * `npm run backup -- --keep`.
  */
 export function deletedAccountRetention(): {
   localDays: number
@@ -305,8 +317,8 @@ export function pruneBackups(
   return pruned.map((file) => file.name)
 }
 
-/** The `pre-migrate-<stamp>.db` files in `dir`, newest first. */
-export function listPreMigrateBackups(dir: string): BackupFile[] {
+/** The `pre-migrate-<stamp>.db` or `pre-restore-<stamp>.db` files in `dir`, newest first. */
+function listSafetyCopies(dir: string, pattern: RegExp): BackupFile[] {
   let names: string[]
   try {
     names = readdirSync(dir)
@@ -316,7 +328,7 @@ export function listPreMigrateBackups(dir: string): BackupFile[] {
   }
   const files: BackupFile[] = []
   for (const name of names) {
-    const stamp = PRE_MIGRATE_NAME.exec(name)?.[1]
+    const stamp = pattern.exec(name)?.[1]
     const at = stamp === undefined ? null : parseBackupStamp(stamp)
     if (at !== null) files.push({ name, at })
   }
@@ -324,24 +336,30 @@ export function listPreMigrateBackups(dir: string): BackupFile[] {
 }
 
 /**
- * Removes the `pre-migrate` copies in `dir` that are older than `KEEP_PRE_MIGRATE_DAYS` at `now`,
- * except the newest `KEEP_PRE_MIGRATE_MIN` whatever their age. Idempotent. It lists only names of
- * the pre-migrate pattern inside `dir`, so the live database, ordinary and `pre-restore` copies
- * and every other file stay. Housekeeping must never block an update: a file that cannot be
- * removed is skipped, and the result names the files removed and the ones that failed.
+ * Removes the copies of one safety kind in `dir` that are older than `KEEP_PRE_MIGRATE_DAYS` at
+ * `now`, except the newest `KEEP_PRE_MIGRATE_MIN` whatever their age. Idempotent. It lists only
+ * names of the kind's anchored pattern inside `dir`, so the live database, the other kinds and every
+ * other file stay. A removed copy takes its `-wal` and `-shm` files with it (a damaged database is
+ * kept with them), and nothing else is ever unlinked. Housekeeping must never block an update or a
+ * restore: a file that cannot be removed is skipped, and the result names the files removed and the
+ * ones that failed.
  */
-export function prunePreMigrateBackups(
+function pruneSafetyCopies(
   dir: string,
-  now: Date = new Date(),
+  pattern: RegExp,
+  now: Date,
 ): { removed: string[]; failed: string[] } {
   const cutoff = now.getTime() - KEEP_PRE_MIGRATE_DAYS * DAY_MS
-  const candidates = listPreMigrateBackups(dir)
+  const candidates = listSafetyCopies(dir, pattern)
     .slice(KEEP_PRE_MIGRATE_MIN)
     .filter((file) => file.at.getTime() < cutoff)
   const removed: string[] = []
   const failed: string[] = []
   for (const file of candidates) {
     try {
+      // The sidecars first and the `.db` last: only `*.db` is listed, so a failure part way keeps
+      // the copy listed and the next run retries it, instead of orphaning a sidecar.
+      for (const suffix of SIDECAR_SUFFIXES) discard(join(dir, `${file.name}${suffix}`))
       discard(join(dir, file.name))
       removed.push(file.name)
     } catch {
@@ -349,6 +367,26 @@ export function prunePreMigrateBackups(
     }
   }
   return { removed, failed }
+}
+
+/** Prunes the `pre-migrate` copies in `dir` by the safety-copy rule. */
+export function prunePreMigrateBackups(
+  dir: string,
+  now: Date = new Date(),
+): { removed: string[]; failed: string[] } {
+  return pruneSafetyCopies(dir, PRE_MIGRATE_NAME, now)
+}
+
+/**
+ * Prunes the `pre-restore` copies in `dir` by the same rule. A restore calls it after it has made
+ * its copy: that copy is the newest of its kind, so the newest-`KEEP_PRE_MIGRATE_MIN` floor keeps
+ * it, and it is the rollback for that restore.
+ */
+export function prunePreRestoreBackups(
+  dir: string,
+  now: Date = new Date(),
+): { removed: string[]; failed: string[] } {
+  return pruneSafetyCopies(dir, PRE_RESTORE_NAME, now)
 }
 
 /** The rule in words, for the help text and the README. */

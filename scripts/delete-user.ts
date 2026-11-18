@@ -48,9 +48,9 @@ async function main(): Promise<number> {
         'Its sessions ended with it: a cookie of the account is refused from now on.\n' +
         'The backups in backups/ still hold the account until they age out. The daily copies are ' +
         `pruned to keep ${RETENTION_RULE}, so the last one holding it goes within ` +
-        `${deletedAccountRetention().longestDays} days. Pre-update copies go after ` +
-        `${KEEP_PRE_MIGRATE_DAYS} days except the newest ${KEEP_PRE_MIGRATE_MIN}, and pre-restore ` +
-        'copies are never pruned automatically: delete those by hand if they must not keep it.\n' +
+        `${deletedAccountRetention().longestDays} days. Pre-update and pre-restore copies go ` +
+        `after ${KEEP_PRE_MIGRATE_DAYS} days except the newest ${KEEP_PRE_MIGRATE_MIN} of each ` +
+        'kind: delete those by hand if they must not keep it.\n' +
         'The live database file can still hold the deleted bytes (SQLite free pages and the WAL) ' +
         'until they are overwritten; VACUUM with the server stopped clears them.\n' +
         "Calendar events that the intervals.icu publisher wrote stay in that runner's own calendar.\n",
