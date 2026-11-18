@@ -240,17 +240,24 @@ describe('ActivityDetailPage', () => {
 
   test.each([
     [
-      { passes: true, reason: null, source: 'strap' },
+      { passes: true, reason: null, source: 'strap', flat: true },
       "Heart rate from an external sensor. Trends reads this run's heart rate.",
     ],
-    [{ passes: true, reason: null, source: 'unknown' }, "Trends reads this run's heart rate."],
     [
-      { passes: false, reason: 'short', source: 'wrist' },
-      "Heart rate from the wrist. Trends sets this run's heart rate aside: the run is under 20 min moving.",
+      { passes: true, reason: null, source: 'unknown', flat: false },
+      "Trends reads this run's heart rate.",
     ],
     [
-      { passes: false, reason: 'unclean', source: 'wrist' },
-      "Heart rate from the wrist. Trends sets this run's heart rate aside: under 90% of the moving time had clean readings.",
+      { passes: false, reason: 'unclean', source: 'wrist', flat: false },
+      "Heart rate from the wrist. Under 90% of the moving time had clean readings. Intensity per week, Long runs by the hour, Heart rate at one speed and Heart-rate drift on long runs set this run's heart rate aside.",
+    ],
+    [
+      { passes: false, reason: 'unclean', source: 'wrist', flat: true },
+      'Heart rate from the wrist. Under 90% of the moving time had clean readings. Intensity per week and Long runs by the hour set it aside; Heart rate at one speed and Heart-rate drift on long runs can still read it as a flat run.',
+    ],
+    [
+      { passes: false, reason: 'short', source: 'wrist', flat: true },
+      'Heart rate from the wrist. The run is under 20 min moving. Intensity per week and Long runs by the hour set it aside; Heart rate at one speed and Heart-rate drift on long runs can still read it as a flat run.',
     ],
   ] as const)('the heart-rate line says %j', async (hrUse, line) => {
     renderDetail({ detail: makeDetail({ hrUse }) })

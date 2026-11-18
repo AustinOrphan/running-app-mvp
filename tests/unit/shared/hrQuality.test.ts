@@ -271,35 +271,52 @@ describe('hrUseOf', () => {
 
   it('names the source and passes a clean run', () => {
     const q = computeHrQuality(stream(TWENTY_FIVE_MIN), 10, 'wrist')
-    expect(hrUseOf(q, true)).toEqual({ passes: true, reason: null, source: 'wrist' })
+    expect(hrUseOf(q, true, false)).toEqual({
+      passes: true,
+      reason: null,
+      source: 'wrist',
+      flat: false,
+    })
   })
 
   it('passes a strap by its source', () => {
-    expect(hrUseOf(computeHrQuality(noisy, 10, 'strap'), true)).toEqual({
+    expect(hrUseOf(computeHrQuality(noisy, 10, 'strap'), true, true)).toEqual({
       passes: true,
       reason: null,
       source: 'strap',
+      flat: true,
     })
   })
 
-  it('gives "short" under the minimum moving time', () => {
-    expect(hrUseOf(computeHrQuality(stream(60), 10, 'strap'), true)).toEqual({
+  it('gives "short" under the minimum moving time, on a flat run', () => {
+    expect(hrUseOf(computeHrQuality(stream(60), 10, 'strap'), true, true)).toEqual({
       passes: false,
       reason: 'short',
       source: 'strap',
+      flat: true,
     })
   })
 
-  it('gives "unclean" when too little of the moving time is clean', () => {
-    expect(hrUseOf(computeHrQuality(noisy, 10, 'unknown'), true)).toEqual({
+  it('gives "unclean" on a flat run that fails the clean share', () => {
+    expect(hrUseOf(computeHrQuality(noisy, 10, 'unknown'), true, true)).toEqual({
       passes: false,
       reason: 'unclean',
       source: 'unknown',
+      flat: true,
+    })
+  })
+
+  it('gives "unclean" on a hilly run that fails the clean share', () => {
+    expect(hrUseOf(computeHrQuality(noisy, 10, 'wrist'), true, false)).toEqual({
+      passes: false,
+      reason: 'unclean',
+      source: 'wrist',
+      flat: false,
     })
   })
 
   it('is null without a summary or without heart rate', () => {
-    expect(hrUseOf(null, true)).toBeNull()
-    expect(hrUseOf(computeHrQuality(stream(TWENTY_FIVE_MIN), 10, 'wrist'), false)).toBeNull()
+    expect(hrUseOf(null, true, true)).toBeNull()
+    expect(hrUseOf(computeHrQuality(stream(TWENTY_FIVE_MIN), 10, 'wrist'), false, true)).toBeNull()
   })
 })

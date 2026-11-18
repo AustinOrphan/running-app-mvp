@@ -45,13 +45,27 @@ export interface HrUse {
   passes: boolean
   reason: 'short' | 'unclean' | null
   source: HrSource
+  /**
+   * `isFlatRun` of the run. A flat run that fails is still read by the HR-at-pace line and the
+   * drift panel (they check the quality of a hilly run only); the zone and durability panels set
+   * every failing run aside.
+   */
+  flat: boolean
 }
 
-/** Null when the summary is not computed yet or the run has no heart rate: the page then says nothing. */
-export function hrUseOf(quality: HrQuality | null, hasHeartRate: boolean): HrUse | null {
+/**
+ * Null when the summary is not computed yet or the run has no heart rate: the page then says nothing.
+ * `flat` is `isFlatRun` of the run, passed in because `execution.ts` imports this file.
+ */
+export function hrUseOf(
+  quality: HrQuality | null,
+  hasHeartRate: boolean,
+  flat: boolean,
+): HrUse | null {
   if (quality === null || !hasHeartRate) return null
   const failure = hrQualityFailure(quality)
   return {
+    flat,
     passes: failure === null,
     reason: failure === null ? null : failure === 'short' ? 'short' : 'unclean',
     source: quality.source,

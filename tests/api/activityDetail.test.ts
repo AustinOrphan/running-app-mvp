@@ -124,7 +124,30 @@ describe('GET /api/activities/:id/detail', () => {
         hrQuality: JSON.stringify(summary),
       },
     })
-    expect((await get(passing.id)).hrUse).toEqual({ passes: true, reason: null, source: 'wrist' })
+    expect((await get(passing.id)).hrUse).toEqual({
+      passes: true,
+      reason: null,
+      source: 'wrist',
+      flat: true,
+    })
+    const hilly = await ctx.prisma.activity.create({
+      data: {
+        userId: user.id,
+        date: '2026-01-09',
+        type: 'run',
+        durationSec: 1800,
+        distanceM: 5000,
+        elevationGainM: 600,
+        avgHr: 150,
+        hrQuality: JSON.stringify({ ...summary, cleanSec: 900 }),
+      },
+    })
+    expect((await get(hilly.id)).hrUse).toEqual({
+      passes: false,
+      reason: 'unclean',
+      source: 'wrist',
+      flat: false,
+    })
     const dirty = await ctx.prisma.activity.create({
       data: {
         userId: user.id,
@@ -139,6 +162,7 @@ describe('GET /api/activities/:id/detail', () => {
       passes: false,
       reason: 'unclean',
       source: 'wrist',
+      flat: true,
     })
     const noHr = await ctx.prisma.activity.create({
       data: {
