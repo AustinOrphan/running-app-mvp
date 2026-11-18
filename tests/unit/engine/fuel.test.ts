@@ -1544,10 +1544,26 @@ describe('gutReferralLines (GR1)', () => {
   })
 
   it('shows when the rung is held and when the target has fallen back', () => {
-    for (const list of [runs(OK, BAD), runs(OK, OK, BAD, BAD), runs(OK, SEVERE)]) {
+    for (const list of [
+      runs(BAD),
+      runs(BAD, BAD),
+      runs(SEVERE),
+      runs(BAD, BAD, BAD),
+      runs(OK, BAD, BAD),
+      runs(OK, SEVERE),
+      runs(OK, OK, BAD, BAD),
+      runs(OK, BAD),
+    ]) {
       const lines = gutReferralLines(replay(list, OPEN))
       expect(lines).toHaveLength(2)
     }
+  })
+
+  it('is cleared by a later tolerated run, but not by a hot one or one that does not count', () => {
+    expect(gutReferralLines(replay(runs(BAD, OK), NO_OPT_IN))).toBeNull()
+    expect(gutReferralLines(replay(runs(BAD, BAD, OK), NO_OPT_IN))).toBeNull()
+    expect(gutReferralLines(replay(runs(BAD, { weather: HOT }), NO_OPT_IN))).not.toBeNull()
+    expect(gutReferralLines(replay(runs(BAD, { hours: 1 }), NO_OPT_IN))).not.toBeNull()
   })
 
   it('is absent with a gut condition, even after bad runs', () => {

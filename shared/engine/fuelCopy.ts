@@ -422,7 +422,7 @@ export function gutTrainingText(): string[] {
  * adds no count of its own: neither paper gives a threshold for a referral (rule H7, evidence note).
  */
 export function gutReferralLines(ladder: LadderResult): string[] | null {
-  if (ladder.locked || !(ladder.held || ladder.basis === 'fell-back')) return null
+  if (ladder.locked || !ladder.stopped) return null
   return [say(T['fuel.referral.survey'], {}), say(T['fuel.referral.assess'], {})]
 }
 
