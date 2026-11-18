@@ -161,13 +161,24 @@ describe('feedbackReport', () => {
     const text = feedbackReport({
       fromPath: '/log',
       buildId: 'index-abc',
+      version: '2.1.0',
       at: '2026-11-12T10:00:00.000Z',
       userAgent: 'UA',
       planId: null,
       planRevisedAt: null,
       reference: 'req-7f3a-42',
     })
-    expect(text.split('\n')).toContain('Reference: req-7f3a-42')
+    // Version stays with the build facts; the reference follows them, ahead of the runner's words.
+    expect(text.split('\n').filter((line) => line !== '')).toEqual([
+      'Paste this into a message to the person who runs this app.',
+      'Page: /log',
+      'Version: 2.1.0',
+      'Build: index-abc',
+      'Time: 2026-11-12T10:00:00.000Z',
+      'Browser: UA',
+      'Reference: req-7f3a-42',
+      'What happened:',
+    ])
   })
 
   test('holds no request id and states each fact once', () => {
