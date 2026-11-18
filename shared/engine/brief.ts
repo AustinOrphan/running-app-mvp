@@ -35,7 +35,7 @@ import {
   minutes,
   percent,
 } from './explainInputs.ts'
-import { DOWNHILL_FLAGS } from './downhill.ts'
+import { DOWNHILL_FLAGS, pausedOnRead } from './downhill.ts'
 import { isDuplicate } from './load.ts'
 import { P } from './params/index.ts'
 import { checkinOn, checkinsOf, poorSubjective, sleepAverageH } from './readiness.ts'
@@ -560,9 +560,21 @@ export function firstSessionsIn(
   return out.sort((a, b) => a.date.localeCompare(b.date))
 }
 
-/** One fact for each first back-to-back, night run or downhill session the coming week holds, by date. */
+/**
+ * One fact for each first back-to-back, night run or downhill session the coming week holds, by date.
+ *
+ * The sessions are read as the pages show them (`pausedOnRead`, the same check-ins and as-of day):
+ * a quad report hides the downhill flags of the days still ahead until the pause ends, and a
+ * session the page shows without the flag is not named. The choice for a paused first: it is not
+ * named this week, and the brief does not hold the name back for later. Once the pause ends or the
+ * day has passed, the stored session counts as an earlier one, so no later brief names a first
+ * downhill session; the plan the runner sees is the record.
+ *
+ * "First" is per plan: it resets when a plan is regenerated, because the stored sessions of the
+ * old plan are gone.
+ */
 function firstSessionFacts({ args }: Week): InputFact[] {
-  const sessions = args.input.existing?.sessions ?? []
+  const sessions = pausedOnRead(args.input.existing?.sessions ?? [], args.input.wellness, args.asOf)
   const window = { from: args.weekStart, to: addDays(args.weekStart, 6) }
   return firstSessionsIn(sessions, window).map((first) =>
     make(

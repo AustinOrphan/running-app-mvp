@@ -578,6 +578,26 @@ describe('the first back-to-back, night run and downhill session', () => {
         ]),
       ),
     )
+    // a quad report hides the downhill flags on the pages, so the brief does not name that session
+    const quad = {
+      wellness: [checkin(6, { painScore: P.h5.quadPauseMinPain.value, painArea: 'left quad' })],
+    }
+    const paused = buildBriefFacts(
+      briefArgs(
+        {},
+        {
+          ...quad,
+          ...withSessions([session(at(2), ['downhill']), session(at(3), ['night'])]),
+        },
+      ),
+    )
+    expect(paused.noticed.map((f) => f.id)).not.toContain('h5.first-downhill')
+    expect(paused.noticed.some((f) => f.id === 'h6.first-night')).toBe(true)
+    // without the report the same plan names it
+    const clear = buildBriefFacts(
+      briefArgs({}, withSessions([session(at(2), ['downhill']), session(at(3), ['night'])])),
+    )
+    expect(clear.noticed.map((f) => f.id)).toContain('h5.first-downhill')
     // several firsts in one week are several facts, in the order of their dates
     expect(many.noticed.map((f) => f.id)).toEqual([
       'h6.first-night',
