@@ -30,6 +30,7 @@ import { PLAN_INPUTS_TEMPLATES } from './planInputs.ts'
 import { PAGE_TEMPLATES, PROVIDER_TEMPLATES } from './pageCopy.ts'
 import { PLAN_NOTICE_TEMPLATES } from './planNotice.ts'
 import { PLAN_STRIP_TEMPLATES } from './planStrip.ts'
+import { RACE_ESTIMATE_TEMPLATES } from './raceEstimate.ts'
 import { RACE_HEAT_TEMPLATES } from './raceHeat.ts'
 import { RACE_PLAN_TEMPLATES } from './racePlan.ts'
 import { RACE_PLAN_ROAD_TEMPLATES } from './racePlanRoad.ts'
@@ -95,6 +96,7 @@ export const TEMPLATES = {
   ...TRENDS_TEMPLATES,
   ...BRIEF_TEMPLATES,
   ...STRENGTH_TEMPLATES,
+  ...RACE_ESTIMATE_TEMPLATES,
   ...RACE_PLAN_TEMPLATES,
   ...RACE_PLAN_ROAD_TEMPLATES,
   ...RACE_HEAT_TEMPLATES,

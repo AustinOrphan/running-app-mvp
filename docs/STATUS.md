@@ -32,7 +32,10 @@ Each item names the default that holds until the owner answers.
    race in it.
 4. **The sftp target machine for the off-host backups** (D1). The owner names it at the move
    (item 2); the job is switched on only after the move. Default: the app's own daily copies only,
-   on the same disk.
+   on the same disk. Requirement on the restic job (DN1, 2026-11-17): it reads only the newest
+   `app-*.db`, never a `pre-migrate` or `pre-restore` file, and keeps 30 daily snapshots, so the
+   data notice's 35 days holds (README, "Data notice"); the job is in the private homelab
+   repository, outside this one.
 5. **The Apple Watch companion, phase 0 spike** (design #701, plan
    `docs/superpowers/plans/2026-11-10-companion-phase0-spike.md`, #702): waiting on the owner's
    Task 1 steps in Xcode. Default: nothing is built.
@@ -48,7 +51,10 @@ Answered on 2026-11-14, one item at a time (the owner's answers to D1 to D11 of 
   then (a runbook note in the owner's private homelab repository). The tester notice states that
   the person who runs the server can read every account's data, that an encrypted copy of the whole
   database is kept at another location for up to 30 days, and that a deleted account leaves the
-  backup copies as they age out, within 30 days. The target machine stays open (item 4).
+  backup copies as they age out, within 30 days. The target machine stays open (item 4). The
+  draft's "within 30 days" was not true of the code (2026-11-17, DN1): the notice in the README
+  says 35 days, taken from `deletedAccountRetention()`, with the newest 3 pre-update copies as the
+  stated exception, and adds that place search sends only the typed text to Open-Meteo (ADR 0024).
 - **D2. The beta gate.** Invite after the move to the home server, with the off-site backups on, the
   data notice shown and the network change applied.
 - **D3. Ratings from the watch.** An empty rating is filled from intervals.icu with a source marker,
@@ -2455,8 +2461,9 @@ things stand" gives counts and percentages without a weekly total or a date.
 34. The invited-account flow was tried in chromium only, with no phone, HTTPS or proxy (#698). The
     server now refuses every route but the password change while the temporary password stands
     (PW1: 403 `auth.password-change-required`; `reset-password` issues a temporary password).
-35. `delete-user` leaves the rows in backups until they are pruned (about five weeks; `pre-migrate`
-    and `pre-restore` copies by hand), in the live file's free pages until `VACUUM`, and in
+35. `delete-user` leaves the rows in backups until they are pruned (35 days; `pre-migrate` copies
+    after 30 days except the newest 3, DN1; `pre-restore` copies by hand), in the live file's free
+    pages until `VACUUM`, and in
     calendar events the intervals.icu publisher wrote (#711).
 36. A sign in Warning signs rests on weaker support than the rest: the low-sodium list on engine
     rule n-7, dark urine not in the Clarkson abstract, and the repeated-pain sign on a grade D

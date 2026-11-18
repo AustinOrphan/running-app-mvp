@@ -1,6 +1,7 @@
 import react from '@vitejs/plugin-react'
 import { configDefaults, defineConfig } from 'vitest/config'
 import { SWEEP_FILES, SWEEP_TIMEOUT_MS } from './tests/vitestProjects.ts'
+import { appVersionDefine } from './web/versionDefine.ts'
 
 export default defineConfig({
   test: {
@@ -28,6 +29,7 @@ export default defineConfig({
       },
       {
         plugins: [react()],
+        define: appVersionDefine(),
         test: {
           name: 'web',
           environment: 'jsdom',

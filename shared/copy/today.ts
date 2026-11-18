@@ -5,11 +5,7 @@
 //
 // Ids are `today.<group>.<name>`. Each id below is built in `shared/engine/readiness.ts`, where a
 // `TemplateId` type keeps the two in step.
-import type { Quantity } from '../engine/types.ts'
-import { roundEstimateSec } from '../units.ts'
 import { tpl, type Template } from './template.ts'
-
-type DurationQuantity = Extract<Quantity, { kind: 'duration' }>
 
 export const TODAY_TEMPLATES = {
   // The verdict: one line on what readiness means for today.
@@ -301,25 +297,7 @@ export const TODAY_TEMPLATES = {
   'today.monday.review': tpl('Review last week', {}, { shape: 'label' }),
   'today.monday.review-note': tpl('A few answers keep the next update accurate.'),
 
-  // The race countdown.
-  'today.race.estimate': tpl('Finish estimate {low} to {high}, most likely about {likely}.', {
-    low: 'duration',
-    high: 'duration',
-    likely: 'duration',
-  }),
-  'today.race.estimate-floor': tpl('At most about {likely}. Finish estimate {low} to {high}.', {
-    low: 'duration',
-    high: 'duration',
-    likely: 'duration',
-  }),
-  'today.race.floor-basis': tpl(
-    'It rests on your best efforts in training since {date}, not on races. A race or a short test would likely show faster.',
-    { date: 'date' },
-  ),
-  'today.race.widened-basis': tpl(
-    'From your best efforts in training since {date}, some older than three months. Fitness may have changed since. A short test narrows it.',
-    { date: 'date' },
-  ),
+  // The race countdown. The estimate itself is worded in `raceEstimate.ts`, one text for every surface.
   'today.race.wide': tpl(
     'The range is wide on purpose. Predictions for {distance} rest on thin evidence (grade {grade}).',
     { distance: 'distance', grade: 'text' },
@@ -468,23 +446,3 @@ export const TODAY_TEMPLATES = {
   }),
   'today.hero.climb': tpl('{climb} climb', { climb: 'climb' }, { shape: 'label' }),
 } satisfies Record<string, Template>
-
-/**
- * The slots of `today.race.estimate`: the range and its middle at the precision `formatEstimate`
- * uses, so the sentence and any table beside it read the same.
- */
-export function raceEstimateSlots(prediction: {
-  lowSec: number
-  highSec: number
-  predictedSec: number
-}): { low: DurationQuantity; high: DurationQuantity; likely: DurationQuantity } {
-  const duration = (sec: number): DurationQuantity => ({
-    kind: 'duration',
-    sec: roundEstimateSec(sec),
-  })
-  return {
-    low: duration(prediction.lowSec),
-    high: duration(prediction.highSec),
-    likely: duration(prediction.predictedSec),
-  }
-}

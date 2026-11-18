@@ -2,14 +2,12 @@ import { describe, expect, test } from 'vitest'
 import { lintText } from '../../../shared/copy/lint.ts'
 import { render, sampleSlots, type Template } from '../../../shared/copy/template.ts'
 import { renderFact, TEMPLATES } from '../../../shared/copy/templates.ts'
-import { raceEstimateSlots, TODAY_TEMPLATES } from '../../../shared/copy/today.ts'
+import { TODAY_TEMPLATES } from '../../../shared/copy/today.ts'
 import { P } from '../../../shared/engine/params/index.ts'
 import { rangeLabel } from '../../../shared/engine/predict.ts'
 import type { ReadinessVerdict, WeekStripMark, WindowVerdictCode } from '../../../shared/types.ts'
-import { formatEstimate } from '../../../shared/units.ts'
 
 const ids = Object.keys(TODAY_TEMPLATES) as Array<keyof typeof TODAY_TEMPLATES>
-const hms = (h: number, m = 0, sec = 0) => h * 3600 + m * 60 + sec
 
 describe('Today templates', () => {
   test('are in the registry the copy-lint test renders', () => {
@@ -109,52 +107,7 @@ describe('Today templates', () => {
 })
 
 describe('race countdown copy', () => {
-  const prediction = {
-    lowSec: hms(27, 41, 30),
-    predictedSec: hms(31, 52, 40),
-    highSec: hms(36, 18, 5),
-  }
-
-  test('prints the finish range and its middle as the design words them', () => {
-    expect(
-      renderFact({ template: 'today.race.estimate', slots: raceEstimateSlots(prediction) }, 'km'),
-    ).toBe('Finish estimate 27 h 40 min to 36 h 20 min, most likely about 31 h 50 min.')
-  })
-
-  test('says "at most" and the basis for a time from training (A6)', () => {
-    expect(
-      renderFact(
-        { template: 'today.race.estimate-floor', slots: raceEstimateSlots(prediction) },
-        'km',
-      ),
-    ).toBe('At most about 31 h 50 min. Finish estimate 27 h 40 min to 36 h 20 min.')
-    expect(
-      renderFact(
-        {
-          template: 'today.race.floor-basis',
-          slots: { date: { kind: 'date', iso: '2026-08-11', style: 'short' } },
-        },
-        'km',
-      ),
-    ).toMatch(/^It rests on your best efforts in training since 11 Aug, not on races\./)
-  })
-
-  test('rounds the way formatEstimate does, for a short race too', () => {
-    const marathon = {
-      lowSec: hms(3, 33, 14),
-      predictedSec: hms(3, 47, 12),
-      highSec: hms(4, 1, 40),
-    }
-    const sentence = renderFact(
-      { template: 'today.race.estimate', slots: raceEstimateSlots(marathon) },
-      'mi',
-    )
-    expect(sentence).toBe(
-      `Finish estimate ${formatEstimate(marathon.lowSec)} to ${formatEstimate(marathon.highSec)}, most likely about ${formatEstimate(marathon.predictedSec)}.`,
-    )
-    expect(sentence).toBe('Finish estimate 3 h 33 min to 4 h 2 min, most likely about 3 h 47 min.')
-  })
-
+  // The estimate itself is worded in `raceEstimate.ts` (copyRaceEstimate.test.ts).
   test("says the range is wide on purpose, with the distance in the runner's units and the grade", () => {
     const label = rangeLabel({ distanceM: 160934 })
     expect(label.wide).toBe(true)

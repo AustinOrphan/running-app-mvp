@@ -20,6 +20,10 @@ export const FEEDBACK_TEMPLATES = {
   'feedback.where': tpl('Paste this into a message to the person who runs this app.'),
   'feedback.line.page': tpl('Page: {value}', { value: 'text' }, { shape: 'label' }),
   'feedback.line.build': tpl('Build: {value}', { value: 'text' }, { shape: 'label' }),
+  // RI1: the release the page was built from (`package.json`, named by the tag `v<version>`).
+  'feedback.line.version': tpl('Version: {value}', { value: 'text' }, { shape: 'label' }),
+  'about.heading': tpl('About', {}, { shape: 'label' }),
+  'about.version': tpl('Version {value}', { value: 'text' }, { shape: 'label' }),
   'feedback.line.time': tpl('Time: {value}', { value: 'text' }, { shape: 'label' }),
   'feedback.line.browser': tpl('Browser: {value}', { value: 'text' }, { shape: 'label' }),
   'feedback.line.plan': tpl('Plan: {value}', { value: 'text' }, { shape: 'label' }),
@@ -33,6 +37,8 @@ export interface FeedbackFacts {
   /** The path (no query, no hash) of the page the runner came from, or null. */
   fromPath: string | null
   buildId: string
+  /** The release version of the build. */
+  version: string
   /** An ISO instant. */
   at: string
   userAgent: string
@@ -44,6 +50,7 @@ export interface FeedbackFacts {
 
 type LineKey =
   | 'feedback.line.page'
+  | 'feedback.line.version'
   | 'feedback.line.build'
   | 'feedback.line.time'
   | 'feedback.line.browser'
@@ -60,6 +67,7 @@ export function feedbackReport(facts: FeedbackFacts): string {
       'feedback.line.page',
       facts.fromPath ?? render(FEEDBACK_TEMPLATES['feedback.page-none'], {}, 'km'),
     ),
+    line('feedback.line.version', facts.version),
     line('feedback.line.build', facts.buildId),
     line('feedback.line.time', facts.at),
     line('feedback.line.browser', facts.userAgent),

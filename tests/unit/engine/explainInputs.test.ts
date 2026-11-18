@@ -7,6 +7,7 @@ import { describe, expect, test } from 'vitest'
 import { COPY_MAX_CHARS, EXPLAIN_MAX_SOURCES } from '../../../shared/copy/limits.ts'
 import { EXPLAIN_TEMPLATES } from '../../../shared/copy/explainTemplates.ts'
 import { lintText } from '../../../shared/copy/lint.ts'
+import { METHOD_WORDS } from '../../../shared/copy/raceEstimate.ts'
 import {
   loadCappedLine,
   loadHeldLine,
@@ -45,7 +46,6 @@ import {
   EQUIPMENT_WORDS,
   isPolicyOnly,
   LOAD_METRIC_WORDS,
-  METHOD_WORDS,
   POLICY_ONLY_RULES,
   SIGNAL_WORDS,
   type ExplainContext,

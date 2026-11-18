@@ -47,21 +47,22 @@ only the address budgets are shared.
 
 ## Commands
 
-| Command                             | Purpose                                                  |
-| ----------------------------------- | -------------------------------------------------------- |
-| `npm run dev`                       | API and Vite dev server with reload                      |
-| `npm run check`                     | lint, Prettier check, typecheck, unit, API and web tests |
-| `npm run build`                     | build the web app and compile the server into `dist`     |
-| `npm start`                         | run the built server                                     |
-| `npm run test:e2e`                  | Playwright golden paths against the production build     |
-| `npm run format`                    | rewrite files with Prettier                              |
-| `npm run db:migrate`                | copy the database if a migration is pending, then apply  |
-| `npm run backup`                    | copy the database to `backups/` and check the copy       |
-| `npm run restore -- <file>`         | replace the database with a backup (server stopped)      |
-| `npm run reset-password -- <email>` | replace a password with a temporary one (see Resetting)  |
-| `npm run create-user -- <email>`    | add an account with a temporary password (see Accounts)  |
-| `npm run delete-user -- <email>`    | show, or with `--yes` delete, an account and its data    |
-| `npm run icons`                     | render the PNG app icons in `web/public` from `icon.svg` |
+| Command                             | Purpose                                                    |
+| ----------------------------------- | ---------------------------------------------------------- |
+| `npm run dev`                       | API and Vite dev server with reload                        |
+| `npm run check`                     | lint, Prettier check, typecheck, unit, API and web tests   |
+| `npm run build`                     | build the web app and compile the server into `dist`       |
+| `npm start`                         | run the built server                                       |
+| `npm run test:e2e`                  | Playwright golden paths against the production build       |
+| `npm run format`                    | rewrite files with Prettier                                |
+| `npm run db:migrate`                | copy the database if a migration is pending, then apply    |
+| `npm run backup`                    | copy the database to `backups/` and check the copy         |
+| `npm run restore -- <file>`         | replace the database with a backup (server stopped)        |
+| `npm run reset-password -- <email>` | replace a password with a temporary one (see Resetting)    |
+| `npm run create-user -- <email>`    | add an account with a temporary password (see Accounts)    |
+| `npm run delete-user -- <email>`    | show, or with `--yes` delete, an account and its data      |
+| `npm run icons`                     | render the PNG app icons in `web/public` from `icon.svg`   |
+| `npm run release -- <version>`      | draft a release note and print the tag commands (Releases) |
 
 The e2e suite needs a build first and a Chromium install once: `npx playwright install chromium`.
 
@@ -520,13 +521,41 @@ The files are in `backups/`, next to the database file: `/data/backups/` in Dock
 | File                             | Made by                                                                              | Pruned            |
 | -------------------------------- | ------------------------------------------------------------------------------------ | ----------------- |
 | `app-<UTC timestamp>.db`         | the daily job, `npm run backup`                                                      | by the rule below |
-| `pre-migrate-<UTC timestamp>.db` | `npm run db:migrate` and each start of the Docker image, when a migration is pending | never             |
+| `pre-migrate-<UTC timestamp>.db` | `npm run db:migrate` and each start of the Docker image, when a migration is pending | by the rule below |
 | `pre-restore-<UTC timestamp>.db` | `npm run restore`, from the database it replaces                                     | never             |
 
 The rule for `app-*.db`, applied after each backup that passes its check: keep the newest backup of
 each of the 7 most recent days (UTC) that have one, and the newest of each of the 4 most recent ISO
-weeks that have one. `npm run backup -- --keep 14` keeps the newest 14 instead. Delete the
-`pre-migrate` and `pre-restore` copies by hand when they are no longer needed.
+weeks that have one. `npm run backup -- --keep 14` keeps the newest 14 instead.
+
+The rule for `pre-migrate-*.db`, applied by the daily job and after each pre-migrate copy: remove
+the copies older than 30 days (`KEEP_PRE_MIGRATE_DAYS`), and always keep the newest 3
+(`KEEP_PRE_MIGRATE_MIN`), whatever their age. Delete the `pre-restore` copies by hand when they are
+no longer needed.
+
+#### Off-host copies
+
+The app sends its copies nowhere. A job outside this repository (the operator's restic job) that
+copies them off the machine must read only the newest `app-*.db` and keep 30 daily snapshots
+(`OFF_HOST_SNAPSHOT_DAYS`). It must not read `pre-migrate` or `pre-restore` files: those are not
+pruned on the schedule the data notice states. A deleted account then leaves the off-host copies
+30 days after it leaves the newest local copy, which the next daily copy does within a day.
+
+#### Data notice
+
+What a tester is told about copies, in the invitation (no page in the app shows it):
+
+> The person who runs this server can read every account's data. An encrypted copy of the whole
+> database is kept at another location for up to 30 days. Deleting an account removes it from the
+> live database at once and from every copy the server keeps within 35 days. There are two
+> exceptions: the newest 3 pre-update copies, which stay until later updates push them out, and any
+> pre-restore copy, which stays until it is deleted; the operator deletes both on request. When you search for a town or postcode to set a place, only the text you
+> typed is sent to Open-Meteo's geocoding service; nothing else goes with it.
+
+The 35 days is `deletedAccountRetention().longestDays` (`server/services/backup.ts`), derived from
+`KEEP_WEEKS`, `KEEP_PRE_MIGRATE_DAYS` and `OFF_HOST_SNAPSHOT_DAYS`. A test pins it to this
+paragraph, so a change to a constant fails until the notice is updated. It holds while the daily
+job runs; copies made by hand, `pre-restore` copies and `npm run backup -- --keep` are outside it.
 
 A backup is the whole database, unencrypted: the runner's GPS tracks, wellness data and screening
 answers, the password hash, and the integrations' tokens (encrypted with a key derived from
@@ -598,6 +627,39 @@ pending, and a failed copy stops the container from starting (see `docker compos
 copy is made when nothing is pending, and none while a failed migration is recorded: `migrate
 deploy` then refuses on every start, and the copy from before the first attempt stays the one to
 keep.
+
+### Releases
+
+A server that other people use runs a version tag (`v2.1.0`), not `main`. The version is the
+`version` in `package.json`; the app shows it in Settings (under About and in the feedback note),
+in the `version` field of `GET /api/health/deep` and in the start-up log line, so a tester's report
+names the release it came from.
+
+To cut a release, raise `version` in a reviewed change and merge it, then on `main`:
+
+```sh
+npm run release -- 2.1.0
+```
+
+The script checks that the tree is clean, that `HEAD` is `main` (and `origin/main`) and that
+`package.json` says `2.1.0`. It prints the commits since the last `v*` tag, lists each migration
+added since then with a summary of its SQL (destructive statements are flagged), writes a draft note
+to `release-notes/v2.1.0.md` (gitignored) and prints two commands. It runs neither:
+
+```sh
+git tag -a v2.1.0 -F release-notes/v2.1.0.md --cleanup=verbatim
+git push origin v2.1.0
+```
+
+Before running them, run `docker build .` and `npm run -s plan:report`, read both, and edit the
+note's "What changed" section. The note also says how to roll back; rolling back the image alone is
+opt-in (see Roll back).
+
+To run a tag, check it out on the server and build from it: `git fetch --tags && git checkout v2.1.0`,
+then `docker compose up -d --build`. The homelab compose should pin that image tag instead of a
+branch: build once with `docker build -t running-log:2.1.0 .` and set `image: running-log:2.1.0`
+(no `build:`), changing the tag on each update. A pinned tag also makes the previous image available
+for a rollback.
 
 ### Roll back
 
@@ -673,8 +735,9 @@ refused, and so is an email with no account; both exit 1.
 The account's sessions end with it: a signed cookie of a deleted account finds no user, so every
 request answers 401. Two things stay behind by design. The copies in `backups/` still hold the
 account: the daily copies are pruned to the newest of each of the last 7 days and of the last 4 ISO
-weeks, so the last one holding it goes within about 5 weeks, while `pre-migrate` and `pre-restore`
-copies are never pruned and must be deleted by hand if they must not keep it. The live database file can
+weeks, so the last one holding it goes within 35 days (see "Data notice"). `pre-migrate` copies go
+after 30 days except the newest 3, and `pre-restore` copies are never pruned: delete those by hand
+if they must not keep it. The live database file can
 still hold the deleted bytes (SQLite free pages and the WAL) until they are overwritten; `VACUUM` with
 the server stopped clears them, and the command does not run it. Events that the
 intervals.icu publisher wrote stay in that person's own intervals.icu calendar.

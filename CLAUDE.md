@@ -38,6 +38,11 @@ Self-hosted training log and planner for one runner. Specs, the task plan and AD
   (they run before `prisma generate` on a fresh clone; the file location is in `server/dbPath.ts`,
   and `scriptImports.test.ts` walks their imports). The README section "Backup, restore and
   update" is the operator's guide.
+- `npm run release -- <version>` (RI1, `scripts/release.ts`): the release identity. The version is
+  `package.json`'s, read by `server/version.ts` (start-up line, `GET /api/health/deep`) and, through
+  `web/versionDefine.ts`, by the page (Settings, About; the feedback note). The script checks a clean
+  `main`, lists the commits and migrations since the last `v*` tag, writes a draft note to the
+  gitignored `release-notes/` and prints `git tag` and `git push` for the owner; it runs neither.
 - `npm run icons`: renders the PNG icons in `web/public` from `icon.svg` with Playwright's chromium
   (no image library); commit the four PNGs it writes.
 - `npx prettier --check .` is the formatting gate in CI; run `npm run format` to fix it.
