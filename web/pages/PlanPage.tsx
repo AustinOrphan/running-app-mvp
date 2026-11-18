@@ -1717,7 +1717,12 @@ export function PlanPage() {
     return (
       <>
         <PageHeader title="Plan" />
-        <ErrorState subject="The plan" onRetry={loads.retry} retrying={loadView === 'retrying'} />
+        <ErrorState
+          subject="The plan"
+          onRetry={loads.retry}
+          error={loads.error}
+          retrying={loadView === 'retrying'}
+        />
       </>
     )
   }

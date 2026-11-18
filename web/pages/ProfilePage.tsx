@@ -1220,6 +1220,7 @@ export function ProfilePage() {
         <ErrorState
           subject="The profile"
           onRetry={() => profile.refetch()}
+          error={profile.error}
           retrying={view === 'retrying'}
         />
       </>

@@ -202,7 +202,12 @@ export function DurabilityPanel({ weekCount, units }: DurabilityPanelProps) {
         {heading}
       </h2>
       {loadView === 'failed' || loadView === 'retrying' ? (
-        <ErrorState subject={heading} onRetry={query.refetch} retrying={loadView === 'retrying'} />
+        <ErrorState
+          subject={heading}
+          onRetry={query.refetch}
+          error={query.error}
+          retrying={loadView === 'retrying'}
+        />
       ) : view === undefined ? (
         <div className={`skeleton ${styles.pending}`} aria-busy="true" aria-label="Loading" />
       ) : (

@@ -215,7 +215,12 @@ export function ReviewPage() {
     return (
       <>
         <PageHeader title="Review" />
-        <ErrorState subject="The review" onRetry={loads.retry} retrying={loadView === 'retrying'} />
+        <ErrorState
+          subject="The review"
+          onRetry={loads.retry}
+          error={loads.error}
+          retrying={loadView === 'retrying'}
+        />
       </>
     )
   }

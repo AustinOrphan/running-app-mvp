@@ -687,6 +687,19 @@ there is no `pre-migrate` copy to restore (nothing existed to copy), so revertin
 `--rolled-back`, or finishing the statements by hand and `migrate resolve --applied <migration name>`,
 is the only way there.
 
+### Error references
+
+A failed screen shows a line "Reference: <id>", the "Send feedback" note in Settings carries the same
+line, and a runner can quote either. The id is the request id the server gave the failed request: the
+`x-request-id` response header and `error.ref` in the body of every 500, and `requestId` on the
+`unhandled error` log line (the stack stays in the log, never in the response). A screen that threw
+while drawing has an id of its own (`c-` and ten hex digits), sent with the page's report and logged
+as `ref` on the `client error` line, together with the runner's `userId` (an id, never an email).
+
+Find the line by searching the log for the id (`docker compose logs app | grep <id>`). The 500's
+request line (`req.id`) and its `unhandled error` line (`requestId`) both carry it; a `client error`
+line carries it as `ref`. A reference older than the log's retention finds nothing.
+
 ## Accounts for other people
 
 Each person has their own account, history and settings on the same server. The owner adds one

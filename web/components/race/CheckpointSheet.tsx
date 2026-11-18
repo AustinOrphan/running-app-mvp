@@ -395,6 +395,7 @@ export function CheckpointSheet({ plan, units, course, onClose }: CheckpointShee
           <ErrorState
             subject="The checkpoint table"
             onRetry={() => query.refetch()}
+            error={query.error}
             retrying={loadView === 'retrying'}
           />
         ) : (

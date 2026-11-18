@@ -132,7 +132,12 @@ export function DashboardPage() {
     return (
       <>
         {header()}
-        <ErrorState subject="Today" onRetry={loads.retry} retrying={loadView === 'retrying'} />
+        <ErrorState
+          subject="Today"
+          onRetry={loads.retry}
+          error={loads.error}
+          retrying={loadView === 'retrying'}
+        />
       </>
     )
   }

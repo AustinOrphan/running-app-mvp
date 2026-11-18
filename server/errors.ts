@@ -54,8 +54,20 @@ export function parse<T>(schema: ZodType<T>, data: unknown): T {
   throw validationError('Some fields need attention.', issues)
 }
 
-function body(code: ApiErrorCode, message: string, details?: unknown): ApiErrorBody {
-  return { error: { code, message, ...(details === undefined ? {} : { details }) } }
+function body(code: ApiErrorCode, message: string, details?: unknown, ref?: string): ApiErrorBody {
+  return {
+    error: {
+      code,
+      message,
+      ...(details === undefined ? {} : { details }),
+      ...(ref === undefined ? {} : { ref }),
+    },
+  }
+}
+
+/** The request id as the reference of a 5xx (ER1); never anything but the id. */
+function refOf(req: { id?: unknown }): string | undefined {
+  return typeof req.id === 'string' && req.id !== '' ? req.id : undefined
 }
 
 function bodyParserType(error: unknown): string | undefined {
@@ -73,7 +85,8 @@ export function errorHandler(logger: Logger): ErrorRequestHandler {
       return
     }
     if (error instanceof HttpError) {
-      res.status(error.status).json(body(error.code, error.message, error.details))
+      const ref = error.status >= 500 ? refOf(req) : undefined
+      res.status(error.status).json(body(error.code, error.message, error.details, ref))
       return
     }
     const type = bodyParserType(error)
@@ -86,7 +99,9 @@ export function errorHandler(logger: Logger): ErrorRequestHandler {
       return
     }
     logger.error({ err: error, requestId: req.id }, 'unhandled error')
-    res.status(500).json(body('internal', 'Something went wrong on the server.'))
+    res
+      .status(500)
+      .json(body('internal', 'Something went wrong on the server.', undefined, refOf(req)))
   }
 }
 

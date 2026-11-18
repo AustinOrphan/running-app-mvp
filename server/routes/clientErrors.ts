@@ -19,6 +19,11 @@ export const clientErrorSchema = z.strictObject({
   /** The build id the service worker uses, or `unknown` where there is no worker. */
   buildId: z.string().max(64),
   userAgent: z.string().max(300),
+  /** The reference the page showed the runner (ER1), a client-made id; same alphabet as a request id. */
+  ref: z
+    .string()
+    .regex(/^[\w.-]{1,64}$/)
+    .optional(),
 })
 
 /** The one fixed log message of a reported client error. */
@@ -36,6 +41,9 @@ export function clientErrorsRouter(logger: Logger): Router {
     const report = parse(clientErrorSchema, req.body)
     logger.warn(
       {
+        // An id only, as in every other log line that names a runner; never the email.
+        userId: req.userId,
+        ...(report.ref === undefined ? {} : { ref: report.ref }),
         message: report.message,
         stack: report.stack,
         componentStack: report.componentStack,

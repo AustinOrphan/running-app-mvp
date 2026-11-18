@@ -1,5 +1,6 @@
 import express from 'express'
 import { pino } from 'pino'
+import { pinoHttp } from 'pino-http'
 import request from 'supertest'
 import { afterAll, beforeAll, describe, expect, test } from 'vitest'
 import { errorHandler, parse, validationError } from '../../server/errors.ts'
@@ -147,6 +148,48 @@ describe('errorHandler', () => {
       error: { code: 'internal', message: 'Something went wrong on the server.' },
     })
     expect(JSON.stringify(res.body)).not.toContain('secret internal detail')
+  })
+
+  test('a 500 carries the request id as its reference, and the same id is logged (ER1)', async () => {
+    const lines: Array<Record<string, unknown>> = []
+    const logger = pino(
+      { level: 'info' },
+      {
+        write: (line: string) => {
+          lines.push(JSON.parse(line) as Record<string, unknown>)
+        },
+      },
+    )
+    const logged = express()
+    logged.use(pinoHttp({ logger, genReqId: (req) => String(req.headers['x-request-id']) }))
+    logged.get('/boom', () => {
+      throw new Error('secret internal detail')
+    })
+    logged.get('/gone', () => {
+      throw validationError('Nope.')
+    })
+    logged.use(errorHandler(logger))
+
+    const res = await request(logged).get('/boom').set('X-Request-Id', 'ref-abc-123')
+    expect(res.status).toBe(500)
+    expect(res.body).toEqual({
+      error: {
+        code: 'internal',
+        message: 'Something went wrong on the server.',
+        ref: 'ref-abc-123',
+      },
+    })
+    expect(JSON.stringify(res.body)).not.toContain('secret internal detail')
+    const unhandled = lines.find((line) => line['msg'] === 'unhandled error')
+    expect(unhandled?.['requestId']).toBe('ref-abc-123')
+    expect(
+      lines.some((line) => (line['req'] as { id?: string } | undefined)?.id === 'ref-abc-123'),
+    ).toBe(true)
+
+    // A 4xx keeps its shape: no reference.
+    const client4xx = await request(logged).get('/gone').set('X-Request-Id', 'ref-def-456')
+    expect(client4xx.status).toBe(400)
+    expect(client4xx.body).toEqual({ error: { code: 'validation', message: 'Nope.' } })
   })
 
   test('parse reports every issue with a dot-joined path', async () => {

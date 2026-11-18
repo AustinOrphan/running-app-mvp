@@ -377,6 +377,7 @@ export function RacePage() {
         <ErrorState
           subject="The race plan"
           onRetry={() => race.refetch()}
+          error={race.error}
           retrying={raceView === 'retrying'}
         />
       ) : view === undefined || units === undefined ? (

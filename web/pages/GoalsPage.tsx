@@ -903,6 +903,7 @@ export function GoalsPage() {
       <ErrorState
         subject="Goals"
         onRetry={() => goals.refetch()}
+        error={goals.error}
         retrying={goalsView === 'retrying'}
       />
     )

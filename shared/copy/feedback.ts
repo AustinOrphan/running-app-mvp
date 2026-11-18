@@ -8,7 +8,7 @@ import { render, tpl } from './template.ts'
 export const FEEDBACK_TEMPLATES = {
   'feedback.heading': tpl('Send feedback', {}, { shape: 'label' }),
   'feedback.what': tpl(
-    "Copies a note: the page you came from, build, time, browser and, if known, your plan's id and last change. No runs, health data or email.",
+    "Copies a note: page, build, time, browser, your plan's id and last change, and the last error's reference. No runs, health data or email.",
   ),
   'feedback.button': tpl('Copy feedback note', {}, { shape: 'label' }),
   'feedback.copied': tpl('Copied', {}, { shape: 'label' }),
@@ -28,6 +28,7 @@ export const FEEDBACK_TEMPLATES = {
   'feedback.line.browser': tpl('Browser: {value}', { value: 'text' }, { shape: 'label' }),
   'feedback.line.plan': tpl('Plan: {value}', { value: 'text' }, { shape: 'label' }),
   'feedback.line.revised': tpl('Plan last changed: {value}', { value: 'text' }, { shape: 'label' }),
+  'feedback.line.reference': tpl('Reference: {value}', { value: 'text' }, { shape: 'label' }),
   'feedback.line.words': tpl('What happened:', {}, { shape: 'label' }),
   'feedback.page-none': tpl('none (opened directly)', {}, { shape: 'label' }),
 } as const
@@ -46,6 +47,8 @@ export interface FeedbackFacts {
   planId: string | null
   /** The time of the plan's newest revision, when the page already holds it. */
   planRevisedAt: string | null
+  /** The reference of the newest failed screen or request (ER1), when there is one. */
+  reference?: string | null
 }
 
 type LineKey =
@@ -56,6 +59,7 @@ type LineKey =
   | 'feedback.line.browser'
   | 'feedback.line.plan'
   | 'feedback.line.revised'
+  | 'feedback.line.reference'
 
 /** The note, one fact per line, then a blank line for the runner's words. */
 export function feedbackReport(facts: FeedbackFacts): string {
@@ -74,6 +78,7 @@ export function feedbackReport(facts: FeedbackFacts): string {
   ]
   if (facts.planId !== null) lines.push(line('feedback.line.plan', facts.planId))
   if (facts.planRevisedAt !== null) lines.push(line('feedback.line.revised', facts.planRevisedAt))
+  if (facts.reference) lines.push(line('feedback.line.reference', facts.reference))
   lines.push('', render(FEEDBACK_TEMPLATES['feedback.line.words'], {}, 'km'), '', '')
   return lines.join('\n')
 }
