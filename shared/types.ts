@@ -1,5 +1,6 @@
 import type { ReviewPrefill } from './domain/review.ts'
 import type { RaceOutcome, RaceScore, RecordSummary } from './engine/backtest.ts'
+import type { FirstAction } from './engine/firstAction.ts'
 import type { FuelTargetText } from './engine/fuelCopy.ts'
 import type { LoadPosition } from './engine/loadSetting.ts'
 import type { MethodPosition } from './engine/methods.ts'
@@ -1777,6 +1778,11 @@ export interface TodayCoach {
   /** The runner's windows that are not over on the viewed date (a window tomorrow is `upcoming`). */
   disruptions: DisruptionView[]
   slots: TodaySlots
+  /**
+   * What a runner with no session today and none to come is asked to do first (FH1a): the engine's
+   * start-path check (`firstActionFor`). Absent when a session exists, and in an older copy.
+   */
+  firstAction?: FirstAction
 }
 /** A proposed zone change that the owner accepts or declines; `id` is stable for one proposal. */
 export type ZoneProposalView = ZoneProposal & { id: string }

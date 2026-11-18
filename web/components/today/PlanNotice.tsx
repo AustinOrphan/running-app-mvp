@@ -1,6 +1,6 @@
-import { Link } from 'react-router-dom'
-import buttonStyles from '../Button.module.css'
-import { EmptyState } from '../EmptyState.tsx'
+import type { FirstAction } from '../../../shared/engine/firstAction.ts'
+import type { Units } from '../../../shared/types.ts'
+import { FirstActionState } from '../FirstAction.tsx'
 import styles from './PlanNotice.module.css'
 
 /** What to do when there is no plan, or a note that this week is outside the one there is. */
@@ -8,25 +8,20 @@ export function PlanNotice({
   hasPlan,
   weekInPlan,
   hasGoal,
+  firstAction,
+  units,
 }: {
   hasPlan: boolean
   weekInPlan: boolean
   hasGoal: boolean
+  /** The server's reason for the first step (`TodayCoach.firstAction`); absent reads as the goal. */
+  firstAction: FirstAction | undefined
+  units: Units
 }) {
   if (!hasPlan) {
     return (
       <section className={styles.section}>
-        <EmptyState
-          title="No plan yet. Choose a goal race, then generate weekly targets."
-          action={
-            <Link
-              to={hasGoal ? '/plan' : '/goals'}
-              className={`${buttonStyles.button} ${buttonStyles.secondary}`}
-            >
-              {hasGoal ? 'Generate a plan' : 'Choose a goal'}
-            </Link>
-          }
-        />
+        <FirstActionState firstAction={firstAction} hasGoal={hasGoal} units={units} />
       </section>
     )
   }

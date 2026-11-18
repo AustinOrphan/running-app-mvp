@@ -23,6 +23,7 @@ import {
   type TrainingHeatAdvice,
 } from '../../shared/engine/heat.ts'
 import { illnessDays, illnessGate } from '../../shared/engine/disruption.ts'
+import { firstActionFor } from '../../shared/engine/firstAction.ts'
 import { P } from '../../shared/engine/params/index.ts'
 import { rangeLabel } from '../../shared/engine/predict.ts'
 import {
@@ -424,13 +425,18 @@ export async function todayView(
     buildSlots({ deps, userId, date, today, preview, context, forecast }),
   ])
 
+  const next = nextSession(context.planSessions, date)
   const coach: TodayCoach = {
     generatedAt: new Date().toISOString(),
     preview,
     verdict,
     signals,
     hero,
-    next: nextSession(context.planSessions, date),
+    next,
+    // The first step with no plan, from the engine's own start-path check on the same snapshot.
+    ...(hero === null && next === null
+      ? { firstAction: firstActionFor(input, context.state) }
+      : {}),
     weekStrip: stripFor(context, date),
     race,
     health,

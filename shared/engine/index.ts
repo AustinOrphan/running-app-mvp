@@ -156,6 +156,8 @@ export { PARAMS_VERSION, P } from './params/index.ts'
 export { predictRace, rangeLabel } from './predict.ts'
 export { readinessSignals, readinessVerdict, strongestAdvice, todayAdvice } from './readiness.ts'
 export { weeklyRamp } from './macro.ts'
+export { firstActionFor } from './firstAction.ts'
+export type { FirstAction, FirstActionReason } from './firstAction.ts'
 export {
   anchorEstimate,
   barbellAllowed,

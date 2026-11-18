@@ -1635,3 +1635,53 @@ describe('GET /api/today: cost', () => {
     expect(calls).toEqual([])
   })
 })
+
+// The first step with no plan (FH1a): the server derives it from the snapshot through the engine's
+// start-path check; a runner with a session has none.
+describe('GET /api/today first action', () => {
+  async function bareRunner(email: string) {
+    const u = await seedUser(ctx, { email })
+    await ctx.prisma.athleteProfile.create({
+      data: { userId: u.id, hrMax: 190, hrRest: 50, timezone: 'UTC', runningSinceYear: 2019 },
+    })
+    return u
+  }
+
+  test('no runs: the reason is runs, with the level and the floor in minutes', async () => {
+    const u = await bareRunner('first-none@example.com')
+    const { coach } = await view(u)
+    expect(coach.hero).toBeNull()
+    expect(coach.firstAction).toEqual({ reason: 'runs', levelMin: 0, floorMin: 60 })
+  })
+
+  test('enough runs: the reason is goal', async () => {
+    const u = await bareRunner('first-enough@example.com')
+    // Four complete weeks of three 40-minute runs, ending last week.
+    for (const week of [1, 2, 3, 4]) {
+      for (const day of [0, 2, 4]) {
+        await ctx.prisma.activity.create({
+          data: {
+            userId: u.id,
+            date: addDays(thisMonday, -7 * week + day),
+            type: 'run',
+            durationSec: 40 * 60,
+            distanceM: 7000,
+            source: 'manual',
+          },
+        })
+      }
+    }
+    const { coach } = await view(u)
+    expect(coach.firstAction?.reason).toBe('goal')
+    expect(coach.firstAction?.levelMin).toBeGreaterThanOrEqual(coach.firstAction?.floorMin ?? 0)
+  })
+
+  test('a runner with a session today carries none', async () => {
+    const { u } = await planWith('first-planned@example.com', [
+      { date: today, kind: 'easy', min: 40 },
+    ])
+    const { coach } = await view(u)
+    expect(coach.hero).not.toBeNull()
+    expect(coach.firstAction).toBeUndefined()
+  })
+})
