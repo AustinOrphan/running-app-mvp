@@ -615,8 +615,9 @@ without a reason.
    tokens only decrypt with it.
 
    ```sh
-   cp prisma/data/backups/app-20261101T020000Z.db /tmp/rehearse.db
-   export DATABASE_URL=file:/tmp/rehearse.db
+   scratch=$(mktemp -d)   # a folder made for the drill; the clean-up removes all of it
+   cp prisma/data/backups/app-20261101T020000Z.db "$scratch/rehearse.db"
+   export DATABASE_URL="file:$scratch/rehearse.db"
    export SESSION_SECRET=...   # the same value as the server's
    ```
 
@@ -663,13 +664,12 @@ which is the live database of a checkout; `npm run rehearse -- --yes-live` overr
 nothing in this guide needs it. The Monday brief is built when the current week's is missing, so
 the drill writes that one row to the scratch copy: another reason it is never run on the live file.
 
-To clean up, unset the variables and delete the scratch file with its side files and the folder
-the migration made beside it:
+To clean up, unset the variables and delete the scratch folder, which holds the copy, its `-wal`
+and `-shm` files and the `backups/` folder the migration made beside it:
 
 ```sh
 unset DATABASE_URL SESSION_SECRET
-rm /tmp/rehearse.db /tmp/rehearse.db-wal /tmp/rehearse.db-shm
-rm -r /tmp/backups   # only the pre-migrate copy of the scratch file, if the migration made one
+rm -r "$scratch"
 ```
 
 A scratch copy holds every account's data unencrypted, so do not leave it on a shared disk.
