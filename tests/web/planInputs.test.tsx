@@ -115,6 +115,8 @@ function answers(over: { j6?: Partial<OwnAnswers['j6']>; j11?: Partial<OwnAnswer
       minScore: 2,
       flagScore: 4,
       reading: true,
+      quiet: false,
+      quietDays: 7,
       ratings,
       ...over.j11,
     },
@@ -166,6 +168,21 @@ describe('Your answers (OA1)', () => {
     expect(
       within(j11).getByText(
         'Rule J11 waits for 3 check-ins that name one area at a pain score of 2 or more.',
+      ),
+    ).toBeInTheDocument()
+    expectCleanCopy(document.body)
+  })
+
+  test('enough reports inside the quiet days of a recent window say J11 waits them out', async () => {
+    mockApi({
+      'GET /api/plan-inputs': () =>
+        view({ ownAnswers: answers({ j11: { reading: false, quiet: true } }) }),
+    })
+    renderWithProviders(<PlanInputsPage />, { route: '/plan-inputs' })
+    const j11 = await screen.findByRole('region', { name: 'Your answers: repeated pain' })
+    expect(
+      within(j11).getByText(
+        'The look-back holds 3 reports of one area. Rule J11 waits out the 7 quiet days after a recent window for that area.',
       ),
     ).toBeInTheDocument()
     expectCleanCopy(document.body)

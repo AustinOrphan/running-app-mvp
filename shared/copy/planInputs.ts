@@ -182,6 +182,10 @@ export const PLAN_INPUTS_TEMPLATES = {
     'The look-back holds {min} reports of one area, so rule J11 can offer a rest window on Today.',
     { min: 'count' },
   ),
+  'plan-inputs.own.j11.quiet': tpl(
+    'The look-back holds {min} reports of one area. Rule J11 waits out the {days} quiet days after a recent window for that area.',
+    { min: 'count', days: 'count' },
+  ),
   'plan-inputs.own.j11.waits': tpl(
     'Rule J11 waits for {min} check-ins that name one area at a pain score of {score} or more.',
     { min: 'count', score: 'count' },

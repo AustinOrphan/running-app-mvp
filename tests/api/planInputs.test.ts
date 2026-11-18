@@ -284,6 +284,39 @@ describe('GET /api/plan-inputs', () => {
     })
   })
 
+  test('your answers: a recent niggle window for the same area makes J11 quiet', async () => {
+    const user = await newUser()
+    for (let i = 0; i < 3; i += 1) {
+      await ctx.prisma.wellnessDay.create({
+        data: {
+          userId: user.id,
+          date: addDays(today, -i),
+          painScore: P.pain.repeatMinScore.value,
+          painArea: 'left knee',
+          source: 'manual',
+        },
+      })
+    }
+    expect((await viewOf(user)).ownAnswers!.j11).toMatchObject({ reading: true, quiet: false })
+    await ctx.prisma.disruption.create({
+      data: {
+        userId: user.id,
+        reason: 'niggle',
+        mode: 'limited',
+        maxRunMin: 30,
+        area: 'knee',
+        startDate: addDays(today, -6),
+        endDate: addDays(today, -2),
+      },
+    })
+    expect((await viewOf(user)).ownAnswers!.j11).toMatchObject({
+      reading: false,
+      quiet: true,
+      mostOfOneArea: 3,
+      quietDays: P.pain.repeatQuietDays.value,
+    })
+  })
+
   test('your answers: an empty log reads nothing and a profile with no birth year says so', async () => {
     const { j6, j11 } = (await viewOf(await newUser())).ownAnswers!
     expect(j6).toMatchObject({ applies: 'no-birth-year', checkins: 0, reading: false })

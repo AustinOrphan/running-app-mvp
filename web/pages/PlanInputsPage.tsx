@@ -160,10 +160,15 @@ function OwnAnswersSections({ answers }: { answers: OwnAnswers }) {
           line('plan-inputs.own.j11.window', { days: count(j11.windowDays) }),
           j11.reading
             ? line('plan-inputs.own.j11.reading', { min: count(j11.minReports) })
-            : line('plan-inputs.own.j11.waits', {
-                min: count(j11.minReports),
-                score: count(j11.minScore),
-              }),
+            : j11.quiet
+              ? line('plan-inputs.own.j11.quiet', {
+                  min: count(j11.minReports),
+                  days: count(j11.quietDays),
+                })
+              : line('plan-inputs.own.j11.waits', {
+                  min: count(j11.minReports),
+                  score: count(j11.minScore),
+                }),
           line('plan-inputs.own.j11.run-pain', { flag: count(j11.flagScore) }),
         ]}
         rows={[

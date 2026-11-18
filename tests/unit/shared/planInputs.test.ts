@@ -390,6 +390,28 @@ describe('planInputs: your answers (rules J6 and J11)', () => {
     }
   })
 
+  test('J11 is quiet, not reading, after a recent window for the same area; another area still reads', () => {
+    const wellness = [0, 1, 2].map((d) => night(d, { painScore: 3, painArea: 'left calf' }))
+    const ended = (daysAgo: number, area: string | null) => [
+      { reason: 'niggle', endDate: addDays(TODAY, -daysAgo), area },
+    ]
+    const quiet = planInputs(input({ wellness, windows: ended(2, 'calf') })).ownAnswers!.j11
+    expect(quiet).toMatchObject({ reading: false, quiet: true, mostOfOneArea: 3 })
+    expect(quiet.quietDays).toBe(P.pain.repeatQuietDays.value)
+    expect(
+      planInputs(input({ wellness, windows: ended(P.pain.repeatQuietDays.value + 1, 'calf') }))
+        .ownAnswers!.j11,
+    ).toMatchObject({ reading: true, quiet: false })
+    expect(
+      planInputs(input({ wellness, windows: ended(2, 'right hip') })).ownAnswers!.j11,
+    ).toMatchObject({ reading: true, quiet: false })
+    // Fewer reports than the minimum is waiting, not quiet.
+    expect(
+      planInputs(input({ wellness: wellness.slice(0, 2), windows: ended(2, 'calf') })).ownAnswers!
+        .j11,
+    ).toMatchObject({ reading: false, quiet: false })
+  })
+
   test('J11 counts pain scores apart from the reports that name an area', () => {
     const wellness = [
       night(0, { painScore: 5, painArea: 'knee' }),

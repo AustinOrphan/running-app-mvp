@@ -16,7 +16,13 @@ import {
   sleepNightsRecorded,
 } from '../engine/readiness.ts'
 import { isWatchRating, type WatchRatingCheck } from '../engine/watchRatings.ts'
-import { mostReportsOfOneArea, painReports, repeatPainWindow } from './painArea.ts'
+import {
+  mostReportsOfOneArea,
+  painReports,
+  repeatPainPattern,
+  repeatPainWindow,
+  type PainWindow,
+} from './painArea.ts'
 import type { Boundary, EngineInput, ZoneSet } from '../engine/types.ts'
 import type { Activity } from '../types.ts'
 import type { RaceHeatPlaces } from './raceHeat.ts'
@@ -165,8 +171,12 @@ export interface OwnAnswers {
     minScore: number
     /** The score at which a run's pain rating can open the offer on a long day (`pain.flagScore`). */
     flagScore: number
-    /** True when the look-back holds `minReports` reports of one area. */
+    /** True when `repeatPainPattern` finds a pattern now: the reports are there and no quiet days hold them. */
     reading: boolean
+    /** True when the reports are there but the quiet days after a window for that area hold the offer (`pain.repeatQuietDays`). */
+    quiet: boolean
+    /** The quiet days after a niggle window. */
+    quietDays: number
     ratings: RatingCounts
   }
 }
@@ -189,6 +199,8 @@ export interface PlanInputsInput {
   providerLabels: ReadonlyArray<{ key: string; label: string }>
   /** `raceHeatPlaces` for the current goal, or null. */
   raceHeat: RaceHeatPlaces | null
+  /** The stored windows (`AthleteContext.disruptions`), which the quiet days of rule J11 read. */
+  windows?: readonly PainWindow[]
 }
 
 function positive(value: number | null | undefined): boolean {
@@ -246,6 +258,8 @@ function ownAnswers(input: PlanInputsInput): OwnAnswers {
   )
   const reports = painReports(wellness, j11Window)
   const mostOfOneArea = mostReportsOfOneArea(reports)
+  const pattern = repeatPainPattern({ wellness, windows: input.windows ?? [], date: today })
+  const enough = mostOfOneArea >= P.pain.repeatReports.value
   return {
     j6: {
       windowDays: P.j6.medianDays.value,
@@ -269,7 +283,9 @@ function ownAnswers(input: PlanInputsInput): OwnAnswers {
       minReports: P.pain.repeatReports.value,
       minScore: P.pain.repeatMinScore.value,
       flagScore: P.pain.flagScore.value,
-      reading: mostOfOneArea >= P.pain.repeatReports.value,
+      reading: pattern !== null,
+      quiet: enough && pattern === null,
+      quietDays: P.pain.repeatQuietDays.value,
       ratings: ratingCounts(input.activities, j11Window),
     },
   }
