@@ -761,6 +761,45 @@ function ProviderCard({ item }: { item: IntegrationStatus }) {
   )
 }
 
+const WHICH_LINES = [
+  'integrations.which.intervals',
+  'integrations.which.strava',
+  'integrations.which.apple',
+  'integrations.which.files',
+] as const
+
+/** A few plain lines that map the watch or app a runner has to the source to connect (FH1b). */
+function WhichToUse() {
+  const headingId = useId()
+  return (
+    <section className={styles.which} aria-labelledby={headingId}>
+      <h2 id={headingId} className={styles.whichTitle}>
+        {render(TEMPLATES['integrations.which.title'], {}, 'km')}
+      </h2>
+      <ul className={styles.whichList}>
+        {WHICH_LINES.map((key) => (
+          <li key={key}>{render(TEMPLATES[key], {}, 'km')}</li>
+        ))}
+      </ul>
+    </section>
+  )
+}
+
+/**
+ * An experimental source is folded for every account but the install owner's, as the server says
+ * (`installOwner`); a connected one stays open so its status and Disconnect are in view.
+ */
+function FoldedCard({ item }: { item: IntegrationStatus }) {
+  return (
+    <details className={styles.folded} open={item.status !== 'disconnected'}>
+      <summary className={styles.summary}>
+        {render(TEMPLATES['integrations.garmin.folded'], { label: item.info.label }, 'km')}
+      </summary>
+      <ProviderCard item={item} />
+    </details>
+  )
+}
+
 function CallbackNotice({ list }: { list: IntegrationStatus[] }) {
   const [params] = useSearchParams()
   const connected = params.get('connected')
@@ -809,10 +848,15 @@ export function IntegrationsPage() {
       />
       <DataInUse />
       <CallbackNotice list={integrations.data} />
+      <WhichToUse />
       <div className={styles.list}>
-        {integrations.data.map((item) => (
-          <ProviderCard key={item.provider} item={item} />
-        ))}
+        {integrations.data.map((item) =>
+          item.info.experimental && !item.installOwner ? (
+            <FoldedCard key={item.provider} item={item} />
+          ) : (
+            <ProviderCard key={item.provider} item={item} />
+          ),
+        )}
         <CalendarFeed className={styles.card} />
       </div>
     </>

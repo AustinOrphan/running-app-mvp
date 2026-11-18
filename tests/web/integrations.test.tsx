@@ -73,6 +73,7 @@ function status(key: string, over: Partial<IntegrationStatus> = {}): Integration
     lastSyncStatus: null,
     lastError: null,
     pausedUntil: null,
+    installOwner: true,
     ...over,
   }
 }
@@ -105,6 +106,7 @@ describe('IntegrationsPage', () => {
     await screen.findByRole('region', { name: 'Calendar link' })
     const headings = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent)
     expect(headings).toEqual([
+      'Which to use',
       'intervals.icu',
       'Strava',
       'Garmin Connect',
@@ -115,6 +117,49 @@ describe('IntegrationsPage', () => {
     expect(within(card('intervals.icu')).getByText('Not connected')).toBeInTheDocument()
     // every card, form and note of the page
     expectCleanCopy(document.body)
+  })
+
+  test('says which source to use for each watch or app, above the cards', async () => {
+    mockApi(routes(allStatuses()))
+    renderWithProviders(<IntegrationsPage />)
+
+    const which = await screen.findByRole('region', { name: 'Which to use' })
+    const lines = within(which)
+      .getAllByRole('listitem')
+      .map((li) => li.textContent)
+    expect(lines).toEqual([
+      'Garmin, Coros, Suunto or Polar watch: connect intervals.icu, which pulls from them.',
+      'Strava: connect Strava to intervals.icu, then connect intervals.icu here.',
+      'Apple Watch: Apple Health sends the workouts. Create a push token under Apple Health.',
+      'FIT, GPX or TCX files from any watch or app: use Import on the Activities page.',
+    ])
+    const first = await screen.findByRole('region', { name: 'intervals.icu' })
+    expect(which.compareDocumentPosition(first) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expectCleanCopy(which)
+  })
+
+  test('folds the experimental Garmin card for another account, open for the owner', async () => {
+    const user = userEvent.setup()
+    const others = allStatuses().map((s) => ({ ...s, installOwner: false }))
+    mockApi(routes(others))
+    const view = renderWithProviders(<IntegrationsPage />)
+
+    const summary = await screen.findByText(/Garmin Connect, unofficial and experimental/)
+    const folded = summary.closest('details')
+    expect(folded).not.toBeNull()
+    expect(folded?.open).toBe(false)
+    // the other cards are not folded
+    expect(screen.getByRole('region', { name: 'intervals.icu' }).closest('details')).toBeNull()
+    await user.click(summary)
+    expect(folded?.open).toBe(true)
+    expectCleanCopy(document.body)
+    view.unmount()
+
+    mockApi(routes(allStatuses()))
+    renderWithProviders(<IntegrationsPage />)
+    const garmin = await screen.findByRole('region', { name: 'Garmin Connect' })
+    expect(garmin.closest('details')).toBeNull()
+    expect(screen.queryByText(/unofficial and experimental/)).toBeNull()
   })
 
   test('says what the training advice reads above the cards', async () => {

@@ -222,6 +222,7 @@ describe('the Integrations page', () => {
       lastSyncStatus: null,
       lastError: null,
       pausedUntil: null,
+      installOwner: true,
       ...over,
     }
   }

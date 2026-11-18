@@ -74,6 +74,27 @@ export const PAGE_TEMPLATES = {
   'integrations.token.copy-failed': tpl(
     'The token could not be copied. Select it and copy it by hand.',
   ),
+  // "Which to use" at the top: the watch or app a runner has, and the source to connect (FH1b).
+  // Each line is checked against the registry: intervals.icu pulls from Garmin, Coros, Suunto,
+  // Polar and Strava; Apple Health is a push (Health Auto Export); files go through Import.
+  'integrations.which.title': tpl('Which to use', {}, { shape: 'label' }),
+  'integrations.which.intervals': tpl(
+    'Garmin, Coros, Suunto or Polar watch: connect intervals.icu, which pulls from them.',
+  ),
+  'integrations.which.strava': tpl(
+    'Strava: connect Strava to intervals.icu, then connect intervals.icu here.',
+  ),
+  'integrations.which.apple': tpl(
+    'Apple Watch: Apple Health sends the workouts. Create a push token under Apple Health.',
+  ),
+  'integrations.which.files': tpl(
+    'FIT, GPX or TCX files from any watch or app: use Import on the Activities page.',
+  ),
+  // The experimental Garmin card, folded for every account but the install owner's.
+  'integrations.garmin.folded': tpl(
+    '{label}, unofficial and experimental. A Garmin watch connects through intervals.icu.',
+    { label: 'text' },
+  ),
   // The Watched folder card: a switch for the server's one import folder (F1), no path to type.
   'integrations.folder.switch': tpl('Scan the import folder', {}, { shape: 'label' }),
   'integrations.folder.hint': tpl(

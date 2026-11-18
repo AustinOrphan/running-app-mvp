@@ -41,6 +41,7 @@ function service(
     lastSyncStatus: 'ok',
     lastError: null,
     pausedUntil: null,
+    installOwner: true,
     ...over,
   }
 }
