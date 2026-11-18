@@ -9,15 +9,21 @@ import { addDays } from '../../../shared/dates.ts'
 import {
   BRIEF_VERSION,
   buildBriefFacts,
+  firstSessionsIn,
   isKeyKind,
   keySessionFacts,
   pickKeySession,
 } from '../../../shared/engine/brief.ts'
 import { P } from '../../../shared/engine/params/index.ts'
 import { resolveTargets } from '../../../shared/engine/targets.ts'
-import type { BriefFacts, EngineInput, SessionKind } from '../../../shared/engine/types.ts'
+import type {
+  BriefFacts,
+  EngineInput,
+  SessionFlag,
+  SessionKind,
+} from '../../../shared/engine/types.ts'
 import { roundEstimateSec } from '../../../shared/units.ts'
-import { activity } from './e8-fixtures.ts'
+import { activity, planned } from './e8-fixtures.ts'
 import {
   briefArgs,
   checkin,
@@ -76,7 +82,7 @@ describe('buildBriefFacts', () => {
     // nothing undefined, no function, no date object: it survives the JSON column unchanged
     expect(JSON.parse(JSON.stringify(first))).toStrictEqual(first)
     expect(first.weekStart).toBe(MONDAY)
-    expect(BRIEF_VERSION).toBe(1)
+    expect(BRIEF_VERSION).toBe(2)
   })
 
   test('stores codes, template ids and slots, never a sentence', () => {
@@ -487,6 +493,138 @@ describe('what the plan noticed', () => {
       'j3.readiness-flag',
       'a3.longest',
       'e3.recovery-week',
+    ])
+  })
+})
+
+describe('the first back-to-back, night run and downhill session', () => {
+  const at = (dayOfWeek: number) => addDays(MONDAY, dayOfWeek)
+  const WINDOW = { from: MONDAY, to: addDays(MONDAY, 6) }
+  const session = (date: string, flags: SessionFlag[], kind: SessionKind = 'long') =>
+    planned(`f-${date}-${flags.join('')}`, date, kind, { flags })
+  const withSessions = (extra: ReturnType<typeof session>[]) => ({
+    existing: { ...plan(4), sessions: [...plan(4).sessions, ...extra] },
+  })
+  const firsts = (extra: ReturnType<typeof session>[]) =>
+    firstSessionsIn(withSessions(extra).existing.sessions, WINDOW)
+
+  test('names the first of a kind that falls in the week', () => {
+    expect(
+      firsts([session(at(5), ['b2b-day1'], 'b2b'), session(at(6), ['b2b-day2'], 'b2b')]),
+    ).toEqual([{ kind: 'b2b', rule: 'H3', date: at(5) }])
+    // the cue of the first exposure counts as a downhill session too
+    expect(firsts([session(at(2), ['downhill-first'])])).toMatchObject([{ kind: 'downhill' }])
+    expect(firsts([session(at(2), ['downhill'])])).toMatchObject([{ kind: 'downhill' }])
+    expect(firsts([session(at(3), ['night'])])).toMatchObject([{ kind: 'night', date: at(3) }])
+  })
+
+  test('names nothing when the week holds none, or the plan had one earlier', () => {
+    expect(firsts([])).toEqual([])
+    // a first in a later week is not this week's
+    expect(firsts([session(at(9), ['night'])])).toEqual([])
+    // an earlier session of the kind, however it ended, keeps a later one from being the first
+    for (const status of ['planned', 'completed', 'skipped']) {
+      const earlier = { ...session(at(-14), ['night']), status }
+      expect(firsts([earlier, session(at(3), ['night'])]), status).toEqual([])
+    }
+    // the first stays in the week it fell in, however the plan was drawn again after it
+    const kept = [session(at(-7), ['b2b-day1'], 'b2b'), session(at(5), ['b2b-day1'], 'b2b')]
+    expect(firsts(kept)).toEqual([])
+    expect(firsts([session(at(0), ['b2b-day2'], 'b2b')])).toEqual([])
+  })
+
+  test('names several firsts of one week in the order of their dates', () => {
+    const several = [
+      session(at(5), ['downhill']),
+      session(at(1), ['night']),
+      session(at(3), ['b2b-day1'], 'b2b'),
+      session(at(12), ['night']),
+    ]
+    expect(firsts(several).map((f) => f.kind)).toEqual(['night', 'b2b', 'downhill'])
+    // one date, two kinds: the fixed order of the kinds breaks the tie
+    expect(
+      firsts([session(at(4), ['night', 'downhill']), session(at(4), ['b2b-day1'], 'b2b')]).map(
+        (f) => f.kind,
+      ),
+    ).toEqual(['b2b', 'night', 'downhill'])
+  })
+
+  test('is the last fact the brief notices, one sentence in the words of the calendar', () => {
+    const flag = P.pain.flagScore.value
+    const facts = buildBriefFacts(
+      briefArgs(
+        {},
+        {
+          wellness: [checkin(2, { painScore: flag + 1 })],
+          ...withSessions([session(at(5), ['b2b-day1'], 'b2b')]),
+        },
+      ),
+    )
+    expect(facts.noticed.map((f) => f.id)).toEqual(['n-2.pain', 'h3.first-b2b'])
+    const last = facts.noticed[facts.noticed.length - 1]!
+    expect(last).toMatchObject({
+      template: 'brief.noticed-first-b2b',
+      window: { from: MONDAY, to: addDays(MONDAY, 6) },
+      state: 'used',
+    })
+    expect(renderFact(last, 'km')).toBe("Sat 24 Oct holds the plan's first back-to-back.")
+    const many = buildBriefFacts(
+      briefArgs(
+        {},
+        withSessions([
+          session(at(1), ['night']),
+          session(at(3), ['downhill']),
+          session(at(5), ['b2b-day1'], 'b2b'),
+        ]),
+      ),
+    )
+    // a quad report hides the downhill flags on the pages, so the brief does not name that session
+    const quad = {
+      wellness: [checkin(6, { painScore: P.h5.quadPauseMinPain.value, painArea: 'left quad' })],
+    }
+    const paused = buildBriefFacts(
+      briefArgs(
+        {},
+        {
+          ...quad,
+          ...withSessions([session(at(2), ['downhill']), session(at(3), ['night'])]),
+        },
+      ),
+    )
+    expect(paused.noticed.map((f) => f.id)).not.toContain('h5.first-downhill')
+    expect(paused.noticed.some((f) => f.id === 'h6.first-night')).toBe(true)
+    // without the report the same plan names it
+    const clear = buildBriefFacts(
+      briefArgs({}, withSessions([session(at(2), ['downhill']), session(at(3), ['night'])])),
+    )
+    expect(clear.noticed.map((f) => f.id)).toContain('h5.first-downhill')
+    // several firsts in one week are several facts, in the order of their dates
+    expect(many.noticed.map((f) => f.id)).toEqual([
+      'h6.first-night',
+      'h5.first-downhill',
+      'h3.first-b2b',
+    ])
+    expect(many.noticed.map((f) => renderFact(f, 'km'))).toEqual([
+      "Tue 20 Oct holds the plan's first night run.",
+      "Thu 22 Oct holds the plan's first downhill session.",
+      "Sat 24 Oct holds the plan's first back-to-back.",
+    ])
+    // the cap still applies: three other facts leave room for one
+    const capped = buildBriefFacts(
+      briefArgs(
+        { decision: decisionOf('reduce', ['persistent-suppression', 'readiness-flag']) },
+        {
+          wellness: [checkin(1, { illness: true }), checkin(2, { painScore: flag + 1 })],
+          ...withSessions([session(at(1), ['night']), session(at(5), ['b2b-day1'], 'b2b')]),
+        },
+      ),
+    )
+    expect(capped.noticed).toHaveLength(BRIEF_MAX_NOTICED)
+    expect(capped.noticed.map((f) => f.id)).toEqual([
+      'n-2.pain',
+      'n-3.illness',
+      'j8.readiness-low',
+      'j3.readiness-flag',
     ])
   })
 })

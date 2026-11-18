@@ -175,6 +175,14 @@ export const BRIEF_TEMPLATES = {
     minutes: 'weekMinutes',
   }),
 
+  // The plan's first back-to-back, night run and downhill session, one fact each when the week
+  // holds it: a calendar fact, with no advice (BN1).
+  'brief.noticed-first-b2b': tpl("{day} holds the plan's first back-to-back.", { day: 'date' }),
+  'brief.noticed-first-night': tpl("{day} holds the plan's first night run.", { day: 'date' }),
+  'brief.noticed-first-downhill': tpl("{day} holds the plan's first downhill session.", {
+    day: 'date',
+  }),
+
   // The next key session.
   'brief.key-session': tpl(
     '{day}: {what}, {length}.',
