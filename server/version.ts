@@ -29,7 +29,11 @@ export function readAppVersion(startDir: string = dirname(fileURLToPath(import.m
 /** The version of this process, read once. */
 export const APP_VERSION = readAppVersion()
 
-/** The start-up line: the port and the version the process runs. */
+/**
+ * The start-up line: the version and the port the process runs. `port` stays last so that pino
+ * writes `"port":N,"msg":"server listening"`: the readiness pattern of `webServer.wait` in
+ * `playwright.config.ts` matches that exact sequence.
+ */
 export function logListening(logger: { info: (obj: object, msg: string) => void }, port: number) {
-  logger.info({ port, version: APP_VERSION }, 'server listening')
+  logger.info({ version: APP_VERSION, port }, 'server listening')
 }

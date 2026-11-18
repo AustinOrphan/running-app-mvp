@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
+import { pino } from 'pino'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import {
   buildNote,
@@ -181,5 +182,14 @@ describe('the version the server knows', () => {
     const info = vi.fn()
     logListening({ info }, 3001)
     expect(info).toHaveBeenCalledWith({ port: 3001, version: APP_VERSION }, 'server listening')
+  })
+
+  test('the serialised line ends in "port":N,"msg":"server listening" (the e2e readiness pattern)', () => {
+    const lines: string[] = []
+    const logger = pino({ level: 'info' }, { write: (chunk: string) => void lines.push(chunk) })
+    logListening(logger, 3101)
+    const line = lines.join('')
+    expect(line).toContain('"port":3101,"msg":"server listening"')
+    expect(line).toContain(`"version":"${APP_VERSION}"`)
   })
 })
