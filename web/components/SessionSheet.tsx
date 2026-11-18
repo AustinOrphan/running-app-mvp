@@ -18,8 +18,12 @@ import { resolveTargets } from '../../shared/engine/targets.ts'
 import { formatDistance } from '../../shared/units.ts'
 import { stepName } from '../../shared/workouts/plan.ts'
 import type { ActivityListItem, PlanSession, PlanSessionView, Units } from '../../shared/types.ts'
+import { nightStartLinkText, nightStartText } from '../../shared/copy/nightStart.ts'
+import { nightStartBy, type NightStart } from '../../shared/engine/nightStart.ts'
 import { useActivities } from '../api/activities.ts'
+import { useMe } from '../api/auth.ts'
 import { useLinkPlanSession, useSessionWorkout } from '../api/plan.ts'
+import { useProfile } from '../api/profile.ts'
 import { useSettings } from '../api/settings.ts'
 import { Button } from './Button.tsx'
 import { Field, Select } from './Field.tsx'
@@ -236,6 +240,51 @@ export function SheetTargets({
       {targets.hotNote !== null ? <p className={styles.note}>{targets.hotNote}</p> : null}
       {targets.zonesNote !== null ? <p className={styles.note}>{targets.zonesNote}</p> : null}
     </>
+  )
+}
+
+/**
+ * The "start by" clock of a night session (rule H6, NS1): the dusk at the home place on the
+ * session's date, in the runner's zone, less the minutes that keep the dark ones after it. Shown on
+ * this sheet only. With no home place it is one line that points to Profile; nothing shows until the
+ * profile and the runner's zone have loaded.
+ */
+function NightStartLine({ session }: { session: PlanSession }) {
+  const profile = useProfile()
+  const me = useMe()
+  const profileData = profile.data
+  const tz = me.data?.tz
+  if (profileData === undefined || tz === undefined) return null
+  const { homeLat, homeLng } = profileData
+  let start: NightStart | null = null
+  if (homeLat !== null && homeLng !== null) {
+    try {
+      start = nightStartBy({
+        date: session.date,
+        tz,
+        lat: homeLat,
+        lng: homeLng,
+        durationMin: session.durationMin,
+      })
+    } catch {
+      // An unknown zone cannot give a clock; the session shows none.
+      return null
+    }
+  }
+  const text = nightStartText(start)
+  return (
+    <div>
+      {text.label !== null ? <p className={styles.subheading}>{text.label}</p> : null}
+      <p className={styles.note}>
+        {text.line}
+        {start === null ? (
+          <>
+            {' '}
+            <Link to="/profile">{nightStartLinkText()}</Link>
+          </>
+        ) : null}
+      </p>
+    </div>
   )
 }
 
@@ -492,6 +541,7 @@ export function SessionSheet({ session, onClose }: SessionSheetProps) {
                 ))}
               </ul>
             ) : null}
+            {session.flags.includes('night') ? <NightStartLine session={session} /> : null}
             {session.structure.length > 0 ? (
               <>
                 <h4 className={styles.subheading}>Steps</h4>

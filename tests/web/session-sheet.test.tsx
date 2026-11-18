@@ -30,6 +30,7 @@ import {
   makeBrief,
   makeDiff,
   makeLine,
+  makeProfile,
   makeRevision,
   makeSession,
   settings,
@@ -115,6 +116,54 @@ describe('SessionSheet', () => {
     expect(steps).toContain('3 x Threshold 8 min, Zone 3')
     expect(steps).toContain('3 x Recover 2 min, Zone 1')
     expect(steps).toContain('Cool down 10 min, Zone 1')
+  })
+
+  describe('start by clock of a night session', () => {
+    const night = () =>
+      makeSession({ id: 'n1', date: '2027-06-12', durationMin: 90, flags: ['night'] })
+    const me = { id: 'u1', ...settings, tz: 'America/Chicago' }
+
+    test('shows the clock and its reason with a home place', async () => {
+      renderSheet(night(), {
+        'GET /api/auth/me': () => me,
+        'GET /api/profile': () => makeProfile(7, { homeLat: 43, homeLng: -88 }),
+      })
+      const dialog = await screen.findByRole('dialog', { name: 'Threshold intervals' })
+      expect(await within(dialog).findByText(/^Start by \d\d:\d\d$/)).toBeInTheDocument()
+      expect(
+        within(dialog).getByText(
+          /^So the last 40 min are after dusk at home, which falls at \d\d:\d\d\.$/,
+        ),
+      ).toBeInTheDocument()
+      expectCleanCopy(dialog)
+    })
+
+    test('without a home place says the start time needs one and links to Profile', async () => {
+      renderSheet(night(), {
+        'GET /api/auth/me': () => me,
+        'GET /api/profile': () => makeProfile(7, { homeLat: null, homeLng: null }),
+      })
+      const dialog = await screen.findByRole('dialog', { name: 'Threshold intervals' })
+      expect(
+        await within(dialog).findByText(/The start time needs the home place on Profile\./),
+      ).toBeInTheDocument()
+      expect(within(dialog).getByRole('link', { name: 'Set the home place' })).toHaveAttribute(
+        'href',
+        '/profile',
+      )
+      expect(within(dialog).queryByText(/^Start (by|at) /)).not.toBeInTheDocument()
+    })
+
+    test('a session with no night flag shows neither', async () => {
+      renderSheet(makeSession(), {
+        'GET /api/auth/me': () => me,
+        'GET /api/profile': () => makeProfile(7, { homeLat: 43, homeLng: -88 }),
+      })
+      const dialog = await screen.findByRole('dialog', { name: 'Threshold intervals' })
+      await within(dialog).findByText('9.00 km')
+      expect(within(dialog).queryByText(/^Start (by|at) /)).not.toBeInTheDocument()
+      expect(within(dialog).queryByText(/home place on Profile/)).not.toBeInTheDocument()
+    })
   })
 
   test('a hot-day note on a session of another day does not say today', async () => {
