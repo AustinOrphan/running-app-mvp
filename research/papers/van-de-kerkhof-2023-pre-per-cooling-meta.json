@@ -1,0 +1,42 @@
+{
+  "id": "van-de-kerkhof-2023-pre-per-cooling-meta",
+  "title": "Performance Benefits of Pre- and Per-cooling on Self-paced Versus Constant Workload Exercise: A Systematic Review and Meta-analysis",
+  "authors": "van de Kerkhof TM, Bongers CCWG, Periard JD, Eijsvogels TMH",
+  "year": 2023,
+  "journal": "Sports Medicine",
+  "doi": "10.1007/s40279-023-01940-y",
+  "pmid": "37803106",
+  "url": "https://doi.org/10.1007/s40279-023-01940-y",
+  "design": "meta-analysis",
+  "population": "Male athletes in crossover studies of cooling in the heat (ambient above 30 C; mean 34.0 C and 50% relative humidity): 59 studies, n = 563; 40 self-paced studies (n = 370) and 19 constant-workload studies (n = 193); 86 experiments and 832 paired measurements. Mostly indoor laboratory cycling and running.",
+  "sampleSize": 563,
+  "evidenceLevel": "B",
+  "topics": ["heat-weather"],
+  "findings": [
+    "Preregistered systematic review and meta-analysis (Open Science Framework); PubMed, Web of Science and MEDLINE searched to 9 June 2023. Included: crossover studies of pre-cooling or per-cooling, in male participants, in ambient heat above 30 C, with a self-paced or a constant-workload protocol. Excluded: studies that combined pre- and per-cooling, and studies at high risk of bias. Effect size is Hedges g (below 0.2 trivial, 0.2-0.49 small, 0.5-0.79 moderate, 0.8 or more large).",
+    "Sixty-seven experiments used pre-cooling and 19 used per-cooling. Pre-cooling was defined as cooling before the trial (at rest, in the warm-up or in a pre-loaded trial) or in a break such as a half-time; per-cooling was cooling during the exercise.",
+    "Self-paced exercise (59 experiments, 51 pre-cooling and 8 per-cooling; median duration 40 min, interquartile range 27-60): all cooling gave ES = 0.30 (95% CI 0.18-0.42). Pre-cooling gave ES = 0.29 (0.17-0.42); per-cooling gave ES = 0.35 (0.01-0.70); the two did not differ (p = 0.74).",
+    "Constant-workload exercise (27 experiments, 16 pre-cooling and 11 per-cooling, mean duration about 34 min): all cooling gave ES = 0.62 (0.44-0.81). Pre-cooling gave ES = 0.74 (0.50-0.98); per-cooling gave ES = 0.45 (0.16-0.74).",
+    "Cooling helped less in self-paced than in constant-workload exercise (ES = 0.30 against 0.62, p = 0.004). The difference showed with pre-cooling (0.29 against 0.74, p = 0.001) and not with per-cooling (0.35 against 0.45, p = 0.68).",
+    "By method in self-paced pre-cooling, the text gives mixed-method cooling ES = 0.33, a cooling vest ES = 0.27, ice slurry ingestion ES = 0.11 and cold water immersion ES = 0.47 (0.15-0.80); a cooling collar gave ES = 0.00 (-0.92 to 0.92). The authors name the range across methods large and the effect context specific. In self-paced per-cooling the largest estimate was limb cooling, ES = 1.63 (0.45-2.81), from few experiments and a very wide interval.",
+    "Among self-paced pre-cooling experiments, 19 of 51 preceded a time trial and 32 of 51 an intermittent sprint protocol; per-cooling was used during a time trial in 7 of 8 self-paced experiments. The per-cooling methods in the self-paced time trials were menthol spray or rinse, a facial water spray, cold water ingestion, hand or limb cooling and a neck collar.",
+    "Pre-cooling differed between protocols mainly for efforts under 40 min (self-paced ES = 0.26 against constant-workload 0.90, p < 0.001); the authors say longer protocols were more common in self-paced studies (47% against 34%) and that leaving them out did not change the result.",
+    "Heterogeneity was low in the self-paced subgroups (I2 = 0%) and moderate to high for constant-workload pre-cooling (I2 = 62%). Risk of bias: 98% of included studies had 'some concerns'. The funnel plots showed a few outliers and little asymmetry.",
+    "Authors' conclusion: cooling attenuated the decline in performance in the heat, by an amount that depends on the protocol and on pre- against per-cooling; the earlier pooled estimates for pre-cooling overstate the benefit in self-paced exercise; the authors name the need for work on which cooling type works best under specific conditions (type, duration)."
+  ],
+  "limitations": "Laboratory trials, mostly indoors, of short and medium efforts (time trials, intermittent sprint protocols and runs to exhaustion; the self-paced median is 40 min and the study tables list, among the longest, a 2 x 45-min football-specific intermittent protocol (per-cooling, neck collar), a 60-min cycling trial at RPE 15, 50-min and 2 x 35-min intermittent running protocols and 40 km cycling time trials; a few are field studies outdoors): none is a race, a run of several hours or an ultramarathon. Male participants only (the authors say few studies report women and warn against extending the results to them). Small crossover studies, 7 to 22 participants each in the study tables; 98% of studies carried some risk-of-bias concern, and the effect sizes are standardised differences, not seconds or minutes, so the review does not state how much faster a runner went. The subgroup by cooling method rests on few experiments and has wide intervals (per-cooling limb cooling 1.63, CI 0.45-2.81); the method comparisons are not tested against each other in the text. Pre-cooling here includes cooling in a break, which a race does not have. Performance measures differ (time, distance, mean power, total work). Whether elite athletes would gain less is argued by the authors and not tested. The Crossref abstract and the open-access full text (PMC10933154) were read; the supplement was not.",
+  "implications": [
+    "Cooling in the heat improved self-paced performance in laboratory trials of about 30-60 min by a small standardised amount (ES = 0.30, 95% CI 0.18-0.42); pre-cooling and per-cooling were similar (0.29 and 0.35). This is evidence for stating that cooling methods have been tested and helped in short hot laboratory efforts.",
+    "The size depends on the method and the protocol: a cooling collar before exercise showed none (ES = 0.00), cold water immersion a small effect, and the largest per-cooling estimate (limb cooling) rests on few experiments. A line that names a method should say the evidence is for short efforts in a laboratory.",
+    "No result applies to a race that lasts hours or to an ultramarathon, and none to women; the app must not turn these effect sizes into a time, a pace credit or a promise.",
+    "The review does not change rule I8 (acclimation), whose block, decay and cap are separate: cooling is a different tool for the same heat penalty, and nothing here supports counting a cooling session as a heat day."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Added 2026-11-18 for task RU3 (rule I8, cooling). Crossref (checked 2026-11-18): Sports Med 54(2):447-471, first published online 2023-10-06, print date 2024-02, four authors, no updated-by notice. The year is 2023 (Crossref issued date); the brainstorm and Europe PMC say 2024 (the print issue). Abstract and open-access full text read on Europe PMC (PMID 37803106, PMC10933154). Derived or reported with care: the self-paced median duration (40 min, IQR 27-60) is the paper's own; the constant-workload mean duration (33.6 +/- 22.8 min) is the paper's own and is rounded here; the counts 51 + 8 = 59 and 16 + 11 = 27 experiments, 86 in all, are the paper's counts. The abstract says 59 studies and the results text says 61 met the criteria before two were removed for high risk of bias. The description of the per-cooling methods in self-paced trials is read from the study tables (Table 1), not from a pooled analysis. Graded B, not A: the design is a meta-analysis, but 98% of the studies had some risk-of-bias concern, the trials are small and male-only, and only laboratory efforts are covered.",
+    "checkedAt": "2026-11-18"
+  }
+}
