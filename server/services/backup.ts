@@ -357,8 +357,10 @@ function pruneSafetyCopies(
   const failed: string[] = []
   for (const file of candidates) {
     try {
-      discard(join(dir, file.name))
+      // The sidecars first and the `.db` last: only `*.db` is listed, so a failure part way keeps
+      // the copy listed and the next run retries it, instead of orphaning a sidecar.
       for (const suffix of SIDECAR_SUFFIXES) discard(join(dir, `${file.name}${suffix}`))
+      discard(join(dir, file.name))
       removed.push(file.name)
     } catch {
       failed.push(file.name)

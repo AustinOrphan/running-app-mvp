@@ -532,6 +532,29 @@ describe('prunePreRestoreBackups', () => {
     ])
   })
 
+  test('a sidecar that cannot be removed keeps the .db listed, and a later run removes both', () => {
+    const backups = seed([
+      stamp('20250101T000000Z'),
+      stamp('20250102T000000Z'),
+      stamp('20250103T000000Z'),
+      stamp('20250104T000000Z'),
+    ])
+    const sidecar = join(backups, `${stamp('20250101T000000Z')}-wal`)
+    // A directory with a sidecar's name cannot be unlinked.
+    mkdirSync(sidecar)
+    writeFileSync(join(sidecar, 'inner'), 'x')
+
+    const first = prunePreRestoreBackups(backups, NOW)
+    expect(first).toEqual({ removed: [], failed: [stamp('20250101T000000Z')] })
+    expect(readdirSync(backups)).toContain(stamp('20250101T000000Z'))
+
+    rmSync(sidecar, { recursive: true })
+    writeFileSync(sidecar, 'wal')
+    const second = prunePreRestoreBackups(backups, NOW)
+    expect(second.removed).toEqual([stamp('20250101T000000Z')])
+    expect(readdirSync(backups).filter((n) => n.startsWith(stamp('20250101T000000Z')))).toEqual([])
+  })
+
   test('goes on past a file it cannot remove and names it; a missing folder is nothing', () => {
     const backups = seed([
       stamp('20250102T000000Z'),
