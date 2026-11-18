@@ -40,7 +40,7 @@ import type { SplitRow } from '../engine/raceSplits.ts'
 import { P } from '../engine/params/index.ts'
 import type { SessionKind } from '../engine/types.ts'
 import type { RacePlanReason, Units } from '../types.ts'
-import { raceHeatSentences, raceHeatText } from './raceHeat.ts'
+import { raceHeatNotice } from './raceHeat.ts'
 import { HOW_TO_READ } from './runCharts.ts'
 import { RACE_CARB_ROUND_G } from './limits.ts'
 import { milesToM } from '../units.ts'
@@ -1028,15 +1028,9 @@ function noticeText(
         link: say(T['race.plan.firm.link-heart-rate'], {}, units),
         to: 'profile',
       }
-    case 'no-climate': {
-      const state = heat.state === 'known' ? undefined : heat.state
-      return {
-        text: raceHeatSentences(state).join(' '),
-        // A place already set leaves nothing for the runner to add.
-        link: state === 'unread' ? null : raceHeatText('race-heat.link.race'),
-        to: state === 'unread' ? null : 'goals',
-      }
-    }
+    case 'no-climate':
+      // An ultra plan always has a fuel block, so the nausea plan is among what is left out.
+      return raceHeatNotice(heat.state === 'known' ? undefined : heat.state, true)
   }
 }
 

@@ -3766,14 +3766,15 @@ describe('heat: D6, I2, I3, I8 and H13', () => {
 
   test('I8 states the race heat gap with no place, and says nothing about it with one (RH1)', () => {
     const base = ctxOf('half')
-    const places = (state: 'known' | 'no-place' | 'unread') => ({
+    const places = (state: 'known' | 'no-place' | 'unread' | 'failed', nausea = true) => ({
       using: state === 'no-place' ? null : ('race' as const),
       racePlaceSet: state !== 'no-place',
       homePlaceSet: false,
       homeWeatherOn: false,
       state,
+      nausea,
     })
-    const heat = (state: 'known' | 'no-place' | 'unread'): string[] =>
+    const heat = (state: 'known' | 'no-place' | 'unread' | 'failed'): string[] =>
       factsOf('I8', { ...base, raceHeat: places(state) }).map((f) => f.id)
 
     const none = factsOf('I8', { ...base, raceHeat: places('no-place') })
@@ -3791,6 +3792,14 @@ describe('heat: D6, I2, I3, I8 and H13', () => {
     const unread = factsOf('I8', { ...base, raceHeat: places('unread') })
     expect(unread[1]).toMatchObject({ template: 'race-heat.unread', state: 'insufficient' })
     expect(unread[3]!.template).toBe('race-heat.how-unread')
+
+    const failed = factsOf('I8', { ...base, raceHeat: places('failed') })
+    expect(failed[1]).toMatchObject({ template: 'race-heat.failed', state: 'insufficient' })
+    expect(failed[3]!.template).toBe('race-heat.how-failed')
+    // a goal with no fuel block (a 10 km, a short half) does not lose a nausea plan
+    const noFuel = factsOf('I8', { ...base, raceHeat: places('no-place', false) })
+    expect(noFuel[2]!.template).toBe('race-heat.left-out-no-fuel')
+    expect(text(noFuel[2]!)).not.toMatch(/nausea/)
 
     // a known heat, a goal the notice does not cover and a context with no field add nothing
     expect(heat('known')).toEqual(['i8.gap'])

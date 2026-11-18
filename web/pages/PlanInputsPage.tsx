@@ -93,7 +93,7 @@ function RaceHeatSection({ places }: { places: RaceHeatPlaces }) {
             places.using === 'race' ? 'race-heat.places.known-race' : 'race-heat.places.known-home',
           ),
         ]
-      : raceHeatSentences(places.state)
+      : raceHeatSentences(places.state, places.nausea)
   return (
     <Section
       heading={raceHeatText('race-heat.places.heading')}

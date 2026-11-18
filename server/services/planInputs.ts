@@ -3,7 +3,6 @@
 // day; nothing here writes, waits or reads the network.
 import { isDuplicate } from '../../shared/engine/load.ts'
 import { planInputs, type PlanInputsView } from '../../shared/domain/planInputs.ts'
-import { raceHeatPlaces } from '../../shared/domain/raceHeat.ts'
 import { PROVIDERS } from '../providers/registry.ts'
 import {
   goalModelFor,
@@ -12,6 +11,7 @@ import {
   memoByVersion,
   type SnapshotDeps,
 } from './athleteState.ts'
+import { loadRaceHeat } from './raceHeat.ts'
 
 const MEMO = 'plan-inputs.view'
 
@@ -39,17 +39,7 @@ export function loadPlanInputs(
     const raceHeat =
       goal === null || model === null
         ? null
-        : raceHeatPlaces({
-            goal,
-            model,
-            home: {
-              lat: context.profile.homeLat,
-              lng: context.profile.homeLng,
-              use: context.profile.useHomeWeather,
-            },
-            climateKnown: model.raceWbgtC !== null,
-            today,
-          })
+        : await loadRaceHeat(deps.prisma, context, goal, model, today)
     return planInputs({
       raceHeat,
       today,

@@ -156,7 +156,36 @@ describe('GET /api/plan-inputs', () => {
         homePlaceSet: false,
         homeWeatherOn: true,
         state: 'no-place',
+        nausea: true,
       })
+    })
+
+    test('a 10 km has no fuel block, so the nausea plan is not among what is left out', async () => {
+      const user = await newUser()
+      await goalFor(user, { distanceM: 10_000 })
+      expect((await viewOf(user)).raceHeat).toMatchObject({ state: 'no-place', nausea: false })
+    })
+
+    test('a read that failed, or a complete cell with no value, is failed and not unread', async () => {
+      const user = await newUser()
+      const goal = await goalFor(user, { place: true })
+      const key = climateKeyFor(goal, { lat: null, lng: null, use: false })
+      if (key === null) throw new Error('the goal has no place')
+      const row = await ctx.prisma.climateCache.create({
+        data: { ...key, failedAt: new Date(), lastError: 'Open-Meteo request failed: no answer.' },
+      })
+      expect((await viewOf(user)).raceHeat).toMatchObject({ using: 'race', state: 'failed' })
+      await ctx.prisma.climateCache.update({
+        where: { id: row.id },
+        data: { failedAt: null, lastError: null, complete: true, wbgtC: null },
+      })
+      expect((await viewOf(user)).raceHeat).toMatchObject({ state: 'failed' })
+      // a later success clears it
+      await ctx.prisma.climateCache.update({
+        where: { id: row.id },
+        data: { wbgtC: 20, samples: 10, yearsRead: 3 },
+      })
+      expect((await viewOf(user)).raceHeat).toMatchObject({ state: 'known' })
     })
 
     test('a home place counts only with its weather switch on', async () => {

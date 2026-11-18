@@ -4,16 +4,24 @@
 // when the profile allows it and both home coordinates are set (`climateKeyFor`,
 // `server/services/weatherCache.ts`; one coordinate never pairs with a home one). Pure: the caller
 // says whether the cache has a value, so nothing here reads the database or the network.
+import { P } from '../engine/params/index.ts'
 import type { GoalModel } from '../engine/types.ts'
 
 /**
  * The classes of the road race plan (`isRoadPlanClass`). Listed here and not imported: the road
  * engine module is read only by the race service and the road pieces (`racePlanIsolation.test.ts`).
  */
-const ROAD_PLAN_CLASSES: ReadonlyArray<GoalModel['distanceClass']> = ['10k', 'half', 'marathon']
+export const ROAD_PLAN_CLASSES: ReadonlyArray<GoalModel['distanceClass']> = [
+  '10k',
+  'half',
+  'marathon',
+]
 
-/** What the plan can tell about the race heat: known, no place to read it for, or a place not read yet. */
-export type RaceHeatState = 'known' | 'no-place' | 'unread'
+/**
+ * What the plan can tell about the race heat: known, no place to read it for, a place not read yet,
+ * or a place whose last read failed (the app tries again after the back-off).
+ */
+export type RaceHeatState = 'known' | 'no-place' | 'unread' | 'failed'
 
 /** Which place the climate is read for: the race's own, else home, else none. */
 export type RaceHeatPlace = 'race' | 'home' | null
@@ -28,6 +36,11 @@ export interface RaceHeatPlaces {
   /** The profile lets the home place stand in for weather (`useHomeWeather`). */
   homeWeatherOn: boolean
   state: RaceHeatState
+  /**
+   * The goal's plan has a fuel block, so the earlier nausea plan is among what an unknown heat
+   * leaves out: an ultra, or a half or marathon expected to run `h7.logMinDurationMin` or longer.
+   */
+  nausea: boolean
 }
 
 export interface RaceHeatInput {
@@ -37,6 +50,16 @@ export interface RaceHeatInput {
   home: { lat: number | null; lng: number | null; use: boolean }
   /** `GoalModel.raceWbgtC !== null`: the cache holds a usable value for the race. */
   climateKnown: boolean
+  /**
+   * The cached cell's last read failed, or it is complete with no value (`climateFailed`,
+   * `server/services/weatherCache.ts`). Read only while the climate is not known.
+   */
+  climateFailed: boolean
+  /**
+   * The race time the road plan measures its fuel block by: the prediction's middle, else the
+   * goal's expected duration (`expectedOf` in `racePlanRoad.ts`).
+   */
+  expectedSec: number
   today: string
 }
 
@@ -52,6 +75,17 @@ export function raceHeatPlaces(input: RaceHeatInput): RaceHeatPlaces | null {
   const racePlaceSet = goal.raceLat !== null && goal.raceLng !== null
   const homePlaceSet = home.lat !== null && home.lng !== null
   const using: RaceHeatPlace = racePlaceSet ? 'race' : homePlaceSet && home.use ? 'home' : null
-  const state: RaceHeatState = input.climateKnown ? 'known' : using === null ? 'no-place' : 'unread'
-  return { using, racePlaceSet, homePlaceSet, homeWeatherOn: home.use, state }
+  const state: RaceHeatState = input.climateKnown
+    ? 'known'
+    : using === null
+      ? 'no-place'
+      : input.climateFailed
+        ? 'failed'
+        : 'unread'
+  // The same test as `fuelApplies` in `roadRacePlanFor`: a 10 km has no fuel block at all, a half or
+  // a marathon has one from `h7.logMinDurationMin`; an ultra plan always has it.
+  const nausea =
+    model.isUltra ||
+    (model.distanceClass !== '10k' && input.expectedSec >= P.h7.logMinDurationMin.value * 60)
+  return { using, racePlaceSet, homePlaceSet, homeWeatherOn: home.use, state, nausea }
 }

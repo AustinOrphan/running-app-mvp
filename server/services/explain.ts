@@ -5,7 +5,6 @@
 // requests on one version fit the model once. No other history or plan query runs: the one read
 // beyond the snapshot is the stored assessments of the week a decision is about, which sit on the
 // session rows and are not part of the snapshot.
-import { raceHeatPlaces } from '../../shared/domain/raceHeat.ts'
 import { weeklyDecision } from '../../shared/engine/adapt.ts'
 import {
   explainInputs,
@@ -36,6 +35,7 @@ import { inputFromContext, loadForecast } from './engineInput.ts'
 import { forecastStamp } from './weatherCache.ts'
 import { explainActivity } from './insight.ts'
 import { executionRecordsByWeek } from './planEngine.ts'
+import { loadRaceHeat } from './raceHeat.ts'
 import { loadStrengthContext } from './strength.ts'
 
 type Goal = NonNullable<ExplainContext['goal']>
@@ -170,17 +170,7 @@ export async function explainView(
       const raceHeat =
         race === null || raceGoal === undefined
           ? null
-          : raceHeatPlaces({
-              goal: raceGoal,
-              model: race,
-              home: {
-                lat: context.profile.homeLat,
-                lng: context.profile.homeLng,
-                use: context.profile.useHomeWeather,
-              },
-              climateKnown: race.raceWbgtC !== null,
-              today,
-            })
+          : await loadRaceHeat(deps.prisma, context, raceGoal, race, today)
 
       // The state of the logs, the setup and the plan's weeks, with the readiness read of today.
       const strength =

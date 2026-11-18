@@ -5,7 +5,6 @@
 // version and the day (`athleteKey`).
 import { daysBetween } from '../../shared/dates.ts'
 import { courseSilhouettePoints } from '../../shared/domain/courseSilhouette.ts'
-import { raceHeatPlaces } from '../../shared/domain/raceHeat.ts'
 import { racePlanFor, summaryOf } from '../../shared/engine/racePlan.ts'
 import type { RacePlanSummary, RaceWeekSession } from '../../shared/engine/racePlan.ts'
 import {
@@ -19,6 +18,7 @@ import { goalModelFor, goalPrediction, loadAthleteContext, memoByVersion } from 
 import type { SnapshotDeps } from './athleteState.ts'
 import { loadFuelState } from './fuel.ts'
 import { listRaceCheckpoints } from './raceCheckpoints.ts'
+import { loadRaceHeat } from './raceHeat.ts'
 
 export type RaceDeps = SnapshotDeps
 
@@ -64,17 +64,7 @@ async function buildRacePlan(deps: RaceDeps, userId: string, today: string): Pro
   const model = await goalModelFor(context, goal.id, { climate: true })
   if (model === null) return { plan: null, reason: 'no-distance' }
   // Why the race heat may be missing (RH1): no place to read it for, or a place not read yet.
-  const heatState = raceHeatPlaces({
-    goal,
-    model,
-    home: {
-      lat: context.profile.homeLat,
-      lng: context.profile.homeLng,
-      use: context.profile.useHomeWeather,
-    },
-    climateKnown: model.raceWbgtC !== null,
-    today,
-  })?.state
+  const heatState = (await loadRaceHeat(deps.prisma, context, goal, model, today))?.state
   if (!model.isUltra) {
     if (!isRoadPlanClass(model.distanceClass)) return { plan: null, reason: 'not-ultra' }
     const [prediction, fuel] = await Promise.all([

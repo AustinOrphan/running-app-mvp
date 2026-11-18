@@ -139,7 +139,7 @@ describe('RacePage', () => {
 
   test('says why the race heat is unknown in the sentences "What the plan can see" shows (RH1)', async () => {
     const base = planWith({ raceWbgtC: null })
-    for (const state of ['no-place', 'unread'] as const) {
+    for (const state of ['no-place', 'unread', 'failed'] as const) {
       const plan: RacePlan = {
         ...base,
         notices: ['no-climate'],
@@ -150,7 +150,9 @@ describe('RacePage', () => {
         'GET /api/settings': () => SETTINGS,
       })
       const page = renderWithProviders(<RacePage />, { route: '/race' })
-      const notice = (await screen.findByText(raceHeatSentences(state).join(' '))).closest('li')
+      const notice = (await screen.findByText(raceHeatSentences(state, true).join(' '))).closest(
+        'li',
+      )
       expect(notice).not.toBeNull()
       const link = within(notice as HTMLElement).queryByRole('link', { name: 'Set the race place' })
       // a place that is set leaves nothing to add; no place links to the goal

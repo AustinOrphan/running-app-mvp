@@ -14,15 +14,23 @@ export const RACE_HEAT_TEMPLATES = {
   'race-heat.unread': tpl(
     'The place for the race heat is set, but the usual weather for the race date has not been read yet.',
   ),
-  // What reads the race heat, and so is left out while it is unknown.
+  'race-heat.failed': tpl(
+    'The place for the race heat is set, but the last read of the usual weather for the race date got no answer.',
+  ),
+  // What reads the race heat, and so is left out while it is unknown. The nausea plan comes
+  // forward on a hot race only where the plan has a fuel block, so a goal without one leaves it out.
   'race-heat.left-out': tpl(
     'Until it is known, the plan holds no heat acclimation block (rule I8), no hot-race lines and no earlier nausea plan.',
+  ),
+  'race-heat.left-out-no-fuel': tpl(
+    'Until it is known, the plan holds no heat acclimation block (rule I8) and no hot-race lines.',
   ),
   // How to fix it.
   'race-heat.how-set': tpl(
     'Set the race place on the goal. Without one, the plan reads the home place on Profile when the weather switch there is on.',
   ),
-  'race-heat.how-unread': tpl('The weather is read in the background, about every 10 minutes.'),
+  'race-heat.how-unread': tpl('The weather is read in the background.'),
+  'race-heat.how-failed': tpl('The app tries the read again later.'),
   'race-heat.link.race': tpl('Set the race place', {}, { shape: 'label' }),
   'race-heat.link.home': tpl('Set the home place', {}, { shape: 'label' }),
 
@@ -58,21 +66,47 @@ export type RaceHeatGap = Exclude<RaceHeatState, 'known'> | undefined
 /** The template id of the gap fact. */
 export function raceHeatGapId(state: RaceHeatGap): RaceHeatId {
   if (state === undefined) return 'race-heat.unknown'
-  return state === 'no-place' ? 'race-heat.no-place' : 'race-heat.unread'
+  if (state === 'no-place') return 'race-heat.no-place'
+  return state === 'failed' ? 'race-heat.failed' : 'race-heat.unread'
 }
 
 /** The template id of the way to fix the gap. */
 export function raceHeatHowId(state: RaceHeatGap): RaceHeatId {
-  return state === 'unread' ? 'race-heat.how-unread' : 'race-heat.how-set'
+  if (state === 'unread') return 'race-heat.how-unread'
+  return state === 'failed' ? 'race-heat.how-failed' : 'race-heat.how-set'
+}
+
+/**
+ * The template id of what the gap leaves out. `nausea` is whether the goal's plan has a fuel block
+ * (an ultra, or a road race long enough for the ladder), the only plan the earlier nausea plan is in.
+ */
+export function raceHeatLeftOutId(nausea: boolean): RaceHeatId {
+  return nausea ? 'race-heat.left-out' : 'race-heat.left-out-no-fuel'
 }
 
 /** The three sentences of the notice, in reading order: the fact, what it leaves out, how to fix it. */
-export function raceHeatSentences(state: RaceHeatGap): string[] {
+export function raceHeatSentences(state: RaceHeatGap, nausea: boolean): string[] {
   return [
     raceHeatText(raceHeatGapId(state)),
-    raceHeatText('race-heat.left-out'),
+    raceHeatText(raceHeatLeftOutId(nausea)),
     raceHeatText(raceHeatHowId(state)),
   ]
+}
+
+/**
+ * The Race page's line: the three sentences, and the link to the goal when no place is set (a place
+ * that is set leaves nothing for the runner to add).
+ */
+export function raceHeatNotice(
+  state: RaceHeatGap,
+  nausea: boolean,
+): { text: string; link: string | null; to: 'goals' | null } {
+  const placeSet = state === 'unread' || state === 'failed'
+  return {
+    text: raceHeatSentences(state, nausea).join(' '),
+    link: placeSet ? null : raceHeatText('race-heat.link.race'),
+    to: placeSet ? null : 'goals',
+  }
 }
 
 /** The value of the home-place row: not set, set and in use, or set with the switch off. */

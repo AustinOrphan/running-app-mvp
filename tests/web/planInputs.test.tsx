@@ -342,6 +342,7 @@ describe('links to the page', () => {
       homePlaceSet: false,
       homeWeatherOn: false,
       state: 'no-place',
+      nausea: true,
       ...over,
     })
 
@@ -352,7 +353,7 @@ describe('links to the page', () => {
       expect(within(rowOf(heat, 'Race place on the goal')).getByText('Not set')).toBeVisible()
       expect(within(rowOf(heat, 'Home place on Profile')).getByText('Not set')).toBeVisible()
       // the same sentences the Race page shows
-      for (const sentence of raceHeatSentences('no-place')) {
+      for (const sentence of raceHeatSentences('no-place', true)) {
         expect(within(heat).getByText(sentence)).toBeVisible()
       }
       expect(within(heat).getByRole('link', { name: 'Set the race place' })).toHaveAttribute(
@@ -386,10 +387,29 @@ describe('links to the page', () => {
       const first = renderWithProviders(<PlanInputsPage />, { route: '/plan-inputs' })
       const heat = await screen.findByRole('region', { name: 'Race heat' })
       expect(within(rowOf(heat, 'Race place on the goal')).getByText('Set')).toBeVisible()
-      for (const sentence of raceHeatSentences('unread')) {
+      for (const sentence of raceHeatSentences('unread', true)) {
         expect(within(heat).getByText(sentence)).toBeVisible()
       }
       first.unmount()
+      // a goal with no fuel block (a 10 km) and a failed read, in the same sentences
+      mockApi({
+        'GET /api/plan-inputs': () =>
+          view({
+            raceHeat: places({
+              using: 'race',
+              racePlaceSet: true,
+              state: 'failed',
+              nausea: false,
+            }),
+          }),
+      })
+      const second = renderWithProviders(<PlanInputsPage />, { route: '/plan-inputs' })
+      const failedHeat = await screen.findByRole('region', { name: 'Race heat' })
+      for (const sentence of raceHeatSentences('failed', false)) {
+        expect(within(failedHeat).getByText(sentence)).toBeVisible()
+      }
+      expect(within(failedHeat).queryByText(/nausea/)).toBeNull()
+      second.unmount()
       mockApi({
         'GET /api/plan-inputs': () =>
           view({ raceHeat: places({ using: 'race', racePlaceSet: true, state: 'known' }) }),

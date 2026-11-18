@@ -18,7 +18,7 @@ import {
   presetGrade,
 } from '../copy/method.ts'
 import { countPhrase } from '../copy/quantity.ts'
-import { raceHeatGapId, raceHeatHowId } from '../copy/raceHeat.ts'
+import { raceHeatGapId, raceHeatHowId, raceHeatLeftOutId } from '../copy/raceHeat.ts'
 import { ZONE_BOUNDARY_WORDS } from '../copy/revision.ts'
 import { STRENGTH_TEMPLATES } from '../copy/strengthTemplates.ts'
 import type { SlotValues } from '../copy/template.ts'
@@ -3458,7 +3458,7 @@ function heatAdaptationFacts(rule: 'I8' | 'H13'): Builder {
     if (rule === 'I8' && places !== null && places.state !== 'known') {
       facts.push(
         make('I8', 'heat-gap', raceHeatGapId(places.state), {}, { insufficient: true }),
-        make('I8', 'heat-left-out', 'race-heat.left-out', {}),
+        make('I8', 'heat-left-out', raceHeatLeftOutId(places.nausea), {}),
         make('I8', 'heat-how', raceHeatHowId(places.state), {}),
       )
     }
