@@ -95,6 +95,11 @@ export const PAGE_TEMPLATES = {
     '{label}, unofficial and experimental. A Garmin watch connects through intervals.icu.',
     { label: 'text' },
   ),
+  // The Strava card needs the runner's own Strava API application, so it is folded the same way.
+  'integrations.strava.folded': tpl(
+    '{label} with your own API app. Most runners connect Strava through intervals.icu instead.',
+    { label: 'text' },
+  ),
   // The Watched folder card: a switch for the server's one import folder (F1), no path to type.
   'integrations.folder.switch': tpl('Scan the import folder', {}, { shape: 'label' }),
   'integrations.folder.hint': tpl(

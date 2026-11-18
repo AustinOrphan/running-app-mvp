@@ -786,15 +786,22 @@ function WhichToUse() {
 }
 
 /**
- * An experimental source is folded for every account but the install owner's, as the server says
- * (`installOwner`); a connected one stays open so its status and Disconnect are in view.
+ * The experimental Garmin card and the Strava card (own API app) are folded for every account but
+ * the install owner's, as the server says (`installOwner`); a connected one stays open so its
+ * status and Disconnect are in view.
  */
+function isFolded(item: IntegrationStatus): boolean {
+  return !item.installOwner && (item.info.experimental || item.provider === 'strava')
+}
+
 function FoldedCard({ item }: { item: IntegrationStatus }) {
+  const summary =
+    item.provider === 'strava'
+      ? render(TEMPLATES['integrations.strava.folded'], { label: item.info.label }, 'km')
+      : render(TEMPLATES['integrations.garmin.folded'], { label: item.info.label }, 'km')
   return (
     <details className={styles.folded} open={item.status !== 'disconnected'}>
-      <summary className={styles.summary}>
-        {render(TEMPLATES['integrations.garmin.folded'], { label: item.info.label }, 'km')}
-      </summary>
+      <summary className={styles.summary}>{summary}</summary>
       <ProviderCard item={item} />
     </details>
   )
@@ -851,7 +858,7 @@ export function IntegrationsPage() {
       <WhichToUse />
       <div className={styles.list}>
         {integrations.data.map((item) =>
-          item.info.experimental && !item.installOwner ? (
+          isFolded(item) ? (
             <FoldedCard key={item.provider} item={item} />
           ) : (
             <ProviderCard key={item.provider} item={item} />

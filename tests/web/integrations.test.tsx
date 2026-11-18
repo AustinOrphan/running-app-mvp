@@ -162,6 +162,31 @@ describe('IntegrationsPage', () => {
     expect(screen.queryByText(/unofficial and experimental/)).toBeNull()
   })
 
+  test('folds the Strava card for another account, open for the owner and when connected', async () => {
+    const summaryText = /Strava with your own API app\. Most runners connect Strava through/
+    const notOwner = (over: Record<string, Partial<IntegrationStatus>> = {}) =>
+      allStatuses(over).map((s) => ({ ...s, installOwner: false }))
+
+    mockApi(routes(notOwner()))
+    const first = renderWithProviders(<IntegrationsPage />)
+    const summary = await screen.findByText(summaryText)
+    expect(summary.closest('details')?.open).toBe(false)
+    expectCleanCopy(document.body)
+    first.unmount()
+
+    mockApi(routes(notOwner({ strava: { status: 'connected' } })))
+    const second = renderWithProviders(<IntegrationsPage />)
+    const connected = await screen.findByText(summaryText)
+    expect(connected.closest('details')?.open).toBe(true)
+    second.unmount()
+
+    mockApi(routes(allStatuses()))
+    renderWithProviders(<IntegrationsPage />)
+    const strava = await screen.findByRole('region', { name: 'Strava' })
+    expect(strava.closest('details')).toBeNull()
+    expect(screen.queryByText(summaryText)).toBeNull()
+  })
+
   test('says what the training advice reads above the cards', async () => {
     mockApi(
       routes(allStatuses(), {
