@@ -153,6 +153,9 @@ export interface RaceExpected {
   /** The ends of the range in seconds, rounded outward to `r1.arrivalRoundMin` (equal for an estimate). */
   lowSec: number
   highSec: number
+  /** The prediction's own ends, unrounded: the words round the shown range themselves (PF1). */
+  rawLowSec: number
+  rawHighSec: number
   /** The expected time that the parts, the totals and the dark hours are drawn from. */
   midSec: number
   /** `HH:MM`, or null without a valid start time. */
@@ -361,11 +364,16 @@ function expectedOf(input: RacePlanInput): RaceExpected {
   let lowSec: number
   let highSec: number
   let midSec: number
+  let rawLowSec: number
+  let rawHighSec: number
   if (prediction === null) {
     midSec = goal.expectedDurationSec
     lowSec = highSec = Math.round(midSec / step) * step
+    rawLowSec = rawHighSec = midSec
   } else {
     midSec = prediction.predictedSec
+    rawLowSec = prediction.lowSec
+    rawHighSec = prediction.highSec
     lowSec = Math.floor(prediction.lowSec / step) * step
     highSec = Math.ceil(prediction.highSec / step) * step
   }
@@ -376,6 +384,8 @@ function expectedOf(input: RacePlanInput): RaceExpected {
     ...(prediction?.trainingWidened === true ? { trainingWidened: true } : {}),
     lowSec,
     highSec,
+    rawLowSec,
+    rawHighSec,
     midSec,
     start,
     finish:

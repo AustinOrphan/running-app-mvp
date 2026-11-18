@@ -3,6 +3,7 @@
 // an older or newer server may send. Synthetic plans only.
 import { screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, test, vi } from 'vitest'
+import { describeEstimate } from '../../shared/copy/raceEstimate.ts'
 import { raceEmptyText } from '../../shared/copy/racePlan.ts'
 import { describeRoadRacePlan, describeRoadRaceSummary } from '../../shared/copy/racePlanRoad.ts'
 import { addDays } from '../../shared/dates.ts'
@@ -58,6 +59,19 @@ describe('RacePage: the road blocks', () => {
     const text = describeRoadRacePlan(road, 'km')
     expect(screen.getByText(text.expected.figure)).toBeInTheDocument()
     expect(screen.getByText(text.expected.source)).toBeInTheDocument()
+    // the same words the other surfaces use for the estimate (PF1)
+    const shared = describeEstimate(
+      {
+        lowSec: road.expected.lowSec,
+        highSec: road.expected.highSec,
+        predictedSec: road.expected.midSec,
+        trainingSince: road.expected.trainingSince,
+        trainingWidened: road.expected.trainingWidened,
+      },
+      'km',
+    )
+    expect(text.expected.figure).toBe(shared.figure)
+    if (road.expected.basis === 'prediction') expect(text.expected.source).toBe(shared.summary)
     expect(screen.getByText(text.pace?.range ?? '')).toBeInTheDocument()
     expect(screen.getByText(text.firstHalf?.population ?? '')).toBeInTheDocument()
     expect(screen.getByText(text.firstHalf?.figure ?? '')).toBeInTheDocument()

@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
+import { describeEstimate, isTrainingBasisCondition } from '../../shared/copy/raceEstimate.ts'
 import { render } from '../../shared/copy/template.ts'
 import { TEMPLATES } from '../../shared/copy/templates.ts'
 import { fieldErrors } from '../api/client.ts'
@@ -587,9 +588,12 @@ function GoalOutlook({ goal, hasResult }: { goal: Goal; hasResult: boolean }) {
     ...(prediction?.conditions.filter(isHeat) ?? []),
     ...heatNotes.map((note) => note.message),
   ].map((line) => localiseEngineText(line, units))
-  const conditions = (prediction?.conditions.filter((line) => !isHeat(line)) ?? []).map((line) =>
-    localiseEngineText(line, units),
-  )
+  // The training basis is the estimate text's own note (rule A6), so the engine's sentence for it
+  // is left out.
+  const conditions = (
+    prediction?.conditions.filter((line) => !isHeat(line) && !isTrainingBasisCondition(line)) ?? []
+  ).map((line) => localiseEngineText(line, units))
+  const estimate = prediction === null ? null : describeEstimate(prediction, units ?? 'mi')
   // Once the result is recorded the weekly predictions are compared in the track record instead.
   const logged = hasResult ? null : outlookLine(predictions.data.log.length, units ?? 'mi')
 
@@ -616,13 +620,11 @@ function GoalOutlook({ goal, hasResult }: { goal: Goal; hasResult: boolean }) {
       ) : null}
       <section className={styles.outlookBlock} aria-label="Prediction">
         <h3 className={styles.outlookHeading}>Predicted time</h3>
-        {prediction ? (
+        {prediction && estimate ? (
           <>
-            <p className={styles.outlookValue}>{formatDuration(prediction.predictedSec)}</p>
-            <p className={styles.note}>
-              {`${formatDuration(prediction.lowSec)} to ${formatDuration(prediction.highSec)}`}
-            </p>
-            <p className={styles.note}>{prediction.method}</p>
+            <p className={styles.outlookValue}>{estimate.figure}</p>
+            <p className={styles.note}>{estimate.summary}</p>
+            {estimate.note === null ? null : <p className={styles.note}>{estimate.note}</p>}
             {conditions.map((line) => (
               <p key={line} className={styles.note}>
                 {line}

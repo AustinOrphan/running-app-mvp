@@ -1,6 +1,7 @@
 import { useId } from 'react'
 import { gradeLegend } from '../../../shared/copy/grades.ts'
-import { climbWeightsLine, PACES_TEMPLATES, pacesText } from '../../../shared/copy/myPaces.ts'
+import { climbWeightsLine, pacesText } from '../../../shared/copy/myPaces.ts'
+import { RACE_ESTIMATE_TEMPLATES } from '../../../shared/copy/raceEstimate.ts'
 import { render } from '../../../shared/copy/template.ts'
 import type { EventRow } from '../../../shared/engine/myPaces.ts'
 import type { Grade } from '../../../shared/engine/types.ts'
@@ -59,8 +60,8 @@ export function EventsSection({
       {trainingSince === null ? null : (
         <p className={styles.note}>
           {render(
-            PACES_TEMPLATES[
-              trainingWidened ? 'paces.events.training-widened' : 'paces.events.training'
+            RACE_ESTIMATE_TEMPLATES[
+              trainingWidened ? 'race-estimate.basis.widened' : 'race-estimate.basis.at-most'
             ],
             { date: { kind: 'date', iso: trainingSince, style: 'short' } },
             units,
