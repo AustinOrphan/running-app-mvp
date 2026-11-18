@@ -2836,7 +2836,12 @@ function orderFact(scope: Scope): InputFact[] {
   const { race, input } = scope.ctx
   if (race === null || race.lossM < P.h4.minStepGainM.value) return []
   const days = count(P.h5.taperExclusionDays.value)
-  const lead = (input.existing?.weeks ?? []).some((w) => w.flags.includes('downhill-first'))
+  // the lead is named only where an emphasis week follows it: a plan opened late in the window
+  // holds lead weeks alone [follow-up 41]
+  const weeks = input.existing?.weeks ?? []
+  const lead =
+    weeks.some((w) => w.flags.includes('downhill-first')) &&
+    weeks.some((w) => w.flags.includes('downhill') && !w.flags.includes('downhill-first'))
   return [
     lead
       ? make('H5', 'order', 'explain.h5-order', {
