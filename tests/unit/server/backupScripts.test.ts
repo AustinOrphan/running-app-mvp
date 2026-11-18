@@ -255,6 +255,25 @@ describe('npm run restore', () => {
     check.close()
   })
 
+  test('prunes old pre-restore copies after it, and keeps the copy it just made', async () => {
+    makeDatabase('older')
+    expect((await run(backupCommand, [])).status).toBe(0)
+    const [name] = backups()
+    const old = ['20250101', '20250102', '20250103', '20250104']
+    for (const day of old) writeFileSync(join(dir, 'backups', `pre-restore-${day}T000000Z.db`), 'x')
+
+    const { status, out } = await run(restoreCommand, [join(dir, 'backups', name ?? '')])
+
+    expect(status).toBe(0)
+    expect(out).toContain(
+      'Pruned 2: pre-restore-20250102T000000Z.db, pre-restore-20250101T000000Z.db',
+    )
+    const kept = backups().filter((file) => file.startsWith('pre-restore-'))
+    expect(kept).toHaveLength(3)
+    expect(kept).toContain('pre-restore-20250104T000000Z.db')
+    expect(kept.filter((file) => !old.some((day) => file.includes(day)))).toHaveLength(1)
+  })
+
   test('says when the replaced database could not be read and was kept as it was', async () => {
     makeDatabase('older')
     expect((await run(backupCommand, [])).status).toBe(0)

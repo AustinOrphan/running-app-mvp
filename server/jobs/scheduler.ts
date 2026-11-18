@@ -14,6 +14,7 @@ import {
   listOrdinaryBackups,
   pruneBackups,
   prunePreMigrateBackups,
+  prunePreRestoreBackups,
 } from '../services/backup.ts'
 import { generateBrief } from '../services/brief.ts'
 import { runNightlyMatching } from '../services/execution.ts'
@@ -512,18 +513,32 @@ export async function runBackupJob(
     const file = sqliteFilePath(deps.config.databaseUrl)
     const copy = await createBackup(file, { kind: 'ordinary', now: opts.now })
     const pruned = pruneBackups(backupDirectory(file), undefined, basename(copy.path))
-    let prunedPreMigrate = 0
-    try {
-      const result = prunePreMigrateBackups(backupDirectory(file), opts.now)
-      prunedPreMigrate = result.removed.length
-      if (result.failed.length > 0) {
-        log?.warn({ files: result.failed }, 'pre-migrate copies could not be removed')
+    const prunedSafety: Record<string, number> = {}
+    for (const [kind, prune] of [
+      ['pre-migrate', prunePreMigrateBackups],
+      ['pre-restore', prunePreRestoreBackups],
+    ] as const) {
+      prunedSafety[kind] = 0
+      try {
+        const result = prune(backupDirectory(file), opts.now)
+        prunedSafety[kind] = result.removed.length
+        if (result.failed.length > 0) {
+          log?.warn({ files: result.failed }, `${kind} copies could not be removed`)
+        }
+      } catch (error) {
+        // Housekeeping never fails the backup run.
+        log?.warn({ reason: safeMessage(error) }, `${kind} copies were not pruned`)
       }
-    } catch (error) {
-      // Housekeeping never fails the backup run.
-      log?.warn({ reason: safeMessage(error) }, 'pre-migrate copies were not pruned')
     }
-    log?.info({ bytes: copy.bytes, pruned: pruned.length, prunedPreMigrate }, 'database backed up')
+    log?.info(
+      {
+        bytes: copy.bytes,
+        pruned: pruned.length,
+        prunedPreMigrate: prunedSafety['pre-migrate'],
+        prunedPreRestore: prunedSafety['pre-restore'],
+      },
+      'database backed up',
+    )
   } catch (error) {
     log?.warn({ reason: safeMessage(error) }, 'scheduled backup failed')
     failure = error
