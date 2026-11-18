@@ -151,6 +151,61 @@ export const PLAN_INPUTS_TEMPLATES = {
   ),
   'plan-inputs.sources.none': tpl('No activities or wellness days yet.'),
 
+  // Your answers (rules J6 and J11): the check-ins and run ratings in the windows those rules read.
+  // Each count is a fact and each minimum a Param; a count below the minimum says what the rule does.
+  'plan-inputs.own.j6.heading': tpl('Your answers: masters recovery check', {}, { shape: 'label' }),
+  'plan-inputs.own.j6.window': tpl(
+    'Counted over the {days} days before today, the days rule J6 takes your own median over. The check reads check-ins and no run ratings.',
+    { days: 'count' },
+  ),
+  'plan-inputs.own.j6.reading': tpl(
+    'Rule J6 is reading your check-ins: it takes your own median from {min} of them.',
+    { min: 'count' },
+  ),
+  'plan-inputs.own.j6.waits': tpl(
+    'Rule J6 waits for {min} check-ins before it takes your own median.',
+    { min: 'count' },
+  ),
+  'plan-inputs.own.j6.under': tpl('Rule J6 applies from age {age} and is off at your age.', {
+    age: 'count',
+  }),
+  'plan-inputs.own.j6.no-birth-year': tpl(
+    'Rule J6 applies from age {age}. It stays off until your profile has a birth year.',
+    { age: 'count' },
+  ),
+  'plan-inputs.own.j11.heading': tpl('Your answers: repeated pain', {}, { shape: 'label' }),
+  'plan-inputs.own.j11.window': tpl(
+    'Counted over the last {days} days, today included, the look-back of rule J11.',
+    { days: 'count' },
+  ),
+  'plan-inputs.own.j11.reading': tpl(
+    'The look-back holds {min} reports of one area, so rule J11 can offer a rest window on Today.',
+    { min: 'count' },
+  ),
+  'plan-inputs.own.j11.waits': tpl(
+    'Rule J11 waits for {min} check-ins that name one area at a pain score of {score} or more.',
+    { min: 'count', score: 'count' },
+  ),
+  'plan-inputs.own.j11.run-pain': tpl(
+    'Rule J11 also reads a pain rating of {flag} or more on a run of today or yesterday when that day holds a long or back-to-back session.',
+    { flag: 'count' },
+  ),
+  'plan-inputs.own.checkins': tpl('Check-ins', {}, { shape: 'label' }),
+  'plan-inputs.own.fatigue': tpl('Check-ins with fatigue', {}, { shape: 'label' }),
+  'plan-inputs.own.soreness': tpl('Check-ins with soreness', {}, { shape: 'label' }),
+  'plan-inputs.own.mood': tpl('Check-ins with mood', {}, { shape: 'label' }),
+  'plan-inputs.own.pain-checkins': tpl('Check-ins with a pain score', {}, { shape: 'label' }),
+  'plan-inputs.own.reports': tpl(
+    'Check-ins naming an area at {score} or more',
+    { score: 'count' },
+    { shape: 'label' },
+  ),
+  'plan-inputs.own.most-area': tpl('Most reports of one area', {}, { shape: 'label' }),
+  'plan-inputs.own.in-app': tpl('Run ratings given in the app', {}, { shape: 'label' }),
+  'plan-inputs.own.watch': tpl('Watch ratings the plan reads', {}, { shape: 'label' }),
+  'plan-inputs.own.feel': tpl('Runs with a feel answer', {}, { shape: 'label' }),
+  'plan-inputs.own.pain': tpl('Runs with a pain rating', {}, { shape: 'label' }),
+
   // How this is made
   'plan-inputs.how': tpl(
     'These counts are taken from the same data the plan reads, with the same windows. They feed nothing back: the page changes no plan and no zone.',

@@ -4,10 +4,12 @@ import { describe, expect, test } from 'vitest'
 import { planInputs, type PlanInputsInput } from '../../../shared/domain/planInputs.ts'
 import { addDays } from '../../../shared/dates.ts'
 import { fitHrModel } from '../../../shared/engine/execution.ts'
-import { watchRatingCheck } from '../../../shared/engine/watchRatings.ts'
+import { watchRatingCheck, withUsableRatings } from '../../../shared/engine/watchRatings.ts'
+import { mastersCheckinHistory } from '../../../shared/engine/readiness.ts'
+import { repeatPainPattern } from '../../../shared/domain/painArea.ts'
 import { P } from '../../../shared/engine/params/index.ts'
 import type { Boundary, EngineInput, ZoneSet } from '../../../shared/engine/types.ts'
-import type { HrQuality, HrSource } from '../../../shared/types.ts'
+import type { Activity, HrQuality, HrSource } from '../../../shared/types.ts'
 import { RUNS, run, TODAY } from '../engine/myPacesFixtures.ts'
 
 type Wellness = EngineInput['wellness'][number]
@@ -318,5 +320,115 @@ describe('watch ratings on the page', () => {
       count: 12,
       used: true,
     })
+  })
+})
+
+describe('planInputs: your answers (rules J6 and J11)', () => {
+  const rated = (daysAgo: number, over: Partial<Activity> = {}) =>
+    run(1, 3, { date: addDays(TODAY, -daysAgo), ...over })
+  const masters = { sex: 'male', birthYear: 1980 } as const
+
+  test('J6 counts the check-ins the masters gate takes its median from', () => {
+    const wellness = [
+      night(0, { fatigue: 4 }),
+      ...Array.from({ length: 9 }, (_, i) => night(i + 1, { fatigue: 3, soreness: 2 })),
+      night(P.j6.medianDays.value, { mood: 3 }),
+      night(P.j6.medianDays.value + 1, { fatigue: 3 }),
+      night(12, { restingHr: 50 }),
+    ]
+    const { j6 } = planInputs(input({ wellness, profile: masters })).ownAnswers!
+    const byDate = new Map(wellness.map((row) => [row.date, row]))
+    expect(j6.checkins).toBe(mastersCheckinHistory(byDate, TODAY).length)
+    // Nine days and the oldest day of the window; today, the day after the window and a day with
+    // no check-in field are out.
+    expect(j6.checkins).toBe(10)
+    expect(j6.items).toEqual({ fatigue: 9, soreness: 9, mood: 1 })
+    expect(j6.windowDays).toBe(P.j6.medianDays.value)
+    expect(j6.minCheckins).toBe(P.j6.medianMinCheckins.value)
+    expect(j6.reading).toBe(10 >= P.j6.medianMinCheckins.value)
+  })
+
+  test('J6 reads nothing below the minimum, under the masters age or with no birth year', () => {
+    const min = P.j6.medianMinCheckins.value
+    const few = Array.from({ length: min - 1 }, (_, i) => night(i + 1, { fatigue: 3 }))
+    const enough = [...few, night(min, { fatigue: 3 })]
+    expect(planInputs(input({ wellness: few, profile: masters })).ownAnswers!.j6).toMatchObject({
+      applies: 'on',
+      reading: false,
+    })
+    expect(planInputs(input({ wellness: enough, profile: masters })).ownAnswers!.j6.reading).toBe(
+      true,
+    )
+    expect(
+      planInputs(input({ wellness: enough, profile: { sex: 'male', birthYear: 2000 } })).ownAnswers!
+        .j6,
+    ).toMatchObject({ applies: 'under', reading: false })
+    expect(planInputs(input({ wellness: enough })).ownAnswers!.j6).toMatchObject({
+      applies: 'no-birth-year',
+      reading: false,
+    })
+  })
+
+  test('J11 agrees with repeatPainPattern on whether the look-back holds the reports', () => {
+    const area = (daysAgo: number, painArea: string, painScore = P.pain.repeatMinScore.value) =>
+      night(daysAgo, { painScore, painArea })
+    const cases: Array<EngineInput['wellness']> = [
+      [],
+      [area(0, 'left knee'), area(2, 'knee')],
+      [area(0, 'left knee'), area(2, 'knee'), area(4, 'my knee')],
+      [area(0, 'left knee'), area(2, 'achilles'), area(4, 'calf')],
+      [area(0, 'knee'), area(2, 'knee'), area(P.pain.repeatDays.value, 'knee')],
+      [area(0, 'knee'), area(2, 'knee'), area(4, 'knee', P.pain.repeatMinScore.value - 1)],
+    ]
+    for (const wellness of cases) {
+      const { j11 } = planInputs(input({ wellness })).ownAnswers!
+      const pattern = repeatPainPattern({ wellness, windows: [], date: TODAY })
+      expect(j11.reading).toBe(pattern !== null)
+      if (pattern) expect(j11.mostOfOneArea).toBe(pattern.reports)
+      expect(j11.windowDays).toBe(P.pain.repeatDays.value)
+      expect(j11.minReports).toBe(P.pain.repeatReports.value)
+    }
+  })
+
+  test('J11 counts pain scores apart from the reports that name an area', () => {
+    const wellness = [
+      night(0, { painScore: 5, painArea: 'knee' }),
+      night(1, { painScore: 1, painArea: 'knee' }),
+      night(2, { painScore: 4 }),
+      night(3, { painScore: 4, painArea: 'hip' }),
+    ]
+    const { j11 } = planInputs(input({ wellness })).ownAnswers!
+    expect(j11).toMatchObject({ painCheckins: 4, reports: 2, mostOfOneArea: 1, reading: false })
+  })
+
+  test('ratings: the watch is counted apart; duplicates, other types and days outside hold out', () => {
+    const activities = [
+      rated(1, { rpe: 5, rpeSource: 'app', feel: 1, pain: 2 }),
+      rated(2, { rpe: 6, rpeSource: null }),
+      rated(3, { rpe: 7, rpeSource: 'watch' }),
+      rated(4, { rpe: 4, rpeSource: 'app', duplicateStatus: 'confirmed' }),
+      rated(5, { rpe: 4, rpeSource: 'app', type: 'strength' }),
+      rated(10, { rpe: 3, rpeSource: 'app', feel: 0 }),
+      rated(P.j6.medianDays.value + 2, { rpe: 3, rpeSource: 'app' }),
+      rated(0, { rpe: 9, rpeSource: 'app' }),
+    ]
+    // The snapshot the server passes: a watch rating is empty until the spread check passes.
+    const snapshot = withUsableRatings(activities).activities
+    const { j6, j11 } = planInputs(input({ activities: snapshot })).ownAnswers!
+    // J6 takes the days before today; J11 takes today and the days before it.
+    expect(j6.ratings).toEqual({ inApp: 3, watch: 0, feel: 2, pain: 1 })
+    expect(j11.ratings).toEqual({ inApp: 3, watch: 0, feel: 1, pain: 1 })
+  })
+
+  test('ratings: watch ratings the engine reads are counted once the spread check passes', () => {
+    const activities = Array.from({ length: 12 }, (_, i) =>
+      rated(i + 1, { rpe: 3 + (i % 4), rpeSource: 'watch' }),
+    )
+    const snapshot = withUsableRatings(activities)
+    expect(snapshot.check.usable).toBe(true)
+    const { j6, j11 } = planInputs(input({ activities: snapshot.activities })).ownAnswers!
+    expect(j6.ratings.watch).toBe(12)
+    expect(j6.ratings.inApp).toBe(0)
+    expect(j11.ratings.watch).toBe(6)
   })
 })

@@ -43,7 +43,7 @@ export function loadPlanInputs(
     return planInputs({
       raceHeat,
       today,
-      profile: context.profile,
+      profile: { sex: context.profile.sex, birthYear: context.profile.birthYear },
       wellness: context.wellness,
       wellnessWindowDays: context.inputs.wellness.windowDays,
       activities: context.activities,

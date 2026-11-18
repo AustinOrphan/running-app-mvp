@@ -8,8 +8,15 @@ import { hrModelSample, type HrModel } from '../engine/execution.ts'
 import { hrQualityPasses } from '../engine/hrQuality.ts'
 import { isDuplicate } from '../engine/load.ts'
 import { P } from '../engine/params/index.ts'
-import { baselineReadings, sleepEfficiencyEval, sleepNightsRecorded } from '../engine/readiness.ts'
-import type { WatchRatingCheck } from '../engine/watchRatings.ts'
+import {
+  baselineReadings,
+  mastersCheckinHistory,
+  mastersWindow,
+  sleepEfficiencyEval,
+  sleepNightsRecorded,
+} from '../engine/readiness.ts'
+import { isWatchRating, type WatchRatingCheck } from '../engine/watchRatings.ts'
+import { mostReportsOfOneArea, painReports, repeatPainWindow } from './painArea.ts'
 import type { Boundary, EngineInput, ZoneSet } from '../engine/types.ts'
 import type { Activity } from '../types.ts'
 import type { RaceHeatPlaces } from './raceHeat.ts'
@@ -112,11 +119,61 @@ export interface PlanInputsView {
    * goal class the race plan does not cover.
    */
   raceHeat: RaceHeatPlaces | null
+  /** The runner's own answers in the windows of rules J6 and J11; absent from an older server. */
+  ownAnswers?: OwnAnswers
+}
+
+/** Run ratings in one window: in-app (or of unknown source) RPE, the watch's RPE, feel and pain. */
+export interface RatingCounts {
+  inApp: number
+  watch: number
+  feel: number
+  pain: number
+}
+
+/** The answers rules J6 and J11 can read, counted over the windows those rules read. */
+export interface OwnAnswers {
+  /** The masters recovery check (rule J6): reads check-ins only. */
+  j6: {
+    /** The days before today the own median is taken over (`j6.medianDays`). */
+    windowDays: number
+    /** The age from which the check applies (`j6.mastersAgeYears`). */
+    mastersAge: number
+    /** 'on' from that age, 'under' below it, 'no-birth-year' when the profile has none. */
+    applies: 'on' | 'under' | 'no-birth-year'
+    /** Check-ins in the window, today's left out. */
+    checkins: number
+    /** Check-ins in the window that answer each item the median is taken over. */
+    items: { fatigue: number; soreness: number; mood: number }
+    /** The check-ins the median needs (`j6.medianMinCheckins`). */
+    minCheckins: number
+    /** True when the window holds enough check-ins and the check applies. */
+    reading: boolean
+    ratings: RatingCounts
+  }
+  /** The repeated pain offer (rule J11). */
+  j11: {
+    /** The look-back in days, today included (`pain.repeatDays`). */
+    windowDays: number
+    /** Check-ins in the look-back that hold a pain score. */
+    painCheckins: number
+    /** Check-ins that report an area: a score from `minScore` and an area named. */
+    reports: number
+    /** The most reports naming one area. */
+    mostOfOneArea: number
+    minReports: number
+    minScore: number
+    /** The score at which a run's pain rating can open the offer on a long day (`pain.flagScore`). */
+    flagScore: number
+    /** True when the look-back holds `minReports` reports of one area. */
+    reading: boolean
+    ratings: RatingCounts
+  }
 }
 
 export interface PlanInputsInput {
   today: string
-  profile: { sex: 'female' | 'male' | 'unspecified' | null }
+  profile: { sex: 'female' | 'male' | 'unspecified' | null; birthYear?: number | null }
   wellness: EngineInput['wellness']
   /** Days the snapshot's wellness window reaches back (`StateInputs.wellness.windowDays`). */
   wellnessWindowDays: number
@@ -145,6 +202,77 @@ function hrvKind(rmssdDays: number, sdnnDays: number): HrvKind {
 
 function sumOf(values: readonly number[] | undefined): number {
   return (values ?? []).reduce((total, v) => total + v, 0)
+}
+
+/**
+ * The ratings on runs and races from `from` to `to`, flagged duplicates left out, as the engine
+ * reads them: `activities` is the snapshot, in which a watch rating stays empty until it passes
+ * the spread check (rule B1), so `watch` counts the ones the plan reads.
+ */
+function ratingCounts(
+  activities: readonly Activity[],
+  range: { from: string; to: string },
+): RatingCounts {
+  const runs = activities.filter(
+    (a) =>
+      (a.type === 'run' || a.type === 'race') &&
+      !isDuplicate(a) &&
+      a.date >= range.from &&
+      a.date <= range.to,
+  )
+  return {
+    inApp: runs.filter((a) => a.rpe !== null && !isWatchRating(a)).length,
+    watch: runs.filter(isWatchRating).length,
+    feel: runs.filter((a) => a.feel !== null).length,
+    pain: runs.filter((a) => a.pain !== null).length,
+  }
+}
+
+/** The answers of rules J6 and J11, counted over the windows and with the filters those rules use. */
+function ownAnswers(input: PlanInputsInput): OwnAnswers {
+  const { today, wellness, profile } = input
+  const byDate = new Map(wellness.map((row) => [row.date, row]))
+  const history = mastersCheckinHistory(byDate, today)
+  const j6Window = mastersWindow(today)
+  const minCheckins = P.j6.medianMinCheckins.value
+  const age =
+    typeof profile.birthYear === 'number' ? Number(today.slice(0, 4)) - profile.birthYear : null
+  const applies =
+    age === null ? 'no-birth-year' : age >= P.j6.mastersAgeYears.value ? 'on' : 'under'
+
+  const j11Window = repeatPainWindow(today)
+  const inLookback = wellness.filter(
+    (row) => row.date >= j11Window.from && row.date <= j11Window.to,
+  )
+  const reports = painReports(wellness, j11Window)
+  const mostOfOneArea = mostReportsOfOneArea(reports)
+  return {
+    j6: {
+      windowDays: P.j6.medianDays.value,
+      mastersAge: P.j6.mastersAgeYears.value,
+      applies,
+      checkins: history.length,
+      items: {
+        fatigue: history.filter((c) => c.fatigue !== null).length,
+        soreness: history.filter((c) => c.soreness !== null).length,
+        mood: history.filter((c) => c.mood !== null).length,
+      },
+      minCheckins,
+      reading: applies === 'on' && history.length >= minCheckins,
+      ratings: ratingCounts(input.activities, j6Window),
+    },
+    j11: {
+      windowDays: P.pain.repeatDays.value,
+      painCheckins: inLookback.filter((row) => row.painScore != null).length,
+      reports: reports.length,
+      mostOfOneArea,
+      minReports: P.pain.repeatReports.value,
+      minScore: P.pain.repeatMinScore.value,
+      flagScore: P.pain.flagScore.value,
+      reading: mostOfOneArea >= P.pain.repeatReports.value,
+      ratings: ratingCounts(input.activities, j11Window),
+    },
+  }
 }
 
 /** The data the plan reads for one runner as of `today`, counted from the snapshot. */
@@ -258,5 +386,6 @@ export function planInputs(input: PlanInputsInput): PlanInputsView {
     }),
     sources: { named: [...named.values()].filter((s) => s.activities + s.wellnessDays > 0), other },
     raceHeat: input.raceHeat,
+    ownAnswers: ownAnswers(input),
   }
 }
