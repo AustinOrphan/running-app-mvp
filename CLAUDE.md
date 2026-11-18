@@ -43,6 +43,13 @@ Self-hosted training log and planner for one runner. Specs, the task plan and AD
   `web/versionDefine.ts`, by the page (Settings, About; the feedback note). The script checks a clean
   `main`, lists the commits and migrations since the last `v*` tag, writes a draft note to the
   gitignored `release-notes/` and prints `git tag` and `git push` for the owner; it runs neither.
+- `npm run rehearse` (`scripts/rehearse.ts`, RD1): the restore drill's check. Opens `DATABASE_URL`
+  (a restored scratch copy; refuses the default path without `--yes-live`) in its own process with no
+  scheduler and no outside request, signs each account in with a minted cookie (`signSession`,
+  `SESSION_SECRET`), GETs the main pages' reads and prints only account number, route, status and ms;
+  exit 1 on a 5xx or a 401. It runs after `prisma generate` and imports `server/app.ts`, so
+  `scriptImports.test.ts` (backup and restore only) does not cover it. The README section "Restore
+  drill" is the operator's guide.
 - `npm run icons`: renders the PNG icons in `web/public` from `icon.svg` with Playwright's chromium
   (no image library); commit the four PNGs it writes.
 - `npx prettier --check .` is the formatting gate in CI; run `npm run format` to fix it.
