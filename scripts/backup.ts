@@ -34,7 +34,8 @@ database file.
                     (the migrate command refuses until it is resolved), nothing is copied and
                     the exit status is 0.
 
-Only app-*.db and pre-migrate files are pruned; pre-restore copies stay until deleted by hand.
+Only app-*.db, pre-migrate and pre-restore files are pruned; pre-restore copies are pruned by the
+same rule as pre-migrate ones, by the daily job and by npm run restore.
 `
 
 export interface Output {

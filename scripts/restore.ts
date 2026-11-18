@@ -1,6 +1,12 @@
 import { parseArgs } from 'node:util'
 import { loadEnvFileIfPresent } from '../server/config.ts'
 import { loadDatabaseUrl, sqliteFilePath } from '../server/dbPath.ts'
+import {
+  backupDirectory,
+  KEEP_PRE_MIGRATE_DAYS,
+  KEEP_PRE_MIGRATE_MIN,
+  prunePreRestoreBackups,
+} from '../server/services/backup.ts'
 import { restoreDatabase } from '../server/services/restore.ts'
 import type { Output } from './backup.ts'
 import { isMainModule } from './isMain.ts'
@@ -17,7 +23,9 @@ lock to ask for; then the restore refuses only when its -wal or -shm file was wr
 In order: the backup is copied next to the database and checked with PRAGMA integrity_check; the
 current database is copied to backups/pre-restore-<UTC timestamp>.db (byte for byte, with its -wal
 and -shm files, when it is damaged); the database's stale -wal and -shm files are removed; the
-checked copy takes the database's place, with the mode and owner of the file it replaces.
+checked copy takes the database's place, with the mode and owner of the file it replaces. Last, the
+pre-restore copies older than ${KEEP_PRE_MIGRATE_DAYS} days are removed, the newest ${KEEP_PRE_MIGRATE_MIN} always kept, so the
+copy just made stays.
 `
 
 const processOutput: Output = {
@@ -53,7 +61,8 @@ export async function restoreCommand(
     return 1
   }
 
-  const result = await restoreDatabase(file, sqliteFilePath(loadDatabaseUrl(env)))
+  const databaseFile = sqliteFilePath(loadDatabaseUrl(env))
+  const result = await restoreDatabase(file, databaseFile)
   io.stdout(`Checked ${result.restored}: integrity_check ok.\n`)
   if (result.keptAs === null) {
     io.stdout(`There was no database at ${result.target}, so nothing was kept.\n`)
@@ -67,6 +76,19 @@ export async function restoreCommand(
   }
   if (result.removed.length > 0) io.stdout(`Removed stale ${result.removed.join(', ')}.\n`)
   io.stdout(`Restored ${result.restored} to ${result.target}. Start the server again.\n`)
+  // Housekeeping never fails a restore that has succeeded. The copy just made is the newest, so
+  // the newest-3 floor keeps it.
+  try {
+    const { removed, failed } = prunePreRestoreBackups(backupDirectory(databaseFile))
+    if (removed.length > 0) io.stdout(`Pruned ${removed.length}: ${removed.join(', ')}\n`)
+    if (failed.length > 0) {
+      io.stderr(`Warning: could not remove ${failed.length}: ${failed.join(', ')}\n`)
+    }
+  } catch (error) {
+    io.stderr(
+      `Warning: pre-restore copies were not pruned: ${error instanceof Error ? error.message : String(error)}\n`,
+    )
+  }
   return 0
 }
 

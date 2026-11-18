@@ -16,6 +16,7 @@ import {
   KEEP_PRE_MIGRATE_MIN,
   OFF_HOST_SNAPSHOT_DAYS,
   prunePreMigrateBackups,
+  prunePreRestoreBackups,
   migrationStatus,
   integrityProblems,
   listOrdinaryBackups,
@@ -437,6 +438,140 @@ describe('prunePreMigrateBackups', () => {
   })
 })
 
+describe('prunePreRestoreBackups', () => {
+  const NOW = new Date('2026-11-17T12:00:00Z')
+  const stamp = (name: string): string => `pre-restore-${name}.db`
+
+  function seed(names: string[]): string {
+    const backups = join(dir, 'backups')
+    mkdirSync(backups)
+    for (const name of names) writeFileSync(join(backups, name), 'x')
+    return backups
+  }
+
+  test('removes copies older than 30 days and keeps the newest 3 and the recent ones', () => {
+    const backups = seed([
+      stamp('20260101T000000Z'),
+      stamp('20260201T000000Z'),
+      stamp('20260301T000000Z'),
+      stamp('20261001T000000Z'),
+      stamp('20261110T000000Z'),
+      stamp('20261116T000000Z'),
+    ])
+    const { removed, failed } = prunePreRestoreBackups(backups, NOW)
+    expect(failed).toEqual([])
+    expect(removed).toEqual([
+      stamp('20260301T000000Z'),
+      stamp('20260201T000000Z'),
+      stamp('20260101T000000Z'),
+    ])
+    expect(readdirSync(backups).sort()).toEqual([
+      stamp('20261001T000000Z'),
+      stamp('20261110T000000Z'),
+      stamp('20261116T000000Z'),
+    ])
+  })
+
+  test('keeps the newest 3 whatever their age', () => {
+    const backups = seed([
+      stamp('20250101T000000Z'),
+      stamp('20250201T000000Z'),
+      stamp('20250301T000000Z'),
+      stamp('20250401T000000Z'),
+    ])
+    expect(prunePreRestoreBackups(backups, NOW).removed).toEqual([stamp('20250101T000000Z')])
+    expect(readdirSync(backups)).toHaveLength(3)
+  })
+
+  test('leaves other files, the other kinds and the live database untouched', () => {
+    const live = join(dir, 'app.db')
+    writeFileSync(live, 'live')
+    writeFileSync(`${live}-wal`, 'wal')
+    writeFileSync(`${live}-shm`, 'shm')
+    const others = [
+      'app-20250101T000000Z.db',
+      'pre-migrate-20250101T000000Z.db',
+      'pre-restore-20250101T000000Z.db.raw',
+      'pre-restore-20250101T000000Z.db.partial',
+      'pre-restore-notastamp.db',
+      'xpre-restore-20250101T000000Z.db',
+      'notes.txt',
+    ]
+    const backups = seed([
+      ...others,
+      stamp('20250101T000000Z'),
+      stamp('20250102T000000Z'),
+      stamp('20250103T000000Z'),
+      stamp('20250104T000000Z'),
+    ])
+    prunePreRestoreBackups(backups, NOW)
+    const left = readdirSync(backups)
+    for (const name of others) expect(left).toContain(name)
+    expect(left).not.toContain(stamp('20250101T000000Z'))
+    expect(readFileSync(live, 'utf8')).toBe('live')
+    expect(readFileSync(`${live}-wal`, 'utf8')).toBe('wal')
+    expect(readFileSync(`${live}-shm`, 'utf8')).toBe('shm')
+  })
+
+  test('takes the -wal and -shm files of a removed copy with it, and no others', () => {
+    const backups = seed([
+      stamp('20250101T000000Z'),
+      `${stamp('20250101T000000Z')}-wal`,
+      `${stamp('20250101T000000Z')}-shm`,
+      stamp('20250102T000000Z'),
+      `${stamp('20250102T000000Z')}-wal`,
+      stamp('20250103T000000Z'),
+      stamp('20250104T000000Z'),
+    ])
+    prunePreRestoreBackups(backups, NOW)
+    expect(readdirSync(backups).sort()).toEqual([
+      stamp('20250102T000000Z'),
+      `${stamp('20250102T000000Z')}-wal`,
+      stamp('20250103T000000Z'),
+      stamp('20250104T000000Z'),
+    ])
+  })
+
+  test('a sidecar that cannot be removed keeps the .db listed, and a later run removes both', () => {
+    const backups = seed([
+      stamp('20250101T000000Z'),
+      stamp('20250102T000000Z'),
+      stamp('20250103T000000Z'),
+      stamp('20250104T000000Z'),
+    ])
+    const sidecar = join(backups, `${stamp('20250101T000000Z')}-wal`)
+    // A directory with a sidecar's name cannot be unlinked.
+    mkdirSync(sidecar)
+    writeFileSync(join(sidecar, 'inner'), 'x')
+
+    const first = prunePreRestoreBackups(backups, NOW)
+    expect(first).toEqual({ removed: [], failed: [stamp('20250101T000000Z')] })
+    expect(readdirSync(backups)).toContain(stamp('20250101T000000Z'))
+
+    rmSync(sidecar, { recursive: true })
+    writeFileSync(sidecar, 'wal')
+    const second = prunePreRestoreBackups(backups, NOW)
+    expect(second.removed).toEqual([stamp('20250101T000000Z')])
+    expect(readdirSync(backups).filter((n) => n.startsWith(stamp('20250101T000000Z')))).toEqual([])
+  })
+
+  test('goes on past a file it cannot remove and names it; a missing folder is nothing', () => {
+    const backups = seed([
+      stamp('20250102T000000Z'),
+      stamp('20250103T000000Z'),
+      stamp('20250104T000000Z'),
+      stamp('20250105T000000Z'),
+    ])
+    rmSync(join(backups, stamp('20250101T000000Z')), { force: true })
+    mkdirSync(join(backups, stamp('20250101T000000Z')))
+    writeFileSync(join(backups, stamp('20250101T000000Z'), 'inner'), 'x')
+    const result = prunePreRestoreBackups(backups, NOW)
+    expect(result.failed).toEqual([stamp('20250101T000000Z')])
+    expect(result.removed).toEqual([stamp('20250102T000000Z')])
+    expect(prunePreRestoreBackups(join(dir, 'none'), NOW)).toEqual({ removed: [], failed: [] })
+  })
+})
+
 describe('deletedAccountRetention', () => {
   test('is 35 days locally and 31 off-host, so 35 days at most', () => {
     expect(deletedAccountRetention()).toEqual({ localDays: 35, offHostDays: 31, longestDays: 35 })
@@ -448,12 +583,17 @@ describe('deletedAccountRetention', () => {
     expect(readme).toContain(`from every copy the server keeps within ${longestDays} days`)
     expect(readme).toContain(`The ${longestDays} days is \`deletedAccountRetention().longestDays\``)
     expect(readme).toContain(`keep ${OFF_HOST_SNAPSHOT_DAYS} daily snapshots`)
-    expect(readme).toContain(`remove\nthe copies older than ${KEEP_PRE_MIGRATE_DAYS} days`)
+    expect(readme).toContain(`remove the copies older than ${KEEP_PRE_MIGRATE_DAYS} days`)
     expect(readme).toContain(`keep the newest ${KEEP_PRE_MIGRATE_MIN}`)
     expect(readme).toContain(
-      `There are two\n> exceptions: the newest ${KEEP_PRE_MIGRATE_MIN} pre-update copies`,
+      `There are two\n> exceptions: the newest ${KEEP_PRE_MIGRATE_MIN} pre-update copies and the newest ${KEEP_PRE_MIGRATE_MIN} pre-restore copies`,
     )
-    expect(readme).toContain('and any\n> pre-restore copy, which stays until it is deleted')
+    expect(readme).toContain(
+      'stay until\n> later ones push them out; the operator deletes them on request.',
+    )
+    expect(readme).toContain(
+      'applied by the daily job, after each\npre-migrate copy and after each restore',
+    )
     expect(readme).toContain("Open-Meteo's geocoding service; nothing else goes with it")
   })
 })
