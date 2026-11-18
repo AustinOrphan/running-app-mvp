@@ -10,7 +10,7 @@ import type {
   FuelProduct,
   FuelSettings,
 } from '../../shared/types.ts'
-import { stepNote } from '../../shared/engine/fuelCopy.ts'
+import { gutReferralLines, stepNote } from '../../shared/engine/fuelCopy.ts'
 
 /** Two products of a synthetic list. */
 export const GEL: FuelProduct = {
@@ -121,6 +121,7 @@ export function makeLab(
     products: [GEL, DRINK],
     history,
     prompts: [],
+    referral: gutReferralLines(ladder),
     eah: eahCard({ eventHours: null, hot: false }),
     disclaimers: { general: 'Fuel targets are decision support.', gutCondition: null },
     ...over,

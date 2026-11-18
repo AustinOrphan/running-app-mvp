@@ -28,7 +28,7 @@ function LabBody({ lab, units }: { lab: FuelLabView; units: Units | undefined })
         <div className={styles.column}>
           <FuelTargetCard next={lab.next} />
           {units === undefined ? null : <FuelPromptCard prompts={lab.prompts} units={units} />}
-          <TierLadder ladder={lab.ladder} />
+          <TierLadder ladder={lab.ladder} referral={lab.referral} />
           <RaceRateCard hold={lab.raceRate} />
           <FuelHistory history={lab.history} />
         </div>

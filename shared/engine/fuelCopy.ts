@@ -15,7 +15,14 @@ import { render, tpl, type SlotSpec, type SlotValues, type Template } from '../c
 import { ratePerHour } from '../domain/fuel.ts'
 import type { Units } from '../types.ts'
 import { P } from './params/index.ts'
-import type { CountReason, FuelTarget, LadderStep, RungRate, RungState } from './types.ts'
+import type {
+  CountReason,
+  FuelTarget,
+  LadderResult,
+  LadderStep,
+  RungRate,
+  RungState,
+} from './types.ts'
 
 export const FUEL_TEMPLATES = {
   // The target: heading and the sentence that says why this rate.
@@ -195,6 +202,15 @@ export const FUEL_TEMPLATES = {
   ),
   'fuel.gut.caveat': tpl(
     'It does not promise a faster time, and it has not been shown to protect the gut lining.',
+  ),
+  // The referral line under the ladder (rule H7, evidence note of 2026-11-18, GR1; mauvieux-2026,
+  // costa-2025): an association from two surveys and the practitioners the position statement
+  // names. No cause, no diet or food advice, no promise that an assessment lowers withdrawals.
+  'fuel.referral.survey': tpl(
+    'In surveys of endurance athletes, those with gut symptoms in training were more likely to have them in races.',
+  ),
+  'fuel.referral.assess': tpl(
+    'Symptoms that keep coming back can be assessed by a sports dietitian or a sports medicine professional, and some need a doctor.',
   ),
   'fuel.disclaimer': tpl(
     'Fuel targets are decision support for one runner, not medical advice. A rehearsal in training does not promise how a race will go.',
@@ -397,6 +413,17 @@ export function fluidReferenceNote(fluidMl: number, elapsedSec: number): string 
 /** The gut-training claim and its two limits, in the only words the app uses for it. */
 export function gutTrainingText(): string[] {
   return [say(T['fuel.gut.claim'], {}), say(T['fuel.gut.caveat'], {})]
+}
+
+/**
+ * The referral lines of the Fuel lab, or null. They show when the ladder's stop is in force (the
+ * last counted run scored `h7.gutStopScore` or more, so the rung is held, or the target fell back
+ * after such runs) and the runner has set no gut condition, for whom the clinician line stands. It
+ * adds no count of its own: neither paper gives a threshold for a referral (rule H7, evidence note).
+ */
+export function gutReferralLines(ladder: LadderResult): string[] | null {
+  if (ladder.locked || !ladder.stopped) return null
+  return [say(T['fuel.referral.survey'], {}), say(T['fuel.referral.assess'], {})]
 }
 
 export function fuelDisclaimer(): string {
