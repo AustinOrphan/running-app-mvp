@@ -682,13 +682,41 @@ export async function markActivityAsRace(
 }
 
 /**
+ * The runner's own words about a run, handed from a row that is about to be deleted to the run that
+ * stays: the rating (`rpe`, `rpeSource`), `feel`, `pain` and `notes` where the survivor has none
+ * (`copyEffort`), the race type, and the race result that points at the run. A race result is
+ * moved only when the survivor has none of its own (`activityId` is unique).
+ */
+async function carryRunnersData(
+  prisma: Deps['prisma'],
+  userId: string,
+  fromId: string,
+  toId: string,
+): Promise<void> {
+  await copyEffort(prisma, userId, fromId, toId)
+  const from = await prisma.activity.findFirst({
+    where: { id: fromId, userId },
+    select: { type: true },
+  })
+  if (from?.type === 'race') await markActivityAsRace(prisma, userId, toId)
+  const held = await prisma.raceResult.findFirst({ where: { activityId: toId, userId } })
+  if (!held) {
+    await prisma.raceResult.updateMany({
+      where: { activityId: fromId, userId },
+      data: { activityId: toId },
+    })
+  }
+}
+
+/**
  * Deletes activities of one runner, for a caller that removes many at once (the Strava removal,
  * SC1); the single-activity route does the same two steps. Returns how many rows went.
  *
  * A run that another source also holds keeps that other copy: the rows flagged as duplicates of the
  * deleted one are released (`releaseDuplicatesOf`, so their totals count again). Before that, a
  * confirmed copy from another source takes over what hangs on the deleted row, so the plan session,
- * the fuel log and the strength log stay on a run that still exists: when the deleted row is the
+ * the fuel log, the strength log, the runner's rating, feel, pain and notes, the race type and the
+ * race result stay on a run that still exists (`carryRunnersData`): when the deleted row is the
  * original, the first such copy becomes the original (`moveConfirmedLogs` moves from copies to the
  * original); when it is itself a confirmed copy of another source's run, its logs go to that run.
  * A session that moves is assessed again by the nightly matching job, not here.
@@ -716,6 +744,7 @@ export async function deleteActivities(
       })
       if (original && original.source !== row.source) {
         await moveConfirmedLogs(prisma, userId, row.duplicateOfId)
+        await carryRunnersData(prisma, userId, id, row.duplicateOfId)
       }
     }
     const survivor = await prisma.activity.findFirst({
@@ -749,6 +778,7 @@ export async function deleteActivities(
         data: { duplicateOfId: survivor.id, duplicateStatus: 'confirmed' },
       })
       await moveConfirmedLogs(prisma, userId, survivor.id)
+      await carryRunnersData(prisma, userId, id, survivor.id)
     }
     await releaseDuplicatesOf(prisma, userId, id)
     await prisma.activity.delete({ where: { id, userId } })

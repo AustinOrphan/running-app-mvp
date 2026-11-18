@@ -339,7 +339,7 @@ describe('prunePreMigrateBackups', () => {
     return backups
   }
 
-  test('removes copies older than 30 days and keeps the newest 3 and the recent ones', () => {
+  test('removes copies older than 29 days and keeps the newest 3 and the recent ones', () => {
     const backups = seed([
       stamp('20260101T000000Z'),
       stamp('20260201T000000Z'),
@@ -373,16 +373,16 @@ describe('prunePreMigrateBackups', () => {
     expect(readdirSync(backups)).toHaveLength(3)
   })
 
-  test('a copy exactly 30 days old stays; one a second older goes when not in the newest 3', () => {
+  test('a copy exactly 29 days old stays; one a second older goes when not in the newest 3', () => {
     const backups = seed([
-      stamp('20261018T120000Z'),
-      stamp('20261018T115959Z'),
+      stamp('20261019T120000Z'),
+      stamp('20261019T115959Z'),
       stamp('20261117T000000Z'),
       stamp('20261116T000000Z'),
       stamp('20261115T000000Z'),
     ])
-    expect(prunePreMigrateBackups(backups, NOW).removed).toEqual([stamp('20261018T115959Z')])
-    expect(readdirSync(backups)).toContain(stamp('20261018T120000Z'))
+    expect(prunePreMigrateBackups(backups, NOW).removed).toEqual([stamp('20261019T115959Z')])
+    expect(readdirSync(backups)).toContain(stamp('20261019T120000Z'))
   })
 
   test('leaves other files, the live database and its folder neighbours untouched', () => {
@@ -432,8 +432,10 @@ describe('prunePreMigrateBackups', () => {
     expect(result.removed).toEqual([stamp('20250102T000000Z')])
   })
 
-  test('the constants are 30 days and 3 copies', () => {
-    expect(KEEP_PRE_MIGRATE_DAYS).toBe(30)
+  // The daily job prunes, so a safety copy can outlive its cutoff by a day: 29 + 1 keeps the
+  // notice's 30 days true (SC1).
+  test('the constants are 29 days and 3 copies', () => {
+    expect(KEEP_PRE_MIGRATE_DAYS).toBe(29)
     expect(KEEP_PRE_MIGRATE_MIN).toBe(3)
   })
 })
@@ -449,7 +451,7 @@ describe('prunePreRestoreBackups', () => {
     return backups
   }
 
-  test('removes copies older than 30 days and keeps the newest 3 and the recent ones', () => {
+  test('removes copies older than 29 days and keeps the newest 3 and the recent ones', () => {
     const backups = seed([
       stamp('20260101T000000Z'),
       stamp('20260201T000000Z'),

@@ -417,7 +417,11 @@ const scenarios: Record<SyncMessageId, () => Promise<Outcome>> = {
   },
 
   'sync.msg.strava-check-refused': async () => {
-    const run = await stravaDailyCheck({ [STRAVA_LIST]: () => new Response('{}', { status: 401 }) })
+    const run = await stravaDailyCheck({
+      [STRAVA_LIST]: () => new Response('{}', { status: 401 }),
+      'POST https://www.strava.com/oauth/token': () =>
+        Response.json({ errors: [{ resource: 'RefreshToken' }] }, { status: 400 }),
+    })
     return {
       stored: run?.failures[0]?.reason,
       run,

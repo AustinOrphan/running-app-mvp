@@ -46,7 +46,7 @@ export const KEEP_WEEKS = 3
  * rule is the simplest true statement for the data notice, and nothing about a restore needs a
  * different window. The names keep `PRE_MIGRATE` because the rule began there.
  */
-export const KEEP_PRE_MIGRATE_DAYS = 30
+export const KEEP_PRE_MIGRATE_DAYS = 29
 export const KEEP_PRE_MIGRATE_MIN = 3
 
 /**
@@ -70,6 +70,10 @@ const DAY_MS = 86_400_000
  *
  * A `pre-restore` copy goes after the same `KEEP_PRE_MIGRATE_DAYS`, so `localDays` is unchanged.
  *
+ * The safety copies are pruned by the daily job, so a copy that turns `KEEP_PRE_MIGRATE_DAYS` old
+ * today is removed at the next run, up to a day later: the bound is `KEEP_PRE_MIGRATE_DAYS + 1`.
+ * `KEEP_PRE_MIGRATE_DAYS` is 29 so that this bound is 30 days, the figure of the notice (SC1).
+ *
  * Not counted: the newest `KEEP_PRE_MIGRATE_MIN` copies of each of the pre-update and pre-restore
  * kinds, which stay until later ones push them out; copies made by hand;
  * `npm run backup -- --keep`.
@@ -79,7 +83,7 @@ export function deletedAccountRetention(): {
   offHostDays: number
   longestDays: number
 } {
-  const localDays = Math.max((KEEP_WEEKS + 1) * 7, KEEP_PRE_MIGRATE_DAYS)
+  const localDays = Math.max((KEEP_WEEKS + 1) * 7, KEEP_PRE_MIGRATE_DAYS + 1)
   const offHostDays = 1 + OFF_HOST_SNAPSHOT_DAYS
   return { localDays, offHostDays, longestDays: Math.max(localDays, offHostDays) }
 }

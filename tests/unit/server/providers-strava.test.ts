@@ -229,7 +229,10 @@ describe('refreshIfNeeded', () => {
     const none = ctxWith({}, { accessToken: undefined, refreshToken: undefined })
     await expect(refreshIfNeeded(none)).rejects.toThrow(/reconnect/i)
     const rejected = ctxWith(
-      { [`POST ${TOKEN_URL}`]: () => new Response('{}', { status: 400 }) },
+      {
+        [`POST ${TOKEN_URL}`]: () =>
+          Response.json({ errors: [{ resource: 'RefreshToken' }] }, { status: 400 }),
+      },
       { expiresAt: NOW_SEC - 10 },
     )
     await expect(refreshIfNeeded(rejected)).rejects.toThrow(/reconnect/i)
@@ -510,25 +513,80 @@ describe('fetchActivity', () => {
 })
 
 describe('refused tokens (SC1)', () => {
-  it('a refused refresh token and a 401 are auth errors the sync service starts a clock for', async () => {
-    const expired = ctxWith(
-      { [`POST ${TOKEN_URL}`]: () => Response.json({}, { status: 400 }) },
-      { expiresAt: 1 },
+  const REFUSED = {
+    message: 'Bad Request',
+    errors: [{ resource: 'RefreshToken', field: 'refresh_token', code: 'invalid' }],
+  }
+  const tokenRoute = (res: () => Response) => ({ [`POST ${TOKEN_URL}`]: res })
+  const refresh = (res: () => Response) =>
+    refreshIfNeeded(ctxWith(tokenRoute(res), { expiresAt: 1 }))
+
+  it('only an explicit invalid refresh token answer is an auth error', async () => {
+    await expect(refresh(() => Response.json(REFUSED, { status: 400 }))).rejects.toBeInstanceOf(
+      ProviderAuthError,
     )
-    await expect(refreshIfNeeded(expired)).rejects.toBeInstanceOf(ProviderAuthError)
-    const unauthorised = ctxWith({
+    await expect(
+      refresh(() => Response.json({ error: 'invalid_grant' }, { status: 401 })),
+    ).rejects.toBeInstanceOf(ProviderAuthError)
+  })
+
+  it.each([
+    ['a 200 with a body that is not JSON', () => new Response('<html>', { status: 200 })],
+    ['a 403', () => Response.json(REFUSED, { status: 403 })],
+    ['a 408', () => new Response('', { status: 408 })],
+    ['a 400 that does not name the refresh token', () => Response.json({}, { status: 400 })],
+    ['a 503', () => Response.json({}, { status: 503 })],
+    ['a 429', () => Response.json({}, { status: 429 })],
+  ])('%s is a plain error that deletes nothing', async (_name, res) => {
+    const error = await refresh(res).catch((e: unknown) => e)
+    expect(error).toBeInstanceOf(Error)
+    expect(error).not.toBeInstanceOf(ProviderAuthError)
+  })
+
+  it('a 401 on streams is retried after one refresh and succeeds', async () => {
+    let streamCalls = 0
+    const ctx = ctxWith({
+      ...tokenRoute(() =>
+        Response.json({ access_token: 'at-2', refresh_token: 'rt-2', expires_at: NOW_SEC + 21600 }),
+      ),
+      [`GET ${API}/activities/1001/streams`]: (req) => {
+        streamCalls += 1
+        return req.headers.get('authorization') === 'Bearer at-2'
+          ? Response.json({})
+          : new Response('{}', { status: 401 })
+      },
+    })
+    const entry: StravaRef = {
+      id: '1001',
+      startUtc: '2026-10-20T06:00:00Z',
+      summary: summary() as never,
+    }
+    const result = await stravaProvider.fetchActivity(entry, ctx)
+    expect(result).not.toBeNull()
+    expect(streamCalls).toBe(2)
+    expect(ctx.saved).toHaveLength(1)
+  })
+
+  it('a 401 on activities followed by a refused refresh is an auth error', async () => {
+    const ctx = ctxWith({
+      ...tokenRoute(() => Response.json(REFUSED, { status: 400 })),
       [`GET ${API}/athlete/activities`]: () => new Response('{}', { status: 401 }),
     })
-    const listing = stravaProvider.listActivities('2026-01-01T00:00:00Z', unauthorised)
+    const listing = stravaProvider.listActivities('2026-01-01T00:00:00Z', ctx)
     await expect(listing[Symbol.asyncIterator]().next()).rejects.toBeInstanceOf(ProviderAuthError)
   })
 
-  it('an outage at the token endpoint is not one', async () => {
-    const ctx = ctxWith(
-      { [`POST ${TOKEN_URL}`]: () => Response.json({}, { status: 503 }) },
-      { expiresAt: 1 },
-    )
-    const error = await refreshIfNeeded(ctx).catch((e: unknown) => e)
+  it('a 401 that survives a good refresh (a missing scope) is a plain error', async () => {
+    const ctx = ctxWith({
+      ...tokenRoute(() =>
+        Response.json({ access_token: 'at-2', refresh_token: 'rt-2', expires_at: NOW_SEC + 21600 }),
+      ),
+      [`GET ${API}/athlete/activities`]: () => new Response('{}', { status: 401 }),
+    })
+    const listing = stravaProvider.listActivities('2026-01-01T00:00:00Z', ctx)
+    const error = await listing[Symbol.asyncIterator]()
+      .next()
+      .catch((e: unknown) => e)
     expect(error).toBeInstanceOf(Error)
     expect(error).not.toBeInstanceOf(ProviderAuthError)
   })

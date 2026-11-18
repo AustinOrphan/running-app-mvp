@@ -2475,7 +2475,7 @@ things stand" gives counts and percentages without a weekly total or a date.
     (PW1: 403 `auth.password-change-required`; `reset-password` issues a temporary password).
 35. `delete-user` leaves the rows in backups until they are pruned (30 days since SC1, was 35;
     `pre-migrate` and
-    `pre-restore` copies after 30 days except the newest 3 of each kind, DN1, PP1), in the live file's free
+    `pre-restore` copies after 29 days (30 with the daily cadence) except the newest 3 of each kind, DN1, PP1), in the live file's free
     pages until `VACUUM`, and in
     calendar events the intervals.icu publisher wrote (#711).
 36. A sign in Warning signs rests on weaker support than the rest: the low-sodium list on engine

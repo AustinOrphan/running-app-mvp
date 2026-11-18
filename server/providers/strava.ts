@@ -103,23 +103,52 @@ function credentials(ctx: ProviderCtx): { clientId: string; clientSecret: string
   return { clientId, clientSecret }
 }
 
+/**
+ * Strava's explicit refusal of a refresh token: 400 or 401 from the token endpoint with a body that
+ * names the refresh token as the invalid field (`errors: [{ resource: 'RefreshToken', field:
+ * 'refresh_token', code: 'invalid' }]`) or the OAuth `invalid_grant` error. Only this answer deletes
+ * a runner's Strava runs (SC1, ADR 0025); every other failure is a plain error. The body shape is
+ * from Strava's error format and is not verified against a live refusal.
+ */
+function isInvalidRefresh(status: number, body: unknown): boolean {
+  if (status !== 400 && status !== 401) return false
+  if (typeof body !== 'object' || body === null) return false
+  const record = body as { error?: unknown; errors?: unknown }
+  if (record.error === 'invalid_grant') return true
+  return (
+    Array.isArray(record.errors) &&
+    record.errors.some((entry: unknown) => {
+      if (typeof entry !== 'object' || entry === null) return false
+      const { resource, field } = entry as { resource?: unknown; field?: unknown }
+      return resource === 'RefreshToken' || field === 'refresh_token'
+    })
+  )
+}
+
 async function tokenRequest(
   ctx: ProviderCtx,
   fields: Record<string, string>,
-): Promise<z.infer<typeof tokenSchema> | null> {
+): Promise<{ tokens: z.infer<typeof tokenSchema> | null; invalid: boolean; status: number }> {
   const { clientId, clientSecret } = credentials(ctx)
   const response = await ctx.fetch(TOKEN_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
     body: new URLSearchParams({ client_id: clientId, client_secret: clientSecret, ...fields }),
   })
-  // 4xx means Strava refused the grant; anything else is an outage, not a reason to reconnect.
+  // An outage is not a reason to reconnect.
   if (response.status >= 500 || response.status === 429) {
     throw new Error(providerMessage('provider.strava.token', { status: count(response.status) }))
   }
-  if (!response.ok) return null
-  const parsed = tokenSchema.safeParse(await response.json().catch(() => null))
-  return parsed.success ? parsed.data : null
+  const body: unknown = await response.json().catch(() => null)
+  if (!response.ok) {
+    return {
+      tokens: null,
+      invalid: isInvalidRefresh(response.status, body),
+      status: response.status,
+    }
+  }
+  const parsed = tokenSchema.safeParse(body)
+  return { tokens: parsed.success ? parsed.data : null, invalid: false, status: response.status }
 }
 
 /** Exchanges an OAuth `code` and returns the new secret (client secret plus tokens). */
@@ -129,7 +158,7 @@ export async function exchangeCode(
   ctx: ProviderCtx,
 ): Promise<Record<string, unknown>> {
   void redirectUri // Strava's token endpoint does not take it; the code is bound to the consent.
-  const tokens = await tokenRequest(ctx, { code, grant_type: 'authorization_code' })
+  const { tokens } = await tokenRequest(ctx, { code, grant_type: 'authorization_code' })
   if (!tokens) {
     throw validationError('Strava rejected the authorization. Start the connection again.')
   }
@@ -144,9 +173,11 @@ export async function exchangeCode(
 /**
  * Returns a valid access token, refreshing (and saving through `ctx.saveSecret`) when it expires
  * within 5 minutes. The refreshed pair is also written into `ctx.secret`, so later calls in the
- * same run reuse it instead of refreshing again.
+ * same run reuse it instead of refreshing again. `force` refreshes whatever the expiry says (the
+ * one retry after a 401 on an API call). Only an explicit invalid-refresh-token answer throws
+ * `ProviderAuthError`; any other failure is a plain error that deletes nothing.
  */
-export async function refreshIfNeeded(ctx: ProviderCtx): Promise<string> {
+export async function refreshIfNeeded(ctx: ProviderCtx, force = false): Promise<string> {
   const accessToken = text(ctx.secret.accessToken)
   const refreshToken = text(ctx.secret.refreshToken)
   const expiresAt = typeof ctx.secret.expiresAt === 'number' ? ctx.secret.expiresAt : 0
@@ -154,15 +185,17 @@ export async function refreshIfNeeded(ctx: ProviderCtx): Promise<string> {
     throw new Error(`Strava is not connected. ${RECONNECT}`)
   }
   const nowSec = Math.floor(ctx.now().getTime() / 1000)
-  if (expiresAt - nowSec > REFRESH_MARGIN_SEC) return accessToken
+  if (!force && expiresAt - nowSec > REFRESH_MARGIN_SEC) return accessToken
 
-  const tokens = await tokenRequest(ctx, {
+  const { tokens, invalid, status } = await tokenRequest(ctx, {
     grant_type: 'refresh_token',
     refresh_token: refreshToken,
   })
-  // A refused refresh token is a revocation or an expired grant: the sync service starts the
-  // removal clock for it (`ProviderAuthError`, SC1).
-  if (!tokens) throw new ProviderAuthError(`Strava rejected the refresh token. ${RECONNECT}`)
+  // A refused refresh token is a revocation: the sync service removes the Strava runs (SC1).
+  if (invalid) throw new ProviderAuthError(`Strava rejected the refresh token. ${RECONNECT}`)
+  if (!tokens) {
+    throw new Error(providerMessage('provider.strava.token', { status: count(status) }))
+  }
   const next = {
     ...ctx.secret,
     accessToken: tokens.access_token,
@@ -244,15 +277,14 @@ async function get(
   url: string,
   cursor?: string,
 ): Promise<{ body: unknown; pause: number | null }> {
-  const token = await refreshIfNeeded(ctx)
-  const response = await ctx.fetch(url, {
-    headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
-  })
+  const request = (token: string) =>
+    ctx.fetch(url, { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } })
+  let response = await request(await refreshIfNeeded(ctx))
+  // A 401 alone proves nothing (a missing scope answers 401 too): refresh once and ask again. Only
+  // a refused refresh deletes; a 401 that survives a good refresh is a plain error.
+  if (response.status === 401) response = await request(await refreshIfNeeded(ctx, true))
   if (response.status === 429) {
     throw pauseError(pauseSeconds(response.headers, ctx.now()) ?? WINDOW_SEC, cursor)
-  }
-  if (response.status === 401) {
-    throw new ProviderAuthError(`Strava rejected the access token. ${RECONNECT}`)
   }
   if (response.status === 404) return { body: null, pause: null }
   if (!response.ok) {

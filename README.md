@@ -554,8 +554,8 @@ each of the 7 most recent days (UTC) that have one, and the newest of each of th
 weeks that have one. `npm run backup -- --keep 14` keeps the newest 14 instead.
 
 The rule for `pre-migrate-*.db` and `pre-restore-*.db`, applied by the daily job, after each
-pre-migrate copy and after each restore: remove the copies older than 30 days
-(`KEEP_PRE_MIGRATE_DAYS`), and always keep the newest 3 of each kind (`KEEP_PRE_MIGRATE_MIN`),
+pre-migrate copy and after each restore: remove the copies older than 29 days
+(`KEEP_PRE_MIGRATE_DAYS`; the daily cadence adds up to a day, so a copy is gone within 30), and always keep the newest 3 of each kind (`KEEP_PRE_MIGRATE_MIN`),
 whatever their age. The copy a restore has just made is the newest, so it is never pruned by that
 restore. A pruned `pre-restore` copy of a damaged database takes its `-wal` and `-shm` files with
 it.
@@ -866,7 +866,7 @@ The account's sessions end with it: a signed cookie of a deleted account finds n
 request answers 401. Two things stay behind by design. The copies in `backups/` still hold the
 account: the daily copies are pruned to the newest of each of the last 7 days and of the last 3 ISO
 weeks, so the last one holding it goes within 30 days (see "Data notice"). `pre-migrate` copies go
-after 30 days except the newest 3, and so do `pre-restore` copies: delete those by hand if they
+after 29 days (30 with the daily cadence) except the newest 3, and so do `pre-restore` copies: delete those by hand if they
 must not keep it. The live database file can
 still hold the deleted bytes (SQLite free pages and the WAL) until they are overwritten; `VACUUM` with
 the server stopped clears them, and the command does not run it. Events that the

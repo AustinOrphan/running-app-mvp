@@ -73,8 +73,8 @@ Why the shared application was not built:
   import would be the only fallback.
 - **Fact (https://developers.strava.com/docs/rate-limits/).** Limits are per application, so a
   shared application would share one budget between runners.
-- **Fact (API Policy 5.3 and 5.7).** 5.3 forbids AI use of Strava Data, "derived, aggregated, or
-  anonymized data" included. 5.7 forbids storing "geographic location information" outside the 6.2
+- **Fact (API Policy 5.3 and 5.7).** 5.3 forbids AI use of Strava Data, derived, aggregated and
+  anonymized data included (as read in the design, not quoted). 5.7 forbids storing "geographic location information" outside the 6.2
   cache. Both apply to whichever application fetched the data, so they are not a reason for or
   against sharing; they are listed under what stays open.
 - **Fact (https://developers.strava.com/docs/getting-started/).** "A Strava subscription is a
@@ -88,7 +88,10 @@ Why the deletion work is built this way:
 - **Fact (API Policy 7.4 and 2.5, read 2026-11-18).** Deletion within 30 days on request, on
   revocation, on account deletion or when the developer stops using the API. Disconnect deletes the
   live rows at once, and so does a refused token (below); the 30-day backup bound (above) is the
-  longest the copies then hold them, so both are clear of every copy within 30 days.
+  longest the copies then hold them, so both are clear of every copy within 30 days. Met, except
+  the newest 3 safety copies of each kind (pre-update, pre-restore) kept for rollback, which the
+  operator deletes on request, as the Data notice says. The safety copies are pruned at 29 days
+  because the daily job adds up to a day.
 - **Fact (https://developers.strava.com/docs/authentication/, read 2026-11-18).** `POST
 /oauth/revoke` "is the recommended method for deauthorization" and will be the only one from
   2027-06-01. An athlete who disconnects here but stays authorised at Strava keeps the app
@@ -128,6 +131,10 @@ Why the deletion work is built this way:
   it. The owner has not decided whether to stop storing it; nothing changes here.
 - **Still open: no AI use (Policy 5.3).** Any session or script that reads a live database must skip
   rows with `source = 'strava'`. This is an operator rule, not code.
+- **Still open: derived data stays after a deletion.** `WeeklyBrief` rows and `PredictionLog` inputs
+  that were built from Strava runs are not deleted: they are the runner's coaching history. Reason
+  (Opinion): they are plan-level aggregates, and store no Strava field value (no distance, time,
+  heart rate or position of a run). Whether Policy 6.2 or 7.4 reaches them is not verified.
 - **Still open: the homelab off-host job.** It keeps 30 snapshots until it is changed to 29; the
   homelab repository is outside this one, so the requirement is stated in the README and STATUS only.
 - **Open: breach notice, privacy policy, consent text (Policy 2.1, 7.3, 8.3).** The per-runner

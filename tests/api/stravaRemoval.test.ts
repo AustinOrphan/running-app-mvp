@@ -22,6 +22,8 @@ const LIST = 'GET https://www.strava.com/api/v3/athlete/activities'
 const REVOKE = 'POST https://www.strava.com/oauth/revoke'
 const TOKEN = 'POST https://www.strava.com/oauth/token'
 const DAY_MS = 86_400_000
+/** Strava's explicit refusal of a refresh token: the only answer that deletes. */
+const REFUSED = { message: 'Bad Request', errors: [{ resource: 'RefreshToken', code: 'invalid' }] }
 
 const SECRET = {
   clientSecret: 'synthetic-client-secret-0123',
@@ -230,7 +232,7 @@ describe('a revoked Strava grant', () => {
       duplicateOfId: original.id,
       duplicateStatus: 'confirmed',
     })
-    stub({ [LIST]: () => json({}, 401) })
+    stub({ [LIST]: () => json({}, 401), [TOKEN]: () => json(REFUSED, 400) })
     await syncProviderToday(ctx, user.id, 'strava')
     expect(await idsLeft()).toEqual([file.id, survivor.id].sort())
     const row = await ctx.prisma.integration.findFirstOrThrow()
@@ -251,7 +253,7 @@ describe('a revoked Strava grant', () => {
     await ctx.prisma.integration.updateMany({
       data: { secret: sealSecret({ ...SECRET, expiresAt: 1 }, ctx.config.sessionSecret) },
     })
-    stub({ [TOKEN]: () => json({}, 400) })
+    stub({ [TOKEN]: () => json(REFUSED, 400) })
     await syncProviderToday(ctx, user.id, 'strava')
     expect((await ctx.prisma.integration.findFirstOrThrow()).status).toBe('needs_auth')
     expect(await ctx.prisma.activity.count()).toBe(0)
@@ -273,6 +275,71 @@ describe('a revoked Strava grant', () => {
     stub({ [TOKEN]: () => json({}, 503) })
     await syncProviderToday(ctx, user.id, 'strava')
     expect(await ctx.prisma.activity.count()).toBe(1)
+
+    // A 401 with a refresh that works (a missing scope, say) is an error, not a revocation.
+    await ctx.prisma.integration.updateMany({ data: { status: 'connected' } })
+    stub({
+      [LIST]: () => json({}, 401),
+      [TOKEN]: () => json({ access_token: 'a-2', refresh_token: 'r-2', expires_at: 4_102_444_800 }),
+    })
+    await syncProviderToday(ctx, user.id, 'strava')
+    expect(await ctx.prisma.activity.count()).toBe(1)
+    expect(
+      refusedAtOf(
+        JSON.parse((await ctx.prisma.integration.findFirstOrThrow()).config) as Record<
+          string,
+          unknown
+        >,
+      ),
+    ).toBeNull()
+  })
+
+  test('a Strava original that a file run duplicates hands its ratings and race to the file run', async () => {
+    await connectStrava()
+    stub({ [REVOKE]: () => json({}) })
+    const goal = await ctx.prisma.goal.create({
+      data: {
+        userId: user.id,
+        name: 'Synthetic race',
+        priority: 'A',
+        targetDate: '2026-06-01',
+        distanceM: 21_097,
+      },
+    })
+    const original = await storeRun('strava', 'strava:3', 3, {
+      type: 'race',
+      rpe: 8,
+      rpeSource: 'app',
+      feel: 1,
+      pain: 2,
+      notes: 'Windy',
+    })
+    const survivor = await storeRun('file', 'file:g', 3, {
+      duplicateOfId: original.id,
+      duplicateStatus: 'confirmed',
+    })
+    await ctx.prisma.raceResult.create({
+      data: {
+        userId: user.id,
+        goalId: goal.id,
+        activityId: original.id,
+        date: '2026-03-03',
+        distanceM: 21_097,
+        outcome: 'finished',
+        timeSec: 6000,
+      },
+    })
+    expect((await client(ctx, user).delete('/api/integrations/strava')).status).toBe(204)
+    const kept = await ctx.prisma.activity.findUniqueOrThrow({ where: { id: survivor.id } })
+    expect(kept).toMatchObject({
+      type: 'race',
+      rpe: 8,
+      rpeSource: 'app',
+      feel: 1,
+      pain: 2,
+      notes: 'Windy',
+    })
+    expect((await ctx.prisma.raceResult.findFirstOrThrow()).activityId).toBe(survivor.id)
   })
 
   test('a disconnect during a refused sync waits for the lock and deletes nothing twice', async () => {
@@ -287,6 +354,7 @@ describe('a revoked Strava grant', () => {
         await gate
         return json({}, 401)
       },
+      [TOKEN]: () => json(REFUSED, 400),
     })
     const sync = syncProviderToday(ctx, user.id, 'strava')
     // Let the sync reach its first request while it holds the lock.
@@ -415,7 +483,7 @@ describe('the daily check against Strava', () => {
     await connectStrava()
     await storeRun('strava', 'strava:1', 1)
     const file = await storeRun('file', 'file:a', 2)
-    stub({ [LIST]: () => json({}, 401) })
+    stub({ [LIST]: () => json({}, 401), [TOKEN]: () => json(REFUSED, 400) })
     await runStravaJob(ctx)
     expect(await idsLeft()).toEqual([file.id])
     const row = await ctx.prisma.integration.findFirstOrThrow()

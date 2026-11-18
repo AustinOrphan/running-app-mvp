@@ -70,7 +70,7 @@ describe('npm run backup', () => {
     expect(backups().filter((name) => name.startsWith('app-'))).toHaveLength(3)
   })
 
-  test('--before-migrate prunes pre-migrate copies older than 30 days, keeping the newest 3', async () => {
+  test('--before-migrate prunes pre-migrate copies older than 29 days, keeping the newest 3', async () => {
     makeDatabase()
     mkdirSync(join(dir, 'backups'))
     const recent = backupStamp(new Date(Date.now() - 86_400_000))
