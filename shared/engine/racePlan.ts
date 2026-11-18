@@ -537,7 +537,7 @@ export function racePlanFor(input: RacePlanInput): RacePlan {
     hot,
     lowConfidence: hoursExpected > P.i6.lowConfidenceEventHours.value,
     ...(input.heatState === undefined ? {} : { state: input.heatState }),
-    rules: ['I6', 'I9'],
+    rules: ['I6', 'I9', ...(hot ? ['I8'] : [])],
   }
 
   const dark: RaceDark | null = goal.crossesDarkness

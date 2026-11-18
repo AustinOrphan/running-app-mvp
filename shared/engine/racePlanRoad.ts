@@ -23,7 +23,7 @@ import type { ClimbBlend, GoalModel, LadderResult, Prediction } from './types.ts
 import type { RangeLabel, SupportLevel } from '../types.ts'
 import { eahCard, isHotForFuel, raceFuelFor, type RaceFuel } from './fuel.ts'
 import { goalPaceSecPerKm, startMinutes } from './goal.ts'
-import { heatWarning } from './heat.ts'
+import { heatWarning, isHotForSteering } from './heat.ts'
 import { P } from './params/index.ts'
 import { rangeLabel } from './predict.ts'
 import { clockAt, type RaceClock } from './raceClock.ts'
@@ -126,6 +126,8 @@ export interface RoadHeat {
   inRangeSec: number | null
   /** The WBGT is above `i3.slopeStartC`. */
   warm: boolean
+  /** Hot for steering (`isHotForSteering`, the predicate the ultra plan uses): the cooling line of I8 shows. */
+  hot: boolean
   /** The WBGT is above `i9.warnWbgtC` (`heatWarning`), past the range of the penalty model. */
   aboveModel: boolean
   /** A marathon above `i3.slopeStartC`: the I5 pair (Ely 2008) and the medical-records line (Roberts 2010). */
@@ -283,6 +285,7 @@ export function roadRacePlanFor(input: RoadRacePlanInput): RoadRacePlan {
 
   const heatRules = prediction?.rules.includes('I2') === true
   const warm = wbgt !== null && wbgt > P.i3.slopeStartC.value
+  const hot = isHotForSteering(wbgtIndex, [])
   const heat: RoadHeat = {
     wbgtC: wbgt,
     source: 'climate-normal',
@@ -292,6 +295,7 @@ export function roadRacePlanFor(input: RoadRacePlanInput): RoadRacePlan {
         ? null
         : Math.max(0, prediction.predictedSec - input.coolPredictedSec),
     warm,
+    hot,
     aboveModel: wbgt !== null && heatWarning(wbgt) !== null,
     paceShapeFinding: distanceClass === 'marathon' && warm,
     rangeHoldsHeat: prediction !== null && heatRules,
@@ -300,6 +304,7 @@ export function roadRacePlanFor(input: RoadRacePlanInput): RoadRacePlan {
       'I3',
       ...(wbgt !== null && heatWarning(wbgt) !== null ? ['I9'] : []),
       ...(distanceClass === 'marathon' && warm ? ['I5'] : []),
+      ...(hot ? ['I8'] : []),
     ],
   }
 

@@ -24,6 +24,7 @@ import {
   describeFuelTarget,
   fuelDisclaimer,
   gutConditionLock,
+  gutReferralLines,
   gutTrainingText,
   logExistsMessage,
   notARunMessage,
@@ -881,6 +882,7 @@ export async function fuelLabView(
     products,
     history,
     prompts: fuelPrompts(state, athlete, today),
+    referral: gutReferralLines(state.ladder),
     eah: await eahFor(athlete, next?.target.hot ?? false),
     disclaimers: {
       general: fuelDisclaimer(),

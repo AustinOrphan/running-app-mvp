@@ -1042,6 +1042,11 @@ export interface LadderResult {
   toleratedIndex: number
   /** The last counted run scored badly: the current rung repeats. */
   held: boolean
+  /**
+   * The stop is in force: a counted run scored `h7.gutStopScore` or more, whether it held the rung
+   * or returned the target, and no later tolerated run on a day that was not hot has cleared it.
+   */
+  stopped: boolean
   locked: boolean
   /** The highest rung the settings open. */
   ceilingIndex: number

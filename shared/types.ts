@@ -2052,6 +2052,11 @@ export interface FuelLabView {
   /** The latest logs of runs that count in the replay, newest first. */
   history: FuelHistoryRow[]
   prompts: FuelPrompt[]
+  /**
+   * The referral lines (rule H7, GR1) when the ladder's stop is in force and no gut condition is
+   * set; null otherwise.
+   */
+  referral: string[] | null
   /** The safety card about drinking too much; the stronger variant for a long goal or in heat. */
   eah: EahCard
   disclaimers: {
