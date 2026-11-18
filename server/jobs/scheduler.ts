@@ -23,6 +23,7 @@ import { scanFolderIntegration } from '../services/folder.ts'
 import { replanActivePlan } from '../services/planEngine.ts'
 import { ensureWeeklyPrediction } from '../services/predictionLog.ts'
 import { CHANNEL as PUBLISH_CHANNEL, isPublishDue, publishForUser } from '../services/publish.ts'
+import { runStravaJob } from '../services/stravaRemoval.ts'
 import { syncProvider } from '../services/sync.ts'
 import {
   recordSyncRun,
@@ -919,6 +920,12 @@ export const SLOT_CHECK_MS = 10 * MINUTE_MS
 export const BACKUP_SLOT: DailySlot = { hour: 2, minute: 0 }
 /** Nightly matching runs before the Monday re-plan, so the re-plan sees the week's links. */
 export const MATCHING_SLOT: DailySlot = { hour: 2, minute: 30 }
+/**
+ * The daily Strava check (SC1, ADR 0025): lists each connected runner's Strava activities once to
+ * delete what Strava dropped.
+ * After the re-plan (03:00), so a deletion never lands in the middle of one.
+ */
+export const STRAVA_SLOT: DailySlot = { hour: 3, minute: 30 }
 /** After matching (02:30) and the Monday re-plan (03:00): the morning's forced publish. */
 export const PUBLISH_MORNING_SLOT: DailySlot = { hour: 4, minute: 45 }
 
@@ -926,7 +933,7 @@ export const PUBLISH_MORNING_SLOT: DailySlot = { hour: 4, minute: 45 }
  * Starts the hourly sync, 5-minute folder scan and 10-minute weather jobs, the 5-minute terrain
  * and track backfills, the daily database
  * backup (02:00 local), the nightly matching (02:30 local), the Monday re-plan (03:00 local) and
- * its catch-up, and the weekly prediction log (each 30 s after start, then every 6 hours), the
+ * its catch-up, the daily Strava check (03:30 local), and the weekly prediction log (each 30 s after start, then every 6 hours), the
  * publisher's 2-minute check and its forced 04:45 run; returns `stop()`.
  * A job never overlaps itself: a tick that finds its previous run still going does nothing.
  * Called from `server/index.ts` only, never in tests.
@@ -1059,6 +1066,7 @@ export function startScheduler(deps: Deps, opts: { fetch: typeof fetch }): () =>
   }, FIRST_RUN_DELAY_MS)
   catchUp.unref()
   timers.add(catchUp)
+  daily('strava', STRAVA_SLOT, () => runStravaJob(deps, { fetch: opts.fetch }, log))
   const planUsers = (): Promise<ServedRunner[]> => activePlanRunners(deps.prisma)
   dailyPerRunner('matching', MATCHING_SLOT, planUsers, (userIds, days) =>
     runMatchingJob(deps, { userIds, days }, log),

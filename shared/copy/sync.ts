@@ -110,6 +110,24 @@ export const SYNC_TEMPLATES = {
     { n: 'count' },
   ),
 
+  // The Strava deletion work (SC1, ADR 0025): why a daily check or a disconnect left something out.
+  // The count of what was removed is the run's `accepted`, so no sentence repeats it.
+  'sync.msg.strava-check-paused': tpl(
+    "The daily Strava check stopped at the service's limits. Nothing was deleted.",
+  ),
+  'sync.msg.strava-check-incomplete': tpl(
+    'The Strava list could not be read in full. Nothing was deleted.',
+  ),
+  'sync.msg.strava-check-empty': tpl(
+    'Strava listed no activity while some are stored here. Nothing was deleted.',
+  ),
+  'sync.msg.strava-check-refused': tpl(
+    'Strava refused the stored token. The activities that came from Strava were removed.',
+  ),
+  'sync.msg.strava-revoke-failed': tpl(
+    'Strava could not be told to revoke access. Remove the app at strava.com/settings/apps.',
+  ),
+
   // The disclosure and its states.
   'sync.summary': tpl('Recent syncs', {}, { shape: 'label' }),
   'sync.loading': tpl('Loading recent syncs.'),

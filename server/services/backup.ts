@@ -30,9 +30,13 @@ const PRE_RESTORE_NAME = /^pre-restore-(\d{8}T\d{6}Z)\.db$/
 /** A copy of a damaged database is kept with its `-wal` and `-shm` files beside it. */
 const SIDECAR_SUFFIXES = ['-wal', '-shm']
 
-/** Days and ISO weeks that the default rule keeps a backup for (the newest of each). */
+/**
+ * Days and ISO weeks that the default rule keeps a backup for (the newest of each). Three weeks,
+ * not four, so that a deleted account leaves every copy within 30 days: Strava API Policy 7.4
+ * asks for deletion within 30 days of a revocation or a request (SC1, ADR 0025).
+ */
 export const KEEP_DAYS = 7
-export const KEEP_WEEKS = 4
+export const KEEP_WEEKS = 3
 
 /**
  * A pre-update (`pre-migrate`) copy is removed once it is older than this, unless it is one of the
@@ -42,14 +46,15 @@ export const KEEP_WEEKS = 4
  * rule is the simplest true statement for the data notice, and nothing about a restore needs a
  * different window. The names keep `PRE_MIGRATE` because the rule began there.
  */
-export const KEEP_PRE_MIGRATE_DAYS = 30
+export const KEEP_PRE_MIGRATE_DAYS = 29
 export const KEEP_PRE_MIGRATE_MIN = 3
 
 /**
- * Days that the off-host job keeps a daily snapshot of the newest `app-*.db` (30 daily snapshots,
- * decision D1). A requirement on a job outside this repository, stated in the README.
+ * Days that the off-host job keeps a daily snapshot of the newest `app-*.db` (29 daily snapshots;
+ * 30 under decision D1 until SC1, which needs `1 + 29` to stay within 30 days). A requirement on a
+ * job outside this repository, stated in the README.
  */
-export const OFF_HOST_SNAPSHOT_DAYS = 30
+export const OFF_HOST_SNAPSHOT_DAYS = 29
 
 const DAY_MS = 86_400_000
 
@@ -65,6 +70,10 @@ const DAY_MS = 86_400_000
  *
  * A `pre-restore` copy goes after the same `KEEP_PRE_MIGRATE_DAYS`, so `localDays` is unchanged.
  *
+ * The safety copies are pruned by the daily job, so a copy that turns `KEEP_PRE_MIGRATE_DAYS` old
+ * today is removed at the next run, up to a day later: the bound is `KEEP_PRE_MIGRATE_DAYS + 1`.
+ * `KEEP_PRE_MIGRATE_DAYS` is 29 so that this bound is 30 days, the figure of the notice (SC1).
+ *
  * Not counted: the newest `KEEP_PRE_MIGRATE_MIN` copies of each of the pre-update and pre-restore
  * kinds, which stay until later ones push them out; copies made by hand;
  * `npm run backup -- --keep`.
@@ -74,14 +83,14 @@ export function deletedAccountRetention(): {
   offHostDays: number
   longestDays: number
 } {
-  const localDays = Math.max((KEEP_WEEKS + 1) * 7, KEEP_PRE_MIGRATE_DAYS)
+  const localDays = Math.max((KEEP_WEEKS + 1) * 7, KEEP_PRE_MIGRATE_DAYS + 1)
   const offHostDays = 1 + OFF_HOST_SNAPSHOT_DAYS
   return { localDays, offHostDays, longestDays: Math.max(localDays, offHostDays) }
 }
 
 export type Retention = { newest: number } | { days: number; weeks: number }
 
-/** The default rule: the newest backup of each of the last 7 days and of the last 4 ISO weeks. */
+/** The default rule: the newest backup of each of the last 7 days and of the last 3 ISO weeks. */
 export const DEFAULT_RETENTION: Retention = { days: KEEP_DAYS, weeks: KEEP_WEEKS }
 
 export interface BackupFile {

@@ -93,6 +93,33 @@ export const PAGE_TEMPLATES = {
   'integrations.which.files': tpl(
     'FIT, GPX or TCX files from any watch or app: use Import on the Activities page.',
   ),
+  // Disconnecting Strava also ends the app's access there and removes the activities that came
+  // from it (SC1, ADR 0025, Strava API Policy 7.4). The sheet shows the count and links to the export.
+  'integrations.strava.disconnect-note': tpl(
+    'Disconnecting ends access at Strava and removes the activities that came from Strava. Activities from files or other sources stay.',
+  ),
+  'integrations.strava.disconnect.title': tpl('Disconnect Strava?'),
+  'integrations.strava.disconnect.lead.none': tpl(
+    'No activity here came from Strava. This ends access at Strava.',
+  ),
+  'integrations.strava.disconnect.lead.one': tpl(
+    'This removes the 1 activity that came from Strava and ends access at Strava. Activities from files or other sources stay.',
+  ),
+  'integrations.strava.disconnect.lead.many': tpl(
+    'This removes the {n} activities that came from Strava and ends access at Strava. Activities from files or other sources stay.',
+    { n: 'count' },
+  ),
+  'integrations.strava.disconnect.export': tpl(
+    'Download a copy of your data first',
+    {},
+    { shape: 'label' },
+  ),
+  'integrations.strava.disconnect.confirm': tpl('Disconnect and remove', {}, { shape: 'label' }),
+  'integrations.strava.disconnect.keep': tpl('Keep connected', {}, { shape: 'label' }),
+  'integrations.strava.disconnect.error': tpl('Strava was not disconnected. Try again.'),
+  'integrations.strava.removal-note': tpl(
+    'Strava refused the connection, so the activities that came from Strava were removed. Connecting again brings back up to a year.',
+  ),
   // The experimental Garmin card, folded for every account but the install owner's.
   'integrations.garmin.folded': tpl(
     '{label}, unofficial and experimental. A Garmin watch connects through intervals.icu.',

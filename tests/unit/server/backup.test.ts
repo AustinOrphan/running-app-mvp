@@ -13,6 +13,7 @@ import {
   deletedAccountRetention,
   hasPendingMigrations,
   KEEP_PRE_MIGRATE_DAYS,
+  KEEP_WEEKS,
   KEEP_PRE_MIGRATE_MIN,
   OFF_HOST_SNAPSHOT_DAYS,
   prunePreMigrateBackups,
@@ -195,7 +196,7 @@ function october(): BackupFile[] {
 const names = (files: readonly BackupFile[]): string[] => files.map((f) => f.name)
 
 describe('selectPruned', () => {
-  test('the default rule keeps the newest of each of 7 days and of 4 ISO weeks', () => {
+  test('the default rule keeps the newest of each of 7 days and of 3 ISO weeks', () => {
     const files = october()
     const pruned = new Set(names(selectPruned(files)))
     const kept = names(files).filter((name) => !pruned.has(name))
@@ -209,12 +210,11 @@ describe('selectPruned', () => {
         'app-20261027T020000Z.db',
         'app-20261026T020000Z.db',
         'app-20261025T020000Z.db',
-        // Sundays closing the weeks of Monday 10-19, 10-12 and 10-05 (the 25th is also a day above).
+        // Sundays closing the weeks of Monday 10-19 and 10-12 (the 25th is also a day above).
         'app-20261018T020000Z.db',
-        'app-20261011T020000Z.db',
       ].sort(),
     )
-    expect(pruned.size).toBe(files.length - 9)
+    expect(pruned.size).toBe(files.length - 8)
   })
 
   test('a week is Monday to Sunday: a Sunday night and the next Monday morning are different weeks', () => {
@@ -236,12 +236,12 @@ describe('selectPruned', () => {
       file('20261005T010000Z'),
       file('20261004T230000Z'),
     ]
-    // The weeks of Monday 10-26 and 10-19 are served by the daily copies of the 31st and the 25th.
-    // The Sunday copies of the 18th and the 11th close the weeks of 10-12 and 10-05 and stay; the
-    // Monday copies of those weeks are older than them and go, and the fifth week is out.
+    // The weeks of Monday 10-26 and 10-19 are served by the daily copies of the 31st and the 25th.    // The Sunday copy of the 18th closes the week of 10-12 and stays; the Monday copy of that week
+    // is older and goes, and the fourth week (10-05) is out.
     expect(names(selectPruned(files))).toEqual([
       'app-20261019T010000Z.db',
       'app-20261012T010000Z.db',
+      'app-20261011T230000Z.db',
       'app-20261005T010000Z.db',
       'app-20261004T230000Z.db',
     ])
@@ -303,9 +303,9 @@ describe('pruneBackups', () => {
 
     const removed = pruneBackups(backups)
 
-    expect(removed).toHaveLength(23)
+    expect(removed).toHaveLength(24)
     const left = readdirSync(backups)
-    expect(left).toHaveLength(9 + others.length)
+    expect(left).toHaveLength(8 + others.length)
     for (const name of others) expect(left).toContain(name)
     expect(left).toContain('app-20261031T030000Z.db')
     expect(left).not.toContain('app-20261031T020000Z.db')
@@ -339,7 +339,7 @@ describe('prunePreMigrateBackups', () => {
     return backups
   }
 
-  test('removes copies older than 30 days and keeps the newest 3 and the recent ones', () => {
+  test('removes copies older than 29 days and keeps the newest 3 and the recent ones', () => {
     const backups = seed([
       stamp('20260101T000000Z'),
       stamp('20260201T000000Z'),
@@ -373,16 +373,16 @@ describe('prunePreMigrateBackups', () => {
     expect(readdirSync(backups)).toHaveLength(3)
   })
 
-  test('a copy exactly 30 days old stays; one a second older goes when not in the newest 3', () => {
+  test('a copy exactly 29 days old stays; one a second older goes when not in the newest 3', () => {
     const backups = seed([
-      stamp('20261018T120000Z'),
-      stamp('20261018T115959Z'),
+      stamp('20261019T120000Z'),
+      stamp('20261019T115959Z'),
       stamp('20261117T000000Z'),
       stamp('20261116T000000Z'),
       stamp('20261115T000000Z'),
     ])
-    expect(prunePreMigrateBackups(backups, NOW).removed).toEqual([stamp('20261018T115959Z')])
-    expect(readdirSync(backups)).toContain(stamp('20261018T120000Z'))
+    expect(prunePreMigrateBackups(backups, NOW).removed).toEqual([stamp('20261019T115959Z')])
+    expect(readdirSync(backups)).toContain(stamp('20261019T120000Z'))
   })
 
   test('leaves other files, the live database and its folder neighbours untouched', () => {
@@ -432,8 +432,10 @@ describe('prunePreMigrateBackups', () => {
     expect(result.removed).toEqual([stamp('20250102T000000Z')])
   })
 
-  test('the constants are 30 days and 3 copies', () => {
-    expect(KEEP_PRE_MIGRATE_DAYS).toBe(30)
+  // The daily job prunes, so a safety copy can outlive its cutoff by a day: 29 + 1 keeps the
+  // notice's 30 days true (SC1).
+  test('the constants are 29 days and 3 copies', () => {
+    expect(KEEP_PRE_MIGRATE_DAYS).toBe(29)
     expect(KEEP_PRE_MIGRATE_MIN).toBe(3)
   })
 })
@@ -449,7 +451,7 @@ describe('prunePreRestoreBackups', () => {
     return backups
   }
 
-  test('removes copies older than 30 days and keeps the newest 3 and the recent ones', () => {
+  test('removes copies older than 29 days and keeps the newest 3 and the recent ones', () => {
     const backups = seed([
       stamp('20260101T000000Z'),
       stamp('20260201T000000Z'),
@@ -573,8 +575,12 @@ describe('prunePreRestoreBackups', () => {
 })
 
 describe('deletedAccountRetention', () => {
-  test('is 35 days locally and 31 off-host, so 35 days at most', () => {
-    expect(deletedAccountRetention()).toEqual({ localDays: 35, offHostDays: 31, longestDays: 35 })
+  // Strava API Policy 7.4 asks for deletion within 30 days (SC1, ADR 0025): the bound may not grow.
+  test('is 30 days locally and 30 off-host, so 30 days at most', () => {
+    expect(KEEP_WEEKS).toBe(3)
+    expect(OFF_HOST_SNAPSHOT_DAYS).toBe(29)
+    expect(deletedAccountRetention()).toEqual({ localDays: 30, offHostDays: 30, longestDays: 30 })
+    expect(deletedAccountRetention().longestDays).toBeLessThanOrEqual(30)
   })
 
   test('the README states the figure, the constants and the geocoding line', () => {
@@ -583,6 +589,8 @@ describe('deletedAccountRetention', () => {
     expect(readme).toContain(`from every copy the server keeps within ${longestDays} days`)
     expect(readme).toContain(`The ${longestDays} days is \`deletedAccountRetention().longestDays\``)
     expect(readme).toContain(`keep ${OFF_HOST_SNAPSHOT_DAYS} daily snapshots`)
+    expect(readme).toContain(`is kept at another location for up to ${OFF_HOST_SNAPSHOT_DAYS} days`)
+    expect(readme).toContain(`the newest of each of the ${KEEP_WEEKS} most recent ISO\nweeks`)
     expect(readme).toContain(`remove the copies older than ${KEEP_PRE_MIGRATE_DAYS} days`)
     expect(readme).toContain(`keep the newest ${KEEP_PRE_MIGRATE_MIN}`)
     expect(readme).toContain(

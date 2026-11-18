@@ -330,6 +330,13 @@ export const TODAY_TEMPLATES = {
     { source: 'text' },
     { fallback: 'A source needs signing in again; runs since then have not arrived.' },
   ),
+  // Strava after a refused token (SC1): the runs it brought in were removed at once, and
+  // connecting again reads the last year again.
+  'today.health.source-needs-auth-refused': tpl(
+    '{source} refused the connection, so the runs it brought in were removed. Connecting again brings back up to a year.',
+    { source: 'text' },
+    { fallback: 'A source needs signing in again; runs since then have not arrived.' },
+  ),
   'today.health.source-silent': tpl(
     'No run has arrived from {source} since {since}. If you ran, check the upload; if you did not, nothing is needed.',
     { source: 'text', since: 'date' },

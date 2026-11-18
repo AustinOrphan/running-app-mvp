@@ -116,7 +116,8 @@ One export runs at a time; the browser's download manager streams it to disk. Th
 
 Activities and daily health data can arrive without typing. Every source is a provider; the
 Integrations page (More, then Integrations) shows one card each with its status, last sync and a
-Disconnect button. Disconnecting forgets the stored credentials; the activities stay.
+Disconnect button. Disconnecting forgets the stored credentials; the activities stay, except for
+Strava, whose disconnect also removes the activities that came from it (see "Strava").
 
 Pull providers sync hourly in the background, and the card's Sync now button runs one at once. The
 first run reads the last year; set Backfill from on the card to go further back. Weather is added
@@ -183,6 +184,30 @@ Strava needs your own API application, because the app is self-hosted and has no
 Strava brings activities with heart rate, cadence, power and altitude streams but no original files
 and no wellness data. Strava rate-limits each application; a long backfill pauses at 80% of either
 limit and continues on the next run.
+
+Strava's API Policy (7.4, 6.3) asks the developer to delete a person's Strava data when they revoke
+access and to reflect deletions made on Strava, so three things happen to the activities that came
+from Strava (ADR 0025). Activities that came from a file or another source stay, and a run that
+another source also holds keeps that copy.
+
+- **Disconnect** asks first: the sheet shows how many activities will go and links to the full-data
+  export (Settings, Your data). It then revokes the token at Strava (best effort; if Strava does not
+  accept, remove the app at strava.com/settings/apps) and deletes those activities and the row.
+- **A refused token** (a refused refresh token or a 401: access revoked at Strava, or the grant
+  expired) deletes those activities at once, the way Disconnect does, and moves the card to Needs
+  reconnecting. Today and the card say that Strava refused the connection and the runs were
+  removed; connecting again brings back up to a year. A network error or a Strava outage (5xx)
+  deletes nothing.
+- **The daily check** (03:30 local) lists a connected runner's Strava activities once, from the
+  oldest stored one, and deletes local Strava runs that Strava no longer lists. Only a complete
+  listing deletes: a pause, an error or an empty list while runs are stored deletes nothing and
+  shows as a `partial` or `error` run in the sync log (job `strava-reconcile`; a removal is
+  `strava-removal`).
+
+Not done here, and open (ADR 0025): the start point the provider stores (API Policy 5.7), the 7-day
+cache of Policy 6.2, and the operator rule that no AI tool reads rows with `source = 'strava'`
+(Policy 5.3), including a Claude Code session that runs scripts against a live database. Copies in
+`backups/` still hold deleted runs until they age out, 30 days at most (see "Data notice").
 
 ### Garmin Connect (experimental)
 
@@ -525,12 +550,12 @@ The files are in `backups/`, next to the database file: `/data/backups/` in Dock
 | `pre-restore-<UTC timestamp>.db` | `npm run restore`, from the database it replaces                                     | by the rule below |
 
 The rule for `app-*.db`, applied after each backup that passes its check: keep the newest backup of
-each of the 7 most recent days (UTC) that have one, and the newest of each of the 4 most recent ISO
+each of the 7 most recent days (UTC) that have one, and the newest of each of the 3 most recent ISO
 weeks that have one. `npm run backup -- --keep 14` keeps the newest 14 instead.
 
 The rule for `pre-migrate-*.db` and `pre-restore-*.db`, applied by the daily job, after each
-pre-migrate copy and after each restore: remove the copies older than 30 days
-(`KEEP_PRE_MIGRATE_DAYS`), and always keep the newest 3 of each kind (`KEEP_PRE_MIGRATE_MIN`),
+pre-migrate copy and after each restore: remove the copies older than 29 days
+(`KEEP_PRE_MIGRATE_DAYS`; the daily cadence adds up to a day, so a copy is gone within 30), and always keep the newest 3 of each kind (`KEEP_PRE_MIGRATE_MIN`),
 whatever their age. The copy a restore has just made is the newest, so it is never pruned by that
 restore. A pruned `pre-restore` copy of a damaged database takes its `-wal` and `-shm` files with
 it.
@@ -538,23 +563,25 @@ it.
 #### Off-host copies
 
 The app sends its copies nowhere. A job outside this repository (the operator's restic job) that
-copies them off the machine must read only the newest `app-*.db` and keep 30 daily snapshots
+copies them off the machine must read only the newest `app-*.db` and keep 29 daily snapshots
 (`OFF_HOST_SNAPSHOT_DAYS`). It must not read `pre-migrate` or `pre-restore` files: those are not
 pruned on the schedule the data notice states, and an off-host snapshot of them would outlive it. A
-deleted account then leaves the off-host copies 30 days after it leaves the newest local copy, which the next daily copy does within a day.
+deleted account then leaves the off-host copies 30 days at the latest: one day for the next daily
+copy to drop it, and 29 days for the snapshot. The figure was 30 snapshots until SC1 (ADR 0025): the
+Strava API Policy 7.4 asks for deletion within 30 days, so the bound is 30 days, not 31.
 
 #### Data notice
 
 What a tester is told about copies, in the invitation (no page in the app shows it):
 
 > The person who runs this server can read every account's data. An encrypted copy of the whole
-> database is kept at another location for up to 30 days. Deleting an account removes it from the
-> live database at once and from every copy the server keeps within 35 days. There are two
+> database is kept at another location for up to 29 days. Deleting an account removes it from the
+> live database at once and from every copy the server keeps within 30 days. There are two
 > exceptions: the newest 3 pre-update copies and the newest 3 pre-restore copies, which stay until
 > later ones push them out; the operator deletes them on request. When you search for a town or postcode to set a place, only the text you
 > typed is sent to Open-Meteo's geocoding service; nothing else goes with it.
 
-The 35 days is `deletedAccountRetention().longestDays` (`server/services/backup.ts`), derived from
+The 30 days is `deletedAccountRetention().longestDays` (`server/services/backup.ts`), derived from
 `KEEP_WEEKS`, `KEEP_PRE_MIGRATE_DAYS` and `OFF_HOST_SNAPSHOT_DAYS`. A test pins it to this
 paragraph, so a change to a constant fails until the notice is updated. It holds while the daily
 job runs; copies made by hand and `npm run backup -- --keep` are outside it.
@@ -837,9 +864,9 @@ refused, and so is an email with no account; both exit 1.
 
 The account's sessions end with it: a signed cookie of a deleted account finds no user, so every
 request answers 401. Two things stay behind by design. The copies in `backups/` still hold the
-account: the daily copies are pruned to the newest of each of the last 7 days and of the last 4 ISO
-weeks, so the last one holding it goes within 35 days (see "Data notice"). `pre-migrate` copies go
-after 30 days except the newest 3, and so do `pre-restore` copies: delete those by hand if they
+account: the daily copies are pruned to the newest of each of the last 7 days and of the last 3 ISO
+weeks, so the last one holding it goes within 30 days (see "Data notice"). `pre-migrate` copies go
+after 29 days (30 with the daily cadence) except the newest 3, and so do `pre-restore` copies: delete those by hand if they
 must not keep it. The live database file can
 still hold the deleted bytes (SQLite free pages and the WAL) until they are overwritten; `VACUUM` with
 the server stopped clears them, and the command does not run it. Events that the

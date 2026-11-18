@@ -115,6 +115,18 @@ protection reads. The Docker image must still build (`docker build .`) after a c
 - A provider returns `ParsedActivity` and `WellnessInput` values; it never writes to the database.
   `server/services/activityStore.ts` is the only writer of imported activities, and
   `server/services/sync.ts` drives pull providers.
+- Strava stays on per-runner apps (ADR 0025, SC1); the runner's `strava` row holds their own client
+  id and secret. Strava-sourced rows (`source = 'strava'`, `providerKey` `strava:<id>`) go only through
+  `server/services/stravaRemoval.ts`, over `deleteActivities` (`activityStore.ts`, the one bulk delete: it
+  releases duplicates and hands the plan session and logs to a surviving copy from another source):
+  Disconnect (`revokeAccess`, `strava.ts`, then delete), a refused token (`ProviderAuthError`, a
+  refused refresh or a 401; `run()` in `sync.ts` deletes at once through `removeStravaActivities`
+  (`stravaPurge.ts`, which imports no sync code), clears the cursor and notes `config.refusedAt`,
+  `shared/domain/stravaRemoval.ts`, kept by the connect form and cleared by the callback; a 5xx or a
+  network error deletes nothing) and the daily `runStravaJob` (03:30: `reconcile` deletes what Strava
+  no longer lists, after a complete listing only). Today's J10 note says Strava refused the
+  connection and the runs were removed. No session or script that reads a live database may read Strava
+  rows (API Policy 5.3). Not decided: the stored start point (Policy 5.7).
 - Network access goes only through `ctx.fetch`, never a global `fetch` or an HTTP client of its own,
   so tests inject synthetic responses and no test touches the network.
 - Open-Meteo stays outside the registry: the weather job (`refreshWeatherCaches`, every 10 minutes)
