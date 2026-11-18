@@ -397,6 +397,19 @@ describe('heat', () => {
     expect(lines).toContain('mass-casualty')
   })
 
+  it('says the cooling line (CL1) only with a warm race, and no time, percent or ranking', () => {
+    const warm = heat('marathon, warm').join(' ')
+    expect(warm).toContain('In lab trials of short, hot efforts')
+    expect(warm).toContain('none covered a race of hours')
+    expect(warm).not.toMatch(/\d+ ?%|seconds|minutes faster|best|better than/)
+    expect(lintText(warm)).toEqual([])
+    expect(plan('marathon, warm').heat.rules).toContain('I8')
+    for (const label of ['marathon, cool, tolerated rung', 'marathon, no climate']) {
+      expect(heat(label).join(' '), label).not.toContain('cooling')
+      expect(plan(label).heat.rules, label).not.toContain('I8')
+    }
+  })
+
   it('gives no I5 line for a half, a 10 km, a cool marathon or a marathon with no climate', () => {
     for (const label of [
       'half under 2 h, warm',

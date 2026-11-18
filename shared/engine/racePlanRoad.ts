@@ -300,6 +300,7 @@ export function roadRacePlanFor(input: RoadRacePlanInput): RoadRacePlan {
       'I3',
       ...(wbgt !== null && heatWarning(wbgt) !== null ? ['I9'] : []),
       ...(distanceClass === 'marathon' && warm ? ['I5'] : []),
+      ...(warm && wbgt !== null ? ['I8'] : []),
     ],
   }
 
