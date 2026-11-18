@@ -280,6 +280,7 @@ export function replayLadder(input: LadderInput): LadderResult {
   let badRuns = 0
   let toleratedRuns = 0
   let fellBack = false
+  let stopped = false
   let nauseaForward = false
   let countedRuns = 0
   const steps: LadderStep[] = []
@@ -302,6 +303,7 @@ export function replayLadder(input: LadderInput): LadderResult {
       if (score >= P.h7.gutStopScore.value) {
         badRuns += 1
         toleratedRuns = 0
+        stopped = true
         held = true
         fellBack = false
         outcome = 'hold'
@@ -320,6 +322,7 @@ export function replayLadder(input: LadderInput): LadderResult {
       } else {
         badRuns = 0
         held = false
+        stopped = false
         fellBack = false
         toleratedRuns += 1
         if (toleratedRuns >= P.h7.stepUpToleratedRuns.value) {
@@ -368,6 +371,7 @@ export function replayLadder(input: LadderInput): LadderResult {
     currentIndex: target,
     toleratedIndex: tolerated,
     held,
+    stopped,
     locked: settings.giDisease,
     ceilingIndex: ceiling,
     basis,

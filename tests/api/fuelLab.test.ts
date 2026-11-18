@@ -9,6 +9,7 @@ import {
   eahText,
   fuelDisclaimer,
   gutConditionLock,
+  gutReferralLines,
   gutTrainingText,
   rangeOrderMessage,
   rangeSpanMessage,
@@ -447,6 +448,27 @@ describe('GET /api/fuel', () => {
     // The plan still holds the block until the next re-plan removes it.
     expect(view.block).toMatchObject({ state: 'locked', removalPending: true, lines: [] })
     expect(view.settings).toMatchObject({ giDisease: true, gutBlock: false, optIn90: false })
+  })
+
+  test('the referral lines show once the stop has fired and no gut condition is set (GR1)', async () => {
+    const user = await newUser()
+    const gel = await addProduct(user)
+    expect((await lab(user)).referral).toBeNull()
+
+    await logRun(user, gel, (await addRun(user, addDays(today, -5))).id)
+    expect((await lab(user)).referral).toBeNull()
+
+    await logRun(user, gel, (await addRun(user, addDays(today, -3))).id, { gut: 2 })
+    const held = await lab(user)
+    expect(held.ladder.held).toBe(true)
+    expect(held.referral).toEqual(gutReferralLines(held.ladder))
+    expect(held.referral).toHaveLength(2)
+
+    // A gut condition keeps the clinician line and nothing new.
+    await putSettings(user, { giDisease: true })
+    const locked = await lab(user)
+    expect(locked.referral).toBeNull()
+    expect(locked.disclaimers.gutCondition).toBe(gutConditionLock())
   })
 
   test('switching the block off leaves it in the plan until the next re-plan', async () => {

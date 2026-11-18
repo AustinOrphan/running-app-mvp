@@ -2311,6 +2311,47 @@ describe('the Fuel lab page: the gut-training block', () => {
     expect(within(card).queryByText(/Gut-training weeks run from/)).not.toBeInTheDocument()
   })
 
+  describe('the referral line (GR1)', () => {
+    const SURVEY =
+      'In surveys of endurance athletes, those with gut symptoms in training were more likely to have them in races.'
+    const ASSESS =
+      'Symptoms that keep coming back can be assessed by a sports dietitian or a sports medicine professional, and some need a doctor.'
+    const WELL = [loggedRun(1, { servings: 6, gut: 0 }), loggedRun(2, { servings: 8, gut: 0 })]
+    const HELD = [...WELL, loggedRun(3, { servings: 8, gut: 2 })]
+
+    test('shows under the ladder once the stop has fired and no gut condition is set', async () => {
+      const lab = makeLab(HELD)
+      expect(lab.ladder.held).toBe(true)
+      renderLab(lab)
+      const ladder = await region('Tier ladder')
+      expect(within(ladder).getByText(SURVEY)).toBeInTheDocument()
+      expect(within(ladder).getByText(ASSESS)).toBeInTheDocument()
+      expectCleanCopy(document.body)
+    })
+
+    test('is absent before the stop', async () => {
+      renderLab(makeLab(WELL))
+      const ladder = await region('Tier ladder')
+      expect(within(ladder).queryByText(SURVEY)).not.toBeInTheDocument()
+      expect(within(ladder).queryByText(ASSESS)).not.toBeInTheDocument()
+    })
+
+    test('is absent with a gut condition set, where the clinician line stands', async () => {
+      const engine: FuelSettingsInput = { optIn90: false, optInAdvanced: false, giDisease: true }
+      renderLab(
+        makeLab(HELD, {
+          settings: { optIn90: false, optInAdvanced: false, giDisease: true, gutBlock: false },
+          ladder: replayLadder({ settings: engine, runs: HELD, gutTrainingWeeks: [] }),
+          referral: null,
+          disclaimers: { general: fuelDisclaimer(), gutCondition: gutConditionLock() },
+        }),
+      )
+      await region('Tier ladder')
+      expect(screen.queryByText(SURVEY)).not.toBeInTheDocument()
+      expect(screen.queryByText(ASSESS)).not.toBeInTheDocument()
+    })
+  })
+
   test('a gut condition locks the ladder at the floor and shows the clinician line instead of the claim', async () => {
     const engine: FuelSettingsInput = { optIn90: false, optInAdvanced: false, giDisease: true }
     const lab = makeLab([], {

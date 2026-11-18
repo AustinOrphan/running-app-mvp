@@ -38,6 +38,7 @@ import {
   fuelDisclaimer,
   fuelWatchText,
   lowCertaintyLine,
+  gutReferralLines,
   gutTrainingText,
   loggedTotalText,
   rateText,
@@ -1290,6 +1291,7 @@ function everyFuelString(): { sentences: string[]; labels: string[] } {
     sentences.push(...card.lines)
   }
   sentences.push(fluidLine(), ...gutTrainingText(), fuelDisclaimer())
+  sentences.push(...(gutReferralLines(replay(runs(OK, BAD), NO_OPT_IN)) ?? []))
   for (const rung of fuelRungs()) sentences.push(fuelWatchText(rung))
   for (const target of [
     null,
@@ -1527,6 +1529,56 @@ describe('fuel copy agrees with the registry', () => {
     expect(text.lock).toMatch(/Ask a clinician/)
     expect(text.basis).toMatch(/gut condition/)
     expect(fuelDisclaimer()).toMatch(/not medical advice/)
+  })
+})
+
+describe('gutReferralLines (GR1)', () => {
+  const NONE_LINES = null
+
+  it('is absent before the stop: no runs, tolerated runs, and a lifted hold', () => {
+    expect(gutReferralLines(replay([], NO_OPT_IN))).toBe(NONE_LINES)
+    expect(gutReferralLines(replay(runs(OK, OK), NO_OPT_IN))).toBe(NONE_LINES)
+    expect(gutReferralLines(replay(runs(OK, BAD, OK), NO_OPT_IN))).toBe(NONE_LINES)
+    // A run that does not count (too short) never fires the stop.
+    expect(gutReferralLines(replay(runs(OK, { gut: 3, hours: 1 }), NO_OPT_IN))).toBe(NONE_LINES)
+  })
+
+  it('shows when the rung is held and when the target has fallen back', () => {
+    for (const list of [
+      runs(BAD),
+      runs(BAD, BAD),
+      runs(SEVERE),
+      runs(BAD, BAD, BAD),
+      runs(OK, BAD, BAD),
+      runs(OK, SEVERE),
+      runs(OK, OK, BAD, BAD),
+      runs(OK, BAD),
+    ]) {
+      const lines = gutReferralLines(replay(list, OPEN))
+      expect(lines).toHaveLength(2)
+    }
+  })
+
+  it('is cleared by a later tolerated run, but not by a hot one or one that does not count', () => {
+    expect(gutReferralLines(replay(runs(BAD, OK), NO_OPT_IN))).toBeNull()
+    expect(gutReferralLines(replay(runs(BAD, BAD, OK), NO_OPT_IN))).toBeNull()
+    expect(gutReferralLines(replay(runs(BAD, { weather: HOT }), NO_OPT_IN))).not.toBeNull()
+    expect(gutReferralLines(replay(runs(BAD, { hours: 1 }), NO_OPT_IN))).not.toBeNull()
+  })
+
+  it('is absent with a gut condition, even after bad runs', () => {
+    expect(gutReferralLines(replay(runs(OK, BAD, BAD), GUT_CONDITION))).toBe(NONE_LINES)
+  })
+
+  it('states an association and names practitioners, with no diet, FODMAP, cause or promise', () => {
+    const text = (gutReferralLines(replay(runs(OK, BAD), OPEN)) ?? []).join(' ')
+    expect(text).toMatch(/more likely/)
+    expect(text).toMatch(/sports dietitian or a sports medicine professional/)
+    expect(text).toMatch(/some need a doctor/)
+    expect(text).not.toMatch(
+      /fodmap|diet(?!itian)|food|eat|cause|prevent|lower|reduc|fewer|diagnos/i,
+    )
+    expect(text).not.toMatch(/\d/)
   })
 })
 

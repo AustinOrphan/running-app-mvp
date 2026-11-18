@@ -422,6 +422,20 @@ describe('figures that restate a Param come from the Param', () => {
     expect(hot.heat.join(' ')).toContain(`${String(P.i6.lowConfidenceEventHours.value)} hours`)
     expect(hot.heat.join(' ')).toMatch(/not a forecast/)
   })
+
+  it('says the cooling line (CL1) with the hot heat block only, within the record limits', () => {
+    const hot = PLANS[2]![1]
+    const text = describeRacePlan(hot, 'km').heat.join(' ')
+    expect(text).toContain('In lab trials of short, hot efforts')
+    expect(text).toContain('The gain varied between methods')
+    expect(text).toContain('The trials were in men and none covered a race of hours')
+    expect(text).not.toMatch(/\d+ ?%|seconds|heat day|acclimat|best|better than/)
+    expect(lintText(text)).toEqual([])
+    expect(hot.heat.rules).toContain('I8')
+    const cool = PLANS[0]![1]
+    expect(describeRacePlan(cool, 'km').heat.join(' ')).not.toContain('cooling')
+    expect(cool.heat.rules).not.toContain('I8')
+  })
 })
 
 describe('fuel and fluid words', () => {

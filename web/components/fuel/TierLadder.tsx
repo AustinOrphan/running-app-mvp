@@ -9,6 +9,8 @@ import styles from './TierLadder.module.css'
 
 export interface TierLadderProps {
   ladder: LadderResult
+  /** The referral lines (rule H7, GR1) when the ladder's stop is in force; null otherwise. */
+  referral: string[] | null
 }
 
 /**
@@ -20,7 +22,7 @@ export interface TierLadderProps {
  * want that label wherever fuel appears, and every rung above the floor stands under this line),
  * and another says what the grades on the page mean, since a touch screen shows no hover text.
  */
-export function TierLadder({ ladder }: TierLadderProps) {
+export function TierLadder({ ladder, referral }: TierLadderProps) {
   const headingId = useId()
   return (
     <section aria-labelledby={headingId} className={labStyles.section}>
@@ -48,6 +50,13 @@ export function TierLadder({ ladder }: TierLadderProps) {
           </li>
         ))}
       </ol>
+      {referral === null
+        ? null
+        : referral.map((line) => (
+            <p key={line} className={styles.note}>
+              {line}
+            </p>
+          ))}
     </section>
   )
 }

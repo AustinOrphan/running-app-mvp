@@ -192,6 +192,14 @@ export const RACE_PLAN_TEMPLATES = {
     'The prediction already allows for heat across the whole race; this line does not change it.',
   ),
   'race.plan.heat.start-time': tpl('Add a start time to see which parts fall in daytime heat.'),
+  // Cooling (rule I8 evidence note, van-de-kerkhof-2023-pre-per-cooling-meta): lab trials of short
+  // efforts in men; no pace, time or percent, no ranking of methods, no link to heat days.
+  'race.plan.heat.cooling': tpl(
+    'In lab trials of short, hot efforts, cooling before or during exercise (a vest, cold water immersion or ice slurry) gave a small gain in self-paced performance.',
+  ),
+  'race.plan.heat.cooling-scope': tpl(
+    'The gain varied between methods. The trials were in men and none covered a race of hours.',
+  ),
 
   // ---- Climbing ----------------------------------------------------------------------------------
   'race.plan.climb.heading': tpl('Climbing', {}, { shape: 'label' }),
@@ -1121,6 +1129,10 @@ function heatLines(plan: RacePlan, units: Units): string[] {
       )
     }
     if (plan.expected.start === null) lines.push(say(T['race.plan.heat.start-time'], {}, units))
+    lines.push(
+      say(T['race.plan.heat.cooling'], {}, units),
+      say(T['race.plan.heat.cooling-scope'], {}, units),
+    )
   }
   return lines
 }
