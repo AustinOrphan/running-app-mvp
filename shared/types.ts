@@ -2105,7 +2105,13 @@ export interface PlanNoticeConfirm {
 }
 
 export type ApiErrorCode =
-  'validation' | 'unauthorized' | 'not_found' | 'conflict' | 'internal' | 'places.unavailable'
+  | 'validation'
+  | 'unauthorized'
+  | 'auth.password-change-required'
+  | 'not_found'
+  | 'conflict'
+  | 'internal'
+  | 'places.unavailable'
 /** Validation details are `{ issues: ValidationIssue[] }`. */
 export interface ValidationIssue {
   path: string

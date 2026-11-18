@@ -25,6 +25,15 @@ export function unauthorized(message = 'Sign in to continue.', status = 401): Ht
   return new HttpError(status, 'unauthorized', message)
 }
 
+/** The account holds a temporary password: only the change-password flow is open (PW1). */
+export function passwordChangeRequired(): HttpError {
+  return new HttpError(
+    403,
+    'auth.password-change-required',
+    'Change the temporary password to continue.',
+  )
+}
+
 export function notFound(message = 'Not found.'): HttpError {
   return new HttpError(404, 'not_found', message)
 }

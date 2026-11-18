@@ -1,5 +1,10 @@
 import { parseArgs } from 'node:util'
-import { RETENTION_RULE } from '../server/services/backup.ts'
+import {
+  deletedAccountRetention,
+  KEEP_PRE_MIGRATE_DAYS,
+  KEEP_PRE_MIGRATE_MIN,
+  RETENTION_RULE,
+} from '../server/services/backup.ts'
 import { deleteUser, planDeleteUser, type DeletePlan } from '../server/auth/deleteUser.ts'
 import { loadConfig, loadEnvFileIfPresent } from '../server/config.ts'
 import { createPrisma, initSqlite } from '../server/db.ts'
@@ -42,9 +47,10 @@ async function main(): Promise<number> {
       `Deleted the account ${plan.email} and these rows:\n${describeCounts(plan)}\n` +
         'Its sessions ended with it: a cookie of the account is refused from now on.\n' +
         'The backups in backups/ still hold the account until they age out. The daily copies are ' +
-        `pruned to keep ${RETENTION_RULE}, so the last one holding it goes within about 5 weeks. ` +
-        'Pre-migration and pre-restore copies are never pruned automatically: delete those by ' +
-        'hand if they must not keep it.\n' +
+        `pruned to keep ${RETENTION_RULE}, so the last one holding it goes within ` +
+        `${deletedAccountRetention().longestDays} days. Pre-update copies go after ` +
+        `${KEEP_PRE_MIGRATE_DAYS} days except the newest ${KEEP_PRE_MIGRATE_MIN}, and pre-restore ` +
+        'copies are never pruned automatically: delete those by hand if they must not keep it.\n' +
         'The live database file can still hold the deleted bytes (SQLite free pages and the WAL) ' +
         'until they are overwritten; VACUUM with the server stopped clears them.\n' +
         "Calendar events that the intervals.icu publisher wrote stay in that runner's own calendar.\n",

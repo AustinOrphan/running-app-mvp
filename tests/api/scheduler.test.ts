@@ -201,6 +201,29 @@ describe('runBackupJob', () => {
     ])
   })
 
+  test('prunes pre-migrate copies older than 30 days, keeping the newest 3', async () => {
+    const dir = backupsDir()
+    await runBackupJob(
+      { prisma: ctx.prisma, config: ctx.config },
+      { now: new Date('2026-03-19T02:00:00Z') },
+    )
+    for (const stamp of ['20260101', '20260102', '20260103', '20260104', '20260310']) {
+      writeFileSync(join(dir, `pre-migrate-${stamp}T020000Z.db`), 'x')
+    }
+
+    await runBackupJob({ prisma: ctx.prisma, config: ctx.config }, { now: NOW })
+
+    expect(
+      readdirSync(dir)
+        .filter((name) => name.startsWith('pre-migrate-'))
+        .sort(),
+    ).toEqual([
+      'pre-migrate-20260103T020000Z.db',
+      'pre-migrate-20260104T020000Z.db',
+      'pre-migrate-20260310T020000Z.db',
+    ])
+  })
+
   test('records an error run and prunes nothing when the copy cannot be made', async () => {
     const dir = dirname(sqliteFilePath(ctx.config.databaseUrl))
     const config = { ...ctx.config, databaseUrl: `file:${join(dir, 'missing.db')}` }
