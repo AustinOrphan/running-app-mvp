@@ -3,7 +3,7 @@
 import { screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, test, vi } from 'vitest'
 import { raceHeatSentences } from '../../shared/copy/raceHeat.ts'
-import type { PlanInputsView } from '../../shared/domain/planInputs.ts'
+import type { OwnAnswers, PlanInputsView } from '../../shared/domain/planInputs.ts'
 import type { RaceHeatPlaces } from '../../shared/domain/raceHeat.ts'
 import type { ZoneSet } from '../../shared/engine/types.ts'
 import { MorePage } from '../../web/pages/MorePage.tsx'
@@ -91,6 +91,132 @@ function rowOf(region: HTMLElement, label: string): HTMLElement {
   const term = within(region).getByText(label)
   return term.parentElement as HTMLElement
 }
+
+function answers(over: { j6?: Partial<OwnAnswers['j6']>; j11?: Partial<OwnAnswers['j11']> } = {}) {
+  const ratings = { inApp: 6, watch: 0, feel: 5, pain: 2 }
+  return {
+    j6: {
+      windowDays: 28,
+      mastersAge: 40,
+      applies: 'on',
+      checkins: 9,
+      items: { fatigue: 9, soreness: 8, mood: 7 },
+      minCheckins: 7,
+      reading: true,
+      ratings,
+      ...over.j6,
+    },
+    j11: {
+      windowDays: 7,
+      painCheckins: 4,
+      reports: 3,
+      mostOfOneArea: 3,
+      minReports: 3,
+      minScore: 2,
+      flagScore: 4,
+      reading: true,
+      quiet: false,
+      quietDays: 7,
+      ratings,
+      ...over.j11,
+    },
+  } satisfies OwnAnswers
+}
+
+describe('Your answers (OA1)', () => {
+  test('at the minimum, both rules read the answers', async () => {
+    mockApi({ 'GET /api/plan-inputs': () => view({ ownAnswers: answers() }) })
+    renderWithProviders(<PlanInputsPage />, { route: '/plan-inputs' })
+    const j6 = await screen.findByRole('region', { name: 'Your answers: masters recovery check' })
+    expect(within(j6).getByText(/the 28 days before today/)).toBeInTheDocument()
+    expect(rowOf(j6, 'Check-ins')).toHaveTextContent('9')
+    expect(rowOf(j6, 'Check-ins with soreness')).toHaveTextContent('8')
+    expect(rowOf(j6, 'Run ratings given in the app')).toHaveTextContent('6')
+    expect(
+      within(j6).getByText(
+        'Rule J6 is reading your check-ins: it takes your own median from 7 of them.',
+      ),
+    ).toBeInTheDocument()
+    const j11 = screen.getByRole('region', { name: 'Your answers: repeated pain' })
+    expect(rowOf(j11, 'Check-ins naming an area at 2 or more')).toHaveTextContent('3')
+    expect(rowOf(j11, 'Most reports of one area')).toHaveTextContent('3')
+    expect(
+      within(j11).getByText(
+        'The look-back holds 3 reports of one area, so rule J11 can offer a rest window on Today.',
+      ),
+    ).toBeInTheDocument()
+    expectCleanCopy(document.body)
+  })
+
+  test('below the minimum, each rule says what it waits for', async () => {
+    mockApi({
+      'GET /api/plan-inputs': () =>
+        view({
+          ownAnswers: answers({
+            j6: { checkins: 4, reading: false },
+            j11: { reports: 1, mostOfOneArea: 1, reading: false },
+          }),
+        }),
+    })
+    renderWithProviders(<PlanInputsPage />, { route: '/plan-inputs' })
+    const j6 = await screen.findByRole('region', { name: 'Your answers: masters recovery check' })
+    expect(rowOf(j6, 'Check-ins')).toHaveTextContent('4')
+    expect(
+      within(j6).getByText('Rule J6 waits for 7 check-ins before it takes your own median.'),
+    ).toBeInTheDocument()
+    const j11 = screen.getByRole('region', { name: 'Your answers: repeated pain' })
+    expect(
+      within(j11).getByText(
+        'Rule J11 waits for 3 check-ins that name one area at a pain score of 2 or more.',
+      ),
+    ).toBeInTheDocument()
+    expectCleanCopy(document.body)
+  })
+
+  test('enough reports inside the quiet days of a recent window say J11 waits them out', async () => {
+    mockApi({
+      'GET /api/plan-inputs': () =>
+        view({ ownAnswers: answers({ j11: { reading: false, quiet: true } }) }),
+    })
+    renderWithProviders(<PlanInputsPage />, { route: '/plan-inputs' })
+    const j11 = await screen.findByRole('region', { name: 'Your answers: repeated pain' })
+    expect(
+      within(j11).getByText(
+        'The look-back holds 3 reports of one area. Rule J11 waits out the 7 quiet days after a recent window for that area.',
+      ),
+    ).toBeInTheDocument()
+    expectCleanCopy(document.body)
+  })
+
+  test('under the masters age and with no birth year, J6 says when it applies', async () => {
+    mockApi({
+      'GET /api/plan-inputs': () =>
+        view({ ownAnswers: answers({ j6: { applies: 'under', reading: false } }) }),
+    })
+    const first = renderWithProviders(<PlanInputsPage />, { route: '/plan-inputs' })
+    expect(
+      await screen.findByText('Rule J6 applies from age 40 and is off at your age.'),
+    ).toBeInTheDocument()
+    first.unmount()
+    mockApi({
+      'GET /api/plan-inputs': () =>
+        view({ ownAnswers: answers({ j6: { applies: 'no-birth-year', reading: false } }) }),
+    })
+    renderWithProviders(<PlanInputsPage />, { route: '/plan-inputs' })
+    expect(
+      await screen.findByText(
+        'Rule J6 applies from age 40. It stays off until your profile has a birth year.',
+      ),
+    ).toBeInTheDocument()
+  })
+
+  test('a payload from an older server has no section', async () => {
+    mockApi({ 'GET /api/plan-inputs': () => view() })
+    renderWithProviders(<PlanInputsPage />, { route: '/plan-inputs' })
+    await screen.findByRole('region', { name: 'Runs' })
+    expect(screen.queryByRole('region', { name: /^Your answers/ })).not.toBeInTheDocument()
+  })
+})
 
 describe('PlanInputsPage', () => {
   test('says that SDNN readings are not used, with the counts of each section', async () => {
