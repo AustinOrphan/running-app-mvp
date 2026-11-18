@@ -1,6 +1,7 @@
 import type { ReviewPrefill } from './domain/review.ts'
 import type { RaceOutcome, RaceScore, RecordSummary } from './engine/backtest.ts'
 import type { FuelTargetText } from './engine/fuelCopy.ts'
+import type { HrUse } from './engine/hrQuality.ts'
 import type { LoadPosition } from './engine/loadSetting.ts'
 import type { MethodPosition } from './engine/methods.ts'
 import type { EventRow, MyPaces } from './engine/myPaces.ts'
@@ -603,6 +604,8 @@ export interface ActivityDetail {
   stream: (ActivityStreamData & { sampleSec: number }) | null
   laps: Lap[] | null
   hasFile: boolean
+  /** Whether Trends reads this run's heart rate and why not (`hrUseOf`); null for no line. */
+  hrUse: HrUse | null
 }
 /**
  * `GET /api/activities/:id/track`: the simplified route of a run (M1a). `polyline` is a Google

@@ -20,6 +20,7 @@ import { FUEL_UI_TEMPLATES } from './fuelUi.ts'
 import { GOALS_TEMPLATES } from './goals.ts'
 import { GRADE_TEMPLATES } from './grades.ts'
 import { HEAT_DAYS_TEMPLATES } from './heatDays.ts'
+import { HR_USE_TEMPLATES } from './hrUse.ts'
 import { LOAD_TEMPLATES } from './load.ts'
 import { METHOD_TEMPLATES } from './method.ts'
 import { NAV_TEMPLATES } from './navigation.ts'
@@ -82,6 +83,7 @@ export const TEMPLATES = {
   ...GOALS_TEMPLATES,
   ...GRADE_TEMPLATES,
   ...HEAT_DAYS_TEMPLATES,
+  ...HR_USE_TEMPLATES,
   ...PLAN_NOTICE_TEMPLATES,
   ...LOAD_TEMPLATES,
   ...METHOD_TEMPLATES,

@@ -5,6 +5,7 @@ import {
   gaDecouplingPct,
   hrQualityFailure,
   hrQualityPasses,
+  hrUseOf,
 } from '../../../shared/engine/hrQuality.ts'
 import { computeHrQuality } from '../../../shared/importers/files/hrQuality.ts'
 import { hrSourceOfDeviceInfos } from '../../../shared/importers/files/hrSource.ts'
@@ -262,5 +263,43 @@ describe('hrSourceOfDeviceInfos', () => {
       ]),
     ).toBe('wrist')
     expect(hrSourceOfDeviceInfos([])).toBe('unknown')
+  })
+})
+
+describe('hrUseOf', () => {
+  const noisy = stream(TWENTY_FIVE_MIN, { hr: (i) => (i % 2 === 0 ? 120 : 175) })
+
+  it('names the source and passes a clean run', () => {
+    const q = computeHrQuality(stream(TWENTY_FIVE_MIN), 10, 'wrist')
+    expect(hrUseOf(q, true)).toEqual({ passes: true, reason: null, source: 'wrist' })
+  })
+
+  it('passes a strap by its source', () => {
+    expect(hrUseOf(computeHrQuality(noisy, 10, 'strap'), true)).toEqual({
+      passes: true,
+      reason: null,
+      source: 'strap',
+    })
+  })
+
+  it('gives "short" under the minimum moving time', () => {
+    expect(hrUseOf(computeHrQuality(stream(60), 10, 'strap'), true)).toEqual({
+      passes: false,
+      reason: 'short',
+      source: 'strap',
+    })
+  })
+
+  it('gives "unclean" when too little of the moving time is clean', () => {
+    expect(hrUseOf(computeHrQuality(noisy, 10, 'unknown'), true)).toEqual({
+      passes: false,
+      reason: 'unclean',
+      source: 'unknown',
+    })
+  })
+
+  it('is null without a summary or without heart rate', () => {
+    expect(hrUseOf(null, true)).toBeNull()
+    expect(hrUseOf(computeHrQuality(stream(TWENTY_FIVE_MIN), 10, 'wrist'), false)).toBeNull()
   })
 })

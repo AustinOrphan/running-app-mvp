@@ -82,6 +82,7 @@ function detailOf(over: Parameters<typeof makeActivity>[0] = {}): ActivityDetail
     stream: null,
     laps: null,
     hasFile: false,
+    hrUse: null,
   }
 }
 
