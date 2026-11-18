@@ -5,7 +5,7 @@
 // Param: the level and the floor are read from the state and from `P.restartFloor`.
 import { afterBreak } from './adapt.ts'
 import { startLevelMin } from './limits.ts'
-import { startPath } from './macro.ts'
+import { freshStartFor } from './macro.ts'
 import { P } from './params/index.ts'
 import type { AthleteState, EngineInput } from './types.ts'
 
@@ -32,7 +32,8 @@ export interface FirstAction {
 /** Which first step applies, from the same state and input that `generate` reads. */
 export function firstActionFor(input: EngineInput, state: AthleteState): FirstAction {
   const planState = afterBreak(state)
-  const path = startPath(input, planState)
+  // The start `generate` would draw: none under a progression hold for a runner with a typical week.
+  const path = freshStartFor(input, planState)
   const injuryReturn = path?.kind === 'injury-return'
   const noRuns = state.lastRunDate === null
   return {

@@ -51,9 +51,9 @@ const goal: Goal = {
   updatedAt: '2026-10-01T10:00:00.000Z',
 }
 
-const NEED = 'No runs are on file yet.'
+const NEED = 'No runs from the past year are on file.'
 const FEW_NEED =
-  'The runs on file add up to about 20 min in a typical week. The plan starts with a short programme below 60 min a week.'
+  'The plan would start at about 20 min a week, under 60 min, so it begins with a short programme.'
 
 beforeEach(() => {
   startToday()

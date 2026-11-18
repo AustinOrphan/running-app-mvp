@@ -6,7 +6,7 @@ import { afterBreak } from '../../../shared/engine/adapt.ts'
 import { estimateState } from '../../../shared/engine/athlete.ts'
 import { firstActionFor } from '../../../shared/engine/firstAction.ts'
 import { startLevelMin } from '../../../shared/engine/limits.ts'
-import { startPath } from '../../../shared/engine/macro.ts'
+import { freshStartFor, startPath } from '../../../shared/engine/macro.ts'
 import type { Activity, AthleteProfile } from '../../../shared/types.ts'
 import { activity, input, profile, TODAY } from './e8-fixtures.ts'
 
@@ -47,6 +47,30 @@ describe('firstActionFor', () => {
     expect(action.levelMin).toBe(startLevelMin(afterBreak(state)))
     expect(action.levelMin).toBeGreaterThanOrEqual(action.floorMin)
     expect(startPath(inp, state)).toBeNull()
+  })
+
+  it('reads the level the plan starts from after a long layoff, not the typical week', () => {
+    // four weeks of 3 x 30 minutes, then six weeks with no run
+    const week = (back: number) => [0, 2, 4].map((d) => runOf(back * 7 + d + 42, 30))
+    const runs = [1, 2, 3, 4].flatMap(week)
+    const { action, state } = firstOf(runs)
+    expect(state.typicalWeekMin).toBeGreaterThan(action.levelMin)
+    expect(action.levelMin).toBe(startLevelMin(afterBreak(state)))
+    expect(action.reason).toBe('goal')
+    expect(action.belowFloor).toBe(action.levelMin < action.floorMin)
+  })
+
+  it('draws no short-programme line under a progression hold with a typical week', () => {
+    const inp = input({ activities: [runOf(3, 15), runOf(6, 15)], profile: profile() })
+    const state = estimateState(inp)
+    expect(state.typicalWeekMin).toBeGreaterThan(0)
+    const open = firstActionFor(inp, state)
+    expect(open.belowFloor).toBe(true)
+    const held = { ...state, risk: { ...state.risk, redsFlags: 2 } }
+    const action = firstActionFor(inp, held)
+    expect(action.reason).toBe('goal')
+    expect(action.belowFloor).toBe(false)
+    expect(freshStartFor(inp, held)).toBeNull()
   })
 
   it('leaves an injury-return start to the goal: more runs would not change it', () => {
