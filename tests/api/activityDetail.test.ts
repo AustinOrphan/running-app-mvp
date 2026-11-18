@@ -95,6 +95,87 @@ describe('GET /api/activities/:id/detail', () => {
     expect(res.body).toMatchObject({ stream: null, laps: null, hasFile: false })
   })
 
+  test('hrUse is derived from the stored heart-rate summary, null without one or without heart rate', async () => {
+    const summary = {
+      v: 1,
+      th: 'x',
+      source: 'wrist',
+      movingSec: 1800,
+      cleanSec: 1800,
+      lockSec: 0,
+      spikeSec: 0,
+      dropSec: 0,
+      flatSec: 0,
+      mismatchSec: 0,
+      halves: null,
+      gapDecouplingPct: null,
+    }
+    const get = async (id: string) =>
+      (await client(ctx, user).get(`/api/activities/${id}/detail`)).body as ActivityDetail
+    const none = await seedActivity()
+    expect((await get(none.id)).hrUse).toBeNull()
+    const passing = await ctx.prisma.activity.create({
+      data: {
+        userId: user.id,
+        date: '2026-01-06',
+        type: 'run',
+        durationSec: 1800,
+        avgHr: 150,
+        hrQuality: JSON.stringify(summary),
+      },
+    })
+    expect((await get(passing.id)).hrUse).toEqual({
+      passes: true,
+      reason: null,
+      source: 'wrist',
+      flat: true,
+    })
+    const hilly = await ctx.prisma.activity.create({
+      data: {
+        userId: user.id,
+        date: '2026-01-09',
+        type: 'run',
+        durationSec: 1800,
+        distanceM: 5000,
+        elevationGainM: 600,
+        avgHr: 150,
+        hrQuality: JSON.stringify({ ...summary, cleanSec: 900 }),
+      },
+    })
+    expect((await get(hilly.id)).hrUse).toEqual({
+      passes: false,
+      reason: 'unclean',
+      source: 'wrist',
+      flat: false,
+    })
+    const dirty = await ctx.prisma.activity.create({
+      data: {
+        userId: user.id,
+        date: '2026-01-07',
+        type: 'run',
+        durationSec: 1800,
+        avgHr: 150,
+        hrQuality: JSON.stringify({ ...summary, cleanSec: 900 }),
+      },
+    })
+    expect((await get(dirty.id)).hrUse).toEqual({
+      passes: false,
+      reason: 'unclean',
+      source: 'wrist',
+      flat: true,
+    })
+    const noHr = await ctx.prisma.activity.create({
+      data: {
+        userId: user.id,
+        date: '2026-01-08',
+        type: 'run',
+        durationSec: 1800,
+        hrQuality: JSON.stringify(summary),
+      },
+    })
+    expect((await get(noHr.id)).hrUse).toBeNull()
+  })
+
   test('another user or an unknown id is 404', async () => {
     const activity = await seedActivity()
     expect((await client(ctx, other).get(`/api/activities/${activity.id}/detail`)).status).toBe(404)

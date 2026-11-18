@@ -103,6 +103,7 @@ function makeDetail(over: Partial<ActivityDetail> = {}): ActivityDetail {
       },
     ],
     hasFile: true,
+    hrUse: null,
     ...over,
   }
 }
@@ -235,6 +236,39 @@ describe('ActivityDetailPage', () => {
     expect(figureOf(summary, 'Max HR')).toBe('171 bpm')
     expect(within(summary).getByText('Example Watch · Strava')).toBeInTheDocument()
     expect(figureOf(summary, 'Elevation gain')).toBe('197 ft')
+  })
+
+  test.each([
+    [
+      { passes: true, reason: null, source: 'strap', flat: true },
+      "Heart rate from an external sensor. Trends reads this run's heart rate.",
+    ],
+    [
+      { passes: true, reason: null, source: 'unknown', flat: false },
+      "Trends reads this run's heart rate.",
+    ],
+    [
+      { passes: false, reason: 'unclean', source: 'wrist', flat: false },
+      "Heart rate from the wrist. Under 90% of the moving time had clean readings. Intensity per week, Long runs by the hour, Heart rate at one speed and Heart-rate drift on long runs set this run's heart rate aside.",
+    ],
+    [
+      { passes: false, reason: 'unclean', source: 'wrist', flat: true },
+      'Heart rate from the wrist. Under 90% of the moving time had clean readings. Intensity per week and Long runs by the hour set it aside; Heart rate at one speed and Heart-rate drift on long runs can still read it as a flat run.',
+    ],
+    [
+      { passes: false, reason: 'short', source: 'wrist', flat: true },
+      'Heart rate from the wrist. The run is under 20 min moving. Intensity per week and Long runs by the hour set it aside; Heart rate at one speed and Heart-rate drift on long runs can still read it as a flat run.',
+    ],
+  ] as const)('the heart-rate line says %j', async (hrUse, line) => {
+    renderDetail({ detail: makeDetail({ hrUse }) })
+    const summary = await screen.findByRole('region', { name: 'Summary' })
+    expect(within(summary).getByText(line)).toBeInTheDocument()
+  })
+
+  test('no heart-rate line when the detail carries no hrUse', async () => {
+    renderDetail()
+    const summary = await screen.findByRole('region', { name: 'Summary' })
+    expect(within(summary).queryByText(/Trends/)).toBeNull()
   })
 
   test('units follow settings', async () => {

@@ -3,6 +3,8 @@ import { Router, type RequestHandler } from 'express'
 import { z } from 'zod'
 import type { Deps } from '../app.ts'
 import { conflict, notFound, parse, validationError } from '../errors.ts'
+import { isFlatRun } from '../../shared/engine/execution.ts'
+import { hrUseOf } from '../../shared/engine/hrQuality.ts'
 import { loadActivities, loadActivityPage, toActivity } from '../serialize.ts'
 import { activityCsvHeader, activityCsvLine } from '../services/activitiesCsv.ts'
 import {
@@ -261,8 +263,13 @@ export function activitiesRouter(deps: Deps): Router {
       }),
     ])
     const data = stream ? parseJsonOrNull<ActivityStreamData>(stream.data) : null
+    const activity = toActivity(row)
     const detail: ActivityDetail = {
-      activity: toActivity(row),
+      activity,
+      hrUse:
+        activity.type === 'run'
+          ? hrUseOf(activity.hrQuality, activity.avgHr !== null, isFlatRun(activity))
+          : null,
       stream: stream && data ? { ...data, sampleSec: stream.sampleSec } : null,
       laps: stream ? parseJsonOrNull<Lap[]>(stream.laps) : null,
       hasFile: file !== null,

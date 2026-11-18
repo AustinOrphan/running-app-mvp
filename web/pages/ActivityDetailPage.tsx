@@ -24,6 +24,8 @@ import type {
 } from '../../shared/types.ts'
 import { hasTrack } from '../../shared/importers/files/track.ts'
 import { ROUTE_HEADING, ROUTE_SECTION_NAME } from '../../shared/copy/runMap.ts'
+import { hrUseLine } from '../../shared/copy/hrUse.ts'
+import type { HrUse } from '../../shared/engine/hrQuality.ts'
 import { surfaceLine } from '../../shared/copy/surface.ts'
 import { render } from '../../shared/copy/template.ts'
 import { TEMPLATES } from '../../shared/copy/templates.ts'
@@ -140,7 +142,15 @@ function distanceParts(metres: number, units: Units): { value: string; unit?: st
  * as the readings under them; kind, device and source as one muted line, because they describe the
  * record and are not a figure of the run.
  */
-function Summary({ activity, units }: { activity: Activity; units: Units }) {
+function Summary({
+  activity,
+  units,
+  hrUse,
+}: {
+  activity: Activity
+  units: Units
+  hrUse: HrUse | null
+}) {
   const hasPace =
     (activity.type === 'run' || activity.type === 'race') &&
     activity.distanceM !== null &&
@@ -230,6 +240,7 @@ function Summary({ activity, units }: { activity: Activity; units: Units }) {
       </dl>
       {readings.length > 0 ? <dl className={styles.readings}>{readings}</dl> : null}
       <p className={styles.muted}>{described.join(' · ')}</p>
+      {hrUse === null ? null : <p className={styles.muted}>{hrUseLine(hrUse, units)}</p>}
       {surface === null ? null : (
         <>
           <p className={styles.surface}>{surface.line}</p>
@@ -780,7 +791,7 @@ export function ActivityDetailPage() {
       {/* The figures, then the charts of the recording (a long run opens on its shape, not on ten
           empty rating buttons); how it stood against the plan, the ask for a rating and the fuel
           follow, and the rest of the recording's detail after them. */}
-      <Summary activity={activity} units={units} />
+      <Summary activity={activity} units={units} hrUse={detail.data.hrUse} />
       {hasTrack(activity.type, activity.subtype) ? (
         <RouteMap activity={activity} units={units} cursor={cursor} />
       ) : null}
