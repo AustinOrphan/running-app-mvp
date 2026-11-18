@@ -11,12 +11,15 @@ const say = (id: TemplateId, units: Units): string => render(TEMPLATES[id], {}, 
 
 /**
  * The reason the server derived (`firstActionFor`) as words: the sentence that says what the plan
- * needs, or null when the runs are enough. Nothing here decides the reason.
+ * needs: no runs on file, or runs that add up to less than the floor. Null when the runs are
+ * enough. Nothing here decides the reason.
  */
 export function firstActionNeed(firstAction: FirstAction | undefined, units: Units): string | null {
-  if (firstAction?.reason !== 'runs') return null
+  if (firstAction === undefined) return null
+  if (firstAction.reason === 'runs') return say('today.first.runs-need', units)
+  if (!firstAction.belowFloor) return null
   return render(
-    TEMPLATES['today.first.runs-need'],
+    TEMPLATES['today.first.few-need'],
     {
       level: { kind: 'minutes', min: firstAction.levelMin },
       floor: { kind: 'minutes', min: firstAction.floorMin },
@@ -50,8 +53,10 @@ export function FirstActionState({
   const choose = hasGoal
     ? { to: '/plan', label: say('today.first.generate', units) }
     : { to: '/goals', label: say('today.first.choose-goal', units) }
-  const primary =
-    need === null ? choose : { to: '/integrations', label: say('today.first.bring-runs', units) }
+  const bringRuns = firstAction?.reason === 'runs'
+  const primary = bringRuns
+    ? { to: '/integrations', label: say('today.first.bring-runs', units) }
+    : choose
   return (
     <EmptyState
       title={firstActionTitle(firstAction, units)}
@@ -61,11 +66,11 @@ export function FirstActionState({
           <Link to={primary.to} className={`${buttonStyles.button} ${buttonStyles.primary}`}>
             {primary.label}
           </Link>
-          {need === null ? null : (
+          {bringRuns ? (
             <Link to={choose.to} className={`${buttonStyles.button} ${buttonStyles.quiet}`}>
               {choose.label}
             </Link>
-          )}
+          ) : null}
         </div>
       }
     />
@@ -88,9 +93,11 @@ export function FirstActionLine({
   return (
     <div className={styles.line}>
       <p className={styles.need}>{need}</p>
-      <Link to="/integrations" className={`${buttonStyles.button} ${buttonStyles.quiet}`}>
-        {say('today.first.bring-runs', units)}
-      </Link>
+      {firstAction?.reason === 'runs' ? (
+        <Link to="/integrations" className={`${buttonStyles.button} ${buttonStyles.quiet}`}>
+          {say('today.first.bring-runs', units)}
+        </Link>
+      ) : null}
     </div>
   )
 }

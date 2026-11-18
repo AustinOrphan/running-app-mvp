@@ -1651,7 +1651,32 @@ describe('GET /api/today first action', () => {
     const u = await bareRunner('first-none@example.com')
     const { coach } = await view(u)
     expect(coach.hero).toBeNull()
-    expect(coach.firstAction).toEqual({ reason: 'runs', levelMin: 0, floorMin: 60 })
+    expect(coach.firstAction).toEqual({
+      reason: 'runs',
+      belowFloor: false,
+      levelMin: 0,
+      floorMin: 60,
+    })
+  })
+
+  test('a few runs under the floor: the reason is goal, with the level as a fact', async () => {
+    const u = await bareRunner('first-few@example.com')
+    for (const back of [3, 6]) {
+      await ctx.prisma.activity.create({
+        data: {
+          userId: u.id,
+          date: addDays(today, -back),
+          type: 'run',
+          durationSec: 15 * 60,
+          distanceM: 2400,
+          source: 'manual',
+        },
+      })
+    }
+    const { coach } = await view(u)
+    expect(coach.firstAction?.reason).toBe('goal')
+    expect(coach.firstAction?.belowFloor).toBe(true)
+    expect(coach.firstAction?.levelMin).toBeLessThan(coach.firstAction?.floorMin ?? 0)
   })
 
   test('enough runs: the reason is goal', async () => {
@@ -1673,6 +1698,7 @@ describe('GET /api/today first action', () => {
     }
     const { coach } = await view(u)
     expect(coach.firstAction?.reason).toBe('goal')
+    expect(coach.firstAction?.belowFloor).toBe(false)
     expect(coach.firstAction?.levelMin).toBeGreaterThanOrEqual(coach.firstAction?.floorMin ?? 0)
   })
 

@@ -11,8 +11,9 @@ import { makeCoach, makeToday } from './today-fixtures.ts'
 import { renderToday, startToday } from './today-render.tsx'
 import { wristRoutes } from './wrist-fixtures.ts'
 
-const RUNS: FirstAction = { reason: 'runs', levelMin: 20, floorMin: 60 }
-const GOAL: FirstAction = { reason: 'goal', levelMin: 120, floorMin: 60 }
+const RUNS: FirstAction = { reason: 'runs', belowFloor: false, levelMin: 0, floorMin: 60 }
+const FEW: FirstAction = { reason: 'goal', belowFloor: true, levelMin: 20, floorMin: 60 }
+const GOAL: FirstAction = { reason: 'goal', belowFloor: false, levelMin: 120, floorMin: 60 }
 
 const settings: UserSettings = {
   email: 'runner@example.com',
@@ -50,8 +51,9 @@ const goal: Goal = {
   updatedAt: '2026-10-01T10:00:00.000Z',
 }
 
-const NEED =
-  'The runs on file add up to 20 min in a typical week. A plan starts from your own level at 60 min a week or more; below that it starts with a short programme.'
+const NEED = 'No runs are on file yet.'
+const FEW_NEED =
+  'The runs on file add up to about 20 min in a typical week. The plan starts with a short programme below 60 min a week.'
 
 beforeEach(() => {
   startToday()
@@ -100,6 +102,22 @@ describe('first action with no plan', () => {
     )
     // The form keeps its own one primary button.
     expect(screen.getByRole('button', { name: 'Generate plan' })).toBeInTheDocument()
+  })
+
+  test('a few runs under the floor: the goal is the primary action, with the level beside it, on both pages', async () => {
+    const today = renderToday(makeToday({ coach: makeCoach({ firstAction: FEW }) }))
+    expect(
+      await screen.findByText('No plan yet. Choose a goal race, then generate weekly targets.'),
+    ).toBeInTheDocument()
+    expect(screen.getByText(FEW_NEED)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Choose a goal' })).toHaveAttribute('href', '/goals')
+    expect(screen.queryByRole('link', { name: 'Bring in your runs' })).not.toBeInTheDocument()
+    expectCleanCopy(today.container)
+    today.unmount()
+
+    renderPlanWithNoPlan(FEW)
+    expect(await screen.findByText(FEW_NEED)).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Bring in your runs' })).not.toBeInTheDocument()
   })
 
   test('enough runs: Today asks for a goal and the Generate form adds no line', async () => {

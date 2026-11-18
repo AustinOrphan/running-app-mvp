@@ -26,12 +26,13 @@ function firstOf(activities: Activity[], over: Partial<AthleteProfile> = {}) {
 describe('firstActionFor', () => {
   it('asks for runs when there are none', () => {
     const { action } = firstOf([], { runningSinceYear: null })
-    expect(action).toEqual({ reason: 'runs', levelMin: 0, floorMin: 60 })
+    expect(action).toEqual({ reason: 'runs', belowFloor: false, levelMin: 0, floorMin: 60 })
   })
 
-  it('asks for runs when the start level sits under 3 x 20 minutes', () => {
+  it('asks for a goal, with the level beside it, when a few runs sit under 3 x 20 minutes', () => {
     const { action, inp, state } = firstOf([runOf(3, 15), runOf(6, 15)], { runningSinceYear: null })
-    expect(action.reason).toBe('runs')
+    expect(action.reason).toBe('goal')
+    expect(action.belowFloor).toBe(true)
     expect(action.levelMin).toBeLessThan(action.floorMin)
     expect(startPath(inp, state)).not.toBeNull()
   })
@@ -41,6 +42,7 @@ describe('firstActionFor', () => {
     const runs = [1, 2, 3, 4].flatMap(week)
     const { action, inp, state } = firstOf(runs)
     expect(action.reason).toBe('goal')
+    expect(action.belowFloor).toBe(false)
     // the level is read as the plan reads it, after a break
     expect(action.levelMin).toBe(startLevelMin(afterBreak(state)))
     expect(action.levelMin).toBeGreaterThanOrEqual(action.floorMin)
@@ -64,5 +66,6 @@ describe('firstActionFor', () => {
     const { action, inp, state } = firstOf([], injured)
     expect(startPath(inp, state)?.kind).toBe('injury-return')
     expect(action.reason).toBe('goal')
+    expect(action.belowFloor).toBe(false)
   })
 })

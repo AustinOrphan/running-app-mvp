@@ -31,8 +31,10 @@ export const TODAY_TEMPLATES = {
   // The first step with no plan (FH1a): Today and the Generate form say it from one reason, the
   // engine's start-path check. The sentences state what the plan needs, as facts, and set no target.
   'today.first.runs-title': tpl('No plan yet. A plan starts from the running on file.'),
-  'today.first.runs-need': tpl(
-    'The runs on file add up to {level} in a typical week. A plan starts from your own level at {floor} a week or more; below that it starts with a short programme.',
+  'today.first.runs-need': tpl('No runs are on file yet.'),
+  // Runs are on file but add up to less than the floor: the goal is still the step.
+  'today.first.few-need': tpl(
+    'The runs on file add up to about {level} in a typical week. The plan starts with a short programme below {floor} a week.',
     { level: 'minutes', floor: 'minutes' },
   ),
   'today.first.goal-title': tpl('No plan yet. Choose a goal race, then generate weekly targets.'),
