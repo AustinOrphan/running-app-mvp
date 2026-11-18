@@ -15,6 +15,7 @@ import type {
 import { PlanPage } from '../../web/pages/PlanPage.tsx'
 import { makeWeekRow } from '../factories.ts'
 import { makeProfile } from './plan-fixtures.ts'
+import { makeToday } from './today-fixtures.ts'
 import {
   delayResponses,
   expectCleanCopy,
@@ -131,6 +132,8 @@ function routes(
     'GET /api/settings': () => settings,
     'GET /api/profile': () => makeProfile(),
     'GET /api/weeks': () => [] as WeekRow[],
+    // Read with no plan, for the first step (FH1a); the payload carries none here.
+    'GET /api/today': () => makeToday(),
     ...wristRoutes(),
     ...extra,
   }

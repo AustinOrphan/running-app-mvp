@@ -24,6 +24,21 @@ export const TODAY_TEMPLATES = {
     'Recent signals have stayed low for several days. A lighter week may help.',
   ),
   'today.verdict.no-signals': tpl('No readiness signals yet. One tap below adds the first.'),
+  // The first step with no plan (FH1a): Today and the Generate form say it from one reason, the
+  // engine's start-path check. The sentences state what the plan needs, as facts, and set no target.
+  'today.first.runs-title': tpl('No plan yet. A plan starts from the running on file.'),
+  'today.first.runs-need': tpl('No runs from the past year are on file.'),
+  // Runs are on file but the plan's start level is under the floor: the goal is still the step.
+  // The level is the one the plan starts from, which is lower than the typical week after a break.
+  'today.first.few-need': tpl(
+    'The plan would start at about {level} a week, under {floor}, so it begins with a short programme.',
+    { level: 'minutes', floor: 'minutes' },
+  ),
+  'today.first.goal-title': tpl('No plan yet. Choose a goal race, then generate weekly targets.'),
+  'today.first.goal-need': tpl('A plan needs a goal race with a distance.'),
+  'today.first.bring-runs': tpl('Bring in your runs', {}, { shape: 'label' }),
+  'today.first.choose-goal': tpl('Choose a goal', {}, { shape: 'label' }),
+  'today.first.generate': tpl('Generate a plan', {}, { shape: 'label' }),
   // While a window is open the band states it, and the verdict names the day instead of "Ready as
   // planned." (`windowVerdict`): a rest day, a day of limited running, the easy tail, the return
   // week. Each is a state of the day, so none repeats the window's dates or limits.
