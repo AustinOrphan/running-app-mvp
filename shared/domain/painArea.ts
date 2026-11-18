@@ -165,6 +165,19 @@ export interface RepeatPainPattern {
   pain: number
 }
 
+/** The look-back of the repeat offer: the last `pain.repeatDays` days ending on `date`, inclusive. */
+export function repeatPainWindow(date: string): { from: string; to: string } {
+  return { from: addDays(date, -(P.pain.repeatDays.value - 1)), to: date }
+}
+
+/** The most reports that name one area (the size of the largest group `repeatPainPattern` forms). */
+export function mostReportsOfOneArea(reports: readonly PainReport[]): number {
+  return Math.max(
+    0,
+    ...reports.map((anchor) => reports.filter((r) => sameArea(r.area, anchor.area)).length),
+  )
+}
+
 /**
  * Whether the check-ins of the last `pain.repeatDays` days ending on `date` hold `pain.repeatReports`
  * reports of one area (rule J11). The days need not be consecutive, and one check-in is one report.
@@ -180,10 +193,7 @@ export function repeatPainPattern(args: {
   const days = P.pain.repeatDays.value
   const needed = P.pain.repeatReports.value
   const quietFrom = addDays(args.date, -P.pain.repeatQuietDays.value)
-  const reports = painReports(args.wellness, {
-    from: addDays(args.date, -(days - 1)),
-    to: args.date,
-  })
+  const reports = painReports(args.wellness, repeatPainWindow(args.date))
   const quiet = (area: PainArea): boolean =>
     args.windows.some((window) => {
       if (window.reason !== 'niggle' || window.endDate < quietFrom) return false

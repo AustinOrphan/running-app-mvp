@@ -629,6 +629,25 @@ function mastersWaitDays(): number {
   return Math.ceil((P.j6.recoveryHours.value * P.j6.recoveryMultiplier.value) / 24)
 }
 
+/** The days the own median of the masters gate reads [J6]: the `j6.medianDays` before `date`, `date` left out. */
+export function mastersWindow(date: string): { from: string; to: string } {
+  return { from: addDays(date, -P.j6.medianDays.value), to: addDays(date, -1) }
+}
+
+/** The check-ins of that window, newest first: the ones the masters gate takes its median from [J6]. */
+export function mastersCheckinHistory(
+  byDate: ReadonlyMap<string, WellnessRow>,
+  date: string,
+): Checkin[] {
+  const history: Checkin[] = []
+  for (let k = 1; k <= P.j6.medianDays.value; k++) {
+    const row = byDate.get(addDays(date, -k))
+    const c = row ? checkinOfRow(row) : null
+    if (c) history.push(c)
+  }
+  return history
+}
+
 /** Masters gate [rules J6]: still worse than the own median the wait days after a hard session. */
 function mastersGate(ctx: Ctx, date: string): boolean {
   const { input } = ctx
@@ -646,12 +665,7 @@ function mastersGate(ctx: Ctx, date: string): boolean {
   if (!hardDone) return false
   const today = checkinOn(input, date)
   if (!today) return false
-  const history: Checkin[] = []
-  for (let k = 1; k <= P.j6.medianDays.value; k++) {
-    const row = ctx.byDate.get(addDays(date, -k))
-    const c = row ? checkinOfRow(row) : null
-    if (c) history.push(c)
-  }
+  const history = mastersCheckinHistory(ctx.byDate, date)
   if (history.length < P.j6.medianMinCheckins.value) return false
   const medianOf = (pick: (c: Checkin) => number | null): number | null => {
     const values = history.map(pick).filter((v): v is number => v !== null)

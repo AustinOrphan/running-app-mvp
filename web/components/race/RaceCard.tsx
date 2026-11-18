@@ -28,7 +28,7 @@ function CrewNote({
   unsavedText,
   printLabel,
 }: {
-  block: RaceCardBlockText
+  block: Pick<RaceCardBlockText, 'noteLabel'>
   noteId: string
   hintId: string
   unsavedText: string
@@ -60,6 +60,20 @@ function CrewNote({
           <span className={styles.notePrintLabel}>{printLabel}:</span> {value}
         </p>
       )}
+    </>
+  )
+}
+
+/** One group of the "When it gets hard" section: a label and its lines. */
+function HardLines({ heading, lines }: { heading: string; lines: string[] }) {
+  return (
+    <>
+      <h4 className={styles.hardLabel}>{heading}</h4>
+      <ul className={styles.hardList}>
+        {lines.map((line) => (
+          <li key={line}>{line}</li>
+        ))}
+      </ul>
     </>
   )
 }
@@ -133,6 +147,7 @@ function SplitSheet({ sheet }: { sheet: RaceCardSheet }) {
 export function RaceCard({ plan, units }: RaceCardProps) {
   const text = useMemo(() => describeRaceCard(plan, units), [plan, units])
   const hintId = useId()
+  const hardId = useId()
 
   // The print rules in `RaceCard.module.css` hide the app's navigation and set the page to black on
   // white only while the card is on screen, so printing another page is left as it was.
@@ -223,6 +238,28 @@ export function RaceCard({ plan, units }: RaceCardProps) {
               </li>
             ))}
           </ol>
+          {text.hard === null ? null : (
+            <section className={styles.hard} aria-labelledby={`${hardId}-heading`}>
+              <h3 id={`${hardId}-heading`} className={styles.name}>
+                {text.hard.heading}
+              </h3>
+              {text.hard.nausea === null ? null : (
+                <HardLines heading={text.hard.nausea.heading} lines={text.hard.nausea.lines} />
+              )}
+              {text.hard.fluid === null ? null : <p className={styles.line}>{text.hard.fluid}</p>}
+              {text.hard.eah === null ? null : (
+                <HardLines heading={text.hard.eah.heading} lines={text.hard.eah.lines} />
+              )}
+              <p className={styles.line}>{text.hard.crew}</p>
+              <CrewNote
+                block={text.hard}
+                noteId={`${plan.goalId}:${text.hard.key}`}
+                hintId={hintId}
+                unsavedText={text.noteUnsaved}
+                printLabel={text.notePrint}
+              />
+            </section>
+          )}
           {text.notes.map((note) => (
             <p key={note} className={styles.note}>
               {note}
