@@ -249,6 +249,7 @@ export function PlanInputsPage() {
           subject={title}
           retrying={loaded === 'retrying'}
           onRetry={() => inputs.refetch()}
+          error={inputs.error}
         />
       </>
     )

@@ -4,7 +4,8 @@ import { afterEach, describe, expect, test, vi } from 'vitest'
 import { GoalsPage } from '../../web/pages/GoalsPage.tsx'
 import { ProfilePage } from '../../web/pages/ProfilePage.tsx'
 import { SettingsPage } from '../../web/pages/SettingsPage.tsx'
-import { reference, setReference } from '../../web/api/client.ts'
+import { QueryClient } from '@tanstack/react-query'
+import { dropUserQueries, reference, setReference } from '../../web/api/client.ts'
 import { SetupPage } from '../../web/pages/SetupPage.tsx'
 import { ToastProvider } from '../../web/components/Toast.tsx'
 import { makeRecord } from './track-record-fixtures.ts'
@@ -86,6 +87,34 @@ describe('ErrorState on a failed load', () => {
     renderWithProviders(<SettingsPage />)
     expect(await screen.findByText('Settings did not load.')).toBeInTheDocument()
     expect(screen.queryByText(/Reference:/)).not.toBeInTheDocument()
+  })
+
+  test('a 4xx or a network failure after a 5xx shows no reference of the older request', async () => {
+    setReference('req-older-5xx')
+    mockApi({
+      'GET /api/settings': () => ({
+        status: 404,
+        body: { error: { code: 'not_found', message: 'Not found.' } },
+      }),
+    })
+    const first = renderWithProviders(<SettingsPage />)
+    expect(await screen.findByText('Settings did not load.')).toBeInTheDocument()
+    expect(screen.queryByText(/Reference:/)).not.toBeInTheDocument()
+    first.unmount()
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.reject(new TypeError('network down'))),
+    )
+    renderWithProviders(<SettingsPage />)
+    expect(await screen.findByText('Settings did not load.')).toBeInTheDocument()
+    expect(screen.queryByText(/Reference:/)).not.toBeInTheDocument()
+  })
+
+  test('dropUserQueries forgets the reference, so the next session starts without one', () => {
+    setReference('req-7f3a-42')
+    dropUserQueries(new QueryClient())
+    expect(reference()).toBeNull()
   })
 
   test('Settings: Try again reads the settings again and shows the page', async () => {

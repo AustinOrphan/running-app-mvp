@@ -283,6 +283,7 @@ function RouteMap({
           subject="The route"
           retrying={loadView === 'retrying'}
           onRetry={() => track.refetch()}
+          error={track.error}
         />
       </Section>
     )
@@ -736,6 +737,7 @@ export function ActivityDetailPage() {
             subject="The activity"
             retrying={loadView === 'retrying'}
             onRetry={() => detail.refetch()}
+            error={detail.error}
           />
         )}
       </>

@@ -577,6 +577,7 @@ export function SettingsPage() {
         <ErrorState
           subject="Settings"
           onRetry={() => settings.refetch()}
+          error={settings.error}
           retrying={view === 'retrying'}
         />
       </>

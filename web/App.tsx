@@ -147,6 +147,7 @@ function AuthGate() {
         <ErrorState
           subject="The app"
           onRetry={() => Promise.all([setup.refetch(), me.refetch()])}
+          error={setup.isError ? setup.error : me.error}
           retrying={view === 'retrying'}
         />
       </div>

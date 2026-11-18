@@ -40,6 +40,7 @@ export function SetupPage() {
         <ErrorState
           subject="Setup"
           onRetry={() => status.refetch()}
+          error={status.error}
           retrying={statusView === 'retrying'}
         />
       </main>

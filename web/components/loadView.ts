@@ -40,6 +40,7 @@ export function useLoadView(query: LoadQuery): LoadView {
 /** A query a page waits on: what `loadViewOf` reads, and the call that reads it again. */
 export interface RetryableQuery extends LoadQuery {
   refetch: () => unknown
+  error?: unknown
 }
 
 /**
@@ -49,6 +50,8 @@ export interface RetryableQuery extends LoadQuery {
  */
 export function combineQueries(queries: readonly RetryableQuery[]): LoadQuery & {
   retry: () => Promise<unknown>
+  /** The error of the first read that failed, for `ErrorState`. */
+  error: unknown
 } {
   // A read that holds data has not failed, whatever its background refetch did: data wins.
   const failed = (query: RetryableQuery) => query.isError && query.data === undefined
@@ -56,6 +59,7 @@ export function combineQueries(queries: readonly RetryableQuery[]): LoadQuery & 
     data: queries.every((query) => query.data !== undefined) ? true : undefined,
     isError: queries.some(failed),
     isFetching: queries.some((query) => query.isFetching),
+    error: queries.find(failed)?.error,
     retry: () => Promise.all(queries.filter(failed).map((query) => query.refetch())),
   }
 }

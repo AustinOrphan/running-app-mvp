@@ -5,14 +5,28 @@ export class ApiError extends Error {
   readonly status: number
   readonly code: ApiErrorCode
   readonly details?: unknown
+  /** The server's request id, from the body of a 5xx (ER1); absent on any other failure. */
+  readonly ref?: string
 
-  constructor(status: number, code: ApiErrorCode, message: string, details?: unknown) {
+  constructor(
+    status: number,
+    code: ApiErrorCode,
+    message: string,
+    details?: unknown,
+    ref?: string,
+  ) {
     super(message)
     this.name = 'ApiError'
     this.status = status
     this.code = code
     this.details = details
+    if (ref !== undefined) this.ref = ref
   }
+}
+
+/** The reference `error` carries, or null: only an `ApiError` from a 5xx has one. */
+export function referenceOf(error: unknown): string | null {
+  return error instanceof ApiError && error.ref !== undefined ? error.ref : null
 }
 
 /**
@@ -102,9 +116,10 @@ export async function api<T>(
     }
     if (isErrorBody(payload)) {
       const { code, message, details, ref } = payload.error
-      if (typeof ref === 'string' && ref !== '') latestReference = ref
+      const own = response.status >= 500 && typeof ref === 'string' && ref !== '' ? ref : undefined
+      if (own !== undefined) latestReference = own
       else if (response.status >= 500) latestReference = null
-      throw new ApiError(response.status, code, message, details)
+      throw new ApiError(response.status, code, message, details, own)
     }
     if (response.status >= 500) latestReference = null
     throw new ApiError(response.status, 'internal', 'The server returned an unexpected response.')
@@ -208,6 +223,8 @@ export const keys = {
  * no longer the one the observer reads.
  */
 export function dropUserQueries(queryClient: QueryClient): void {
+  // The reference of the last session's failure is not the next account's to see in a feedback note.
+  latestReference = null
   queryClient.removeQueries({
     predicate: (query) => query.queryKey[0] !== keys.me && query.queryKey[0] !== keys.setup,
   })

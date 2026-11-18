@@ -1,6 +1,6 @@
 import { render } from '../../shared/copy/template.ts'
 import { TEMPLATES } from '../../shared/copy/templates.ts'
-import { reference } from '../api/client.ts'
+import { referenceOf } from '../api/client.ts'
 import { Button } from './Button.tsx'
 import styles from './ErrorState.module.css'
 import { useOnline } from './useOnline.ts'
@@ -15,6 +15,11 @@ export interface ErrorStateProps {
    * `aria-disabled`, clicks ignored), so focus stays on it; never the `disabled` attribute.
    */
   retrying?: boolean
+  /**
+   * The query's `error`. A reference shows only when it is an `ApiError` from a 5xx that carries one
+   * (ER1); a caller with no error, a 4xx or a network failure shows none.
+   */
+  error?: unknown
 }
 
 /**
@@ -23,10 +28,10 @@ export interface ErrorStateProps {
  * only while its query has no data (`useLoadView` is `failed` or `retrying`); one that holds data
  * keeps it when a background refetch fails. Keep it mounted through the retry, with `retrying` set.
  */
-export function ErrorState({ subject, onRetry, retrying = false }: ErrorStateProps) {
+export function ErrorState({ subject, onRetry, retrying = false, error }: ErrorStateProps) {
   const online = useOnline()
   const slots = { subject: subject }
-  const ref = reference()
+  const ref = referenceOf(error)
   return (
     <div className={styles.error}>
       {/* The sentence is the alert, and it is remounted for each attempt: while a retry runs it is plain

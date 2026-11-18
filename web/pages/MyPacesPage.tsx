@@ -51,6 +51,7 @@ export function MyPacesPage() {
         <ErrorState
           subject={title}
           retrying={loaded === 'retrying'}
+          error={paces.isError ? paces.error : settings.error}
           onRetry={() =>
             Promise.all([
               paces.isError ? paces.refetch() : null,

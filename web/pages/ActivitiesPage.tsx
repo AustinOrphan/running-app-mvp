@@ -352,6 +352,7 @@ export function ActivitiesPage() {
         subject="Activities"
         retrying={loadView === 'retrying'}
         onRetry={() => activities.refetch()}
+        error={activities.error}
       />
     )
   } else if (loading) {

@@ -180,6 +180,7 @@ export function RunPanels({ months, weekCount, units }: RunPanelsProps) {
         <ErrorState
           subject={text('trends.runs.subject')}
           onRetry={runs.refetch}
+          error={runs.error}
           retrying={loadView === 'retrying'}
         />
       </Section>
