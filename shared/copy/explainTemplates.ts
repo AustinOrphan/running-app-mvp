@@ -912,6 +912,10 @@ export const EXPLAIN_TEMPLATES = {
     week: 'date',
     gain: 'climb',
   }),
+  'explain.h4-hike': tpl(
+    'Long and back-to-back runs in the specific phase carry a cue to hike climbs steeper than about {grade} from minute {from}; none in the last {days} days.',
+    { grade: 'percent', from: 'count', days: 'count' },
+  ),
   'explain.h4-gap': tpl(
     'No climb is entered for this goal, so the plan carries no climbing target for the race.',
   ),

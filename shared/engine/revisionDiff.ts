@@ -50,6 +50,7 @@ const CALENDAR_FLAGS: ReadonlySet<string> = new Set([
   'night',
   'downhill',
   'downhill-first',
+  'hike-practice',
   'b2b',
 ])
 const POST_RACE_FLAGS: ReadonlySet<string> = new Set(['post-race', 'post-race-restart'])
