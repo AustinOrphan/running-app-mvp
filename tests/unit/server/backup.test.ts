@@ -347,7 +347,8 @@ describe('prunePreMigrateBackups', () => {
       stamp('20261110T000000Z'),
       stamp('20261116T000000Z'),
     ])
-    const removed = prunePreMigrateBackups(backups, NOW)
+    const { removed, failed } = prunePreMigrateBackups(backups, NOW)
+    expect(failed).toEqual([])
     expect(removed).toEqual([
       stamp('20260301T000000Z'),
       stamp('20260201T000000Z'),
@@ -367,7 +368,7 @@ describe('prunePreMigrateBackups', () => {
       stamp('20250301T000000Z'),
       stamp('20250401T000000Z'),
     ])
-    expect(prunePreMigrateBackups(backups, NOW)).toEqual([stamp('20250101T000000Z')])
+    expect(prunePreMigrateBackups(backups, NOW).removed).toEqual([stamp('20250101T000000Z')])
     expect(readdirSync(backups)).toHaveLength(3)
   })
 
@@ -379,7 +380,7 @@ describe('prunePreMigrateBackups', () => {
       stamp('20261116T000000Z'),
       stamp('20261115T000000Z'),
     ])
-    expect(prunePreMigrateBackups(backups, NOW)).toEqual([stamp('20261018T115959Z')])
+    expect(prunePreMigrateBackups(backups, NOW).removed).toEqual([stamp('20261018T115959Z')])
     expect(readdirSync(backups)).toContain(stamp('20261018T120000Z'))
   })
 
@@ -409,8 +410,25 @@ describe('prunePreMigrateBackups', () => {
 
   test('is idempotent and a missing folder has nothing to prune', () => {
     const backups = seed([stamp('20250101T000000Z'), stamp('20250102T000000Z')])
-    expect(prunePreMigrateBackups(backups, NOW)).toEqual([])
-    expect(prunePreMigrateBackups(join(dir, 'none'), NOW)).toEqual([])
+    const nothing = { removed: [], failed: [] }
+    expect(prunePreMigrateBackups(backups, NOW)).toEqual(nothing)
+    expect(prunePreMigrateBackups(join(dir, 'none'), NOW)).toEqual(nothing)
+  })
+
+  test('goes on past a file it cannot remove and names it', () => {
+    const backups = seed([
+      stamp('20250102T000000Z'),
+      stamp('20250103T000000Z'),
+      stamp('20250104T000000Z'),
+      stamp('20250105T000000Z'),
+    ])
+    // A directory with a matching name cannot be unlinked.
+    rmSync(join(backups, stamp('20250101T000000Z')), { force: true })
+    mkdirSync(join(backups, stamp('20250101T000000Z')))
+    writeFileSync(join(backups, stamp('20250101T000000Z'), 'inner'), 'x')
+    const result = prunePreMigrateBackups(backups, NOW)
+    expect(result.failed).toEqual([stamp('20250101T000000Z')])
+    expect(result.removed).toEqual([stamp('20250102T000000Z')])
   })
 
   test('the constants are 30 days and 3 copies', () => {
@@ -432,6 +450,10 @@ describe('deletedAccountRetention', () => {
     expect(readme).toContain(`keep ${OFF_HOST_SNAPSHOT_DAYS} daily snapshots`)
     expect(readme).toContain(`remove\nthe copies older than ${KEEP_PRE_MIGRATE_DAYS} days`)
     expect(readme).toContain(`keep the newest ${KEEP_PRE_MIGRATE_MIN}`)
+    expect(readme).toContain(
+      `There are two\n> exceptions: the newest ${KEEP_PRE_MIGRATE_MIN} pre-update copies`,
+    )
+    expect(readme).toContain('and any\n> pre-restore copy, which stays until it is deleted')
     expect(readme).toContain("Open-Meteo's geocoding service; nothing else goes with it")
   })
 })

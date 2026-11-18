@@ -325,17 +325,30 @@ export function listPreMigrateBackups(dir: string): BackupFile[] {
 
 /**
  * Removes the `pre-migrate` copies in `dir` that are older than `KEEP_PRE_MIGRATE_DAYS` at `now`,
- * except the newest `KEEP_PRE_MIGRATE_MIN` whatever their age; returns their names. Idempotent. It
- * lists only names of the pre-migrate pattern inside `dir`, so the live database, ordinary and
- * `pre-restore` copies and every other file stay.
+ * except the newest `KEEP_PRE_MIGRATE_MIN` whatever their age. Idempotent. It lists only names of
+ * the pre-migrate pattern inside `dir`, so the live database, ordinary and `pre-restore` copies
+ * and every other file stay. Housekeeping must never block an update: a file that cannot be
+ * removed is skipped, and the result names the files removed and the ones that failed.
  */
-export function prunePreMigrateBackups(dir: string, now: Date = new Date()): string[] {
+export function prunePreMigrateBackups(
+  dir: string,
+  now: Date = new Date(),
+): { removed: string[]; failed: string[] } {
   const cutoff = now.getTime() - KEEP_PRE_MIGRATE_DAYS * DAY_MS
-  const pruned = listPreMigrateBackups(dir)
+  const candidates = listPreMigrateBackups(dir)
     .slice(KEEP_PRE_MIGRATE_MIN)
     .filter((file) => file.at.getTime() < cutoff)
-  for (const file of pruned) discard(join(dir, file.name))
-  return pruned.map((file) => file.name)
+  const removed: string[] = []
+  const failed: string[] = []
+  for (const file of candidates) {
+    try {
+      discard(join(dir, file.name))
+      removed.push(file.name)
+    } catch {
+      failed.push(file.name)
+    }
+  }
+  return { removed, failed }
 }
 
 /** The rule in words, for the help text and the README. */

@@ -131,9 +131,22 @@ export async function backupCommand(
     kind: beforeMigrate ? 'pre-migrate' : 'ordinary',
   })
   io.stdout(`Backup written: ${copy.path}\nSize: ${formatSize(copy.bytes)}\nintegrity_check: ok\n`)
-  const pruned = beforeMigrate
-    ? prunePreMigrateBackups(backupDirectory(databaseFile))
-    : pruneBackups(backupDirectory(databaseFile), retention, basename(copy.path))
+  if (beforeMigrate) {
+    // Housekeeping never blocks the update that follows: a failure is a warning, the copy is made.
+    try {
+      const { removed, failed } = prunePreMigrateBackups(backupDirectory(databaseFile))
+      if (removed.length > 0) io.stdout(`Pruned ${removed.length}: ${removed.join(', ')}\n`)
+      if (failed.length > 0) {
+        io.stderr(`Warning: could not remove ${failed.length}: ${failed.join(', ')}\n`)
+      }
+    } catch (error) {
+      io.stderr(
+        `Warning: pre-migrate copies were not pruned: ${error instanceof Error ? error.message : String(error)}\n`,
+      )
+    }
+    return 0
+  }
+  const pruned = pruneBackups(backupDirectory(databaseFile), retention, basename(copy.path))
   if (pruned.length > 0) io.stdout(`Pruned ${pruned.length}: ${pruned.join(', ')}\n`)
   return 0
 }

@@ -546,9 +546,9 @@ What a tester is told about copies, in the invitation (no page in the app shows 
 
 > The person who runs this server can read every account's data. An encrypted copy of the whole
 > database is kept at another location for up to 30 days. Deleting an account removes it from the
-> live database at once and from every copy the server keeps within 35 days. The one exception
-> is the newest 3 pre-update copies, which stay until later updates push them out; the operator
-> deletes them on request. When you search for a town or postcode to set a place, only the text you
+> live database at once and from every copy the server keeps within 35 days. There are two
+> exceptions: the newest 3 pre-update copies, which stay until later updates push them out, and any
+> pre-restore copy, which stays until it is deleted; the operator deletes both on request. When you search for a town or postcode to set a place, only the text you
 > typed is sent to Open-Meteo's geocoding service; nothing else goes with it.
 
 The 35 days is `deletedAccountRetention().longestDays` (`server/services/backup.ts`), derived from

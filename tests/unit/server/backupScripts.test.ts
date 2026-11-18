@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import Database from 'better-sqlite3'
 import { afterEach, beforeEach, describe, expect, test } from 'vitest'
+import { backupStamp } from '../../../server/services/backup.ts'
 import { backupCommand } from '../../../scripts/backup.ts'
 import { restoreCommand } from '../../../scripts/restore.ts'
 
@@ -67,6 +68,40 @@ describe('npm run backup', () => {
     expect(status).toBe(0)
     expect(backups().filter((name) => name.startsWith('pre-migrate-'))).toHaveLength(1)
     expect(backups().filter((name) => name.startsWith('app-'))).toHaveLength(3)
+  })
+
+  test('--before-migrate prunes pre-migrate copies older than 30 days, keeping the newest 3', async () => {
+    makeDatabase()
+    mkdirSync(join(dir, 'backups'))
+    const recent = backupStamp(new Date(Date.now() - 86_400_000))
+    for (const stamp of ['20250101T020000Z', '20250102T020000Z', '20250103T020000Z', recent]) {
+      writeFileSync(join(dir, 'backups', `pre-migrate-${stamp}.db`), 'x')
+    }
+    const { status, out } = await run(backupCommand, ['--before-migrate'])
+    expect(status).toBe(0)
+    expect(out).toContain(
+      'Pruned 2: pre-migrate-20250102T020000Z.db, pre-migrate-20250101T020000Z.db',
+    )
+    const left = backups()
+    expect(left).toHaveLength(3)
+    expect(left).toContain('pre-migrate-20250103T020000Z.db')
+    expect(left).toContain(`pre-migrate-${recent}.db`)
+  })
+
+  test('--before-migrate warns and exits 0 when an old copy cannot be removed', async () => {
+    makeDatabase()
+    mkdirSync(join(dir, 'backups'))
+    // A directory with a matching name cannot be unlinked.
+    mkdirSync(join(dir, 'backups', 'pre-migrate-20250101T020000Z.db'))
+    writeFileSync(join(dir, 'backups', 'pre-migrate-20250101T020000Z.db', 'inner'), 'x')
+    for (const stamp of ['20250102T020000Z', '20250103T020000Z', '20250104T020000Z']) {
+      writeFileSync(join(dir, 'backups', `pre-migrate-${stamp}.db`), 'x')
+    }
+    const { status, err } = await run(backupCommand, ['--before-migrate'])
+    expect(status).toBe(0)
+    expect(err).toContain('Warning: could not remove 1: pre-migrate-20250101T020000Z.db')
+    // The new copy was made.
+    expect(backups().filter((name) => name.startsWith('pre-migrate-2026'))).toHaveLength(1)
   })
 
   test('--before-migrate copies nothing when there is no database yet', async () => {

@@ -512,11 +512,18 @@ export async function runBackupJob(
     const file = sqliteFilePath(deps.config.databaseUrl)
     const copy = await createBackup(file, { kind: 'ordinary', now: opts.now })
     const pruned = pruneBackups(backupDirectory(file), undefined, basename(copy.path))
-    const prunedPreMigrate = prunePreMigrateBackups(backupDirectory(file), opts.now)
-    log?.info(
-      { bytes: copy.bytes, pruned: pruned.length, prunedPreMigrate: prunedPreMigrate.length },
-      'database backed up',
-    )
+    let prunedPreMigrate = 0
+    try {
+      const result = prunePreMigrateBackups(backupDirectory(file), opts.now)
+      prunedPreMigrate = result.removed.length
+      if (result.failed.length > 0) {
+        log?.warn({ files: result.failed }, 'pre-migrate copies could not be removed')
+      }
+    } catch (error) {
+      // Housekeeping never fails the backup run.
+      log?.warn({ reason: safeMessage(error) }, 'pre-migrate copies were not pruned')
+    }
+    log?.info({ bytes: copy.bytes, pruned: pruned.length, prunedPreMigrate }, 'database backed up')
   } catch (error) {
     log?.warn({ reason: safeMessage(error) }, 'scheduled backup failed')
     failure = error
