@@ -7,6 +7,8 @@
 // of this file, and their ETag stamps in `today.ts`.
 import { addDays, daysBetween, isoDateInZone, mondayOf } from '../../shared/dates.ts'
 import { runnerZone } from '../runnerDay.ts'
+import { parseJson } from '../serialize.ts'
+import { STRAVA_KEY, removalDateOf } from '../../shared/domain/stravaRemoval.ts'
 import { isToRun } from '../../shared/domain/sessionStatus.ts'
 import { aggregateWeeks } from '../../shared/domain/weeks.ts'
 import { P } from '../../shared/engine/params/index.ts'
@@ -261,6 +263,8 @@ interface SourceRow {
   status: string
   pausedUntil: Date | null
   createdAt: Date
+  /** The day Strava's runs are removed after a refused token (SC1); null for every other row. */
+  removeAt: Date | null
 }
 
 /**
@@ -277,7 +281,7 @@ async function sourceRows(prisma: PrismaClient, userId: string): Promise<SourceR
   )
   const rows = await prisma.integration.findMany({
     where: { userId, provider: { in: [...labels.keys()] } },
-    select: { provider: true, status: true, pausedUntil: true, createdAt: true },
+    select: { provider: true, status: true, pausedUntil: true, createdAt: true, config: true },
   })
   const order = [...labels.keys()]
   // The Watched folder belongs to the install owner (F1); a row of another account is stale. The
@@ -286,7 +290,14 @@ async function sourceRows(prisma: PrismaClient, userId: string): Promise<SourceR
     rows.some((row) => row.provider === 'folder') && !(await isInstallOwner(prisma, userId))
   return rows
     .filter((row) => !(stale && row.provider === 'folder'))
-    .map((row) => ({ ...row, label: labels.get(row.provider) ?? row.provider }))
+    .map(({ config, ...row }) => ({
+      ...row,
+      label: labels.get(row.provider) ?? row.provider,
+      removeAt:
+        row.provider === STRAVA_KEY
+          ? removalDateOf(parseJson<Record<string, unknown>>(config, {}))
+          : null,
+    }))
     .sort((a, b) => order.indexOf(a.provider) - order.indexOf(b.provider))
 }
 
@@ -329,6 +340,22 @@ export async function sourceHealthNotes({
   const notes = await Promise.all(
     rows.map(async (row): Promise<HealthNote | null> => {
       if (row.status === 'needs_auth') {
+        // Strava after a refused token: the note says the day the runs are removed (SC1).
+        if (row.removeAt !== null) {
+          return {
+            code: 'source-needs-auth',
+            template: 'today.health.source-needs-auth-removal',
+            slots: {
+              source: row.label,
+              date: {
+                kind: 'date',
+                iso: isoDateInZone(row.removeAt, runnerZone(context.profile.timezone)),
+                style: 'long',
+              },
+            },
+            href: '/integrations',
+          }
+        }
         return {
           code: 'source-needs-auth',
           template: 'today.health.source-needs-auth',
@@ -383,6 +410,7 @@ export async function sourceNotesStamp({
       row.pausedUntil === null ? 'none' : String(row.pausedUntil.getTime()),
       isPaused(row, now) ? 'paused' : 'open',
       String(row.createdAt.getTime()),
+      row.removeAt === null ? 'keep' : String(row.removeAt.getTime()),
     ].join('.'),
   )
   return `sources:${parts.join(',')}`

@@ -5,6 +5,7 @@ import { count, providerMessage } from '../../shared/copy/pageCopy.ts'
 import type { ActivityType, ParsedActivity } from '../../shared/types.ts'
 import { parse, validationError } from '../errors.ts'
 import {
+  ProviderAuthError,
   RateLimitPause,
   type ProviderCtx,
   type PullProvider,
@@ -13,6 +14,8 @@ import {
 
 const AUTHORIZE_URL = 'https://www.strava.com/oauth/authorize'
 const TOKEN_URL = 'https://www.strava.com/oauth/token'
+const REVOKE_URL = 'https://www.strava.com/oauth/revoke'
+const REVOKE_TIMEOUT_MS = 5000
 const API = 'https://www.strava.com/api/v3'
 const SCOPE = 'read,activity:read_all'
 const PER_PAGE = 200
@@ -157,7 +160,9 @@ export async function refreshIfNeeded(ctx: ProviderCtx): Promise<string> {
     grant_type: 'refresh_token',
     refresh_token: refreshToken,
   })
-  if (!tokens) throw new Error(`Strava rejected the refresh token. ${RECONNECT}`)
+  // A refused refresh token is a revocation or an expired grant: the sync service starts the
+  // removal clock for it (`ProviderAuthError`, SC1).
+  if (!tokens) throw new ProviderAuthError(`Strava rejected the refresh token. ${RECONNECT}`)
   const next = {
     ...ctx.secret,
     accessToken: tokens.access_token,
@@ -167,6 +172,34 @@ export async function refreshIfNeeded(ctx: ProviderCtx): Promise<string> {
   await ctx.saveSecret(next)
   Object.assign(ctx.secret, next)
   return tokens.access_token
+}
+
+/**
+ * Withdraws the runner's access at Strava (`POST /oauth/revoke`, HTTP Basic with the runner's own
+ * client id and secret, the refresh token as `token`; API Policy 7.4, ADR 0025). Best effort: it
+ * returns whether Strava accepted, and never throws, because a disconnect goes ahead either way.
+ */
+export async function revokeAccess(ctx: ProviderCtx): Promise<boolean> {
+  const token = text(ctx.secret.refreshToken)
+  const clientId = text(ctx.config.clientId)
+  const clientSecret = text(ctx.secret.clientSecret)
+  if (token === '' || clientId === '' || clientSecret === '') return false
+  try {
+    const basic = Buffer.from(`${clientId}:${clientSecret}`).toString('base64')
+    const response = await ctx.fetch(REVOKE_URL, {
+      method: 'POST',
+      headers: {
+        Authorization: `Basic ${basic}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+        Accept: 'application/json',
+      },
+      body: new URLSearchParams({ token }),
+      signal: AbortSignal.timeout(REVOKE_TIMEOUT_MS),
+    })
+    return response.ok
+  } catch {
+    return false
+  }
 }
 
 function numbers(header: string | null): number[] {
@@ -218,7 +251,9 @@ async function get(
   if (response.status === 429) {
     throw pauseError(pauseSeconds(response.headers, ctx.now()) ?? WINDOW_SEC, cursor)
   }
-  if (response.status === 401) throw new Error(`Strava rejected the access token. ${RECONNECT}`)
+  if (response.status === 401) {
+    throw new ProviderAuthError(`Strava rejected the access token. ${RECONNECT}`)
+  }
   if (response.status === 404) return { body: null, pause: null }
   if (!response.ok) {
     throw new Error(providerMessage('provider.strava.request', { status: count(response.status) }))

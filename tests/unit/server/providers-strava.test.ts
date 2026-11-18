@@ -4,10 +4,15 @@ import {
   authorizeUrl,
   exchangeCode,
   refreshIfNeeded,
+  revokeAccess,
   stravaProvider,
   type StravaRef,
 } from '../../../server/providers/strava.ts'
-import { RateLimitPause, type ProviderCtx } from '../../../server/providers/types.ts'
+import {
+  ProviderAuthError,
+  RateLimitPause,
+  type ProviderCtx,
+} from '../../../server/providers/types.ts'
 import { lintText } from '../../../shared/copy/lint.ts'
 import { fakeFetch, type FakeRoute } from '../../fakeFetch.ts'
 
@@ -501,5 +506,65 @@ describe('fetchActivity', () => {
     const error = await stravaProvider.fetchActivity(ref(), ctx).catch((e: unknown) => e)
     expect(error).toBeInstanceOf(RateLimitPause)
     expect((error as RateLimitPause).cursor).toBe('2026-10-20T05:59:59Z')
+  })
+})
+
+describe('refused tokens (SC1)', () => {
+  it('a refused refresh token and a 401 are auth errors the sync service starts a clock for', async () => {
+    const expired = ctxWith(
+      { [`POST ${TOKEN_URL}`]: () => Response.json({}, { status: 400 }) },
+      { expiresAt: 1 },
+    )
+    await expect(refreshIfNeeded(expired)).rejects.toBeInstanceOf(ProviderAuthError)
+    const unauthorised = ctxWith({
+      [`GET ${API}/athlete/activities`]: () => new Response('{}', { status: 401 }),
+    })
+    const listing = stravaProvider.listActivities('2026-01-01T00:00:00Z', unauthorised)
+    await expect(listing[Symbol.asyncIterator]().next()).rejects.toBeInstanceOf(ProviderAuthError)
+  })
+
+  it('an outage at the token endpoint is not one', async () => {
+    const ctx = ctxWith(
+      { [`POST ${TOKEN_URL}`]: () => Response.json({}, { status: 503 }) },
+      { expiresAt: 1 },
+    )
+    const error = await refreshIfNeeded(ctx).catch((e: unknown) => e)
+    expect(error).toBeInstanceOf(Error)
+    expect(error).not.toBeInstanceOf(ProviderAuthError)
+  })
+})
+
+describe('revokeAccess', () => {
+  const REVOKE_URL = 'https://www.strava.com/oauth/revoke'
+
+  it('posts the refresh token with HTTP Basic credentials and reports success', async () => {
+    let seen: { auth: string | null; token: string | null; url: string } | null = null
+    const ctx = ctxWith({
+      [`POST ${REVOKE_URL}`]: async (req) => {
+        seen = {
+          auth: req.headers.get('authorization'),
+          token: new URLSearchParams(await req.text()).get('token'),
+          url: req.url,
+        }
+        return Response.json({})
+      },
+    })
+    expect(await revokeAccess(ctx)).toBe(true)
+    expect(seen).toEqual({
+      auth: `Basic ${Buffer.from('12345:cs').toString('base64')}`,
+      token: 'rt-1',
+      url: REVOKE_URL,
+    })
+  })
+
+  it('swallows a 503, a thrown fetch and a missing token', async () => {
+    expect(
+      await revokeAccess(
+        ctxWith({ [`POST ${REVOKE_URL}`]: () => new Response('', { status: 503 }) }),
+      ),
+    ).toBe(false)
+    const throwing = ctxWith({})
+    expect(await revokeAccess(throwing)).toBe(false)
+    expect(await revokeAccess(ctxWith({}, { refreshToken: '' }))).toBe(false)
   })
 })

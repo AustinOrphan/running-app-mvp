@@ -115,13 +115,36 @@ export function useSyncIntegration() {
   })
 }
 
-/** Forgets the credentials; imported activities stay. */
+/**
+ * Forgets the credentials; imported activities stay, except for Strava: its disconnect revokes at
+ * Strava and removes the activities that came from it (ADR 0025), so the lists go stale with it.
+ */
 export function useDisconnectIntegration() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (provider: string) =>
       api<void>('DELETE', `/integrations/${encodeURIComponent(provider)}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: [keys.integrations] }),
+    onSuccess: (_result, provider) =>
+      provider === 'strava'
+        ? invalidateSyncData(queryClient)
+        : queryClient.invalidateQueries({ queryKey: [keys.integrations] }),
+  })
+}
+
+/** What disconnecting Strava would delete: the count, for the confirmation sheet. */
+export interface StravaRemoval {
+  count: number
+  /** The day the runs are removed after a refused token, ISO; null when no clock runs. */
+  deleteAt: string | null
+}
+
+/** Read when the confirmation sheet opens, so the count is the one the server deletes. */
+export function useStravaRemoval(enabled: boolean) {
+  return useQuery({
+    queryKey: [keys.integrations, 'strava-removal'],
+    queryFn: () => api<StravaRemoval>('GET', '/integrations/strava/removal'),
+    enabled,
+    gcTime: 0,
   })
 }
 

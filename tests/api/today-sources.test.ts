@@ -118,7 +118,7 @@ async function runnerPlanning(email: string, runDates: string[]): Promise<TestUs
 async function connect(
   u: TestUser,
   provider: string,
-  over: { status?: string; pausedUntil?: Date | null; createdAt?: Date } = {},
+  over: { status?: string; pausedUntil?: Date | null; createdAt?: Date; config?: object } = {},
 ) {
   return ctx.prisma.integration.create({
     data: {
@@ -126,7 +126,7 @@ async function connect(
       provider,
       status: over.status ?? 'connected',
       secret: '',
-      config: '{}',
+      config: JSON.stringify(over.config ?? {}),
       pausedUntil: over.pausedUntil ?? null,
       ...(over.createdAt === undefined ? {} : { createdAt: over.createdAt }),
     },
@@ -189,6 +189,37 @@ describe('GET /api/today: a source that needs signing in', () => {
     const sentence = renderFact(notes[0]!, 'mi')
     expect(sentence).toBe('Strava needs signing in again; runs since then have not arrived.')
     assertCleanCopy(sentence, 'source-needs-auth')
+  })
+
+  test('names the day the Strava runs are removed when a refused token started the clock (SC1)', async () => {
+    const u = await seedUser(ctx, { email: 'sources-strava-clock@example.com' })
+    const first = await connect(u, 'strava', {
+      status: 'needs_auth',
+      config: { deleteAt: '2026-11-12T12:00:00.000Z' },
+    })
+    const notes = await sourceNotesFor(u)
+    expect(notes).toEqual([
+      {
+        code: 'source-needs-auth',
+        template: 'today.health.source-needs-auth-removal',
+        slots: { source: 'Strava', date: { kind: 'date', iso: '2026-11-12', style: 'long' } },
+        href: '/integrations',
+      },
+    ])
+    const sentence = renderFact(notes[0]!, 'mi')
+    expect(sentence).toBe(
+      'Strava needs signing in again. The runs it brought in are removed from this log on Thu 12 Nov 2026 unless you connect again.',
+    )
+    assertCleanCopy(sentence, 'source-needs-auth-removal')
+    // A date that moves moves the tag, and a row with no clock keeps the plain note.
+    const tagWith = tagOf(await getToday(u))
+    await ctx.prisma.integration.update({
+      where: { id: first.id },
+      data: { config: JSON.stringify({ deleteAt: '2026-11-13T12:00:00.000Z' }) },
+    })
+    expect(tagOf(await getToday(u))).not.toBe(tagWith)
+    await ctx.prisma.integration.update({ where: { id: first.id }, data: { config: '{}' } })
+    expect((await sourceNotesFor(u))[0]?.template).toBe('today.health.source-needs-auth')
   })
 
   test('needs no plan and no silence: a runner who ran yesterday is told as well', async () => {

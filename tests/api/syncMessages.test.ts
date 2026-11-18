@@ -14,7 +14,8 @@ import { scanFolderIntegrationToday as scanFolderIntegration } from './helpers.t
 import { sealSecret } from '../../server/services/sync.ts'
 import { syncProviderToday as syncProvider } from './helpers.ts'
 import { syncMessage, type SyncMessageId } from '../../server/services/syncLog.ts'
-import { fakeFetch } from '../fakeFetch.ts'
+import { disconnectStrava, runStravaJob } from '../../server/services/stravaRemoval.ts'
+import { fakeFetch, type FakeRoute } from '../fakeFetch.ts'
 import { buildFit } from '../fixtures/fit/buildFit.ts'
 import { client, createTestCtx, seedUser, type TestCtx, type TestUser } from './helpers.ts'
 
@@ -191,6 +192,42 @@ async function garminWithWellness(wellness: () => Promise<never>): Promise<void>
 
 const count = (n: number) => ({ kind: 'count', n }) as const
 
+const STRAVA_LIST = 'GET https://www.strava.com/api/v3/athlete/activities'
+
+/** Strava connected with a stored run; the daily check then runs against `routes`. */
+async function stravaDailyCheck(
+  routes: Record<string, FakeRoute>,
+  setup: { expiresAt?: number; pausedUntil?: Date } = {},
+): Promise<SyncRunView | undefined> {
+  await connect(
+    'strava',
+    {
+      clientSecret: 'synthetic-client-secret-0123',
+      accessToken: 'synthetic-access-0123456',
+      refreshToken: 'synthetic-refresh-0123456',
+      expiresAt: setup.expiresAt ?? Math.floor(Date.now() / 1000) + 3600,
+    },
+    { clientId: '12345' },
+  )
+  if (setup.pausedUntil) {
+    await ctx.prisma.integration.updateMany({ data: { pausedUntil: setup.pausedUntil } })
+  }
+  await ctx.prisma.activity.create({
+    data: {
+      userId: user.id,
+      date: '2026-03-01',
+      type: 'run',
+      durationSec: 1800,
+      source: 'strava',
+      providerKey: 'strava:1',
+      startUtc: '2026-03-01T07:00:00Z',
+    },
+  })
+  await runStravaJob(deps(), { fetch: fakeFetch(routes) })
+  const jobs = (await client(ctx, user).get('/api/jobs')).body as JobsView
+  return jobs.jobs.find((job) => job.provider === 'strava-reconcile')
+}
+
 interface Outcome {
   /** The text the path stored. */
   stored: string | null | undefined
@@ -348,6 +385,67 @@ const scenarios: Record<SyncMessageId, () => Promise<Outcome>> = {
       stored: (await ctx.prisma.integration.findFirstOrThrow()).lastError,
       run,
       expected: syncMessage('sync.msg.activities-failed.many', { n: count(3) }),
+    }
+  },
+
+  // The daily Strava check and a disconnect (SC1): each reason that left something undone.
+  'sync.msg.strava-check-paused': async () => {
+    const run = await stravaDailyCheck({}, { pausedUntil: new Date(Date.now() + 3_600_000) })
+    return {
+      stored: run?.failures[0]?.reason,
+      run,
+      expected: syncMessage('sync.msg.strava-check-paused', {}),
+    }
+  },
+
+  'sync.msg.strava-check-incomplete': async () => {
+    const run = await stravaDailyCheck({ [STRAVA_LIST]: () => new Response('{}', { status: 500 }) })
+    return {
+      stored: run?.failures[0]?.reason,
+      run,
+      expected: syncMessage('sync.msg.strava-check-incomplete', {}),
+    }
+  },
+
+  'sync.msg.strava-check-empty': async () => {
+    const run = await stravaDailyCheck({ [STRAVA_LIST]: () => Response.json([]) })
+    return {
+      stored: run?.failures[0]?.reason,
+      run,
+      expected: syncMessage('sync.msg.strava-check-empty', {}),
+    }
+  },
+
+  'sync.msg.strava-check-refused': async () => {
+    const run = await stravaDailyCheck({ [STRAVA_LIST]: () => new Response('{}', { status: 401 }) })
+    return {
+      stored: run?.failures[0]?.reason,
+      run,
+      expected: syncMessage('sync.msg.strava-check-refused', {}),
+    }
+  },
+
+  'sync.msg.strava-revoke-failed': async () => {
+    await connect(
+      'strava',
+      {
+        clientSecret: 'synthetic-client-secret-0123',
+        accessToken: 'synthetic-access-0123456',
+        refreshToken: 'synthetic-refresh-0123456',
+        expiresAt: Math.floor(Date.now() / 1000) + 3600,
+      },
+      { clientId: '12345' },
+    )
+    const fetchFn = fakeFetch({
+      'POST https://www.strava.com/oauth/revoke': () => new Response('{}', { status: 503 }),
+    })
+    await disconnectStrava(deps(), user.id, fetchFn)
+    const jobs = (await client(ctx, user).get('/api/jobs')).body as JobsView
+    const run = jobs.jobs.find((job) => job.provider === 'strava-removal')
+    return {
+      stored: run?.failures[0]?.reason,
+      run,
+      expected: syncMessage('sync.msg.strava-revoke-failed', {}),
     }
   },
 

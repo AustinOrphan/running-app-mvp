@@ -4,7 +4,7 @@ import type { Deps } from '../app.ts'
 import type { Activity as ActivityRow, PrismaClient } from '../db.ts'
 import { loadProfile } from '../serialize.ts'
 import { createLogger } from '../logger.ts'
-import { copyEffort, markDuplicates } from './duplicates.ts'
+import { copyEffort, markDuplicates, moveConfirmedLogs, releaseDuplicatesOf } from './duplicates.ts'
 import { assessSessionById, runExecutionForActivity, runExecutionQuietly } from './execution.ts'
 import { assertLinkable, linkPlanSession } from './planEngine.ts'
 import { conflict, notFound } from '../errors.ts'
@@ -679,4 +679,80 @@ export async function markActivityAsRace(
     data: { type: 'race' },
   })
   return count > 0
+}
+
+/**
+ * Deletes activities of one runner, for a caller that removes many at once (the Strava removal,
+ * SC1); the single-activity route does the same two steps. Returns how many rows went.
+ *
+ * A run that another source also holds keeps that other copy: the rows flagged as duplicates of the
+ * deleted one are released (`releaseDuplicatesOf`, so their totals count again). Before that, a
+ * confirmed copy from another source takes over what hangs on the deleted row, so the plan session,
+ * the fuel log and the strength log stay on a run that still exists: when the deleted row is the
+ * original, the first such copy becomes the original (`moveConfirmedLogs` moves from copies to the
+ * original); when it is itself a confirmed copy of another source's run, its logs go to that run.
+ * A session that moves is assessed again by the nightly matching job, not here.
+ *
+ * The delete is a plain `activity.delete`: the stream, file, track and insight rows cascade, a plan
+ * session or race result keeps its row with no activity, and the data version rises with the write.
+ */
+export async function deleteActivities(
+  deps: Deps,
+  userId: string,
+  ids: readonly string[],
+): Promise<number> {
+  const { prisma } = deps
+  let removed = 0
+  for (const id of ids) {
+    const row = await prisma.activity.findFirst({
+      where: { id, userId },
+      select: { source: true, duplicateOfId: true, duplicateStatus: true },
+    })
+    if (!row) continue
+    if (row.duplicateOfId !== null && row.duplicateStatus === 'confirmed') {
+      const original = await prisma.activity.findFirst({
+        where: { id: row.duplicateOfId, userId },
+        select: { source: true },
+      })
+      if (original && original.source !== row.source) {
+        await moveConfirmedLogs(prisma, userId, row.duplicateOfId)
+      }
+    }
+    const survivor = await prisma.activity.findFirst({
+      where: {
+        userId,
+        duplicateOfId: id,
+        duplicateStatus: 'confirmed',
+        source: { not: row.source },
+      },
+      orderBy: { id: 'asc' },
+      select: { id: true },
+    })
+    if (survivor) {
+      // The survivor becomes the original and the deleted row its confirmed copy, so the hand-over
+      // below runs in its one direction.
+      await prisma.activity.updateMany({
+        where: {
+          userId,
+          duplicateOfId: id,
+          duplicateStatus: 'confirmed',
+          id: { not: survivor.id },
+        },
+        data: { duplicateOfId: survivor.id },
+      })
+      await prisma.activity.update({
+        where: { id: survivor.id, userId },
+        data: { duplicateOfId: null, duplicateStatus: 'none' },
+      })
+      await prisma.activity.update({
+        where: { id, userId },
+        data: { duplicateOfId: survivor.id, duplicateStatus: 'confirmed' },
+      })
+      await moveConfirmedLogs(prisma, userId, survivor.id)
+    }
+    await releaseDuplicatesOf(prisma, userId, id)
+    await prisma.activity.delete({ where: { id, userId } })
+    removed += 1
+  }
+  return removed
 }

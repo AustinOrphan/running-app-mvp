@@ -116,7 +116,8 @@ One export runs at a time; the browser's download manager streams it to disk. Th
 
 Activities and daily health data can arrive without typing. Every source is a provider; the
 Integrations page (More, then Integrations) shows one card each with its status, last sync and a
-Disconnect button. Disconnecting forgets the stored credentials; the activities stay.
+Disconnect button. Disconnecting forgets the stored credentials; the activities stay, except for
+Strava, whose disconnect also removes the activities that came from it (see "Strava").
 
 Pull providers sync hourly in the background, and the card's Sync now button runs one at once. The
 first run reads the last year; set Backfill from on the card to go further back. Weather is added
@@ -183,6 +184,29 @@ Strava needs your own API application, because the app is self-hosted and has no
 Strava brings activities with heart rate, cadence, power and altitude streams but no original files
 and no wellness data. Strava rate-limits each application; a long backfill pauses at 80% of either
 limit and continues on the next run.
+
+Strava's API Policy (7.4, 6.3) asks the developer to delete a person's Strava data when they revoke
+access and to reflect deletions made on Strava, so three things happen to the activities that came
+from Strava (ADR 0025). Activities that came from a file or another source stay, and a run that
+another source also holds keeps that copy.
+
+- **Disconnect** asks first: the sheet shows how many activities will go and links to the full-data
+  export (Settings, Your data). It then revokes the token at Strava (best effort; if Strava does not
+  accept, remove the app at strava.com/settings/apps) and deletes those activities and the row.
+- **A refused token** (access revoked at Strava, or the grant expired) moves the card to Needs
+  reconnecting and starts a 25-day clock, kept as `deleteAt` in the row's config. Today names the
+  date. Connecting again cancels it. The daily job (03:30 local) deletes the activities once the date
+  has passed.
+- **The daily check** (the same job) lists a connected runner's Strava activities once, from the
+  oldest stored one, and deletes local Strava runs that Strava no longer lists. Only a complete
+  listing deletes: a pause, an error or an empty list while runs are stored deletes nothing and
+  shows as a `partial` or `error` run in the sync log (job `strava-reconcile`; a removal is
+  `strava-removal`).
+
+Not done here, and open (ADR 0025): the start point the provider stores (API Policy 5.7), the 7-day
+cache of Policy 6.2, and the operator rule that no AI tool reads rows with `source = 'strava'`
+(Policy 5.3), including a Claude Code session that runs scripts against a live database. Copies in
+`backups/` still hold deleted runs until they age out, 30 days at most (see "Data notice").
 
 ### Garmin Connect (experimental)
 

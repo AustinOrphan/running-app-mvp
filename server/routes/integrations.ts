@@ -9,9 +9,10 @@ import { createLogger } from '../logger.ts'
 import { signState, verifyState } from '../providers/oauthState.ts'
 import { PROVIDERS, getProvider } from '../providers/registry.ts'
 import { authorizeUrl, exchangeCode, type StravaConfig } from '../providers/strava.ts'
-import { toIntegrationStatus } from '../serialize.ts'
+import { parseJson, toIntegrationStatus } from '../serialize.ts'
 import { resolveFolderRoot, scanFolderIntegration } from '../services/folder.ts'
 import { prepareDisconnect, resetForNewAthlete } from '../services/publish.ts'
+import { countStravaActivities, disconnectStrava } from '../services/stravaRemoval.ts'
 import {
   SECRET_CHANGED,
   isSyncing,
@@ -20,6 +21,7 @@ import {
   sealSecret,
   syncProvider,
   trackBackground,
+  withProviderLock,
 } from '../services/sync.ts'
 import {
   RUNS_DEFAULT_LIMIT,
@@ -27,6 +29,11 @@ import {
   listSyncRuns,
   safeMessage,
 } from '../services/syncLog.ts'
+import {
+  STRAVA_KEY,
+  removalDateOf,
+  withoutRemovalClock,
+} from '../../shared/domain/stravaRemoval.ts'
 import type { IntegrationStatus } from '../../shared/types.ts'
 
 const syncBody = z
@@ -184,6 +191,13 @@ export function integrationsRouter(deps: Deps): Router {
       throw validationError(`${registered.info.label} connects with a push token, not a form.`)
     }
 
+    // Strava's removal clock (SC1) runs until the callback brings new tokens: opening the form and
+    // walking away must not cancel it.
+    if (provider === STRAVA_KEY && existing) {
+      const clock = removalDateOf(parseJson<Record<string, unknown>>(existing.config, {}))
+      if (clock !== null) connected.config = { ...connected.config, deleteAt: clock.toISOString() }
+    }
+
     // Another athlete's calendar is another account: what was sent to the old one is not on it.
     if (existing && registered.publish) {
       await resetForNewAthlete(deps, userId, { stored: existing.config, next: connected.config })
@@ -248,6 +262,8 @@ export function integrationsRouter(deps: Deps): Router {
         where: { id: row.id, userId: req.userId },
         data: {
           secret: sealSecret(secret, config.sessionSecret),
+          // Connecting again cancels the removal of the runs that came from Strava (SC1).
+          config: JSON.stringify(withoutRemovalClock(opened.config)),
           status: 'connected',
           lastError: null,
           pausedUntil: null,
@@ -271,6 +287,23 @@ export function integrationsRouter(deps: Deps): Router {
     getProvider(provider)
     const { limit } = parse(runsQuery, req.query)
     res.json(await listSyncRuns(prisma, req.userId, provider, limit ?? RUNS_DEFAULT_LIMIT))
+  })
+
+  // What a Strava disconnect would delete, for the confirmation sheet, and the day a refused token's
+  // clock deletes it (SC1, ADR 0025).
+  router.get('/:provider/removal', async (req, res) => {
+    const provider = String(req.params.provider)
+    getProvider(provider)
+    if (provider !== STRAVA_KEY) throw notFound()
+    const row = await prisma.integration.findUnique({
+      where: { userId_provider: { userId: req.userId, provider } },
+      select: { config: true },
+    })
+    const date = row ? removalDateOf(parseJson<Record<string, unknown>>(row.config, {})) : null
+    res.json({
+      count: await countStravaActivities(deps, req.userId),
+      deleteAt: date === null ? null : date.toISOString(),
+    })
   })
 
   router.post('/:provider/sync', async (req, res) => {
@@ -344,6 +377,16 @@ export function integrationsRouter(deps: Deps): Router {
         removeSent: removeSent === 'true',
         today: req.runnerDay.today,
       })
+    }
+    if (provider === STRAVA_KEY) {
+      // Revokes at Strava, deletes the activities that came from it, then the row (SC1, Policy
+      // 7.4). A sync that is storing runs holds the lock, and a disconnect then waits.
+      const done = await withProviderLock(req.userId, provider, () =>
+        disconnectStrava(deps, req.userId),
+      )
+      if (!done.ran) throw conflict('Strava is syncing. Try again in a minute.')
+      res.status(204).end()
+      return
     }
     await prisma.integration.deleteMany({ where: { userId: req.userId, provider } })
     res.status(204).end()

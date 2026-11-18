@@ -330,6 +330,13 @@ export const TODAY_TEMPLATES = {
     { source: 'text' },
     { fallback: 'A source needs signing in again; runs since then have not arrived.' },
   ),
+  // Strava after a refused token (SC1): the runs it brought in are removed on a stated day unless
+  // the runner connects again. The date is the day the daily job deletes them.
+  'today.health.source-needs-auth-removal': tpl(
+    '{source} needs signing in again. The runs it brought in are removed from this log on {date} unless you connect again.',
+    { source: 'text', date: 'date' },
+    { fallback: 'A source needs signing in again; runs since then have not arrived.' },
+  ),
   'today.health.source-silent': tpl(
     'No run has arrived from {source} since {since}. If you ran, check the upload; if you did not, nothing is needed.',
     { source: 'text', since: 'date' },

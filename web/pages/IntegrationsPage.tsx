@@ -1,5 +1,5 @@
 import { useId, useState, type FormEvent, type ReactNode } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { render } from '../../shared/copy/template.ts'
 import { TEMPLATES } from '../../shared/copy/templates.ts'
 import { FOLDER_SCAN_MINUTES } from '../../shared/limits.ts'
@@ -9,12 +9,15 @@ import {
   useCreatePushToken,
   useDisconnectIntegration,
   useIntegrations,
+  useStravaRemoval,
   useSyncIntegration,
   type ConnectResult,
 } from '../api/integrations.ts'
+import { useRunnerDayOf } from '../api/today.ts'
 import { ApiError, fieldErrors } from '../api/client.ts'
 import { Button } from '../components/Button.tsx'
 import { CalendarFeed } from '../components/CalendarFeed.tsx'
+import { ConfirmSheet } from '../components/ConfirmSheet.tsx'
 import { DataInUse } from '../components/DataInUse.tsx'
 import { Field, Input, Textarea } from '../components/Field.tsx'
 import { PageHeader } from '../components/PageHeader.tsx'
@@ -583,6 +586,17 @@ function failureMessage(provider: string, error: unknown): string | undefined {
   return stray.length === 0 ? undefined : stray.join(' ')
 }
 
+/** What disconnecting Strava removes, as the confirmation sheet words it (ADR 0025). */
+function stravaLead(n: number): string {
+  if (n === 0) return render(TEMPLATES['integrations.strava.disconnect.lead.none'], {}, 'km')
+  if (n === 1) return render(TEMPLATES['integrations.strava.disconnect.lead.one'], {}, 'km')
+  return render(
+    TEMPLATES['integrations.strava.disconnect.lead.many'],
+    { n: { kind: 'count', n } },
+    'km',
+  )
+}
+
 function ProviderCard({ item }: { item: IntegrationStatus }) {
   const { provider, info } = item
   const headingId = useId()
@@ -591,6 +605,12 @@ function ProviderCard({ item }: { item: IntegrationStatus }) {
   const disconnect = useDisconnectIntegration()
   const [editing, setEditing] = useState(false)
   const [mfaPending, setMfaPending] = useState(false)
+  // Disconnecting Strava removes the activities that came from it, so it asks first (ADR 0025).
+  const isStrava = provider === 'strava'
+  const [confirmingStrava, setConfirmingStrava] = useState(false)
+  const removal = useStravaRemoval(isStrava && confirmingStrava)
+  const dayOf = useRunnerDayOf()
+  const removeAt = typeof item.config['deleteAt'] === 'string' ? item.config['deleteAt'] : null
 
   const channels = info.channels
   const isPull = channels.includes('pull')
@@ -683,6 +703,15 @@ function ProviderCard({ item }: { item: IntegrationStatus }) {
       {item.lastError !== null && item.lastError !== '' ? (
         <p className={styles.note}>{item.lastError}</p>
       ) : null}
+      {isStrava && item.status === 'needs_auth' && removeAt !== null ? (
+        <p className={styles.note}>
+          {render(
+            TEMPLATES['integrations.strava.removal-note'],
+            { date: { kind: 'date', iso: dayOf(new Date(removeAt)), style: 'long' } },
+            'km',
+          )}
+        </p>
+      ) : null}
 
       {isPush ? <PushSetup provider={provider} pushEnabled={item.pushEnabled} /> : null}
 
@@ -735,7 +764,8 @@ function ProviderCard({ item }: { item: IntegrationStatus }) {
               variant="quiet"
               loading={disconnect.isPending}
               onClick={() => {
-                disconnect.mutate(provider, { onSuccess: onDisconnected })
+                if (isStrava) setConfirmingStrava(true)
+                else disconnect.mutate(provider, { onSuccess: onDisconnected })
               }}
             >
               Disconnect
@@ -744,7 +774,44 @@ function ProviderCard({ item }: { item: IntegrationStatus }) {
         ) : null}
       </div>
       {(hasConnection || item.pushEnabled) && !isFolder ? (
-        <p className={styles.note}>Disconnecting forgets the credentials; activities stay.</p>
+        <p className={styles.note}>
+          {isStrava
+            ? render(TEMPLATES['integrations.strava.disconnect-note'], {}, 'km')
+            : 'Disconnecting forgets the credentials; activities stay.'}
+        </p>
+      ) : null}
+      {isStrava ? (
+        <ConfirmSheet
+          open={confirmingStrava}
+          title={render(TEMPLATES['integrations.strava.disconnect.title'], {}, 'km')}
+          confirmLabel={render(TEMPLATES['integrations.strava.disconnect.confirm'], {}, 'km')}
+          keepLabel={render(TEMPLATES['integrations.strava.disconnect.keep'], {}, 'km')}
+          pending={disconnect.isPending}
+          error={
+            disconnect.isError || removal.isError
+              ? render(TEMPLATES['integrations.strava.disconnect.error'], {}, 'km')
+              : null
+          }
+          onConfirm={() => {
+            // The count the sheet shows is the one the server deletes, so wait for it.
+            if (removal.data === undefined) return
+            disconnect.mutate(provider, {
+              onSuccess: () => {
+                setConfirmingStrava(false)
+                onDisconnected()
+              },
+            })
+          }}
+          onClose={() => {
+            disconnect.reset()
+            setConfirmingStrava(false)
+          }}
+        >
+          {removal.data === undefined ? '' : stravaLead(removal.data.count)}{' '}
+          <Link className={styles.link} to="/settings">
+            {render(TEMPLATES['integrations.strava.disconnect.export'], {}, 'km')}
+          </Link>
+        </ConfirmSheet>
       ) : null}
       {disconnect.isError ? (
         <p role="alert" className={styles.alert}>

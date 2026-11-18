@@ -448,6 +448,58 @@ describe('IntegrationsPage', () => {
     })
   })
 
+  test('Strava disconnect asks first, shows the count and the export link, then removes', async () => {
+    const user = userEvent.setup()
+    const { calls } = mockApi(
+      routes(allStatuses({ strava: { status: 'connected' } }), {
+        'GET /api/integrations/strava/removal': () => ({ count: 12, deleteAt: null }),
+        'DELETE /api/integrations/strava': () => ({ status: 204, body: undefined }),
+      }),
+    )
+    renderWithProviders(<IntegrationsPage />)
+
+    const strava = await screen.findByRole('region', { name: 'Strava' })
+    expect(within(strava).getByText(/removes the activities that came from Strava/i)).toBeVisible()
+    await user.click(within(strava).getByRole('button', { name: 'Disconnect' }))
+
+    const sheet = await screen.findByRole('dialog', { name: 'Disconnect Strava?' })
+    expect(await within(sheet).findByText(/removes the 12 activities/i)).toBeInTheDocument()
+    expect(
+      within(sheet).getByRole('link', { name: 'Download a copy of your data first' }),
+    ).toHaveAttribute('href', '/settings')
+    expect(calls.some((c) => c.method === 'DELETE')).toBe(false)
+
+    // Keeping the connection closes the sheet and removes nothing.
+    await user.click(within(sheet).getByRole('button', { name: 'Keep connected' }))
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Disconnect Strava?' })).not.toBeInTheDocument()
+    })
+    expect(calls.some((c) => c.method === 'DELETE')).toBe(false)
+
+    await user.click(within(strava).getByRole('button', { name: 'Disconnect' }))
+    const again = await screen.findByRole('dialog', { name: 'Disconnect Strava?' })
+    await within(again).findByText(/removes the 12 activities/i)
+    await user.click(within(again).getByRole('button', { name: 'Disconnect and remove' }))
+    await waitFor(() => {
+      expect(calls.filter((c) => c.method === 'DELETE')).toHaveLength(1)
+    })
+  })
+
+  test('a Strava card with a removal clock says the day the activities go', async () => {
+    mockApi(
+      routes(
+        allStatuses({
+          strava: { status: 'needs_auth', config: { deleteAt: '2026-12-12T12:00:00.000Z' } },
+        }),
+      ),
+    )
+    renderWithProviders(<IntegrationsPage />)
+    const strava = await screen.findByRole('region', { name: 'Strava' })
+    expect(
+      within(strava).getByText(/are removed on .*2026 unless Strava is connected again/i),
+    ).toBeInTheDocument()
+  })
+
   test('Strava card lists the API application steps with the callback domain', async () => {
     mockApi(routes(allStatuses()))
     renderWithProviders(<IntegrationsPage />)
