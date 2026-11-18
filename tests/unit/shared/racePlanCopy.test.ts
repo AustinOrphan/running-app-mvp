@@ -1060,6 +1060,73 @@ describe('the words of the race card', () => {
     expect(noDark.blocks.every((block) => block.headlamp === null)).toBe(true)
   })
 
+  describe('"When it gets hard"', () => {
+    const quiet = racePlanFor(
+      input({
+        checkpoints: POINTS,
+        goal: goal({
+          distanceM: 50_000,
+          gainM: 500,
+          lossM: 500,
+          expectedDurationSec: 6 * HOUR,
+          distanceClass: 'ultra50',
+          raceWbgtC: null,
+        }),
+        prediction: { predictedSec: 6 * HOUR, lowSec: 5.5 * HOUR, highSec: 6.5 * HOUR },
+      }),
+    )
+
+    it('repeats the fuel lines of the Race page, word for word, when the plan holds them', () => {
+      const hot = racePlanFor(
+        input({ checkpoints: POINTS, goal: goal({ raceWbgtC: 27 }), ladder: ladderOf([run(0)]) }),
+      )
+      expect(hot.fuel.nauseaPlanOpen).toBe(true)
+      expect(hot.eahStronger).toBe(true)
+      for (const units of UNITS) {
+        const page = describeRacePlan(hot, units).fuel
+        const hard = describeRaceCard(hot, units).hard
+        expect(hard).not.toBeNull()
+        expect(hard!.heading).toBe('When it gets hard')
+        expect(hard!.nausea).toEqual({ heading: page.nausea.heading, lines: page.nausea.lines })
+        expect(hard!.fluid).toBe(page.fluid)
+        expect(hard!.eah).toEqual(page.eah)
+        expect(hard!.noteLabel).toBe('Crew note for When it gets hard')
+        expect(lintText(hard!.crew), hard!.crew).toEqual([])
+      }
+    })
+
+    it('leaves out the nausea plan while it is closed, and keeps the fluid and safety lines', () => {
+      expect(aided.fuel.nauseaPlanOpen).toBe(false)
+      expect(aided.eahStronger).toBe(true)
+      const hard = describeRaceCard(aided, 'km').hard
+      expect(hard?.nausea).toBeNull()
+      expect(hard?.fluid).toBe(describeRacePlan(aided, 'km').fuel.fluid)
+      expect(hard?.eah?.lines.length).toBeGreaterThan(0)
+    })
+
+    it('is absent when the plan holds no nausea plan and no stronger safety card', () => {
+      expect(quiet.eahStronger).toBe(false)
+      expect(quiet.fuel.nauseaPlanOpen).toBe(false)
+      expect(describeRaceCard(quiet, 'km').hard).toBeNull()
+    })
+
+    it('is absent from a card with no rows', () => {
+      expect(describeRaceCard(racePlanFor(input()), 'km').hard).toBeNull()
+    })
+
+    it('states no figure of its own: the only numbers are the reference range and the alert hours', () => {
+      const hot = racePlanFor(
+        input({ checkpoints: POINTS, goal: goal({ raceWbgtC: 27 }), ladder: ladderOf([run(0)]) }),
+      )
+      const hard = describeRaceCard(hot, 'km').hard!
+      const numbers = allText(hard).join(' ').match(/\d+/g) ?? []
+      const [low, high] = P.h8.fluidReferenceMlPerH.value
+      expect(numbers.sort()).toEqual(
+        [String(low), String(high), String(P.n7.eahStrongerAlertHours.value)].sort(),
+      )
+    })
+  })
+
   it('lists no fuel for a self-supported race, and says why once', () => {
     const card = describeRaceCard(CARDS[1]![1], 'km')
     expect(card.blocks.every((block) => block.facts.every((f) => f.key !== 'fuel'))).toBe(true)
