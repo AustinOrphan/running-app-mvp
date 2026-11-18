@@ -1,0 +1,38 @@
+{
+  "id": "costa-2025-sda-ussf-gi-position",
+  "title": "Sports Dietitians Australia and Ultra Sports Science Foundation Joint Position Statement: A Practitioner Guide to the Prevention and Management of Exercise-Associated Gastrointestinal Perturbations and Symptoms",
+  "authors": "Costa RJS, Gaskell SK, Henningsen K, Jeacocke NA, Martinez IG, Mika A, Scheer V, Scrivin R, Snipe RMJ, Wallett AM, Young P",
+  "year": 2025,
+  "journal": "Sports Medicine",
+  "doi": "10.1007/s40279-025-02186-6",
+  "pmid": "40195264",
+  "url": "https://doi.org/10.1007/s40279-025-02186-6",
+  "design": "consensus-statement",
+  "population": "Athletes in endurance and ultra-endurance sport and the practitioners (sports dietitians, sport and exercise nutritionists, sports medical practitioners) who support them; a position statement from two bodies, with 260 references and a graded table of strategies. Not a study with participants.",
+  "sampleSize": null,
+  "evidenceLevel": "B",
+  "topics": ["ultra-nutrition"],
+  "findings": [
+    "Appraises prevention and management strategies for exercise-induced gastrointestinal syndrome (EIGS: disturbed gut integrity and function) and for exercise-associated gastrointestinal symptoms (Ex-GIS). Each strategy is given a grade of evidence from I (good) to IV, by whether the research met best-practice methods for exercise gastroenterology.",
+    "Strategies with mostly consistent benefit: carbohydrate and protein intake and euhydration before and during exercise; dietary manipulation of fermentable oligo-, di- and mono-saccharides and polyols (FODMAP); and gut training or feeding-tolerance adjustment, the last for Ex-GIS from gut functional issues. Strategies that may help and need more work: heat-mitigating strategies and some supplements (prebiotics, phenols). Strategies with negative outcomes: low-carbohydrate high-fat diets, probiotic supplementation, pharmaceuticals and feeding intolerances.",
+    "Symptom incidence ranges widely with method: negligible in a recreational running event, 4% after marathon competition and 93% or more after ultra-endurance events; longer exercise, hot conditions and eating during long, lower-intensity exercise tend to bring more Ex-GIS, with large individual differences in feeding tolerance.",
+    "On referral and assessment: 'owing to individual variability', athletes with EIGS, and the practitioners who guide them, 'are encouraged to undertake gastrointestinal assessment during exercise to identify underlying causal and exacerbation factor/s' and to adopt strategies that give individual benefit. In the practice schematic, first-line actions are preparing the gut, limiting perturbation during exercise and restoring the gut after it; for athletes with recurrent Ex-GIS episodes the second-line action is a gut assessment during exercise, which calls for a multidisciplinary approach, so 'understanding one's scope of practice and appropriate local and/or external referral pathways' is part of competent practice.",
+    "The introduction says that symptoms may signal more serious clinical problems that need medical attention (the text names faecal blood loss and acute colitis, gastroparesis, sepsis linked to heatstroke, and chronic inflammatory gut disease in susceptible people), that practitioners such as sports dietitians carry a large caseload of exercise-related gut complaints, and that athletes and crews increasingly seek referral for assessment, intervention and monitoring.",
+    "Cooling: the statement treats internal cooling (cold water, ice slurry) and external cooling (vests, immersion) as ways that may lower core temperature and so gut strain, and grades the evidence III with research limited; in one trial of cold water during 2 h of running at 35 C the lower incidence of upper-GI symptoms (67% against 83%) did not reach significance. It names heat-mitigating strategies as needing more study for gut outcomes and gives no performance estimates."
+  ],
+  "limitations": "A position statement, not a systematic review: the search and selection are not a pooled analysis, and the grades of evidence are the authors' own scheme. Authors' interests: the statement is from a sports-dietitian body and a sports science foundation; the declared conflicts include that the lead author runs a university exercise and nutrition clinic that offers specialised gut assessment to athletes with clinical justification, and that several authors write educational material for practitioners. The FODMAP and gut-training strategies rest on few trials, mostly in young, trained, healthy adults over a few hours, not on days-long races. The statement does not set a rule for when an athlete should be referred (no number of episodes, no symptom score) and does not name a dietitian as the one to refer to: it speaks of practitioners and a multidisciplinary approach. The 2-h threshold and other figures in the statement were not re-derived here. The Crossref and Europe PMC abstract and the open-access full text (PMC12106582) were read; the three supplementary files, including the assessment procedures, were not.",
+  "implications": [
+    "For an athlete with recurrent exercise-related gut symptoms the statement's second-line step is a gut assessment during exercise, by practitioners working across disciplines with referral pathways. It supports telling the runner that an assessment exists and that a sports dietitian or a sports medical practitioner is among those who do it.",
+    "It does not support a number of repeated holds as the trigger, a diagnosis, a diet change, or a statement that a dietitian is the only route. Symptoms that may point to something clinical (blood loss and the other items above) call for medical attention.",
+    "Its list of strategies with benefit includes a low-FODMAP diet; the app does not use that, and the position statement is cited here only for assessment and referral, gut training, heat and the incidence figures.",
+    "On cooling it supports saying only that cooling may lower gut strain through core temperature and that this is not established; it is not a source for performance claims."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Added 2026-11-18 for task RU3 (rule H7). Crossref (checked 2026-11-18): Sports Med 55(5):1097-1134, first published online 2025-04-07, 11 authors, 260 references, no updated-by notice. Abstract and open-access full text read on Europe PMC (PMID 40195264, PMC12106582); the quotation on assessment is the abstract's and the text of the practice-guidance section. The 67% against 83% and 4% and 93% figures are the statement's own, taken from the studies it cites; none is derived here. Graded B, not A: a position statement with authors' own evidence grades and declared interests in assessment services, not a systematic review. 'Sports dietitians' as practitioners is from the introduction; no sentence tells an athlete to see a dietitian first.",
+    "checkedAt": "2026-11-18"
+  }
+}
