@@ -442,7 +442,7 @@ function heatLines(plan: RoadRacePlan, units: Units): string[] {
       say(T['race.plan.road.heat.medical-note'], {}, units),
     )
   }
-  if (heat.warm) {
+  if (heat.hot) {
     lines.push(
       say(U['race.plan.heat.cooling'], {}, units),
       say(U['race.plan.heat.cooling-scope'], {}, units),

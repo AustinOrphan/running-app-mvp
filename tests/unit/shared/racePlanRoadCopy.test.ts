@@ -397,14 +397,21 @@ describe('heat', () => {
     expect(lines).toContain('mass-casualty')
   })
 
-  it('says the cooling line (CL1) only with a warm race, and no time, percent or ranking', () => {
-    const warm = heat('marathon, warm').join(' ')
-    expect(warm).toContain('In lab trials of short, hot efforts')
-    expect(warm).toContain('none covered a race of hours')
-    expect(warm).not.toMatch(/\d+ ?%|seconds|minutes faster|best|better than/)
-    expect(lintText(warm)).toEqual([])
-    expect(plan('marathon, warm').heat.rules).toContain('I8')
-    for (const label of ['marathon, cool, tolerated rung', 'marathon, no climate']) {
+  it('says the cooling line (CL1) only at or above i9.warnWbgtC, and no time, percent or ranking', () => {
+    const hot = heat('marathon, above the model').join(' ')
+    expect(hot).toContain('In lab trials of short, hot efforts')
+    expect(hot).toContain('none covered a race of hours')
+    expect(hot).not.toMatch(/\d+ ?%|seconds|minutes faster|best|better than/)
+    expect(lintText(hot)).toEqual([])
+    expect(plan('marathon, above the model').heat.rules).toContain('I8')
+    const atWarning = roadRacePlanFor(input({ goal: goal({ raceWbgtC: P.i9.warnWbgtC.value }) }))
+    expect(describeRoadRacePlan(atWarning, 'km').heat.join(' ')).toContain('lab trials')
+    expect(atWarning.heat.rules).toContain('I8')
+    for (const label of [
+      'marathon, warm',
+      'marathon, cool, tolerated rung',
+      'marathon, no climate',
+    ]) {
       expect(heat(label).join(' '), label).not.toContain('cooling')
       expect(plan(label).heat.rules, label).not.toContain('I8')
     }
