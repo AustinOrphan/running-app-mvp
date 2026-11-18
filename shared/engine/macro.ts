@@ -1620,6 +1620,11 @@ function planWeeks(
       if (i < windowStart + P.h5.repeatedBoutLeadWeeks.value) flag(i, 'downhill-first')
     }
   }
+  // Hiking practice on the long runs of a trail or mixed ultra's specific phase [rule H4]: words
+  // only, so it changes no minute. The taper phase and the race week are not specific weeks.
+  if (goal.isUltra && (goal.surface === 'trail' || goal.surface === 'mixed')) {
+    for (const i of specificIdx) flag(i, 'hike-practice')
+  }
   if (goal.isUltra && !hold) {
     let last = -Infinity
     for (let i = 0; i < preCount; i++) {

@@ -149,6 +149,10 @@ export const hUltra = {
       unit: '% grade',
       note: 'Between about 12.6% and 28% the faster gait depends on climbing rate; walking was cheaper above 12.6% at 800 m/h.',
     }),
+    hikeCueFromMin: param('h4.hikeCueFromMin', 60, 'D', 'H4', [], {
+      unit: 'min',
+      note: 'Default: the hiking cue of a long run in the specific phase asks for the hike from the first hour, so the gait is practised fresh as well as tired. No study sets when to start.',
+    }),
     walkReferenceClimbRateMh: param('h4.walkReferenceClimbRateMh', 800, 'C', 'H4', HIKE, {
       unit: 'm/h',
     }),
