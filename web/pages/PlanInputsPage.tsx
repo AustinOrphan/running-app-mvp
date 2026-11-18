@@ -6,6 +6,8 @@ import {
   planInputsText as text,
 } from '../../shared/copy/planInputs.ts'
 import { plural } from '../../shared/copy/quantity.ts'
+import { homePlaceValue, raceHeatSentences, raceHeatText } from '../../shared/copy/raceHeat.ts'
+import type { RaceHeatPlaces } from '../../shared/domain/raceHeat.ts'
 import { PACES_TEMPLATES } from '../../shared/copy/myPaces.ts'
 import { render } from '../../shared/copy/template.ts'
 import type { PlanInputsView } from '../../shared/domain/planInputs.ts'
@@ -78,8 +80,46 @@ function hrvNotes(view: PlanInputsView['hrv']): string[] {
   return notes
 }
 
+/**
+ * The places the race heat is read for (rule I8, RH1): each place set or not set, what the plan
+ * does with them, and where each is set. The sentences are the Race page's and Explain's
+ * (`shared/copy/raceHeat.ts`).
+ */
+function RaceHeatSection({ places }: { places: RaceHeatPlaces }) {
+  const read =
+    places.state === 'known'
+      ? [
+          raceHeatText(
+            places.using === 'race' ? 'race-heat.places.known-race' : 'race-heat.places.known-home',
+          ),
+        ]
+      : raceHeatSentences(places.state, places.nausea)
+  return (
+    <Section
+      heading={raceHeatText('race-heat.places.heading')}
+      notes={[raceHeatText('race-heat.places.context'), ...read]}
+      rows={[
+        [
+          raceHeatText('race-heat.places.race'),
+          raceHeatText(places.racePlaceSet ? 'race-heat.places.set' : 'race-heat.places.not-set'),
+        ],
+        [raceHeatText('race-heat.places.home'), homePlaceValue(places)],
+      ]}
+    >
+      <div className={styles.actions}>
+        <Link to="/goals" className={styles.link}>
+          {raceHeatText('race-heat.link.race')}
+        </Link>
+        <Link to="/profile" className={styles.link}>
+          {raceHeatText('race-heat.link.home')}
+        </Link>
+      </div>
+    </Section>
+  )
+}
+
 function Body({ view }: { view: PlanInputsView }) {
-  const { hrv, restingHr, sleep, runs, zones, sources } = view
+  const { hrv, restingHr, sleep, runs, zones, sources, raceHeat } = view
   const named = sources.named.map((s) =>
     line('plan-inputs.sources.line', {
       label: s.label,
@@ -203,6 +243,7 @@ function Body({ view }: { view: PlanInputsView }) {
             ] as const,
         )}
       />
+      {raceHeat === null ? null : <RaceHeatSection places={raceHeat} />}
       <Section
         heading={text('plan-inputs.sources.heading')}
         notes={[text('plan-inputs.sources.context')]}

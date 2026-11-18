@@ -74,6 +74,7 @@ function intervals(over: Partial<IntegrationStatus>): IntegrationStatus {
     lastSyncStatus: null,
     lastError: null,
     pausedUntil: null,
+    installOwner: true,
     ...over,
   }
 }

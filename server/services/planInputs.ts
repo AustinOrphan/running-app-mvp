@@ -4,7 +4,14 @@
 import { isDuplicate } from '../../shared/engine/load.ts'
 import { planInputs, type PlanInputsView } from '../../shared/domain/planInputs.ts'
 import { PROVIDERS } from '../providers/registry.ts'
-import { hrModelOf, loadAthleteContext, memoByVersion, type SnapshotDeps } from './athleteState.ts'
+import {
+  goalModelFor,
+  hrModelOf,
+  loadAthleteContext,
+  memoByVersion,
+  type SnapshotDeps,
+} from './athleteState.ts'
+import { loadRaceHeat } from './raceHeat.ts'
 
 const MEMO = 'plan-inputs.view'
 
@@ -27,7 +34,14 @@ export function loadPlanInputs(
             where: { activityId: { in: runIds } },
             select: { activityId: true },
           })
+    const goal = context.goal
+    const model = goal === null ? null : await goalModelFor(context, goal.id, { climate: true })
+    const raceHeat =
+      goal === null || model === null
+        ? null
+        : await loadRaceHeat(deps.prisma, context, goal, model, today)
     return planInputs({
+      raceHeat,
       today,
       profile: context.profile,
       wellness: context.wellness,

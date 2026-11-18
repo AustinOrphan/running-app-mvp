@@ -12,6 +12,7 @@ import { baselineReadings, sleepEfficiencyEval, sleepNightsRecorded } from '../e
 import type { WatchRatingCheck } from '../engine/watchRatings.ts'
 import type { Boundary, EngineInput, ZoneSet } from '../engine/types.ts'
 import type { Activity } from '../types.ts'
+import type { RaceHeatPlaces } from './raceHeat.ts'
 
 /** The six zone boundaries, in the order the zone summary lists them. */
 export const ZONE_BOUNDARY_KEYS = [
@@ -106,6 +107,11 @@ export interface PlanInputsView {
     /** Entered by hand or read from a file or an export, which name no connected source. */
     other: { activities: number; wellnessDays: number }
   }
+  /**
+   * The places the race heat is read for (rule I8, RH1): null with no goal, a race that is past or a
+   * goal class the race plan does not cover.
+   */
+  raceHeat: RaceHeatPlaces | null
 }
 
 export interface PlanInputsInput {
@@ -124,6 +130,8 @@ export interface PlanInputsInput {
   hrModel: HrModel | null
   /** Registry labels by provider key, in display order. */
   providerLabels: ReadonlyArray<{ key: string; label: string }>
+  /** `raceHeatPlaces` for the current goal, or null. */
+  raceHeat: RaceHeatPlaces | null
 }
 
 function positive(value: number | null | undefined): boolean {
@@ -249,5 +257,6 @@ export function planInputs(input: PlanInputsInput): PlanInputsView {
       }
     }),
     sources: { named: [...named.values()].filter((s) => s.activities + s.wellnessDays > 0), other },
+    raceHeat: input.raceHeat,
   }
 }

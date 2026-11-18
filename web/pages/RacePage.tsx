@@ -97,11 +97,16 @@ function PlanBody({
                 <h3 className={cardStyles.subheading}>{text.firmHeading}</h3>
                 <ul className={cardStyles.firmList}>
                   {text.notices.map((notice) => (
-                    <li key={notice.to + notice.link}>
-                      <span>{notice.text}</span>{' '}
-                      <Link className={cardStyles.firmLink} to={`/${notice.to}`}>
-                        {notice.link}
-                      </Link>
+                    <li key={notice.text}>
+                      <span>{notice.text}</span>
+                      {notice.link === null || notice.to === null ? null : (
+                        <>
+                          {' '}
+                          <Link className={cardStyles.firmLink} to={`/${notice.to}`}>
+                            {notice.link}
+                          </Link>
+                        </>
+                      )}
                     </li>
                   ))}
                 </ul>

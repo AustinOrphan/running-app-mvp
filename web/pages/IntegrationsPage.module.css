@@ -19,6 +19,51 @@
   max-width: var(--prose-max);
 }
 
+.which {
+  max-width: var(--prose-max);
+  margin: 0 0 var(--space-5);
+}
+
+.whichTitle {
+  margin: 0 0 var(--space-2);
+  font-family: var(--font-serif);
+  font-size: var(--text-lg);
+  line-height: var(--lh-lg);
+  font-weight: 600;
+}
+
+.whichList {
+  margin: 0;
+  padding-left: var(--space-5);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.whichList li + li {
+  margin-top: var(--space-1);
+}
+
+.folded {
+  border-top: 1px solid var(--border);
+}
+
+.folded > .summary {
+  padding: var(--space-4) 0;
+  cursor: pointer;
+  color: var(--accent);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  font-weight: 600;
+}
+
+.folded[open] {
+  border-top: 0;
+}
+
+.folded[open] > .summary {
+  padding-bottom: 0;
+}
+
 .card {
   display: flex;
   flex-direction: column;

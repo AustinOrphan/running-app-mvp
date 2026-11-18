@@ -35,6 +35,7 @@ import { inputFromContext, loadForecast } from './engineInput.ts'
 import { forecastStamp } from './weatherCache.ts'
 import { explainActivity } from './insight.ts'
 import { executionRecordsByWeek } from './planEngine.ts'
+import { loadRaceHeat } from './raceHeat.ts'
 import { loadStrengthContext } from './strength.ts'
 
 type Goal = NonNullable<ExplainContext['goal']>
@@ -164,6 +165,13 @@ export async function explainView(
       const race =
         needs.race && goal !== null ? await goalModelFor(context, goal.id, { climate: true }) : null
 
+      // Why the race heat may be unknown (RH1), from the same cached climate as `race`.
+      const raceGoal = race === null ? undefined : context.goals.find((g) => g.id === goal?.id)
+      const raceHeat =
+        race === null || raceGoal === undefined
+          ? null
+          : await loadRaceHeat(deps.prisma, context, raceGoal, race, today)
+
       // The state of the logs, the setup and the plan's weeks, with the readiness read of today.
       const strength =
         requested ?? (needs.strength ? await loadStrengthContext(deps, { userId, today }) : null)
@@ -174,6 +182,7 @@ export async function explainView(
         decision,
         prediction,
         race,
+        raceHeat,
         planInput,
         strength,
       })

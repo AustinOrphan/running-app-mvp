@@ -329,11 +329,13 @@ export function toWellnessDay(row: WellnessDayRow): WellnessDay {
 export function toIntegrationStatus(
   row: IntegrationRow | null,
   info: ProviderInfo,
+  installOwner: boolean,
 ): IntegrationStatus {
   if (!row) {
     return {
       provider: info.key,
       info,
+      installOwner,
       status: 'disconnected',
       config: {},
       pushEnabled: false,
@@ -346,6 +348,7 @@ export function toIntegrationStatus(
   return {
     provider: info.key,
     info,
+    installOwner,
     status: row.status as IntegrationStatus['status'],
     config: parseJson<Record<string, unknown>>(row.config, {}),
     pushEnabled: row.ingestTokenHash !== null,

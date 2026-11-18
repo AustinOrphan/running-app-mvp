@@ -97,6 +97,32 @@ describe('GET /api/integrations', () => {
     expect(body.every((s) => s.status === 'disconnected' && !s.pushEnabled)).toBe(true)
   })
 
+  test('says whether the account is the install owner, for the owner and for another account', async () => {
+    const other = await seedUser(ctx, { email: 'fh1b-second@example.com' })
+    await ctx.prisma.user.update({
+      where: { id: other.id },
+      data: { createdAt: new Date('2099-01-01T00:00:00Z') },
+    })
+    try {
+      const flags = async (who: TestUser) => {
+        const res = await client(ctx, who).get('/api/integrations')
+        const body = res.body as Array<{ provider: string; installOwner: boolean }>
+        return body.map((s) => [s.provider, s.installOwner])
+      }
+      const ownerList = await flags(user)
+      expect(ownerList.length).toBeGreaterThan(0)
+      expect(ownerList.every(([, flag]) => flag === true)).toBe(true)
+
+      const otherList = await flags(other)
+      // folder is omitted for another account; the experimental Garmin card stays in the list
+      expect(otherList.map(([provider]) => provider)).toContain('garmin')
+      expect(otherList.map(([provider]) => provider)).not.toContain('folder')
+      expect(otherList.every(([, flag]) => flag === false)).toBe(true)
+    } finally {
+      await ctx.prisma.user.delete({ where: { id: other.id } })
+    }
+  })
+
   test('requires a session', async () => {
     expect((await client(ctx).get('/api/integrations')).status).toBe(401)
   })

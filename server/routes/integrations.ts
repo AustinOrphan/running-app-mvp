@@ -96,7 +96,11 @@ export function integrationsRouter(deps: Deps): Router {
     const row = await prisma.integration.findUnique({
       where: { userId_provider: { userId, provider } },
     })
-    return toIntegrationStatus(row ? await checked(row) : null, info)
+    return toIntegrationStatus(
+      row ? await checked(row) : null,
+      info,
+      await isInstallOwner(prisma, userId),
+    )
   }
 
   function redirectUri(
@@ -137,7 +141,7 @@ export function integrationsRouter(deps: Deps): Router {
     res.json(
       Object.values(PROVIDERS)
         .filter(({ info }) => owner || info.key !== 'folder')
-        .map(({ info }) => toIntegrationStatus(byProvider.get(info.key) ?? null, info)),
+        .map(({ info }) => toIntegrationStatus(byProvider.get(info.key) ?? null, info, owner)),
     )
   })
 

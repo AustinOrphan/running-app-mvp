@@ -132,9 +132,10 @@ describe('row serializers', () => {
 
   test('toIntegrationStatus is disconnected without a row and never exposes the secret', async () => {
     const info = PROVIDERS.intervals!.info
-    expect(toIntegrationStatus(null, info)).toEqual({
+    expect(toIntegrationStatus(null, info, true)).toEqual({
       provider: 'intervals',
       info,
+      installOwner: true,
       status: 'disconnected',
       config: {},
       pushEnabled: false,
@@ -154,7 +155,7 @@ describe('row serializers', () => {
         lastSyncAt: new Date('2026-03-02T10:00:00Z'),
       },
     })
-    const status = toIntegrationStatus(row, info)
+    const status = toIntegrationStatus(row, info, false)
     expect(status).toMatchObject({
       status: 'connected',
       config: { athleteId: 'i1' },

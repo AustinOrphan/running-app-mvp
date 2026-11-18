@@ -94,9 +94,12 @@ Answered on 2026-11-14, one item at a time (the owner's answers to D1 to D11 of 
   The wording fix for non-ultra goals landed first (#738).
 - **Break week.** A week run by choice at a fraction of its target counts as the cycle's recovery
   week, and the next week repeats the loading week (#736, #737).
-- **Strava.** One shared install-wide registration, built only when a tester needs Strava; until
-  then Strava users go through intervals.icu. Strava's athlete-capacity review is to be checked at
-  build time.
+- **Strava.** One shared install-wide registration, built only when a tester needs Strava.
+  intervals.icu does not expose runs it received from Strava (`server/providers/intervals.ts` skips
+  them), so Strava users do not go through intervals.icu: they use the Strava card with their own
+  API app or import a Strava bulk export. The 2026-11-14 shared-registration decision rested on the
+  opposite premise and is open again for the owner. Strava's athlete-capacity review is to be
+  checked at build time.
 
 Answered on 2026-11-09, one item at a time with options:
 
