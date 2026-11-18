@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { raceEstimateSlots } from '../../../shared/copy/today.ts'
+import { describeEstimate } from '../../../shared/copy/raceEstimate.ts'
 import { silhouettePaths } from '../../../shared/domain/courseSilhouette.ts'
 import { renderFact } from '../../../shared/copy/templates.ts'
 import type { TodayRace, Units } from '../../../shared/types.ts'
@@ -39,6 +39,7 @@ function CourseSilhouette({ course }: { course: NonNullable<TodayRace['course']>
  */
 export function RaceCountdown({ race, units }: { race: TodayRace; units: Units }) {
   const { daysToRace, prediction, range } = race
+  const estimate = prediction === null ? null : describeEstimate(prediction, units)
   return (
     <section aria-label="Race" className={styles.race}>
       <Link to="/race" className={styles.figure}>
@@ -60,34 +61,10 @@ export function RaceCountdown({ race, units }: { race: TodayRace; units: Units }
         )}
         <span className={styles.chevron}>Open the race plan</span>
       </Link>
-      {prediction === null ? null : (
+      {estimate === null ? null : (
         <>
-          <p className={styles.estimate}>
-            {renderFact(
-              {
-                template:
-                  prediction.trainingSince === undefined || prediction.trainingWidened === true
-                    ? 'today.race.estimate'
-                    : 'today.race.estimate-floor',
-                slots: raceEstimateSlots(prediction),
-              },
-              units,
-            )}
-          </p>
-          {prediction.trainingSince === undefined ? null : (
-            <p className={styles.estimate}>
-              {renderFact(
-                {
-                  template:
-                    prediction.trainingWidened === true
-                      ? 'today.race.widened-basis'
-                      : 'today.race.floor-basis',
-                  slots: { date: { kind: 'date', iso: prediction.trainingSince, style: 'short' } },
-                },
-                units,
-              )}
-            </p>
-          )}
+          <p className={styles.estimate}>{estimate.summary}</p>
+          {estimate.note === null ? null : <p className={styles.estimate}>{estimate.note}</p>}
         </>
       )}
       {range?.wide !== true || race.distanceM === null ? null : (

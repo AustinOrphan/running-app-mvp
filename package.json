@@ -35,6 +35,7 @@
     "grade:report": "tsx tests/reports/grade-curve-report.ts",
     "check:static": "npm run lint && npm run format:check && npm run typecheck && npm run research:check",
     "check": "npm run check:static && npm run test",
+    "release": "tsx scripts/release.ts",
     "backup": "tsx scripts/backup.ts",
     "restore": "tsx scripts/restore.ts",
     "reset-password": "tsx scripts/reset-password.ts",

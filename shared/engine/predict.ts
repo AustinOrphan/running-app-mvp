@@ -440,7 +440,7 @@ export function predictFromState(state: AthleteState, target: PredictTarget): Pr
       )
     } else {
       conditions.push(
-        `Critical speed comes from the best efforts in training since ${trainingSince}, not from races or a test, so it is a floor and the time is at most this; the faster end of the interval is widened by ${P.a6.csTrainingWideningPct.value}%.`,
+        `Critical speed comes from the best efforts in training since ${trainingSince}, not from races or a short test, so it is a floor and the time is at most this; the faster end of the interval is widened by ${P.a6.csTrainingWideningPct.value}%.`,
       )
     }
     rules.add('A6')

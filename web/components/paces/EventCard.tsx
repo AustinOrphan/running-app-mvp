@@ -6,7 +6,8 @@ import type { Units } from '../../../shared/types.ts'
 import { formatDistance } from '../../../shared/units.ts'
 import { GradeBadge } from '../GradeBadge.tsx'
 import { signedMinutes } from '../../../shared/engine/predict.ts'
-import { paceParts, timeText } from './format.ts'
+import { describeEstimate } from '../../../shared/copy/raceEstimate.ts'
+import { paceParts } from './format.ts'
 import styles from './Paces.module.css'
 import { paceRangeText } from '../zoneFormat.ts'
 
@@ -45,31 +46,34 @@ function basisLine(row: EventRow, units: Units): string | null {
 export function EventCard({ row, units }: { row: EventRow; units: Units }) {
   const title = eventTitle(row, units)
   const { time, pace } = row
+  const estimate =
+    time === null
+      ? null
+      : describeEstimate(
+          {
+            lowSec: time.lowSec,
+            highSec: time.highSec,
+            predictedSec: time.midSec,
+            trainingSince: row.basis.cs?.since,
+            trainingWidened: row.basis.cs?.widened,
+          },
+          units,
+        )
   return (
     <article className={styles.card} aria-label={title}>
       <div className={styles.cardHead}>
         <h3 className={styles.subheading}>{title}</h3>
         {time === null ? null : <GradeBadge grade={row.grade} />}
       </div>
-      {time === null || pace === null ? (
+      {time === null || pace === null || estimate === null ? (
         <p className={styles.note}>{pacesText('paces.events.none')}</p>
       ) : (
         <>
           <dl className={styles.stats}>
             <div className={styles.stat}>
-              <dt>
-                {row.basis.cs?.since == null
-                  ? 'Time'
-                  : pacesText(
-                      row.basis.cs.widened === true
-                        ? 'paces.event.time-widened'
-                        : 'paces.event.time-at-most',
-                    )}
-              </dt>
-              <dd className={`${styles.statValue} figure-type`}>{timeText(time.midSec)}</dd>
-              <dd
-                className={styles.statRange}
-              >{`${timeText(time.lowSec)} to ${timeText(time.highSec)}`}</dd>
+              <dt>{estimate.label}</dt>
+              <dd className={`${styles.statValue} figure-type`}>{estimate.figure}</dd>
+              <dd className={styles.statRange}>{estimate.span}</dd>
             </div>
             <div className={styles.stat}>
               <dt>Pace</dt>

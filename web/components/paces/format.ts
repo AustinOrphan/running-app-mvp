@@ -1,5 +1,4 @@
 import type { Units } from '../../../shared/types.ts'
-import { formatDuration, roundEstimateSec } from '../../../shared/units.ts'
 import { paceRangeText, paceText } from '../zoneFormat.ts'
 
 /** A figure and its unit apart, so a page can set the unit smaller: `{ value: '6:05', unit: '/km' }`. */
@@ -21,9 +20,4 @@ export function paceBandParts(band: readonly [number, number], units: Units): Pa
 /** One pace in the runner's unit: `5:01` and `/km`. */
 export function paceParts(secPerKm: number, units: Units): Parts {
   return split(paceText(secPerKm, units))
-}
-
-/** A predicted time at the precision it deserves (`roundEstimateSec`): `50:10`, `3:41:00`. */
-export function timeText(sec: number): string {
-  return formatDuration(roundEstimateSec(sec))
 }
