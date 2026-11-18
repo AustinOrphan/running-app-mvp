@@ -5,6 +5,7 @@ import { startScheduler } from './jobs/scheduler.ts'
 import { createLogger } from './logger.ts'
 import { installProcessErrorHandlers } from './processErrors.ts'
 import { describeZoneCutover, setUnknownZoneReporter, zoneCutoverReport } from './runnerDay.ts'
+import { logListening } from './version.ts'
 
 loadEnvFileIfPresent()
 const config = loadConfig(process.env)
@@ -30,7 +31,7 @@ const app = createApp(deps)
 // Express 5 hands a bind error (such as EADDRINUSE) to this callback instead of throwing it.
 const server = app.listen(config.port, '0.0.0.0', (error?: Error) => {
   if (error) throw error
-  logger.info({ port: config.port }, 'server listening')
+  logListening(logger, config.port)
 })
 
 // Background pulls, folder scans and weather backfill; only the real server runs them.

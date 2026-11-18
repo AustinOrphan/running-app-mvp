@@ -8,6 +8,7 @@ import {
   type DeepHealth,
 } from '../../server/routes/health.ts'
 import { backupDirectory, backupName } from '../../server/services/backup.ts'
+import { readAppVersion } from '../../server/version.ts'
 import { client, createTestCtx, expectNoRefusedFetches, seedUser, type TestCtx } from './helpers.ts'
 
 // Every line the server logs, at every level (the real logger is silent under test).
@@ -77,7 +78,8 @@ describe('GET /api/health/deep', () => {
     const res = await client(ctx).get('/api/health/deep')
     expect(res.status).toBe(200)
     const body = res.body as DeepHealth
-    expect(Object.keys(body).sort()).toEqual(['backup', 'database', 'jobs', 'status'])
+    expect(Object.keys(body).sort()).toEqual(['backup', 'database', 'jobs', 'status', 'version'])
+    expect(body.version).toBe(readAppVersion())
     expect(res.body).toMatchObject({
       status: 'ok',
       database: 'ok',

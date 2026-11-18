@@ -29,7 +29,7 @@ import { useMapTiles } from '../components/map/useMapTiles.ts'
 import { useTheme, type Theme } from '../components/Nav.tsx'
 import { PageHeader } from '../components/PageHeader.tsx'
 import { Segmented } from '../components/Segmented.tsx'
-import { pageBuildId } from '../pwa/buildId.ts'
+import { appVersion, pageBuildId } from '../pwa/buildId.ts'
 import { previousPagePath } from '../pwa/pageTrail.ts'
 import { useOfflineStatus, type OfflineStatus } from '../pwa/register.ts'
 import styles from './SettingsPage.module.css'
@@ -472,6 +472,15 @@ function SettingsForm({ initial }: { initial: UserSettings }) {
           ) : null}
         </div>
       </section>
+
+      <section className={styles.section} aria-labelledby="about-heading">
+        <h2 id="about-heading" className={styles.heading}>
+          {render(TEMPLATES['about.heading'], {}, units)}
+        </h2>
+        <p className={styles.note}>
+          {render(TEMPLATES['about.version'], { value: appVersion() }, units)}
+        </p>
+      </section>
     </>
   )
 }
@@ -502,6 +511,7 @@ function FeedbackBlock({ units }: { units: Units }) {
     return feedbackReport({
       fromPath: previousPagePath(),
       buildId: pageBuildId(),
+      version: appVersion(),
       at: new Date().toISOString(),
       userAgent: navigator.userAgent,
       planId: plan?.id ?? null,
