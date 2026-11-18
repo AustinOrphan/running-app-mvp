@@ -351,7 +351,7 @@ describe('Goals page', () => {
     renderWithProviders(<GoalsPage />)
 
     const card = await screen.findByRole('article', { name: 'Spring half' })
-    expect(await within(card).findByText('1:15:00')).toBeInTheDocument()
+    expect(await within(card).findByText('1 h 15 min')).toBeInTheDocument()
     const predictionReads = () =>
       calls.filter((c) => c.method === 'GET' && c.url.startsWith('/api/predictions?')).length
     const before = predictionReads()
@@ -362,8 +362,8 @@ describe('Goals page', () => {
     await user.type(within(dialog).getByLabelText('Distance (mi)'), '13.1')
     await user.click(within(dialog).getByRole('button', { name: 'Save goal' }))
 
-    expect(await within(card).findByText('2:00:00')).toBeInTheDocument()
-    expect(within(card).queryByText('1:15:00')).not.toBeInTheDocument()
+    expect(await within(card).findByText('2 h')).toBeInTheDocument()
+    expect(within(card).queryByText('1 h 15 min')).not.toBeInTheDocument()
     expect(predictionReads()).toBeGreaterThan(before)
   })
 
@@ -563,9 +563,14 @@ describe('Goals page', () => {
     const card = await screen.findByRole('article', { name: 'Spring half' })
     expect(await within(card).findByText('Tight')).toBeInTheDocument()
     expect(within(card).getByText(/18 weeks needed, 16 available/)).toBeInTheDocument()
-    expect(within(card).getByText('1:45:00')).toBeInTheDocument()
-    expect(within(card).getByText('1:40:00 to 1:51:40')).toBeInTheDocument()
-    expect(within(card).getByText('Critical speed with a half-marathon anchor')).toBeInTheDocument()
+    expect(within(card).getByText('1 h 45 min')).toBeInTheDocument()
+    expect(
+      within(card).getByText(
+        'Finish estimate 1 h 40 min to 1 h 52 min, most likely about 1 h 45 min.',
+      ),
+    ).toBeInTheDocument()
+    // The method stays in the Explain drawer, not on the card.
+    expect(within(card).queryByText(/Critical speed with a half-marathon anchor/)).toBeNull()
     expect(
       within(card).getByText('Race-day WBGT 21.0 C adds 2.1% to the time.'),
     ).toBeInTheDocument()
@@ -587,6 +592,44 @@ describe('Goals page', () => {
 
     await user.click(within(card).getByRole('button', { name: 'Why: feasibility' }))
     expect(explainOf(drawerWith('D4'))).toEqual({ subject: 'rules', rules: ['D4'] })
+  })
+
+  test('a 100-mile estimate reads in the shared text: rounded, the at-most wording, no method id and no second training sentence (PF1)', async () => {
+    mockApi(
+      routes([makeGoal({ isActive: true, distanceM: 160934 })], miUser, {
+        'GET /api/predictions': () => ({
+          prediction: {
+            method: 'cs-fraction',
+            predictedSec: 32 * 3600 + 20 * 60 + 31,
+            lowSec: 27 * 3600 + 41 * 60 + 30,
+            highSec: 36 * 3600 + 18 * 60 + 5,
+            trainingSince: '2026-08-11',
+            conditions: [
+              'Critical speed comes from the best efforts in training since 2026-08-11, not from races or a short test, so it is a floor and the time is at most this.',
+              'Trail course: road models explain trail performance less well.',
+            ],
+            rules: ['A6', 'L1'],
+          },
+          log: [],
+        }),
+      }),
+    )
+    renderWithProviders(<GoalsPage />)
+
+    const card = await screen.findByRole('article', { name: 'Spring half' })
+    expect(await within(card).findByText('32 h 20 min')).toBeInTheDocument()
+    expect(
+      within(card).getByText(
+        'At most about 32 h 20 min. Finish estimate 27 h 40 min to 36 h 20 min.',
+      ),
+    ).toBeInTheDocument()
+    expect(
+      within(card).getByText(/^The estimate rests on your best efforts in training since 11 Aug/),
+    ).toBeVisible()
+    expect(within(card).queryByText('cs-fraction')).toBeNull()
+    expect(within(card).queryByText(/32:20:31/)).toBeNull()
+    expect(within(card).queryByText(/^Critical speed comes from/)).toBeNull()
+    expect(within(card).getByText(/^Trail course/)).toBeVisible()
   })
 
   test('a goal that is not reachable within default limits says so and offers options, with no prediction text when none exists', async () => {

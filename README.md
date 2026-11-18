@@ -47,21 +47,22 @@ only the address budgets are shared.
 
 ## Commands
 
-| Command                             | Purpose                                                  |
-| ----------------------------------- | -------------------------------------------------------- |
-| `npm run dev`                       | API and Vite dev server with reload                      |
-| `npm run check`                     | lint, Prettier check, typecheck, unit, API and web tests |
-| `npm run build`                     | build the web app and compile the server into `dist`     |
-| `npm start`                         | run the built server                                     |
-| `npm run test:e2e`                  | Playwright golden paths against the production build     |
-| `npm run format`                    | rewrite files with Prettier                              |
-| `npm run db:migrate`                | copy the database if a migration is pending, then apply  |
-| `npm run backup`                    | copy the database to `backups/` and check the copy       |
-| `npm run restore -- <file>`         | replace the database with a backup (server stopped)      |
-| `npm run reset-password -- <email>` | replace a password with a temporary one (see Resetting)  |
-| `npm run create-user -- <email>`    | add an account with a temporary password (see Accounts)  |
-| `npm run delete-user -- <email>`    | show, or with `--yes` delete, an account and its data    |
-| `npm run icons`                     | render the PNG app icons in `web/public` from `icon.svg` |
+| Command                             | Purpose                                                    |
+| ----------------------------------- | ---------------------------------------------------------- |
+| `npm run dev`                       | API and Vite dev server with reload                        |
+| `npm run check`                     | lint, Prettier check, typecheck, unit, API and web tests   |
+| `npm run build`                     | build the web app and compile the server into `dist`       |
+| `npm start`                         | run the built server                                       |
+| `npm run test:e2e`                  | Playwright golden paths against the production build       |
+| `npm run format`                    | rewrite files with Prettier                                |
+| `npm run db:migrate`                | copy the database if a migration is pending, then apply    |
+| `npm run backup`                    | copy the database to `backups/` and check the copy         |
+| `npm run restore -- <file>`         | replace the database with a backup (server stopped)        |
+| `npm run reset-password -- <email>` | replace a password with a temporary one (see Resetting)    |
+| `npm run create-user -- <email>`    | add an account with a temporary password (see Accounts)    |
+| `npm run delete-user -- <email>`    | show, or with `--yes` delete, an account and its data      |
+| `npm run icons`                     | render the PNG app icons in `web/public` from `icon.svg`   |
+| `npm run release -- <version>`      | draft a release note and print the tag commands (Releases) |
 
 The e2e suite needs a build first and a Chromium install once: `npx playwright install chromium`.
 
@@ -626,6 +627,39 @@ pending, and a failed copy stops the container from starting (see `docker compos
 copy is made when nothing is pending, and none while a failed migration is recorded: `migrate
 deploy` then refuses on every start, and the copy from before the first attempt stays the one to
 keep.
+
+### Releases
+
+A server that other people use runs a version tag (`v2.1.0`), not `main`. The version is the
+`version` in `package.json`; the app shows it in Settings (under About and in the feedback note),
+in the `version` field of `GET /api/health/deep` and in the start-up log line, so a tester's report
+names the release it came from.
+
+To cut a release, raise `version` in a reviewed change and merge it, then on `main`:
+
+```sh
+npm run release -- 2.1.0
+```
+
+The script checks that the tree is clean, that `HEAD` is `main` (and `origin/main`) and that
+`package.json` says `2.1.0`. It prints the commits since the last `v*` tag, lists each migration
+added since then with a summary of its SQL (destructive statements are flagged), writes a draft note
+to `release-notes/v2.1.0.md` (gitignored) and prints two commands. It runs neither:
+
+```sh
+git tag -a v2.1.0 -F release-notes/v2.1.0.md --cleanup=verbatim
+git push origin v2.1.0
+```
+
+Before running them, run `docker build .` and `npm run -s plan:report`, read both, and edit the
+note's "What changed" section. The note also says how to roll back; rolling back the image alone is
+opt-in (see Roll back).
+
+To run a tag, check it out on the server and build from it: `git fetch --tags && git checkout v2.1.0`,
+then `docker compose up -d --build`. The homelab compose should pin that image tag instead of a
+branch: build once with `docker build -t running-log:2.1.0 .` and set `image: running-log:2.1.0`
+(no `build:`), changing the tag on each update. A pinned tag also makes the previous image available
+for a rollback.
 
 ### Roll back
 

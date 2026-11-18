@@ -323,9 +323,9 @@ describe('the expected time', () => {
   it('puts the goal time and the range in two plain lines', () => {
     const { expected } = describeRoadRacePlan(plan('marathon, cool, tolerated rung'), 'km')
     expect(expected.goal).toMatch(/^Goal time 3 h 45 min, an average of \d+:\d\d \/km\.$/)
-    expect(expected.source).toMatch(/^Most likely time\. Finish estimate/)
+    expect(expected.source).toMatch(/^Finish estimate .+ to .+, most likely about /)
     expect(expected.clock).toMatch(/^Start 08:00\. Finish about /)
-    expect(expected.notes.join(' ')).toContain('as the countdown on Today rounds them')
+    expect(expected.notes.join(' ')).toContain('and the range outward')
   })
 
   it('says the goal is the time when there is no prediction', () => {
@@ -527,7 +527,7 @@ describe('the Today card', () => {
     const built = plan('marathon, cool, tolerated rung')
     const early = describeRoadRaceSummary(roadSummaryOf(built, addDays(RACE, -5))!, 'km')
     expect(early.carb).toBeNull()
-    expect(early.expected).toMatch(/^Most likely time\. Finish estimate/)
+    expect(early.expected).toMatch(/^Finish estimate .+ to .+, most likely about /)
     expect(early.fuel).not.toBeNull()
     const late = describeRoadRaceSummary(roadSummaryOf(built, addDays(RACE, -1))!, 'km')
     expect(late.carb).toContain('per kg of body mass a day')
@@ -541,7 +541,7 @@ describe('the Today card', () => {
     )
     const page = describeRoadRacePlan(floor, 'km').expected
     const card = describeRoadRaceSummary(roadSummaryOf(floor, addDays(RACE, -3))!, 'km')
-    expect(page.source).toMatch(/^At most about this long\./)
+    expect(page.source).toMatch(/^At most about .+\. Finish estimate /)
     expect(card.expected).toBe(page.source)
     expect(card.expectedNote).toBe(page.notes[0])
     expect(card.expectedNote).toContain('best efforts in training since')
@@ -549,7 +549,7 @@ describe('the Today card', () => {
       roadSummaryOf(plan('marathon, cool, tolerated rung'), addDays(RACE, -3))!,
       'km',
     )
-    expect(plain.expected).toMatch(/^Most likely time\./)
+    expect(plain.expected).toMatch(/^Finish estimate .+, most likely about /)
     expect(plain.expectedNote).toBeNull()
   })
 

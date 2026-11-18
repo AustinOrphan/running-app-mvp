@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { feedbackReport } from '../../shared/copy/feedback.ts'
+import { readAppVersion } from '../../server/version.ts'
 import { keys } from '../../web/api/client.ts'
 import { notePagePath, resetPageTrailForTests } from '../../web/pwa/pageTrail.ts'
 import { SettingsPage } from '../../web/pages/SettingsPage.tsx'
@@ -56,6 +57,21 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
+describe('the release version in Settings', () => {
+  test('shows the package version under About, near the bottom', async () => {
+    mockApi(settingsRoutes)
+    renderWithProviders(<Pages />, { route: '/settings' })
+
+    const heading = await screen.findByRole('heading', { name: 'About' })
+    const version = screen.getByText(`Version ${readAppVersion()}`)
+    expect(readAppVersion()).toMatch(/^\d+\.\d+\.\d+/)
+    expect(heading.compareDocumentPosition(version) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    // After the Session block, the last one before it.
+    const session = screen.getByRole('heading', { name: 'Session' })
+    expect(session.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+})
+
 describe('the Send feedback row', () => {
   test('copies the note, with only the allowed lines, and shows Copied', async () => {
     mockApi(settingsRoutes)
@@ -74,6 +90,7 @@ describe('the Send feedback row', () => {
       'Paste this into a message to the person who runs this app.',
       '',
       'Page: /plan',
+      `Version: ${readAppVersion()}`,
       'Build: dev',
       'Time: 2026-11-12T10:00:00.000Z',
       `Browser: ${navigator.userAgent}`,
@@ -144,6 +161,7 @@ describe('feedbackReport', () => {
     const text = feedbackReport({
       fromPath: '/log',
       buildId: 'index-abc',
+      version: '2.1.0',
       at: '2026-11-12T10:00:00.000Z',
       userAgent: 'UA',
       planId: null,
@@ -152,6 +170,7 @@ describe('feedbackReport', () => {
     expect(text.split('\n').filter((line) => line !== '')).toEqual([
       'Paste this into a message to the person who runs this app.',
       'Page: /log',
+      'Version: 2.1.0',
       'Build: index-abc',
       'Time: 2026-11-12T10:00:00.000Z',
       'Browser: UA',
