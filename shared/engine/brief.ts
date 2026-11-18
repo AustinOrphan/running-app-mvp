@@ -13,7 +13,8 @@
 // safety first (pain, illness, the energy-availability screen, readiness that stayed low), then
 // what the weekly decision acted on (sleep, check-ins and ratings), then what the data shows
 // (efficiency, the longest run), then where the plan stands in its calendar (race week, the
-// taper, a recovery week).
+// taper, a recovery week), then the plan's first back-to-back, night run or downhill session when
+// the coming week holds it.
 import { BRIEF_MAX_NOTICED, KEY_LOOKAHEAD_DAYS } from '../copy/limits.ts'
 import { addDays, daysBetween } from '../dates.ts'
 import { isToRun } from '../domain/sessionStatus.ts'
@@ -34,6 +35,7 @@ import {
   minutes,
   percent,
 } from './explainInputs.ts'
+import { DOWNHILL_FLAGS } from './downhill.ts'
 import { isDuplicate } from './load.ts'
 import { P } from './params/index.ts'
 import { checkinOn, checkinsOf, poorSubjective, sleepAverageH } from './readiness.ts'
@@ -63,7 +65,7 @@ import type {
  * they name. A brief of another version is shown as it was stored. Raise it with any change to the
  * shape of `BriefFacts` or to which facts a week gets.
  */
-export const BRIEF_VERSION = 1
+export const BRIEF_VERSION = 2
 
 type SessionRow = NonNullable<EngineInput['existing']>['sessions'][number]
 
@@ -511,6 +513,67 @@ function calendarFact(rule: 'K6' | 'K1' | 'E3'): Selection {
   }
 }
 
+/** The kinds of session whose first the brief names; the letter is the one the template ids use. */
+const FIRST_KINDS = [
+  { letter: 'b', rule: 'H3', has: (s: SessionRow) => s.flags.includes('b2b-day1') },
+  { letter: 'n', rule: 'H6', has: (s: SessionRow) => s.flags.includes('night') },
+  {
+    letter: 'd',
+    rule: 'H5',
+    has: (s: SessionRow) => DOWNHILL_FLAGS.some((flag) => s.flags.includes(flag)),
+  },
+] as const
+
+/** A kind of session the plan holds for the first time in a week. */
+export interface FirstSession {
+  letter: 'b' | 'n' | 'd'
+  rule: string
+  date: string
+}
+
+/**
+ * The firsts of the week `from` to `to`: for the first back-to-back (the day-1 session of a pair),
+ * the first night-flagged session and the first downhill-flagged session, the date it falls on when
+ * no stored session of that kind is dated before `from`. Every stored session counts, whatever its
+ * status, so a first that is already past stays the first when the plan is drawn again. Ordered by
+ * date, then back-to-back, night, downhill.
+ */
+export function firstSessionsIn(
+  sessions: readonly SessionRow[],
+  window: { from: string; to: string },
+): FirstSession[] {
+  const out: FirstSession[] = []
+  for (const kind of FIRST_KINDS) {
+    const dates = sessions.filter(kind.has).map((s) => s.date)
+    if (dates.length === 0) continue
+    const first = dates.reduce((a, b) => (b < a ? b : a))
+    if (first >= window.from && first <= window.to) {
+      out.push({ letter: kind.letter, rule: kind.rule, date: first })
+    }
+  }
+  return out.sort((a, b) => a.date.localeCompare(b.date))
+}
+
+/** The plan's first back-to-back, night run or downhill session, when the coming week holds it. */
+function firstSessionsFact({ args }: Week): InputFact | null {
+  const sessions = args.input.existing?.sessions ?? []
+  const window = { from: args.weekStart, to: addDays(args.weekStart, 6) }
+  const firsts = firstSessionsIn(sessions, window)
+  if (firsts.length === 0) return null
+  const slots = Object.fromEntries(
+    firsts.map((first, i) => [`day${String(i + 1)}`, day(first.date)]),
+  )
+  // One template per order of the kinds (`brief.noticed-first-bn` and so on); a test renders each.
+  const template = `brief.noticed-first-${firsts.map((first) => first.letter).join('')}`
+  return make(
+    firsts[0]!.rule,
+    'first-session',
+    template as 'brief.noticed-first-b',
+    slots as { day1: ReturnType<typeof day> },
+    { window },
+  )
+}
+
 /** The selections in the order a brief shows them. */
 const NOTICED: readonly Selection[] = [
   painFact,
@@ -525,6 +588,7 @@ const NOTICED: readonly Selection[] = [
   calendarFact('K6'),
   calendarFact('K1'),
   calendarFact('E3'),
+  firstSessionsFact,
 ]
 
 /** At most `BRIEF_MAX_NOTICED` facts, in order. */
