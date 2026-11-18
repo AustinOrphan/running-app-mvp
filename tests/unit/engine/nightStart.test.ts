@@ -109,6 +109,45 @@ describe('nightStartBy (H6, NS1)', () => {
     }
   })
 
+  test('a zone far from the home place still gets a clock, in the zone', () => {
+    // Wisconsin home, Tokyo zone: dusk of 12 June there (about 02:10 UTC on the 13th) is mid-morning in Tokyo.
+    const tokyo = clockOf(
+      nightStartBy({
+        date: '2027-06-12',
+        tz: 'Asia/Tokyo',
+        lat: 43.07,
+        lng: -89.4,
+        durationMin: 90,
+      }),
+    )
+    const home = clockOf(
+      nightStartBy({
+        date: '2027-06-12',
+        tz: 'America/Chicago',
+        lat: 43.07,
+        lng: -89.4,
+        durationMin: 90,
+      }),
+    )
+    // Tokyo is 14 hours ahead of Chicago in June.
+    expect((tokyo.duskMin - home.duskMin + 1440) % 1440).toBe(14 * 60)
+    expect((tokyo.duskMin - tokyo.startMin + 1440) % 1440).toBe(50)
+  })
+
+  test('home places either side of the date line read their own evening', () => {
+    for (const [tz, lat, lng] of [
+      ['Pacific/Fiji', -17.7, 178.0],
+      ['Pacific/Apia', -13.8, -172.0],
+      ['Pacific/Auckland', -36.85, 174.8],
+    ] as const) {
+      const start = clockOf(nightStartBy({ date: '2027-06-12', tz, lat, lng, durationMin: 60 }))
+      // Southern winter: civil dusk between 17:00 and 19:00 local time at each.
+      expect(start.duskMin).toBeGreaterThanOrEqual(17 * 60)
+      expect(start.duskMin).toBeLessThanOrEqual(19 * 60)
+      expect(start.duskMin - start.startMin).toBe(20)
+    }
+  })
+
   test('polar day and polar night give no clock', () => {
     const polar = (date: string, lat: number) =>
       nightStartBy({ date, tz: 'Europe/Oslo', lat, lng: 19, durationMin: 90 })

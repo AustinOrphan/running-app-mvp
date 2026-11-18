@@ -3,12 +3,11 @@
 // the zone, the place and the minutes arrive as data, the sun comes from `shared/domain/sun.ts` and
 // the numbers from `P`. It reads the zone of the session's own date, so a day with a clock change is
 // right. Shown on the session sheet only; nothing in the plan reads it.
-import { clockInZone, instantAtWallTime } from '../dates.ts'
+import { clockInZone } from '../dates.ts'
 import { duskAfter } from '../domain/sun.ts'
 import { P } from './params/index.ts'
 
 const MS_PER_MIN = 60_000
-const NOON_MIN = 720
 
 export type NightStart =
   /** No clock: the sun has no dusk on that date at that place (polar day or polar night). */
@@ -39,7 +38,11 @@ export function nightStartBy(input: {
   durationMin: number
 }): NightStart {
   const { date, tz, lat, lng, durationMin } = input
-  const noon = instantAtWallTime(date, NOON_MIN, tz).getTime()
+  // The scan starts at the home place's own solar noon of the calendar date (UTC noon less four
+  // minutes per degree east), a daylight instant there whatever the zone. The runner's zone only
+  // turns the result into a clock. `date` is the runner's training day (D10); it names the calendar
+  // date whose evening is read, so a home place far from the zone still gets that date's dusk.
+  const noon = Date.parse(`${date}T12:00:00Z`) - lng * 4 * MS_PER_MIN
   const dusk = duskAfter(noon, lat, lng, P.r1.darkSunAltitudeDeg.value)
   if (dusk === null) return { kind: 'no-dusk' }
   const wanted = P.h6.darkMinMin.value
