@@ -617,6 +617,11 @@ export function prescribe(
     flags.push(has('downhill-first') ? 'downhill-first' : 'downhill')
     rules.push('H5')
   }
+  if (has('hike-practice') && (kind === 'long' || kind === 'long-fast-finish' || kind === 'b2b')) {
+    // the cue is words only [rule H4]; `holdHike` takes it off in the last days before the race
+    flags.push('hike-practice')
+    if (!rules.includes('H4')) rules.push('H4')
+  }
   if (has('heat-acclimation') && (kind === 'easy' || kind === 'recovery')) {
     flags.push('heat')
     rules.push('I8')
