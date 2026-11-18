@@ -28,6 +28,7 @@ import {
   type DisruptionPlan,
 } from './disruption.ts'
 import { holdDownhill, quadPauseThrough } from './downhill.ts'
+import { holdHike } from './hike.ts'
 import { feasibility, goalPaceSecPerKm } from './goal.ts'
 import { applyGuards } from './guards.ts'
 import { HEAT_HOLD_FLAG, heatWarning } from './heat.ts'
@@ -1259,6 +1260,8 @@ function generate(
     // The last days before the race and the days after a report of sore quads carry no downhill
     // emphasis [rule H5]; the flag only comes off, so the week's load stays as it was.
     sessions = holdDownhill(sessions, downhillHold)
+    // The same last days carry no hiking cue either [rule H4].
+    sessions = holdHike(sessions, goal.date, today)
     // Fewer run days open than planned: the week gets the days there are, and the plan says so. A
     // week of a start path keeps a rest day between runs, so open days that sit next to each other
     // hold fewer sessions than the programme draws; the week then says what was placed.
