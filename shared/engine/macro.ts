@@ -2,8 +2,8 @@
 // the fixed blocks [rules e, h, k]. Pure: the same input gives the same weeks.
 //
 // Week flags written here (WeekDraft.flags): 'recovery', 'peak', 'taper', 'race-week',
-// 'post-race', 'strength-block', 'gut-training', 'heat-acclimation', 'night', 'downhill', 'b2b',
-// and for the first weeks of a plan 'restart-floor', 'run-walk', 'ladder-<n>', 'injury-return',
+// 'post-race', 'strength-block', 'gut-training', 'heat-acclimation', 'night', 'downhill',
+// 'downhill-first', 'b2b', and for the first weeks of a plan 'restart-floor', 'run-walk', 'ladder-<n>', 'injury-return',
 // 'injury-level-<n>' (startWeeks.ts). A re-plan adds 'overshoot' and 'planned-<n>' to a loading
 // week run past its target (index.ts, limits.ts `overshootFlags`).
 // Race week is the last week with the race in it: its volume is the shake-out running around the
@@ -45,6 +45,7 @@ import {
   type RampExemption,
   type RunRecord,
 } from './limits.ts'
+import { downhillLeadBegan, downhillWindowStart } from './downhill.ts'
 import { isDuplicate } from './load.ts'
 import { blockLift, rebuildZone, responseBasis } from './loadSetting.ts'
 import { effective, overrides, resolveMethod } from './methods.ts'
@@ -928,7 +929,13 @@ function planWeeks(
    */
   freshPhases = false,
   /** The cap of the first week when the weekly decision holds it [rule J5]. */
-  heldCap?: number,
+  heldCap: number | undefined,
+  /**
+   * The Monday the downhill lead began [rule H5], read once from the plan being replaced by
+   * `macroPlanDraft` (`downhillLeadBegan`), or null. Required, never defaulted: a call that forgot
+   * it would silently start the lead again.
+   */
+  downhillBegan: string | null,
 ): { weeks: WeekDraft[]; raceWeekTail: WeekDraft | null } {
   const firstMonday = mondayOf(input.today)
   const raceMonday = mondayOf(goal.date)
@@ -1624,12 +1631,18 @@ function planWeeks(
   }
   if (goal.lossM >= P.h4.minStepGainM.value) {
     // The first exposure comes `repeatedBoutLeadWeeks` before any heavy one [rule H5]: the weeks of
-    // that lead carry `downhill-first`, counted from the calendar start of the window so that a
-    // re-plan inside the window does not start the lead again.
+    // that lead carry `downhill-first`. The lead counts from the first week of the window with
+    // downhill work: the stored one a re-plan reads, else the first window week drawn now, so a
+    // plan opened inside the window gets its lead and a re-plan does not start it again
+    // [follow-up 41]. It is never shortened: only the three-week interval has been tested.
     const windowStart = raceIdx - P.h5.downhillStartWeeksBeforeRace.value
+    const leadStart =
+      downhillBegan === null
+        ? Math.max(0, windowStart)
+        : daysBetween(firstMonday, downhillBegan) / 7
     for (let i = Math.max(0, windowStart); i < preCount; i++) {
       flag(i, 'downhill')
-      if (i < windowStart + P.h5.repeatedBoutLeadWeeks.value) flag(i, 'downhill-first')
+      if (i < leadStart + P.h5.repeatedBoutLeadWeeks.value) flag(i, 'downhill-first')
     }
   }
   // Hiking practice on the long runs of a trail or mixed ultra's specific phase [rule H4]: words
@@ -1852,8 +1865,25 @@ export function macroPlanDraft(
   // one resolution for the whole plan, so the lead-in and the weeks after it agree on the preset
   const method = resolveMethod(input, state).effective
   const lead = windowLeadIn(input, state, goal, method)
+  // the downhill lead's anchor is read from the input as given, so the pass after a post-race
+  // window (which reads no stored plan) keeps the lead the plan being replaced began [rule H5]
+  const downhillBegan = downhillLeadBegan(
+    input.existing?.weeks ?? [],
+    downhillWindowStart(goal.date),
+    mondayOf(input.today),
+  )
   if (lead === null) {
-    return planWeeks(input, state, goal, feasibility, method, undefined, freshPhases, heldCap)
+    return planWeeks(
+      input,
+      state,
+      goal,
+      feasibility,
+      method,
+      undefined,
+      freshPhases,
+      heldCap,
+      downhillBegan,
+    )
   }
   const normalStart = addDays(mondayOf(input.today), 7 * lead.weeks.length)
   // The plan it replaces is not read: its weeks at the shifted start are weeks of the normal plan
@@ -1876,6 +1906,9 @@ export function macroPlanDraft(
       runs: windowRuns(lead.window, lead.weeks),
       restart: normalStart,
     },
+    false,
+    undefined,
+    downhillBegan,
   )
   return {
     weeks: [

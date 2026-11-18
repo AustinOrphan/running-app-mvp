@@ -4,14 +4,40 @@
 // off the days after a check-in that reports sore quads. It only removes: a held session keeps its
 // minutes and its gain, so no week plans more than it did before. No gain is cut: a lower gain in
 // one week would leave the next week above the soft ramp of rule H4. Pure: no I/O, and the only
-// numbers are the `h5` Params.
-import { addDays } from '../dates.ts'
+// numbers are the `h5` Params. It also says where the lead of the rule began, from the weeks of the
+// plan being replaced (`downhillLeadBegan`).
+import { addDays, mondayOf } from '../dates.ts'
 import { painAreaKey } from '../domain/painArea.ts'
 import { P } from './params/index.ts'
-import type { Checkin, SessionFlag, SessionSpec } from './types.ts'
+import type { Checkin, SessionFlag, SessionSpec, WeekDraft } from './types.ts'
 
 /** The downhill emphasis of a session: the moderate first exposure, then the emphasis proper. */
 export const DOWNHILL_FLAGS: readonly SessionFlag[] = ['downhill-first', 'downhill']
+
+/** The Monday the downhill window of a race on `raceDate` starts [rule H5]. */
+export function downhillWindowStart(raceDate: string): string {
+  return addDays(mondayOf(raceDate), -7 * P.h5.downhillStartWeeksBeforeRace.value)
+}
+
+/**
+ * Where the lead of rule H5 began: the Monday of the earliest week of the plan being replaced that
+ * starts in [windowStart, firstMonday) and carries a downhill flag. A week stored before DH1 carries
+ * `downhill` alone and counts; a week with no downhill flag (a post-race week, a goal that did not
+ * descend when it was drawn) does not. Null when no such week exists.
+ */
+export function downhillLeadBegan(
+  weeks: ReadonlyArray<Pick<WeekDraft, 'weekStart' | 'flags'>>,
+  windowStart: string,
+  firstMonday: string,
+): string | null {
+  let began: string | null = null
+  for (const w of weeks) {
+    if (w.weekStart < windowStart || w.weekStart >= firstMonday) continue
+    if (!DOWNHILL_FLAGS.some((f) => w.flags.includes(f))) continue
+    if (began === null || w.weekStart < began) began = w.weekStart
+  }
+  return began
+}
 
 /** The part of a check-in row the pause reads. */
 type PauseCheckin = Partial<Pick<Checkin, 'date' | 'painScore' | 'painArea'>>
