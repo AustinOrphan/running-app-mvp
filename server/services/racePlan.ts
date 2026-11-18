@@ -18,6 +18,7 @@ import { goalModelFor, goalPrediction, loadAthleteContext, memoByVersion } from 
 import type { SnapshotDeps } from './athleteState.ts'
 import { loadFuelState } from './fuel.ts'
 import { listRaceCheckpoints } from './raceCheckpoints.ts'
+import { loadRaceHeat } from './raceHeat.ts'
 
 export type RaceDeps = SnapshotDeps
 
@@ -62,6 +63,8 @@ async function buildRacePlan(deps: RaceDeps, userId: string, today: string): Pro
   if (daysBetween(today, goal.targetDate) < 0) return { plan: null, reason: 'race-over' }
   const model = await goalModelFor(context, goal.id, { climate: true })
   if (model === null) return { plan: null, reason: 'no-distance' }
+  // Why the race heat may be missing (RH1): no place to read it for, or a place not read yet.
+  const heatState = (await loadRaceHeat(deps.prisma, context, goal, model, today))?.state
   if (!model.isUltra) {
     if (!isRoadPlanClass(model.distanceClass)) return { plan: null, reason: 'not-ultra' }
     const [prediction, fuel] = await Promise.all([
@@ -90,6 +93,7 @@ async function buildRacePlan(deps: RaceDeps, userId: string, today: string): Pro
       weightKg: context.profile.weightKg,
       acclimationCredit: context.state.heatAcclimation,
       raceWeekSessions: raceWeekSessionsOf(context.planSessions),
+      ...(heatState === undefined ? {} : { heatState }),
       today,
     })
     return { plan: null, reason: 'not-ultra', road }
@@ -116,6 +120,7 @@ async function buildRacePlan(deps: RaceDeps, userId: string, today: string): Pro
       homeLat: context.profile.homeLat,
       homeLng: context.profile.homeLng,
     },
+    ...(heatState === undefined ? {} : { heatState }),
     today,
   })
   // The same rows the plan was drawn from: no second read of the table.

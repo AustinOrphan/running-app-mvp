@@ -551,6 +551,24 @@ export async function readClimate(
 }
 
 /**
+ * Whether the goal's race climate cell was read and gave nothing: its last fetch failed (`failedAt`
+ * stays set until a fetch succeeds, and the job tries again after `BACKOFF_MS`), or it is complete
+ * with no value. False without a place, without a row and for a cell that holds a value. Never
+ * fetches. Read by the RH1 notice to tell a failed read from one not made yet.
+ */
+export async function climateFailed(
+  prisma: PrismaClient,
+  goal: ClimateGoal,
+  home: ClimateHome,
+): Promise<boolean> {
+  const key = climateKeyFor(goal, home)
+  if (key === null) return false
+  const row = await prisma.climateCache.findUnique({ where: climateWhere(key) })
+  if (row === null || row.wbgtC != null) return false
+  return row.failedAt !== null || row.complete
+}
+
+/**
  * Plan generation's wait: fills the goal's race climate when it is missing, incomplete or old,
  * for at most `waitMs`, so a plan on a cold cache carries the race heat. Never throws and never
  * waits when the cell is fresh, the goal has no place or the last attempt failed within the

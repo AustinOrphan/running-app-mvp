@@ -3764,6 +3764,53 @@ describe('heat: D6, I2, I3, I8 and H13', () => {
     })
   })
 
+  test('I8 states the race heat gap with no place, and says nothing about it with one (RH1)', () => {
+    const base = ctxOf('half')
+    const places = (state: 'known' | 'no-place' | 'unread' | 'failed', nausea = true) => ({
+      using: state === 'no-place' ? null : ('race' as const),
+      racePlaceSet: state !== 'no-place',
+      homePlaceSet: false,
+      homeWeatherOn: false,
+      state,
+      nausea,
+    })
+    const heat = (state: 'known' | 'no-place' | 'unread' | 'failed'): string[] =>
+      factsOf('I8', { ...base, raceHeat: places(state) }).map((f) => f.id)
+
+    const none = factsOf('I8', { ...base, raceHeat: places('no-place') })
+    expect(none.map((f) => f.id)).toEqual([
+      'i8.gap',
+      'i8.heat-gap',
+      'i8.heat-left-out',
+      'i8.heat-how',
+    ])
+    expect(none[1]).toMatchObject({ template: 'race-heat.no-place', state: 'insufficient' })
+    // what reads the race heat, and only that
+    expect(text(none[2]!)).toMatch(/heat acclimation block.*hot-race lines.*earlier nausea plan/)
+    expect(text(none[3]!)).toMatch(/race place on the goal.*home place on Profile/)
+
+    const unread = factsOf('I8', { ...base, raceHeat: places('unread') })
+    expect(unread[1]).toMatchObject({ template: 'race-heat.unread', state: 'insufficient' })
+    expect(unread[3]!.template).toBe('race-heat.how-unread')
+
+    const failed = factsOf('I8', { ...base, raceHeat: places('failed') })
+    expect(failed[1]).toMatchObject({ template: 'race-heat.failed', state: 'insufficient' })
+    expect(failed[3]!.template).toBe('race-heat.how-failed')
+    // a goal with no fuel block (a 10 km, a short half) does not lose a nausea plan
+    const noFuel = factsOf('I8', { ...base, raceHeat: places('no-place', false) })
+    expect(noFuel[2]!.template).toBe('race-heat.left-out-no-fuel')
+    expect(text(noFuel[2]!)).not.toMatch(/nausea/)
+
+    // a known heat, a goal the notice does not cover and a context with no field add nothing
+    expect(heat('known')).toEqual(['i8.gap'])
+    expect(factsOf('I8', { ...base, raceHeat: null }).map((f) => f.id)).toEqual(['i8.gap'])
+    expect(factsOf('I8', base).map((f) => f.id)).toEqual(['i8.gap'])
+    // H13 reads the same credit and never carries the gap
+    expect(factsOf('H13', { ...base, raceHeat: places('no-place') }).map((f) => f.id)).toEqual([
+      'h13.gap',
+    ])
+  })
+
   test('I8 says what counts as a heat day, with the safety lines, only when Today does', () => {
     const base = ctxOf('half')
     const warm = (over: Partial<NonNullable<ExplainContext['race']>>): ExplainContext => ({

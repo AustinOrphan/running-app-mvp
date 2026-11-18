@@ -2,7 +2,9 @@
 // and name, and is reachable from Profile and from More.
 import { screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, test, vi } from 'vitest'
+import { raceHeatSentences } from '../../shared/copy/raceHeat.ts'
 import type { PlanInputsView } from '../../shared/domain/planInputs.ts'
+import type { RaceHeatPlaces } from '../../shared/domain/raceHeat.ts'
 import type { ZoneSet } from '../../shared/engine/types.ts'
 import { MorePage } from '../../web/pages/MorePage.tsx'
 import { PlanInputsPage } from '../../web/pages/PlanInputsPage.tsx'
@@ -80,6 +82,7 @@ function view(over: Partial<PlanInputsView> = {}): PlanInputsView {
       named: [{ key: 'apple-health', label: 'Apple Health', activities: 3, wellnessDays: 31 }],
       other: { activities: 117, wellnessDays: 0 },
     },
+    raceHeat: null,
     ...over,
   }
 }
@@ -330,5 +333,100 @@ describe('links to the page', () => {
     renderWithProviders(<ProfilePage />, { route: '/profile' })
     const link = await screen.findByRole('link', { name: 'What the plan can see' })
     expect(link).toHaveAttribute('href', '/plan-inputs')
+  })
+
+  describe('the race heat places (RH1)', () => {
+    const places = (over: Partial<RaceHeatPlaces> = {}): RaceHeatPlaces => ({
+      using: null,
+      racePlaceSet: false,
+      homePlaceSet: false,
+      homeWeatherOn: false,
+      state: 'no-place',
+      nausea: true,
+      ...over,
+    })
+
+    test('with no place, states each place as not set, the gap, what it leaves out and where to set it', async () => {
+      mockApi({ 'GET /api/plan-inputs': () => view({ raceHeat: places() }) })
+      renderWithProviders(<PlanInputsPage />, { route: '/plan-inputs' })
+      const heat = await screen.findByRole('region', { name: 'Race heat' })
+      expect(within(rowOf(heat, 'Race place on the goal')).getByText('Not set')).toBeVisible()
+      expect(within(rowOf(heat, 'Home place on Profile')).getByText('Not set')).toBeVisible()
+      // the same sentences the Race page shows
+      for (const sentence of raceHeatSentences('no-place', true)) {
+        expect(within(heat).getByText(sentence)).toBeVisible()
+      }
+      expect(within(heat).getByRole('link', { name: 'Set the race place' })).toHaveAttribute(
+        'href',
+        '/goals',
+      )
+      expect(within(heat).getByRole('link', { name: 'Set the home place' })).toHaveAttribute(
+        'href',
+        '/profile',
+      )
+      expectCleanCopy(document.body)
+    })
+
+    test('a home place with its switch off reads as set but not in use', async () => {
+      mockApi({
+        'GET /api/plan-inputs': () =>
+          view({ raceHeat: places({ homePlaceSet: true, homeWeatherOn: false }) }),
+      })
+      renderWithProviders(<PlanInputsPage />, { route: '/plan-inputs' })
+      const heat = await screen.findByRole('region', { name: 'Race heat' })
+      expect(
+        within(rowOf(heat, 'Home place on Profile')).getByText('Set, weather switch off'),
+      ).toBeVisible()
+    })
+
+    test('a place not read yet says so, and a known heat says where it is read', async () => {
+      mockApi({
+        'GET /api/plan-inputs': () =>
+          view({ raceHeat: places({ using: 'race', racePlaceSet: true, state: 'unread' }) }),
+      })
+      const first = renderWithProviders(<PlanInputsPage />, { route: '/plan-inputs' })
+      const heat = await screen.findByRole('region', { name: 'Race heat' })
+      expect(within(rowOf(heat, 'Race place on the goal')).getByText('Set')).toBeVisible()
+      for (const sentence of raceHeatSentences('unread', true)) {
+        expect(within(heat).getByText(sentence)).toBeVisible()
+      }
+      first.unmount()
+      // a goal with no fuel block (a 10 km) and a failed read, in the same sentences
+      mockApi({
+        'GET /api/plan-inputs': () =>
+          view({
+            raceHeat: places({
+              using: 'race',
+              racePlaceSet: true,
+              state: 'failed',
+              nausea: false,
+            }),
+          }),
+      })
+      const second = renderWithProviders(<PlanInputsPage />, { route: '/plan-inputs' })
+      const failedHeat = await screen.findByRole('region', { name: 'Race heat' })
+      for (const sentence of raceHeatSentences('failed', false)) {
+        expect(within(failedHeat).getByText(sentence)).toBeVisible()
+      }
+      expect(within(failedHeat).queryByText(/nausea/)).toBeNull()
+      second.unmount()
+      mockApi({
+        'GET /api/plan-inputs': () =>
+          view({ raceHeat: places({ using: 'race', racePlaceSet: true, state: 'known' }) }),
+      })
+      renderWithProviders(<PlanInputsPage />, { route: '/plan-inputs' })
+      const known = await screen.findByRole('region', { name: 'Race heat' })
+      expect(
+        within(known).getByText('The usual weather for the race date is read, at the race place.'),
+      ).toBeVisible()
+      expect(within(known).queryByText(/earlier nausea plan/)).toBeNull()
+    })
+
+    test('no row when the race heat does not apply', async () => {
+      mockApi({ 'GET /api/plan-inputs': () => view() })
+      renderWithProviders(<PlanInputsPage />, { route: '/plan-inputs' })
+      await screen.findByRole('region', { name: 'Sources' })
+      expect(screen.queryByRole('region', { name: 'Race heat' })).toBeNull()
+    })
   })
 })
