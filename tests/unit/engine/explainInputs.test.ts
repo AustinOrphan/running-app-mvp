@@ -3582,6 +3582,16 @@ describe('the goal on the course: H2, H4 to H6, H12 and O1', () => {
     expect(factsOf('H2', ctxOf('marathon'))).toEqual([])
   })
 
+  test('H4 states the hiking cue only where the plan carries it (HK1)', () => {
+    const facts = factsOf('H4', ctxOf('trail-50k'))
+    const hike = facts.find((f) => f.template === 'explain.h4-hike')
+    expect(hike).toBeDefined()
+    expect(slot(hike!, 'grade', 'percent').pct).toBe(P.h4.walkCheaperGradePct.value)
+    expect(slot(hike!, 'from', 'count').n).toBe(P.h4.hikeCueFromMin.value)
+    expect(slot(hike!, 'days', 'count').n).toBe(P.h5.taperExclusionDays.value)
+    expect(factsOf('H4', ctxOf('marathon')).map((f) => f.template)).not.toContain('explain.h4-hike')
+  })
+
   test('H4 and H5 give the climb, the descent and the climbing of the week', () => {
     const ctx = ctxOf('trail-50k')
     const [climb, week] = factsOf('H4', ctx)

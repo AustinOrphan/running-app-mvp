@@ -4,7 +4,7 @@ import type { PrismaClient } from '../db.ts'
 import { conflict, parse } from '../errors.ts'
 import { isValidTimezone } from '../../shared/domain/timezone.ts'
 import type { Units, WeightUnit } from '../../shared/types.ts'
-import { hashPassword, passwordSchema } from './password.ts'
+import { hashPassword, passwordSchema, setPasswordByEmail } from './password.ts'
 
 /** 18 random bytes read as base64url: 24 characters, 144 bits. */
 const TEMPORARY_PASSWORD_BYTES = 18
@@ -32,6 +32,20 @@ export interface CreatedUser {
 /** A long random password that satisfies `passwordSchema`. */
 export function generateTemporaryPassword(): string {
   return randomBytes(TEMPORARY_PASSWORD_BYTES).toString('base64url')
+}
+
+/**
+ * Replaces the password of the account with this email by a generated temporary one, marks it so
+ * that the next sign-in asks for a new one and ends every open session. Returns the password,
+ * shown once by the caller (only its hash is stored), or null when no such account exists.
+ */
+export async function resetToTemporaryPassword(
+  prisma: PrismaClient,
+  email: string,
+): Promise<string | null> {
+  const temporaryPassword = generateTemporaryPassword()
+  const updated = await setPasswordByEmail(prisma, email, temporaryPassword, { mustChange: true })
+  return updated ? temporaryPassword : null
 }
 
 /**

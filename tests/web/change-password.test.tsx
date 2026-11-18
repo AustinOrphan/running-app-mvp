@@ -175,6 +175,19 @@ describe('the screen that follows a first sign-in', () => {
     })
   })
 
+  test('asks the server for nothing the PW1 gate refuses while it is shown', async () => {
+    const { calls } = renderApp(true)
+    await screen.findByRole('heading', { name: 'Choose your password' })
+    // The gate answers 403 to every route but the sign-in flow and the error report.
+    const gated = calls.filter(
+      (call) =>
+        !call.url.startsWith('/api/auth/') &&
+        call.url !== '/api/setup' &&
+        !call.url.startsWith('/api/client-errors'),
+    )
+    expect(gated).toEqual([])
+  })
+
   test('has a Sign out button, so the screen is never a dead end', async () => {
     const { calls } = renderApp(true, {
       'POST /api/auth/logout': () => ({ status: 204, body: undefined }),

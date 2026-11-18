@@ -8,6 +8,7 @@ import type {
   ZoneKey,
 } from '../../shared/engine/types.ts'
 import { descentCue } from '../../shared/copy/downhill.ts'
+import { hikeCue } from '../../shared/copy/hike.ts'
 import { estimateAboutText, estimateParts } from '../../shared/copy/distanceEstimate.ts'
 import { formatQuantity } from '../../shared/copy/quantity.ts'
 import { sessionStatusLabel } from '../../shared/copy/sessionStatus.ts'
@@ -68,6 +69,7 @@ const FLAG_LABELS: Record<SessionFlag, string> = {
   'b2b-day2': 'Back-to-back, day 2',
   downhill: 'Downhill emphasis',
   'downhill-first': 'First downhill practice',
+  'hike-practice': 'Hiking practice',
   'run-walk': 'Run-walk intervals',
   'post-race': 'After the race: easy running only',
   'injury-return': 'Return-to-running step',
@@ -482,6 +484,7 @@ export function SessionSheet({ session, onClose }: SessionSheetProps) {
             {descentCue(session) !== null ? (
               <p className={styles.note}>{descentCue(session)}</p>
             ) : null}
+            {hikeCue(session) !== null ? <p className={styles.note}>{hikeCue(session)}</p> : null}
             {session.flags.length > 0 ? (
               <ul className={styles.plain}>
                 {session.flags.map((flag) => (
