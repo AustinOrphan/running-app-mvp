@@ -469,6 +469,8 @@ export interface IntegrationStatus {
   lastError: string | null
   /** The end of a rate-limit pause, ISO; null when the service is not paused. */
   pausedUntil: string | null
+  /** Whether the signed-in account is the install owner (`isInstallOwner`); decided by the server. */
+  installOwner: boolean
 }
 
 // The sync and job log (spec 4.7): one finished run per row.

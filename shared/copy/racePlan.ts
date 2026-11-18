@@ -28,6 +28,7 @@ import {
 } from '../engine/fuelCopy.ts'
 import type {
   RaceClock,
+  RaceHeat,
   RaceNotice,
   RacePlan,
   RacePlanSummary,
@@ -39,6 +40,7 @@ import type { SplitRow } from '../engine/raceSplits.ts'
 import { P } from '../engine/params/index.ts'
 import type { SessionKind } from '../engine/types.ts'
 import type { RacePlanReason, Units } from '../types.ts'
+import { raceHeatNotice } from './raceHeat.ts'
 import { HOW_TO_READ } from './runCharts.ts'
 import { RACE_CARB_ROUND_G } from './limits.ts'
 import { milesToM } from '../units.ts'
@@ -102,7 +104,6 @@ export const RACE_PLAN_TEMPLATES = {
   'race.plan.firm.link-prediction': tpl('Add a race result', {}, { shape: 'label' }),
   'race.plan.firm.link-start-time': tpl('Add a start time', {}, { shape: 'label' }),
   'race.plan.firm.link-heart-rate': tpl('Set your heart rate', {}, { shape: 'label' }),
-  'race.plan.firm.link-climate': tpl('Save the climate', {}, { shape: 'label' }),
   'race.plan.firm.about': tpl('About these ranges', {}, { shape: 'label' }),
   'race.plan.expected.clock': tpl('Start {start}. Finish about {range}.', {
     start: 'text',
@@ -126,9 +127,6 @@ export const RACE_PLAN_TEMPLATES = {
   ),
   'race.plan.notice.no-heart-rate': tpl(
     'Your zones hold no heart rate yet, so the effort is the whole target.',
-  ),
-  'race.plan.notice.no-climate': tpl(
-    'The race climate is not saved yet, so the race plan says nothing about heat.',
   ),
 
   // ---- Effort ------------------------------------------------------------------------------------
@@ -984,7 +982,11 @@ export interface RacePlanText {
   rehearsal: { heading: string; lines: string[] } | null
 }
 
-function noticeText(notice: RaceNotice, units: Units): RaceNoticeText {
+function noticeText(
+  notice: RaceNotice,
+  units: Units,
+  heat: Pick<RaceHeat, 'state'>,
+): RaceNoticeText {
   switch (notice) {
     case 'no-prediction':
       return {
@@ -1005,19 +1007,16 @@ function noticeText(notice: RaceNotice, units: Units): RaceNoticeText {
         to: 'profile',
       }
     case 'no-climate':
-      return {
-        text: say(T['race.plan.notice.no-climate'], {}, units),
-        link: say(T['race.plan.firm.link-climate'], {}, units),
-        to: 'goals',
-      }
+      // An ultra plan always has a fuel block, so the nausea plan is among what is left out.
+      return raceHeatNotice(heat.state === 'known' ? undefined : heat.state, true)
   }
 }
 
-/** One line of "How firm is this": what is missing, and the page that fills it in. */
+/** One line of "How firm is this": what is missing, and the page that fills it in (null: nothing to add). */
 export interface RaceNoticeText {
   text: string
-  link: string
-  to: 'goals' | 'profile'
+  link: string | null
+  to: 'goals' | 'profile' | null
 }
 
 /** The instruction repeated in every part: the heart rate ceiling and the effort, or the effort. */
@@ -1502,7 +1501,7 @@ export function describeRacePlan(plan: RacePlan, units: Units): RacePlanText {
     sketch: say(T['race.plan.sketch'], {}, units),
     firmHeading: say(T['race.plan.firm.heading'], {}, units),
     aboutRanges: say(T['race.plan.firm.about'], {}, units),
-    notices: plan.notices.map((notice) => noticeText(notice, units)),
+    notices: plan.notices.map((notice) => noticeText(notice, units, plan.heat)),
     expected: expectedText(plan, units),
     effort: {
       heading: say(T['race.plan.effort.heading'], {}, units),

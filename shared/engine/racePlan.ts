@@ -13,6 +13,7 @@
 //
 // Pure: no clock, no I/O. `today` and the weather arrive as data. Every number comes from `P`.
 import { addDays, daysBetween } from '../dates.ts'
+import type { RaceHeatState } from '../domain/raceHeat.ts'
 import type { Activity, RangeLabel, SupportLevel } from '../types.ts'
 import { eahCard, isHotForFuel, raceFuelFor, type RaceFuel } from './fuel.ts'
 import { startMinutes } from './goal.ts'
@@ -65,6 +66,8 @@ export interface RacePlanInput {
    * lines once the plan holds its race week. Absent or null: no plan, the lines come from Params.
    */
   raceWeekSessions?: readonly RaceWeekSession[] | null
+  /** Why the race climate is missing, or `known` (RH1); absent: the notice says only that it is missing. */
+  heatState?: RaceHeatState
   /** The server's day. */
   today: string
 }
@@ -224,6 +227,8 @@ export interface RaceHeat {
   hot: boolean
   /** The expected time is over `i6.lowConfidenceEventHours`: every heat adjustment is low confidence. */
   lowConfidence: boolean
+  /** Why `wbgtC` is null (RH1): no place to read it for, or a place not read yet. Absent when unknown to the builder. */
+  state?: RaceHeatState
   rules: string[]
 }
 
@@ -531,6 +536,7 @@ export function racePlanFor(input: RacePlanInput): RacePlan {
     source: 'climate-normal',
     hot,
     lowConfidence: hoursExpected > P.i6.lowConfidenceEventHours.value,
+    ...(input.heatState === undefined ? {} : { state: input.heatState }),
     rules: ['I6', 'I9'],
   }
 

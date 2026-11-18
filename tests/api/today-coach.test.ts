@@ -1589,8 +1589,9 @@ describe('GET /api/today: cost', () => {
     )
     expect(warm.count('activity.findMany')).toBe(0)
     expect(warm.count('plan.findFirst')).toBe(0)
-    // Pinned so that a query added to the request path is a decision, not an accident. Cold is 34
-    // reads: the session lookup, the forecast stamp (the profile and the cache row), the job-notes
+    // Pinned so that a query added to the request path is a decision, not an accident. Cold is 35
+    // reads (RH1 added the 35th: the race plan's one read of the climate cell, to tell a failed
+    // read from one not made yet, made only while the race climate is not cached): the session lookup, the forecast stamp (the profile and the cache row), the job-notes
     // stamp, the source notes' stamp (J10, the connections), the publications' stamp (three: the
     // rows by state, the channel, the recent sends), the brief's stamp (the current week's row), the
     // snapshot's eleven (the eleventh is the runner's active rest windows), the cached forecast, the
@@ -1604,7 +1605,7 @@ describe('GET /api/today: cost', () => {
     // memo once for each of the two fuel slots, the race course's memo, and the race plan's memo once
     // for each of the two race slots, `race` and `roadRace`, which answer null for a goal that is
     // neither an ultra nor a road goal without a query of their own).
-    expect(coldTotal).toBe(34)
+    expect(coldTotal).toBe(35)
     expect(warm.models).toHaveLength(17)
     expect(warm.raw).toBe(7)
   })

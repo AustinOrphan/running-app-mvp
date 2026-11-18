@@ -162,6 +162,30 @@ describe('GET /api/race/plan: access and shape', () => {
     const { plan } = await planOf(user)
     expect(plan?.heat.wbgtC).toBeNull()
     expect(plan?.notices).toContain('no-climate')
+    // the goal has a race place the weather job has not read yet (RH1)
+    expect(plan?.heat.state).toBe('unread')
+  })
+
+  test('says the last read failed when the cached cell holds a failure (RH1)', async () => {
+    const user = await newUser()
+    const goal = await newGoal(user)
+    const key = climateKeyFor(goal, { lat: null, lng: null, use: false })
+    if (key === null) throw new Error('the goal has no place')
+    await ctx.prisma.climateCache.create({
+      data: { ...key, failedAt: new Date(), lastError: 'Open-Meteo request failed: no answer.' },
+    })
+    const { plan } = await planOf(user)
+    expect(plan?.notices).toContain('no-climate')
+    expect(plan?.heat.state).toBe('failed')
+  })
+
+  test('says that no place is set when the goal has none and no home place is in use (RH1)', async () => {
+    const user = await newUser()
+    const goal = await newGoal(user)
+    await ctx.prisma.goal.update({ where: { id: goal.id }, data: { raceLat: null, raceLng: null } })
+    const { plan } = await planOf(user)
+    expect(plan?.notices).toContain('no-climate')
+    expect(plan?.heat.state).toBe('no-place')
   })
 
   test('carries the support level of the goal', async () => {

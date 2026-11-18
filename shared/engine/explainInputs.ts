@@ -19,12 +19,14 @@ import {
 } from '../copy/method.ts'
 import { countPhrase } from '../copy/quantity.ts'
 import { joinWords, methodWords } from '../copy/raceEstimate.ts'
+import { raceHeatGapId, raceHeatHowId, raceHeatLeftOutId } from '../copy/raceHeat.ts'
 import { ZONE_BOUNDARY_WORDS } from '../copy/revision.ts'
 import { STRENGTH_TEMPLATES } from '../copy/strengthTemplates.ts'
 import type { SlotValues } from '../copy/template.ts'
 import type { TEMPLATES, TemplateId } from '../copy/templates.ts'
 import { addDays, daysBetween, isIsoDate, mondayOf } from '../dates.ts'
 import { openDayCount } from '../domain/availability.ts'
+import type { RaceHeatPlaces } from '../domain/raceHeat.ts'
 import { exerciseById, isExerciseId } from '../domain/strengthLibrary.ts'
 import { aggregateWeeks } from '../domain/weeks.ts'
 import type {
@@ -143,6 +145,12 @@ export interface ExplainContext {
    * without a goal. `input.goal` is a neutral stand-in for reads about the athlete.
    */
   race: GoalModel | null
+  /**
+   * The places the race heat is read for and whether it is known (`raceHeatPlaces`, RH1), or null
+   * for a goal the race plan does not cover, a race that is past or no goal. Absent: the I8
+   * request says nothing about the places.
+   */
+  raceHeat?: RaceHeatPlaces | null
   /**
    * What the strength engine reads (`loadStrengthContext`), for the rules F7 to F9: the saved
    * setup, the logs, the stored plan's weeks and the readiness read of the day. Absent or null
@@ -3428,6 +3436,17 @@ function heatAdaptationFacts(rule: 'I8' | 'H13'): Builder {
             { sources: exposed.map(activitySource), window },
           ),
         ]
+    // No place to read the race heat for, or one not read yet (RH1): the block, the hot-race lines
+    // and the earlier nausea plan all read it. The same sentences as the Race page and the places
+    // row of "What the plan can see"; ids are `i8.heat-gap` and friends, since `i8.gap` is the credit's.
+    const places = ctx.raceHeat ?? null
+    if (rule === 'I8' && places !== null && places.state !== 'known') {
+      facts.push(
+        make('I8', 'heat-gap', raceHeatGapId(places.state), {}, { insufficient: true }),
+        make('I8', 'heat-left-out', raceHeatLeftOutId(places.nausea), {}),
+        make('I8', 'heat-how', raceHeatHowId(places.state), {}),
+      )
+    }
     // What counts as a heat day, with the safety lines, only when the race is expected warm and
     // the block is open and short of days: the same test as Today's note (`suggestsHeatDays`).
     const race = ctx.race
