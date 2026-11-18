@@ -13,6 +13,7 @@ const RBE = [
   'khassetarash-2023-rbe-downhill',
   'mchugh-2003-repeated-bout',
   'bontemps-2020-downhill-review',
+  'theodorou-2026-rbe-duration',
 ]
 const GUT = ['costa-2017-gut-training', 'miall-2018-gut-challenge', 'martinez-2023-gut-training-sr']
 
@@ -186,7 +187,7 @@ export const hUltra = {
     }),
     repeatedBoutLeadWeeks: param('h5.repeatedBoutLeadWeeks', 3, 'C', 'H5', RBE, {
       unit: 'weeks',
-      note: 'The first moderate downhill exposure comes at least this long before any heavy downhill session; protection beyond 3 weeks is untested.',
+      note: 'The first moderate downhill exposure comes at least this long before any heavy downhill session. No running study tests a longer interval; a laboratory study of eccentric knee-extensor exercise found protection at 3 and 6 weeks, in part at 9 and not at 12.',
     }),
     damageProtocolSlopePct: param(
       'h5.damageProtocolSlopePct',

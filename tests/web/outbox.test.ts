@@ -751,6 +751,34 @@ describe('sending an entry', () => {
     expect(await sendEntry(entry)).toEqual({ kind: 'retry' })
   })
 
+  test('the 403 of a temporary password is kept for later, not refused (PW1)', async () => {
+    mockApi({
+      [`PUT ${URL}`]: () => ({
+        status: 403,
+        body: {
+          error: {
+            code: 'auth.password-change-required',
+            message: 'Change the temporary password to continue.',
+          },
+        },
+      }),
+    })
+    expect(await sendEntry(entry)).toEqual({ kind: 'retry' })
+  })
+
+  test('the queue keeps an entry that meets the temporary-password 403', async () => {
+    mockApi({
+      [`PUT ${URL}`]: () => ({
+        status: 403,
+        body: { error: { code: 'auth.password-change-required', message: 'Change it.' } },
+      }),
+    })
+    const { outbox, store } = rig({ send: sendEntry })
+    expect(await outbox.save(URL, { note: 'x' })).toEqual({ status: 'queued' })
+    expect((await store.read()).map((e) => e.url)).toEqual([URL])
+    expect(outbox.getState().notices).toEqual([])
+  })
+
   test.each([400, 403, 404, 422])('a %i is refused with the server words', async (status) => {
     mockApi({
       [`PUT ${URL}`]: () => ({

@@ -18,14 +18,30 @@ afterEach(async () => {
   await Promise.all(open.splice(0).map((ctx) => ctx.close()))
 })
 
-/** An account made the way `create-user` makes it, with a cookie for it. */
-async function invited(ctx: TestCtx, input: Parameters<typeof createUser>[1]) {
+/** An account made the way `create-user` makes it, still holding its temporary password (PW1). */
+async function flagged(ctx: TestCtx, input: Parameters<typeof createUser>[1]) {
   const created = await createUser(ctx.prisma, input)
   return {
     id: created.id,
     email: created.email,
+    temporaryPassword: created.temporaryPassword,
     cookie: `rl_session=${signSession(created.id, ctx.config.sessionSecret)}`,
   }
+}
+
+/**
+ * The same account after the first sign-in's password change, as a runner makes it: the gate lets
+ * `browser-defaults` through only then, and the web hook calls it only then.
+ */
+async function invited(ctx: TestCtx, input: Parameters<typeof createUser>[1]) {
+  const user = await flagged(ctx, input)
+  const change = await client(ctx, user)
+    .put('/api/auth/password')
+    .send({ currentPassword: user.temporaryPassword, newPassword: 'a brand new passphrase' })
+  const header = change.headers['set-cookie'] as string[] | undefined
+  const pair = header?.[0]?.split(';')[0]
+  if (change.status !== 200 || !pair) throw new Error('the password change failed')
+  return { id: user.id, email: user.email, cookie: pair }
 }
 
 async function stored(ctx: TestCtx, id: string) {
@@ -39,7 +55,19 @@ async function stored(ctx: TestCtx, id: string) {
   }
 }
 
-describe('POST /api/settings/browser-defaults', () => {
+// `invited` signs in through a cost-12 password change, so the cases get the slow timeout.
+describe('POST /api/settings/browser-defaults', { timeout: SLOW }, () => {
+  test('an account still on its temporary password gets 403 (PW1)', async () => {
+    const ctx = await ctxFor()
+    const user = await flagged(ctx, { email: 'a@example.com' })
+    const response = await client(ctx, user).post('/api/settings/browser-defaults').send(BROWSER)
+    expect(response.status).toBe(403)
+    expect((response.body as { error: { code: string } }).error.code).toBe(
+      'auth.password-change-required',
+    )
+    expect((await stored(ctx, user.id)).flags).toEqual([true, true])
+  })
+
   test(
     'an account with nothing given takes the browser units and zone once',
     async () => {
@@ -150,7 +178,7 @@ describe('POST /api/settings/browser-defaults', () => {
   })
 })
 
-describe('a choice made before any browser-defaults call', () => {
+describe('a choice made before any browser-defaults call', { timeout: SLOW }, () => {
   test('units written in Settings clear the units flag, so the browser never replaces them', async () => {
     const ctx = await ctxFor()
     const user = await invited(ctx, { email: 'a@example.com' })
