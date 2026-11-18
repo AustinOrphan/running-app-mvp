@@ -122,7 +122,7 @@ export const SYNC_TEMPLATES = {
     'Strava listed no activity while some are stored here. Nothing was deleted.',
   ),
   'sync.msg.strava-check-refused': tpl(
-    'Strava refused the stored token. Nothing was deleted; the runs go 25 days after the refusal unless Strava is connected again.',
+    'Strava refused the stored token. The activities that came from Strava were removed.',
   ),
   'sync.msg.strava-revoke-failed': tpl(
     'Strava could not be told to revoke access. Remove the app at strava.com/settings/apps.',

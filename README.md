@@ -193,11 +193,12 @@ another source also holds keeps that copy.
 - **Disconnect** asks first: the sheet shows how many activities will go and links to the full-data
   export (Settings, Your data). It then revokes the token at Strava (best effort; if Strava does not
   accept, remove the app at strava.com/settings/apps) and deletes those activities and the row.
-- **A refused token** (access revoked at Strava, or the grant expired) moves the card to Needs
-  reconnecting and starts a 25-day clock, kept as `deleteAt` in the row's config. Today names the
-  date. Connecting again cancels it. The daily job (03:30 local) deletes the activities once the date
-  has passed.
-- **The daily check** (the same job) lists a connected runner's Strava activities once, from the
+- **A refused token** (a refused refresh token or a 401: access revoked at Strava, or the grant
+  expired) deletes those activities at once, the way Disconnect does, and moves the card to Needs
+  reconnecting. Today and the card say that Strava refused the connection and the runs were
+  removed; connecting again brings back up to a year. A network error or a Strava outage (5xx)
+  deletes nothing.
+- **The daily check** (03:30 local) lists a connected runner's Strava activities once, from the
   oldest stored one, and deletes local Strava runs that Strava no longer lists. Only a complete
   listing deletes: a pause, an error or an empty list while runs are stored deletes nothing and
   shows as a `partial` or `error` run in the sync log (job `strava-reconcile`; a removal is

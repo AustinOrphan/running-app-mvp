@@ -921,8 +921,8 @@ export const BACKUP_SLOT: DailySlot = { hour: 2, minute: 0 }
 /** Nightly matching runs before the Monday re-plan, so the re-plan sees the week's links. */
 export const MATCHING_SLOT: DailySlot = { hour: 2, minute: 30 }
 /**
- * The daily Strava check (SC1, ADR 0025): removes a refused runner's runs once the 25 days have
- * passed, and lists each connected runner's Strava activities once to delete what Strava dropped.
+ * The daily Strava check (SC1, ADR 0025): lists each connected runner's Strava activities once to
+ * delete what Strava dropped.
  * After the re-plan (03:00), so a deletion never lands in the middle of one.
  */
 export const STRAVA_SLOT: DailySlot = { hour: 3, minute: 30 }

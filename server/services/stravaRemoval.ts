@@ -1,7 +1,6 @@
 // What Strava's API Policy asks the app to do with a runner's Strava data (SC1, ADR 0025):
 // - disconnect: revoke at Strava and delete the runner's Strava-sourced activities (7.4);
-// - a refused token: delete them 25 days later unless the runner connects again (`config.deleteAt`,
-//   `shared/domain/stravaRemoval.ts`), checked by the daily job;
+// - a refused token: delete them at once (`sync.ts`, and the daily check below), no grace period;
 // - the daily check: delete local Strava runs that Strava no longer lists (6.3), after a complete
 //   listing only.
 // Activities go through `deleteActivities` (`activityStore.ts`), the one delete path with the
@@ -13,61 +12,16 @@ import { revokeAccess } from '../providers/strava.ts'
 import { ProviderAuthError, RateLimitPause } from '../providers/types.ts'
 import { syncMessage, recordSyncRun, safeMessage, secretValues } from './syncLog.ts'
 import { deleteActivities } from './activityStore.ts'
+import { PREFIX, removeStravaActivities, stravaWhere } from './stravaPurge.ts'
 import { openIntegration, providerContext, withProviderLock } from './sync.ts'
-import {
-  STRAVA_KEY,
-  removalIsDue,
-  withRemovalClock,
-  withoutRemovalClock,
-} from '../../shared/domain/stravaRemoval.ts'
+import { STRAVA_KEY, withRefusal } from '../../shared/domain/stravaRemoval.ts'
 import type { SyncStatus, SyncTrigger } from '../../shared/types.ts'
+
+export { countStravaActivities, removeStravaActivities } from './stravaPurge.ts'
 
 /** The job names in the sync log. */
 export const REMOVAL_JOB = 'strava-removal'
 export const RECONCILE_JOB = 'strava-reconcile'
-
-const PREFIX = `${STRAVA_KEY}:`
-
-/** Activities that came from Strava: the source is the provider key, as `sync.ts` stores it. */
-function stravaWhere(userId: string) {
-  return { userId, source: STRAVA_KEY, providerKey: { startsWith: PREFIX } }
-}
-
-/** How many activities a disconnect or the clock would delete; the confirmation dialog shows it. */
-export async function countStravaActivities(deps: Deps, userId: string): Promise<number> {
-  return deps.prisma.activity.count({ where: stravaWhere(userId) })
-}
-
-/**
- * Deletes every activity that came from Strava, with the import batches and sync runs that name
- * them, and returns the number of activities. Strava-only runs go; a run another source also holds
- * keeps that copy (`deleteActivities`).
- */
-export async function removeStravaActivities(deps: Deps, userId: string): Promise<number> {
-  const { prisma } = deps
-  const rows = await prisma.activity.findMany({ where: stravaWhere(userId), select: { id: true } })
-  const removed = await deleteActivities(
-    deps,
-    userId,
-    rows.map((row) => row.id),
-  )
-  await prisma.importBatch.deleteMany({ where: { userId, source: STRAVA_KEY } })
-  await prisma.syncRun.deleteMany({
-    where: { userId, provider: STRAVA_KEY, channel: 'pull' },
-  })
-  return removed
-}
-
-function parseConfig(text: string): Record<string, unknown> {
-  try {
-    const value: unknown = JSON.parse(text)
-    return typeof value === 'object' && value !== null && !Array.isArray(value)
-      ? (value as Record<string, unknown>)
-      : {}
-  } catch {
-    return {}
-  }
-}
 
 async function record(
   deps: Deps,
@@ -132,11 +86,9 @@ export async function disconnectStrava(deps: Deps, userId: string, fetchFn?: typ
 }
 
 /**
- * The daily check (03:30), per Strava row:
- * - a row that needs signing in and whose clock has run out loses its Strava runs, and the clock
- *   is cleared;
- * - a connected row is compared with Strava (`reconcile`).
- * Failures are logged and never thrown; the next day tries again.
+ * The daily check (03:30): each connected Strava row is compared with Strava (`reconcile`); a row
+ * that needs signing in has nothing to compare and nothing left to delete. Failures are logged and
+ * never thrown; the next day tries again.
  */
 export async function runStravaJob(
   deps: Deps,
@@ -150,32 +102,13 @@ export async function runStravaJob(
   })
   for (const row of rows) {
     try {
-      if (row.status === 'needs_auth') await removeWhenDue(deps, row.userId, row.id, now)
-      else await reconcile(deps, row.userId, row.id, { fetch: opts.fetch, now })
+      if (row.status !== 'needs_auth') {
+        await reconcile(deps, row.userId, row.id, { fetch: opts.fetch, now })
+      }
     } catch (error) {
       log?.warn({ reason: safeMessage(error) }, 'strava daily check failed')
     }
   }
-}
-
-async function removeWhenDue(deps: Deps, userId: string, rowId: string, now: Date): Promise<void> {
-  const { prisma } = deps
-  const row = await prisma.integration.findFirst({ where: { id: rowId, userId } })
-  if (!row || row.status !== 'needs_auth') return
-  const config = parseConfig(row.config)
-  if (!removalIsDue(config, now)) return
-  const startedAt = new Date()
-  const removed = await removeStravaActivities(deps, userId)
-  // The clock is spent: nothing is left to delete, and a later refusal starts a new one.
-  await prisma.integration.updateMany({
-    where: { id: row.id, userId },
-    data: { config: JSON.stringify(withoutRemovalClock(config)) },
-  })
-  await record(deps, userId, REMOVAL_JOB, startedAt, {
-    trigger: 'schedule',
-    status: 'ok',
-    accepted: removed,
-  })
 }
 
 /**
@@ -236,14 +169,22 @@ async function reconcile(
       for await (const ref of pull.listActivities(since, ctx)) listed.add(ref.id)
     } catch (error) {
       if (error instanceof ProviderAuthError) {
-        // The check found the refusal first: the clock starts as it does in a sync.
+        // The check found the refusal first: the runs go at once, as they do in a sync, and a
+        // reconnect reads the last year again (the cursor is cleared).
+        const removed = await removeStravaActivities(deps, userId)
         await prisma.integration.updateMany({
           where: { id: row.id, userId },
           data: {
             status: 'needs_auth',
+            cursor: null,
             lastError: safeMessage(error, secrets),
-            config: JSON.stringify(withRemovalClock(opened.config, listedAt)),
+            config: JSON.stringify(withRefusal(opened.config, listedAt)),
           },
+        })
+        await record(deps, userId, REMOVAL_JOB, startedAt, {
+          trigger: 'schedule',
+          status: 'ok',
+          accepted: removed,
         })
         await failed('partial', syncMessage('sync.msg.strava-check-refused', {}))
       } else if (error instanceof RateLimitPause) {

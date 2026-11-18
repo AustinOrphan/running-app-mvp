@@ -104,8 +104,8 @@ Answered on 2026-11-14, one item at a time (the owner's answers to D1 to D11 of 
   superseded. intervals.icu does not expose runs it received from Strava
   (`server/providers/intervals.ts` skips them), so Strava users use the Strava card or import a
   Strava bulk export. SC1 built the deletion work: Disconnect revokes at Strava and deletes the
-  runner's Strava-sourced runs, a refused token schedules that deletion 25 days later (Today names
-  the date; a reconnect cancels it), and a daily check deletes local Strava runs that Strava no
+  runner's Strava-sourced runs, a refused token deletes them at once (owner decision 2026-11-18,
+  no grace period; Today and the card say so, and a reconnect reads the last year again), and a daily check deletes local Strava runs that Strava no
   longer lists, after a complete listing only. Still open: the start point the provider stores
   (Policy 5.7, the owner has not decided), the 7-day cache of Policy 6.2 (each runner is the
   developer of their own app) and no AI tool reading Strava-sourced rows (Policy 5.3).

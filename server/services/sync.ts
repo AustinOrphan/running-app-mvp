@@ -9,7 +9,8 @@ import {
   WellnessTruncated,
   type ProviderCtx,
 } from '../providers/types.ts'
-import { STRAVA_KEY, withRemovalClock } from '../../shared/domain/stravaRemoval.ts'
+import { STRAVA_KEY, withRefusal } from '../../shared/domain/stravaRemoval.ts'
+import { removeStravaActivities } from './stravaPurge.ts'
 import { toImportBatch, loadProfile } from '../serialize.ts'
 import { storeParsed, storeWellness } from './activityStore.ts'
 import {
@@ -432,15 +433,19 @@ async function run(
         ? 'partial'
         : 'ok'
 
-  // Strava refused the runner's token (not a network error): the removal clock starts, SC1.
+  // Strava refused the runner's token (not a network error, which deletes nothing): the runs that
+  // came from Strava go at once, as in a disconnect (SC1, API Policy 7.4). This run holds the
+  // runner's Strava lock, so a disconnect cannot interleave, and the removal skips rows already
+  // gone. The cursor is cleared so that connecting again reads the last year.
   const refused = provider === STRAVA_KEY && fatal instanceof ProviderAuthError
+  if (refused) await removeStravaActivities(deps, userId)
   // `updateMany` so that a disconnect during the run does not turn into an error.
   await prisma.integration.updateMany({
     where: { id: row.id, userId },
     data: {
-      ...(refused ? { config: JSON.stringify(withRemovalClock(opened.config, startedAt)) } : {}),
+      ...(refused ? { config: JSON.stringify(withRefusal(opened.config, startedAt)) } : {}),
       status: failedHard ? (needsReconnect(fatal) ? 'needs_auth' : 'error') : 'connected',
-      cursor: cursorMs === null ? null : isoZ(cursorMs),
+      cursor: refused || cursorMs === null ? null : isoZ(cursorMs),
       lastSyncAt: startedAt,
       lastSyncStatus,
       lastError,
@@ -449,7 +454,8 @@ async function run(
   })
 
   let batch: ImportBatch | null = null
-  if (batchId !== null) {
+  // A refusal removed the run's own batch with the rest of Strava's rows.
+  if (batchId !== null && !refused) {
     const updated = await prisma.importBatch.update({
       where: { id: batchId, userId },
       data: {
@@ -486,7 +492,7 @@ async function run(
             : null,
     secrets,
     failures: failureLog,
-    importBatchId: batchId,
+    importBatchId: refused ? null : batchId,
   })
   return batch
 }

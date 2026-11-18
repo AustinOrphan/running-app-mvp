@@ -8,7 +8,7 @@
 import { addDays, daysBetween, isoDateInZone, mondayOf } from '../../shared/dates.ts'
 import { runnerZone } from '../runnerDay.ts'
 import { parseJson } from '../serialize.ts'
-import { STRAVA_KEY, removalDateOf } from '../../shared/domain/stravaRemoval.ts'
+import { STRAVA_KEY, refusedAtOf } from '../../shared/domain/stravaRemoval.ts'
 import { isToRun } from '../../shared/domain/sessionStatus.ts'
 import { aggregateWeeks } from '../../shared/domain/weeks.ts'
 import { P } from '../../shared/engine/params/index.ts'
@@ -263,8 +263,8 @@ interface SourceRow {
   status: string
   pausedUntil: Date | null
   createdAt: Date
-  /** The day Strava's runs are removed after a refused token (SC1); null for every other row. */
-  removeAt: Date | null
+  /** Strava refused the token and its runs were removed (SC1); false for every other row. */
+  refused: boolean
 }
 
 /**
@@ -293,10 +293,9 @@ async function sourceRows(prisma: PrismaClient, userId: string): Promise<SourceR
     .map(({ config, ...row }) => ({
       ...row,
       label: labels.get(row.provider) ?? row.provider,
-      removeAt:
-        row.provider === STRAVA_KEY
-          ? removalDateOf(parseJson<Record<string, unknown>>(config, {}))
-          : null,
+      refused:
+        row.provider === STRAVA_KEY &&
+        refusedAtOf(parseJson<Record<string, unknown>>(config, {})) !== null,
     }))
     .sort((a, b) => order.indexOf(a.provider) - order.indexOf(b.provider))
 }
@@ -340,19 +339,12 @@ export async function sourceHealthNotes({
   const notes = await Promise.all(
     rows.map(async (row): Promise<HealthNote | null> => {
       if (row.status === 'needs_auth') {
-        // Strava after a refused token: the note says the day the runs are removed (SC1).
-        if (row.removeAt !== null) {
+        // Strava after a refused token: the runs were removed, and connecting brings them back (SC1).
+        if (row.refused) {
           return {
             code: 'source-needs-auth',
-            template: 'today.health.source-needs-auth-removal',
-            slots: {
-              source: row.label,
-              date: {
-                kind: 'date',
-                iso: isoDateInZone(row.removeAt, runnerZone(context.profile.timezone)),
-                style: 'long',
-              },
-            },
+            template: 'today.health.source-needs-auth-refused',
+            slots: { source: row.label },
             href: '/integrations',
           }
         }
@@ -410,7 +402,7 @@ export async function sourceNotesStamp({
       row.pausedUntil === null ? 'none' : String(row.pausedUntil.getTime()),
       isPaused(row, now) ? 'paused' : 'open',
       String(row.createdAt.getTime()),
-      row.removeAt === null ? 'keep' : String(row.removeAt.getTime()),
+      row.refused ? 'refused' : 'plain',
     ].join('.'),
   )
   return `sources:${parts.join(',')}`

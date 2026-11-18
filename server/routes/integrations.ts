@@ -29,11 +29,7 @@ import {
   listSyncRuns,
   safeMessage,
 } from '../services/syncLog.ts'
-import {
-  STRAVA_KEY,
-  removalDateOf,
-  withoutRemovalClock,
-} from '../../shared/domain/stravaRemoval.ts'
+import { STRAVA_KEY, refusedAtOf, withoutRefusal } from '../../shared/domain/stravaRemoval.ts'
 import type { IntegrationStatus } from '../../shared/types.ts'
 
 const syncBody = z
@@ -191,11 +187,13 @@ export function integrationsRouter(deps: Deps): Router {
       throw validationError(`${registered.info.label} connects with a push token, not a form.`)
     }
 
-    // Strava's removal clock (SC1) runs until the callback brings new tokens: opening the form and
-    // walking away must not cancel it.
+    // The note that Strava refused the connection (SC1) stays until the callback brings new
+    // tokens: opening the form and walking away must not hide why runs are missing.
     if (provider === STRAVA_KEY && existing) {
-      const clock = removalDateOf(parseJson<Record<string, unknown>>(existing.config, {}))
-      if (clock !== null) connected.config = { ...connected.config, deleteAt: clock.toISOString() }
+      const refused = refusedAtOf(parseJson<Record<string, unknown>>(existing.config, {}))
+      if (refused !== null) {
+        connected.config = { ...connected.config, refusedAt: refused.toISOString() }
+      }
     }
 
     // Another athlete's calendar is another account: what was sent to the old one is not on it.
@@ -262,8 +260,8 @@ export function integrationsRouter(deps: Deps): Router {
         where: { id: row.id, userId: req.userId },
         data: {
           secret: sealSecret(secret, config.sessionSecret),
-          // Connecting again cancels the removal of the runs that came from Strava (SC1).
-          config: JSON.stringify(withoutRemovalClock(opened.config)),
+          // Connecting again clears the refusal; the next run reads the last year (SC1).
+          config: JSON.stringify(withoutRefusal(opened.config)),
           status: 'connected',
           lastError: null,
           pausedUntil: null,
@@ -289,21 +287,12 @@ export function integrationsRouter(deps: Deps): Router {
     res.json(await listSyncRuns(prisma, req.userId, provider, limit ?? RUNS_DEFAULT_LIMIT))
   })
 
-  // What a Strava disconnect would delete, for the confirmation sheet, and the day a refused token's
-  // clock deletes it (SC1, ADR 0025).
+  // What a Strava disconnect would delete, for the confirmation sheet (SC1, ADR 0025).
   router.get('/:provider/removal', async (req, res) => {
     const provider = String(req.params.provider)
     getProvider(provider)
     if (provider !== STRAVA_KEY) throw notFound()
-    const row = await prisma.integration.findUnique({
-      where: { userId_provider: { userId: req.userId, provider } },
-      select: { config: true },
-    })
-    const date = row ? removalDateOf(parseJson<Record<string, unknown>>(row.config, {})) : null
-    res.json({
-      count: await countStravaActivities(deps, req.userId),
-      deleteAt: date === null ? null : date.toISOString(),
-    })
+    res.json({ count: await countStravaActivities(deps, req.userId) })
   })
 
   router.post('/:provider/sync', async (req, res) => {

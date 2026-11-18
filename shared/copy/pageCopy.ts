@@ -118,12 +118,7 @@ export const PAGE_TEMPLATES = {
   'integrations.strava.disconnect.keep': tpl('Keep connected', {}, { shape: 'label' }),
   'integrations.strava.disconnect.error': tpl('Strava was not disconnected. Try again.'),
   'integrations.strava.removal-note': tpl(
-    'The activities that came from Strava are removed on {date} unless Strava is connected again.',
-    { date: 'date' },
-    {
-      fallback:
-        'The activities that came from Strava will be removed unless Strava is connected again.',
-    },
+    'Strava refused the connection, so the activities that came from Strava were removed. Connecting again brings back up to a year.',
   ),
   // The experimental Garmin card, folded for every account but the install owner's.
   'integrations.garmin.folded': tpl(

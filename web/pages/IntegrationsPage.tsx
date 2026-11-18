@@ -13,7 +13,6 @@ import {
   useSyncIntegration,
   type ConnectResult,
 } from '../api/integrations.ts'
-import { useRunnerDayOf } from '../api/today.ts'
 import { ApiError, fieldErrors } from '../api/client.ts'
 import { Button } from '../components/Button.tsx'
 import { CalendarFeed } from '../components/CalendarFeed.tsx'
@@ -609,8 +608,7 @@ function ProviderCard({ item }: { item: IntegrationStatus }) {
   const isStrava = provider === 'strava'
   const [confirmingStrava, setConfirmingStrava] = useState(false)
   const removal = useStravaRemoval(isStrava && confirmingStrava)
-  const dayOf = useRunnerDayOf()
-  const removeAt = typeof item.config['deleteAt'] === 'string' ? item.config['deleteAt'] : null
+  const refused = typeof item.config['refusedAt'] === 'string'
 
   const channels = info.channels
   const isPull = channels.includes('pull')
@@ -703,13 +701,9 @@ function ProviderCard({ item }: { item: IntegrationStatus }) {
       {item.lastError !== null && item.lastError !== '' ? (
         <p className={styles.note}>{item.lastError}</p>
       ) : null}
-      {isStrava && item.status === 'needs_auth' && removeAt !== null ? (
+      {isStrava && item.status === 'needs_auth' && refused ? (
         <p className={styles.note}>
-          {render(
-            TEMPLATES['integrations.strava.removal-note'],
-            { date: { kind: 'date', iso: dayOf(new Date(removeAt)), style: 'long' } },
-            'km',
-          )}
+          {render(TEMPLATES['integrations.strava.removal-note'], {}, 'km')}
         </p>
       ) : null}
 

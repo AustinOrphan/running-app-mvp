@@ -134,8 +134,6 @@ export function useDisconnectIntegration() {
 /** What disconnecting Strava would delete: the count, for the confirmation sheet. */
 export interface StravaRemoval {
   count: number
-  /** The day the runs are removed after a refused token, ISO; null when no clock runs. */
-  deleteAt: string | null
 }
 
 /** Read when the confirmation sheet opens, so the count is the one the server deletes. */

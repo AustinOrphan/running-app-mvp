@@ -31,10 +31,14 @@ Policy asks for.
   token to `https://www.strava.com/oauth/revoke` (HTTP Basic with the runner's client id and secret,
   through `ctx.fetch`, best effort), deletes the runner's Strava-sourced activities and removes the
   row. A confirmation dialog shows the count first and links to the full-data export.
-- **A refused token starts a 25-day clock.** When Strava refuses the runner's refresh or access
-  token, the row goes to `needs_auth` and `config.deleteAt` holds the day 25 days later. The daily
-  job deletes the runner's Strava-sourced runs once that day has passed. Connecting again clears the
-  clock. Today's existing note for a source that needs signing in (J10) states the date.
+- **A refused token deletes at once.** When Strava refuses the runner's refresh token or answers
+  401, the sync (or the daily check) deletes the runner's Strava-sourced runs the way Disconnect
+  does, through the same `removeStravaActivities` and `deleteActivities`, sets the row to
+  `needs_auth`, notes `config.refusedAt` and clears the cursor. A network error or a 5xx deletes
+  nothing. Connecting again clears the note and the next run reads the last year. Today's note for
+  a source that needs signing in (J10) and the card say that Strava refused the connection and the
+  runs were removed. A refusal inside a sync holds the runner's Strava lock, so a disconnect gets a
+  409 instead of interleaving.
 - **A daily check reconciles.** For each connected runner the daily job lists the runner's Strava
   activities once, from the oldest stored Strava run, and deletes the local Strava-sourced runs that
   Strava no longer lists. Only a complete listing deletes. A paused or failed listing, or an empty
@@ -83,8 +87,8 @@ Why the deletion work is built this way:
 
 - **Fact (API Policy 7.4 and 2.5, read 2026-11-18).** Deletion within 30 days on request, on
   revocation, on account deletion or when the developer stops using the API. Disconnect deletes the
-  live rows at once; the 30-day backup bound (above) is the longest the copies then hold them, so a
-  disconnect is clear of every copy within 30 days.
+  live rows at once, and so does a refused token (below); the 30-day backup bound (above) is the
+  longest the copies then hold them, so both are clear of every copy within 30 days.
 - **Fact (https://developers.strava.com/docs/authentication/, read 2026-11-18).** `POST
 /oauth/revoke` "is the recommended method for deauthorization" and will be the only one from
   2027-06-01. An athlete who disconnects here but stays authorised at Strava keeps the app
@@ -99,8 +103,8 @@ Why the deletion work is built this way:
   is there too, and plan links and the data version stay right (CLAUDE.md, Providers).
 - **Opinion.** Deleting only after a complete listing is safer than an incremental diff: a short
   page or a paused run must never read as "Strava no longer has these".
-- **Preference (owner, 2026-11-18).** The clock is 25 days from the refused token. It is a taste
-  for how long a runner has to connect again, not a figure the Policy gives.
+- **Preference (owner, 2026-11-18).** No grace period after a refused token: the runs go at once,
+  as in a disconnect. The Policy gives 30 days, so a delay would have been a taste, not a rule.
 
 ## Alternatives
 
@@ -109,8 +113,10 @@ Why the deletion work is built this way:
   runner). Its one gain, a subscription for one account only, is accepted as a cost of the card.
 - **Webhooks for deauthorization.** Rejected (Fact above): no address Strava can reach.
 - **Keep the activities on disconnect.** Rejected: Policy 7.4 asks for deletion on revocation.
-- **Delete on every refused token at once.** Rejected (Opinion): a refused token is often a
-  runner's own mistake or a Strava outage; 25 days leaves time to connect again, and Today says so.
+- **A 25-day grace period after a refused token.** Built first, then dropped (owner decision
+  2026-11-18, no grace period): a refusal is a revocation, Policy 7.4 asks for deletion within 30
+  days of it, and with the clock a revoked runner's data could sit in the backups 55 days after the
+  refusal. Deleting at once makes the 30-day backup bound meet 7.4.
 
 ## Consequences
 
@@ -122,17 +128,19 @@ Why the deletion work is built this way:
   it. The owner has not decided whether to stop storing it; nothing changes here.
 - **Still open: no AI use (Policy 5.3).** Any session or script that reads a live database must skip
   rows with `source = 'strava'`. This is an operator rule, not code.
-- **Still open: the length of the clock against Policy 7.4.** Runs deleted by the 25-day clock can
-  stay in the backups for up to 30 days more, so a revoked runner's data can sit in a copy up to
-  55 days after the refusal. A disconnect, which deletes at once, is inside 30 days.
 - **Still open: the homelab off-host job.** It keeps 30 snapshots until it is changed to 29; the
   homelab repository is outside this one, so the requirement is stated in the README and STATUS only.
 - **Open: breach notice, privacy policy, consent text (Policy 2.1, 7.3, 8.3).** The per-runner
   applications put these on each runner as the developer of their app; the install's data notice
   (README) is the operator's part.
-- `config.deleteAt` on the Strava `Integration` row is the only stored state, so there is no
+- `config.refusedAt` on the Strava `Integration` row is the only stored state, so there is no
   migration. The job runs `strava-removal` and `strava-reconcile` are written to the sync log.
-- Today's J10 note for a Strava row with a clock names the date; it is a new template under the G5
-  lint.
+- Today's J10 note and the card for a refused Strava row say that Strava refused the connection,
+  that the Strava runs were removed and that connecting again brings back up to a year; they are
+  new templates under the G5 lint.
+- A refusal is acted on at once, so a Strava outage must not look like one: only a refused refresh
+  token or a 401 counts, and a network error or a 5xx deletes nothing (tested). A runner who
+  revokes by mistake loses the imported copy until they connect again; the cursor is cleared so the
+  next run reads the last year, and what Strava still holds comes back.
 - Strava's new API base URL from 2027-01-04 (FAQ, not yet published) needs a follow-up in
   `server/providers/strava.ts`.

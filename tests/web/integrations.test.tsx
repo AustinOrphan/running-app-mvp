@@ -452,7 +452,7 @@ describe('IntegrationsPage', () => {
     const user = userEvent.setup()
     const { calls } = mockApi(
       routes(allStatuses({ strava: { status: 'connected' } }), {
-        'GET /api/integrations/strava/removal': () => ({ count: 12, deleteAt: null }),
+        'GET /api/integrations/strava/removal': () => ({ count: 12 }),
         'DELETE /api/integrations/strava': () => ({ status: 204, body: undefined }),
       }),
     )
@@ -485,18 +485,18 @@ describe('IntegrationsPage', () => {
     })
   })
 
-  test('a Strava card with a removal clock says the day the activities go', async () => {
+  test('a Strava card after a refused token says the activities were removed', async () => {
     mockApi(
       routes(
         allStatuses({
-          strava: { status: 'needs_auth', config: { deleteAt: '2026-12-12T12:00:00.000Z' } },
+          strava: { status: 'needs_auth', config: { refusedAt: '2026-12-12T12:00:00.000Z' } },
         }),
       ),
     )
     renderWithProviders(<IntegrationsPage />)
     const strava = await screen.findByRole('region', { name: 'Strava' })
     expect(
-      within(strava).getByText(/are removed on .*2026 unless Strava is connected again/i),
+      within(strava).getByText(/refused the connection.*were removed.*up to a year/i),
     ).toBeInTheDocument()
   })
 

@@ -1,12 +1,12 @@
 // Strava's API Policy 7.4 work (SC1, ADR 0025): a disconnect revokes at Strava and deletes the
-// runner's Strava-sourced activities; a refused token starts a 25-day clock that a reconnect
-// cancels and that the daily job acts on; the daily check deletes what Strava no longer lists, after
-// a complete listing only. Every Strava call goes through a `fakeFetch`; nothing reaches the network.
+// runner's Strava-sourced activities; a refused token deletes them at once and a reconnect reads
+// the last year again; the daily check deletes what Strava no longer lists, after a complete
+// listing only. Every Strava call goes through a `fakeFetch`; nothing reaches the network.
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from 'vitest'
 import { signState } from '../../server/providers/oauthState.ts'
 import { runStravaJob } from '../../server/services/stravaRemoval.ts'
 import { sealSecret } from '../../server/services/sync.ts'
-import { REMOVAL_DAYS, removalDateOf } from '../../shared/domain/stravaRemoval.ts'
+import { refusedAtOf } from '../../shared/domain/stravaRemoval.ts'
 import { fakeFetch, type FakeRoute } from '../fakeFetch.ts'
 import {
   client,
@@ -164,7 +164,7 @@ describe('DELETE /api/integrations/strava', () => {
 
     const preview = await client(ctx, user).get('/api/integrations/strava/removal')
     expect(preview.status).toBe(200)
-    expect(preview.body).toEqual({ count: 3, deleteAt: null })
+    expect(preview.body).toEqual({ count: 3 })
 
     const res = await client(ctx, user).delete('/api/integrations/strava')
     expect(res.status).toBe(204)
@@ -201,7 +201,7 @@ describe('DELETE /api/integrations/strava', () => {
     stub({ [REVOKE]: () => json({}) })
     await storeRun('file', 'file:a', 1)
     const preview = await client(ctx, user).get('/api/integrations/strava/removal')
-    expect(preview.body).toEqual({ count: 0, deleteAt: null })
+    expect(preview.body).toEqual({ count: 0 })
     expect((await client(ctx, user).delete('/api/integrations/strava')).status).toBe(204)
     expect(await ctx.prisma.activity.count()).toBe(1)
   })
@@ -212,58 +212,106 @@ describe('DELETE /api/integrations/strava', () => {
 })
 
 // ---------------------------------------------------------------------------------------------
-// A refused token starts the clock; connecting again cancels it
+// A refused token removes the Strava runs at once; connecting again reads the last year
 // ---------------------------------------------------------------------------------------------
 
 describe('a revoked Strava grant', () => {
-  test('schedules the removal 25 days out and keeps the runs for now', async () => {
-    await connectStrava()
+  test('removes only the Strava-only runs at once and keeps a copy another source holds', async () => {
+    await connectStrava({ config: {} })
+    await ctx.prisma.integration.updateMany({ data: { cursor: '2026-03-04T07:00:00Z' } })
     await storeRun('strava', 'strava:1', 1)
+    const file = await storeRun('file', 'file:f', 2)
+    await storeRun('strava', 'strava:2', 2, {
+      duplicateOfId: file.id,
+      duplicateStatus: 'confirmed',
+    })
+    const original = await storeRun('strava', 'strava:3', 3)
+    const survivor = await storeRun('file', 'file:g', 3, {
+      duplicateOfId: original.id,
+      duplicateStatus: 'confirmed',
+    })
     stub({ [LIST]: () => json({}, 401) })
-    const before = Date.now()
     await syncProviderToday(ctx, user.id, 'strava')
+    expect(await idsLeft()).toEqual([file.id, survivor.id].sort())
     const row = await ctx.prisma.integration.findFirstOrThrow()
     expect(row.status).toBe('needs_auth')
-    const due = removalDateOf(JSON.parse(row.config) as Record<string, unknown>)
-    expect(due).not.toBeNull()
-    expect(due!.getTime() - before).toBeGreaterThanOrEqual(REMOVAL_DAYS * DAY_MS - 1000)
-    expect(due!.getTime() - Date.now()).toBeLessThanOrEqual(REMOVAL_DAYS * DAY_MS)
-    expect(await ctx.prisma.activity.count()).toBe(1)
-    const status = await client(ctx, user).get('/api/integrations/strava/removal')
-    expect(status.body).toMatchObject({ count: 1, deleteAt: due!.toISOString() })
+    expect(row.cursor).toBeNull()
+    expect(refusedAtOf(JSON.parse(row.config) as Record<string, unknown>)).not.toBeNull()
+    expect(
+      (await ctx.prisma.activity.findUniqueOrThrow({ where: { id: survivor.id } })).duplicateOfId,
+    ).toBeNull()
+    const preview = await client(ctx, user).get('/api/integrations/strava/removal')
+    expect(preview.body).toEqual({ count: 0 })
   })
 
-  test('a refused refresh token starts it too, and a network error does not', async () => {
+  test('a refused refresh token removes them too; a 5xx deletes nothing', async () => {
     await connectStrava()
+    await storeRun('strava', 'strava:1', 1)
     // The access token has run out, so the refresh is asked for and Strava answers 400.
     await ctx.prisma.integration.updateMany({
       data: { secret: sealSecret({ ...SECRET, expiresAt: 1 }, ctx.config.sessionSecret) },
     })
     stub({ [TOKEN]: () => json({}, 400) })
     await syncProviderToday(ctx, user.id, 'strava')
-    const refused = await ctx.prisma.integration.findFirstOrThrow()
-    expect(refused.status).toBe('needs_auth')
-    expect(removalDateOf(JSON.parse(refused.config) as Record<string, unknown>)).not.toBeNull()
+    expect((await ctx.prisma.integration.findFirstOrThrow()).status).toBe('needs_auth')
+    expect(await ctx.prisma.activity.count()).toBe(0)
 
     await ctx.prisma.integration.deleteMany()
     await connectStrava()
+    await storeRun('strava', 'strava:1', 1)
     stub({ [LIST]: () => json({}, 500) })
     await syncProviderToday(ctx, user.id, 'strava')
     const outage = await ctx.prisma.integration.findFirstOrThrow()
     expect(outage.status).not.toBe('needs_auth')
-    expect(removalDateOf(JSON.parse(outage.config) as Record<string, unknown>)).toBeNull()
+    expect(refusedAtOf(JSON.parse(outage.config) as Record<string, unknown>)).toBeNull()
+    expect(await ctx.prisma.activity.count()).toBe(1)
+
+    // A refresh that fails with 503 is an outage as well.
+    await ctx.prisma.integration.updateMany({
+      data: { secret: sealSecret({ ...SECRET, expiresAt: 1 }, ctx.config.sessionSecret) },
+    })
+    stub({ [TOKEN]: () => json({}, 503) })
+    await syncProviderToday(ctx, user.id, 'strava')
+    expect(await ctx.prisma.activity.count()).toBe(1)
   })
 
-  test('opening the form keeps the clock and the callback cancels it', async () => {
-    const clock = new Date(Date.now() + 10 * DAY_MS).toISOString()
-    await connectStrava({ status: 'needs_auth', config: { deleteAt: clock } })
+  test('a disconnect during a refused sync waits for the lock and deletes nothing twice', async () => {
+    await connectStrava()
+    await storeRun('strava', 'strava:1', 1)
+    let release: () => void = () => undefined
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    stub({
+      [LIST]: async () => {
+        await gate
+        return json({}, 401)
+      },
+    })
+    const sync = syncProviderToday(ctx, user.id, 'strava')
+    // Let the sync reach its first request while it holds the lock.
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    const refused = await client(ctx, user).delete('/api/integrations/strava')
+    expect(refused.status).toBe(409)
+    release()
+    await sync
+    expect(await ctx.prisma.activity.count()).toBe(0)
+    // The row is still there, needing sign-in; a disconnect now finds nothing left to delete.
+    stub({ [REVOKE]: () => json({}) })
+    expect((await client(ctx, user).delete('/api/integrations/strava')).status).toBe(204)
+    expect(await ctx.prisma.integration.count()).toBe(0)
+  })
+
+  test('opening the form keeps the refusal, and the callback clears it so a sync reads again', async () => {
+    const refusedAt = new Date().toISOString()
+    await connectStrava({ status: 'needs_auth', config: { refusedAt } })
     const form = await client(ctx, user)
       .put('/api/integrations/strava')
       .send({ clientId: '12345', clientSecret: 'synthetic-client-secret-0123' })
     expect(form.status).toBe(200)
     const kept = await ctx.prisma.integration.findFirstOrThrow()
     expect(kept.status).toBe('needs_auth')
-    expect((JSON.parse(kept.config) as Record<string, unknown>).deleteAt).toBe(clock)
+    expect((JSON.parse(kept.config) as Record<string, unknown>).refusedAt).toBe(refusedAt)
 
     stub({
       [TOKEN]: () => json({ access_token: 'a-1', refresh_token: 'r-1', expires_at: 4_102_444_800 }),
@@ -275,37 +323,28 @@ describe('a revoked Strava grant', () => {
     expect(res.headers.location).toBe('/integrations?connected=strava')
     const back = await ctx.prisma.integration.findFirstOrThrow()
     expect(back.status).toBe('connected')
-    expect(removalDateOf(JSON.parse(back.config) as Record<string, unknown>)).toBeNull()
+    expect(refusedAtOf(JSON.parse(back.config) as Record<string, unknown>)).toBeNull()
+
+    // The next sync reads the last year again: a run Strava lists is stored.
+    const recent = new Date(Date.now() - 5 * DAY_MS).toISOString().replace(/\.\d+Z$/, 'Z')
+    stub({
+      [LIST]: () => json([{ id: 77, start_date: recent, sport_type: 'Run', distance: 5000 }]),
+      'GET https://www.strava.com/api/v3/activities/77/streams': () => json({}, 404),
+    })
+    await syncProviderToday(ctx, user.id, 'strava')
+    expect(await ctx.prisma.activity.count({ where: { providerKey: 'strava:77' } })).toBe(1)
   })
 })
 
 // ---------------------------------------------------------------------------------------------
-// The daily job: the date passing
+// The daily job leaves a row that needs signing in alone
 // ---------------------------------------------------------------------------------------------
 
-describe('the daily job and a scheduled removal', () => {
-  test('deletes the runs once the date has passed, not the minute before', async () => {
-    const due = new Date('2026-12-01T12:00:00.000Z')
-    await connectStrava({ status: 'needs_auth', config: { deleteAt: due.toISOString() } })
-    const strava = await storeRun('strava', 'strava:1', 1)
-    const file = await storeRun('file', 'file:a', 2)
-
-    await runStravaJob(ctx, { now: new Date(due.getTime() - 60_000) })
-    expect(await idsLeft()).toEqual([strava.id, file.id].sort())
-    expect(await jobRun('strava-removal')).toBeNull()
-
-    await runStravaJob(ctx, { now: due })
-    expect(await idsLeft()).toEqual([file.id])
-    expect(await jobRun('strava-removal')).toMatchObject({ status: 'ok', accepted: 1 })
-    const row = await ctx.prisma.integration.findFirstOrThrow()
-    expect(row.status).toBe('needs_auth')
-    expect(removalDateOf(JSON.parse(row.config) as Record<string, unknown>)).toBeNull()
-  })
-
-  test('never starts a clock of its own: a row with no date loses nothing', async () => {
+describe('the daily job and a row that needs signing in', () => {
+  test('makes no request and deletes nothing', async () => {
     await connectStrava({ status: 'needs_auth' })
     await storeRun('strava', 'strava:1', 1)
-    await runStravaJob(ctx, { now: new Date('2030-01-01T00:00:00Z') })
+    await runStravaJob(ctx)
     expect(await ctx.prisma.activity.count()).toBe(1)
   })
 })
@@ -372,15 +411,17 @@ describe('the daily check against Strava', () => {
     expect(await jobRun('strava-reconcile')).toMatchObject({ status: 'error' })
   })
 
-  test('a refused token found by the check starts the clock and deletes nothing', async () => {
+  test('a refused token found by the check removes the Strava runs at once', async () => {
     await connectStrava()
     await storeRun('strava', 'strava:1', 1)
+    const file = await storeRun('file', 'file:a', 2)
     stub({ [LIST]: () => json({}, 401) })
     await runStravaJob(ctx)
-    expect(await ctx.prisma.activity.count()).toBe(1)
+    expect(await idsLeft()).toEqual([file.id])
     const row = await ctx.prisma.integration.findFirstOrThrow()
     expect(row.status).toBe('needs_auth')
-    expect(removalDateOf(JSON.parse(row.config) as Record<string, unknown>)).not.toBeNull()
+    expect(row.cursor).toBeNull()
+    expect(refusedAtOf(JSON.parse(row.config) as Record<string, unknown>)).not.toBeNull()
   })
 
   test('a runner with no Strava runs is not listed at all', async () => {
