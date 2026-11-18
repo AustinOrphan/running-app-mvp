@@ -11,7 +11,7 @@ import {
   createUserLimiter,
 } from './auth/rateLimit.ts'
 import { authRouter } from './auth/routes.ts'
-import { requireAuth, sameOriginGuard } from './auth/middleware.ts'
+import { requireAuth, requirePasswordChanged, sameOriginGuard } from './auth/middleware.ts'
 import type { Config } from './config.ts'
 import { apiNotFound, errorHandler } from './errors.ts'
 import { createLogger } from './logger.ts'
@@ -155,6 +155,7 @@ export function createApp(
   app.use('/api', authRouter(deps))
   app.use('/api', requireAuth(deps))
   app.use('/api', createUserLimiter({ max: opts.userLimit, nodeEnv: deps.config.nodeEnv }))
+  app.use('/api', requirePasswordChanged())
 
   // File imports and client-parsed exports carry up to 16 MB of JSON. CSV imports carry the whole
   // file as text. The parsers run in order and each skips a body that an earlier one already read,

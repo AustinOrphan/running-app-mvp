@@ -38,11 +38,15 @@ export async function verifyPassword(plain: string, hash: string): Promise<boole
   return matches && Buffer.byteLength(plain, 'utf8') <= MAX_BYTES
 }
 
-/** Sets a new password for the account with this email. False when no such account exists. */
+/**
+ * Sets a new password for the account with this email. False when no such account exists.
+ * `mustChange` marks the password as temporary, so the next sign-in has to replace it (PW1).
+ */
 export async function setPasswordByEmail(
   prisma: PrismaClient,
   email: string,
   plain: string,
+  options: { mustChange?: boolean } = {},
 ): Promise<boolean> {
   const password = parse(passwordSchema, plain)
   const user = await prisma.user.findUnique({
@@ -53,7 +57,11 @@ export async function setPasswordByEmail(
   await prisma.user.update({
     where: { id: user.id },
     // Every session of the account ends: a reset is made because the old password is not trusted.
-    data: { passwordHash: await hashPassword(password), sessionVersion: { increment: 1 } },
+    data: {
+      passwordHash: await hashPassword(password),
+      sessionVersion: { increment: 1 },
+      ...(options.mustChange === true ? { mustChangePassword: true } : {}),
+    },
   })
   return true
 }

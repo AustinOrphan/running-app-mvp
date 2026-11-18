@@ -1,0 +1,36 @@
+{
+  "id": "theodorou-2026-rbe-duration",
+  "title": "The Duration of the Repeated-Bout Effect After Eccentric Exercise",
+  "authors": "Theodorou AA, Margaritelis NV, Karyofyllidou AV, Christodoulou F, Jamurtas AZ, Fatouros IG, Kyparos A, Nikolaidis MG, Paschalis V",
+  "year": 2026,
+  "journal": "Scandinavian Journal of Medicine & Science in Sports",
+  "doi": "10.1111/sms.70381",
+  "pmid": "42886157",
+  "url": "https://doi.org/10.1111/sms.70381",
+  "design": "experimental-repeated-measures",
+  "population": "48 young men; four independent groups did a second identical bout of maximal eccentric knee-extensor exercise 3, 6, 9 or 12 weeks after the first",
+  "sampleSize": 48,
+  "evidenceLevel": "C",
+  "topics": ["terrain-elevation"],
+  "findings": [
+    "Forty-eight young men performed two identical bouts of maximal eccentric knee-extensor exercise (5 x 15 repetitions at 60 degrees per second); four independent groups performed the second bout 3, 6, 9 or 12 weeks after the first. The abstract does not say how participants were assigned to the groups or how many were in each.",
+    "Isometric torque, range of motion, delayed-onset muscle soreness, muscle thickness, echo intensity, creatine kinase and high-sensitivity C-reactive protein were assessed before and 2 and 4 days after each bout.",
+    "The repeated-bout effect was evident at 3 and 6 weeks across most outcomes and remained detectable at 9 weeks for selected markers.",
+    "At 12 weeks no significant differences between bouts were observed at day 2 or day 4 for any outcome.",
+    "Exploratory equivalence analyses indicated that the effect was no longer meaningfully present at 12 weeks for isometric torque, range of motion, soreness, muscle thickness and echo intensity; the findings for creatine kinase and C-reactive protein remained inconclusive.",
+    "The authors conclude that the effect may persist for some outcomes for up to 9 weeks, and that by 12 weeks no meaningful effect was detectable at the time points assessed."
+  ],
+  "limitations": "Isolated maximal eccentric knee-extensor exercise in a laboratory, not running or downhill running. Young men only. Four independent groups, one second bout per group; the abstract states no group sizes and no randomisation, and the equivalence analyses are called exploratory. Abstract read on Europe PMC; the full text was not read.",
+  "implications": [
+    "For this eccentric knee-extensor task, protection after one bout lasted at least 6 weeks for most outcomes and was gone by 12. That ends the statement that protection beyond 3 weeks is untested, but only for a lab task: no running study tests an interval beyond 3 weeks.",
+    "The first exposure of a downhill block need not be repeated every 3 weeks to keep protection for several weeks, and a first exposure much more than 9 to 12 weeks before heavy downhill work may have worn off. Both are extrapolations from a lab task to running."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Added 2026-11-17 for task RU2 (rules H5). Crossref: Scand J Med Sci Sports 36(10), October 2026, nine authors, no updated-by notice. Abstract read on Europe PMC (PMID 42886157). Found by author and year on Europe PMC; the brainstorm's description 'downhill or eccentric exposure over a longer span' is eccentric knee-extensor exercise, not downhill running, and is recorded as such.",
+    "checkedAt": "2026-11-17"
+  }
+}

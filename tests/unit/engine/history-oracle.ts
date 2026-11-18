@@ -151,6 +151,13 @@
 // of the two ultra classes are those of the regeneration before. Only the purpose text of that one
 // session differs: `plan:report` gave the same output before and after.
 //
+// Regenerated 2026-11-17 (task HK1, rule H4): the long, long-fast-finish and back-to-back sessions of
+// the specific phase of a trail or mixed ultra goal now carry the `hike-practice` flag and the H4
+// rule, and those weeks carry the week flag. Only flags and rules move: the date, kind, minutes,
+// distance and gain of every session are as before (`plan:report` differs by its Params version
+// line alone). 78 of the 142 digests move (the same two ultra classes as at DH1); the 64 of the
+// classes up to the marathon are those of the regeneration before.
+//
 // The close of the load-progression plan (task L7) may remove this file with its test: from there
 // the owner validation is the oracle.
 import { createHash } from 'node:crypto'

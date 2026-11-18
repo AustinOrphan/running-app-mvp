@@ -2821,6 +2821,16 @@ function climbingFacts(scope: Scope): InputFact[] {
       ),
     )
   }
+  // said only where the plan carries the cue (a trail or mixed ultra with a specific phase)
+  if (planWeeks(ctx).some((w) => w.flags.includes('hike-practice'))) {
+    facts.push(
+      make('H4', 'hike', 'explain.h4-hike', {
+        grade: percent(P.h4.walkCheaperGradePct.value),
+        from: count(P.h4.hikeCueFromMin.value),
+        days: count(P.h5.taperExclusionDays.value),
+      }),
+    )
+  }
   return facts
 }
 
