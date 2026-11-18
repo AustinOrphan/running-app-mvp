@@ -130,7 +130,7 @@
   },
   {
     "id": "heat-acclimation-warm-room-day",
-    "statement": "Count a run indoors in a room at 25 C or more, marked by the runner, as a heat day on the same terms as an outdoor run at 25 C or more (at least 30 min); it is the same exposure. Do not count extra clothing in mild weather: the one trial of unsupervised training in extra clothing found no acclimation, and a later modelled, supervised indoor protocol (two randomised crossover trials, 12 in the acclimation one) found it; whether a runner's own layers count is an owner decision, so nothing is counted.",
+    "statement": "Count a run indoors in a room at 25 C or more, marked by the runner, as a heat day on the same terms as an outdoor run at 25 C or more (at least 30 min); it is the same exposure. Do not count extra clothing in mild weather: the one trial of unsupervised training in extra clothing found no acclimation, and a later modelled protocol in a gym-like environment (two randomised crossover trials, n = 12 in the acclimation one) found it. Owner decision 2026-11-17: overdressed sessions stay uncounted (a modelled run-plus-walk in a set kit is not a runner's own layers on an easy run; n = 12 and a heat-test outcome; no follow-up for decay in the abstract; heat-illness risk at the protocol's 38.9 C peak core temperature on easy days; G6).",
     "parameter": "warm_room_heat_day",
     "value": "25 C or more, at least 30 min, indoors or out",
     "unit": "C, min",
