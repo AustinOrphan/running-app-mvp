@@ -60,6 +60,7 @@ function input(over: Partial<PlanInputsInput> = {}): PlanInputsInput {
     activities: over.activities ?? [],
     watchRatings: watchRatingCheck(over.activities ?? []),
     streamIds: new Set(),
+    raceHeat: null,
     zones: ZONES,
     hrModel: null,
     providerLabels: [

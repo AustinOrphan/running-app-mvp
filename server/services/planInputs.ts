@@ -3,8 +3,15 @@
 // day; nothing here writes, waits or reads the network.
 import { isDuplicate } from '../../shared/engine/load.ts'
 import { planInputs, type PlanInputsView } from '../../shared/domain/planInputs.ts'
+import { raceHeatPlaces } from '../../shared/domain/raceHeat.ts'
 import { PROVIDERS } from '../providers/registry.ts'
-import { hrModelOf, loadAthleteContext, memoByVersion, type SnapshotDeps } from './athleteState.ts'
+import {
+  goalModelFor,
+  hrModelOf,
+  loadAthleteContext,
+  memoByVersion,
+  type SnapshotDeps,
+} from './athleteState.ts'
 
 const MEMO = 'plan-inputs.view'
 
@@ -27,7 +34,24 @@ export function loadPlanInputs(
             where: { activityId: { in: runIds } },
             select: { activityId: true },
           })
+    const goal = context.goal
+    const model = goal === null ? null : await goalModelFor(context, goal.id, { climate: true })
+    const raceHeat =
+      goal === null || model === null
+        ? null
+        : raceHeatPlaces({
+            goal,
+            model,
+            home: {
+              lat: context.profile.homeLat,
+              lng: context.profile.homeLng,
+              use: context.profile.useHomeWeather,
+            },
+            climateKnown: model.raceWbgtC !== null,
+            today,
+          })
     return planInputs({
+      raceHeat,
       today,
       profile: context.profile,
       wellness: context.wellness,

@@ -8,6 +8,7 @@ import {
   describeRacePoints,
   describeRaceSummary,
 } from '../../shared/copy/racePlan.ts'
+import { raceHeatSentences } from '../../shared/copy/raceHeat.ts'
 import { addDays } from '../../shared/dates.ts'
 import { replayLadder } from '../../shared/engine/fuel.ts'
 import { racePlanFor, summaryOf } from '../../shared/engine/racePlan.ts'
@@ -122,10 +123,10 @@ describe('RacePage', () => {
     for (const notice of text.notices) {
       const item = screen.getByText(notice.text).closest('li')
       expect(item).not.toBeNull()
-      expect(within(item as HTMLElement).getByRole('link', { name: notice.link })).toHaveAttribute(
-        'href',
-        `/${notice.to}`,
-      )
+      expect(notice.link).not.toBeNull()
+      expect(
+        within(item as HTMLElement).getByRole('link', { name: notice.link as string }),
+      ).toHaveAttribute('href', `/${notice.to}`)
     }
     // the instruction stands once over the parts and once in each of them
     expect(screen.getAllByText(text.effort.instruction)).toHaveLength(plan.thirds.length + 1)
@@ -134,6 +135,30 @@ describe('RacePage', () => {
     }
     expect(screen.getByText(text.fuel.rate)).toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'Disclaimer' })).toBeInTheDocument()
+  })
+
+  test('says why the race heat is unknown in the sentences "What the plan can see" shows (RH1)', async () => {
+    const base = planWith({ raceWbgtC: null })
+    for (const state of ['no-place', 'unread'] as const) {
+      const plan: RacePlan = {
+        ...base,
+        notices: ['no-climate'],
+        heat: { ...base.heat, state },
+      }
+      mockApi({
+        'GET /api/race/plan': () => ({ plan, reason: null }),
+        'GET /api/settings': () => SETTINGS,
+      })
+      const page = renderWithProviders(<RacePage />, { route: '/race' })
+      const notice = (await screen.findByText(raceHeatSentences(state).join(' '))).closest('li')
+      expect(notice).not.toBeNull()
+      const link = within(notice as HTMLElement).queryByRole('link', { name: 'Set the race place' })
+      // a place that is set leaves nothing to add; no place links to the goal
+      if (state === 'no-place') expect(link).toHaveAttribute('href', '/goals')
+      else expect(link).toBeNull()
+      expectCleanCopy(document.body)
+      page.unmount()
+    }
   })
 
   test('adds the Rehearsal block after the dark hours, from the one object, in plain facts', async () => {

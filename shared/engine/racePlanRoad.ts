@@ -18,6 +18,7 @@
 //
 // Pure: no clock, no I/O. `today` and the weather arrive as data.
 import { daysBetween } from '../dates.ts'
+import type { RaceHeatState } from '../domain/raceHeat.ts'
 import type { ClimbBlend, GoalModel, LadderResult, Prediction } from './types.ts'
 import type { RangeLabel, SupportLevel } from '../types.ts'
 import { eahCard, isHotForFuel, raceFuelFor, type RaceFuel } from './fuel.ts'
@@ -65,6 +66,8 @@ export interface RoadRacePlanInput {
   acclimationCredit: number
   /** The stored plan's sessions (see `RacePlanInput.raceWeekSessions`). */
   raceWeekSessions?: readonly RaceWeekSession[] | null
+  /** Why the race climate is missing, or `known` (RH1); absent: the notice says only that it is missing. */
+  heatState?: RaceHeatState
   /** The server's day. */
   today: string
 }
@@ -113,6 +116,8 @@ export interface RoadHeat {
   wbgtC: number | null
   /** Always `climate-normal`: the plan reads no forecast. */
   source: 'climate-normal'
+  /** Why `wbgtC` is null (RH1): no place to read it for, or a place not read yet. Absent when unknown to the builder. */
+  state?: RaceHeatState
   /**
    * The seconds of the range that come from the usual weather for the date: the prediction minus the
    * same prediction without race heat. Null when the prediction holds no heat adjustment (no I2 in
@@ -281,6 +286,7 @@ export function roadRacePlanFor(input: RoadRacePlanInput): RoadRacePlan {
   const heat: RoadHeat = {
     wbgtC: wbgt,
     source: 'climate-normal',
+    ...(input.heatState === undefined ? {} : { state: input.heatState }),
     inRangeSec:
       prediction === null || input.coolPredictedSec === null || !heatRules
         ? null

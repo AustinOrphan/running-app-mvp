@@ -3,6 +3,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, test } from 'vitest'
 import { addDays, todayIso } from '../../shared/dates.ts'
 import type { PlanInputsView } from '../../shared/domain/planInputs.ts'
 import { P } from '../../shared/engine/params/index.ts'
+import { climateKeyFor } from '../../server/services/weatherCache.ts'
 import {
   client,
   createTestCtx,
@@ -118,6 +119,91 @@ describe('GET /api/plan-inputs', () => {
     })
     const view = await viewOf(user)
     expect(view.zones[0]!.boundary?.source).toBe('hrmax-observed')
+  })
+
+  describe('the places the race heat is read for (RH1)', () => {
+    async function goalFor(
+      user: TestUser,
+      over: { distanceM?: number; daysAhead?: number; place?: boolean } = {},
+    ) {
+      const place = over.place ?? false
+      return ctx.prisma.goal.create({
+        data: {
+          userId: user.id,
+          name: 'Synthetic marathon',
+          priority: 'A',
+          isActive: true,
+          targetDate: addDays(today, over.daysAhead ?? 60),
+          distanceM: over.distanceM ?? 42_195,
+          surface: 'road',
+          goalType: 'finish',
+          ...(place ? { raceLat: 40.01, raceLng: -105.27 } : {}),
+        },
+      })
+    }
+
+    afterEach(async () => {
+      await ctx.prisma.climateCache.deleteMany()
+    })
+
+    test('a goal with no place and no home place says so: no place set, nothing used', async () => {
+      const user = await newUser()
+      await goalFor(user)
+      // the profile's weather switch is on by default, but there is no home place for it to use
+      expect((await viewOf(user)).raceHeat).toEqual({
+        using: null,
+        racePlaceSet: false,
+        homePlaceSet: false,
+        homeWeatherOn: true,
+        state: 'no-place',
+      })
+    })
+
+    test('a home place counts only with its weather switch on', async () => {
+      const user = await newUser()
+      await goalFor(user)
+      await ctx.prisma.athleteProfile.create({
+        data: { userId: user.id, homeLat: 40.1, homeLng: -105.2, useHomeWeather: false },
+      })
+      expect((await viewOf(user)).raceHeat).toMatchObject({
+        using: null,
+        homePlaceSet: true,
+        homeWeatherOn: false,
+        state: 'no-place',
+      })
+      await ctx.prisma.athleteProfile.update({
+        where: { userId: user.id },
+        data: { useHomeWeather: true },
+      })
+      expect((await viewOf(user)).raceHeat).toMatchObject({ using: 'home', state: 'unread' })
+    })
+
+    test('a race place not yet read is unread, and a cached climate makes it known', async () => {
+      const user = await newUser()
+      const goal = await goalFor(user, { place: true })
+      expect((await viewOf(user)).raceHeat).toMatchObject({
+        using: 'race',
+        racePlaceSet: true,
+        state: 'unread',
+      })
+      const key = climateKeyFor(goal, { lat: null, lng: null, use: false })
+      if (key === null) throw new Error('the goal has no place')
+      await ctx.prisma.climateCache.create({
+        data: { ...key, wbgtC: 21.5, samples: 10, yearsRead: 3, complete: true },
+      })
+      expect((await viewOf(user)).raceHeat).toMatchObject({ using: 'race', state: 'known' })
+    })
+
+    test('no goal, a goal the race plan does not cover and a race in the past give no row', async () => {
+      const none = await newUser()
+      expect((await viewOf(none)).raceHeat).toBeNull()
+      const short = await newUser()
+      await goalFor(short, { distanceM: 5_000 })
+      expect((await viewOf(short)).raceHeat).toBeNull()
+      const past = await newUser()
+      await goalFor(past, { daysAhead: -3 })
+      expect((await viewOf(past)).raceHeat).toBeNull()
+    })
   })
 
   test('the tag follows the data version: the same tag is a 304, a write changes it', async () => {

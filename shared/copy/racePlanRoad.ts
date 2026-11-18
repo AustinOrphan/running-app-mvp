@@ -19,7 +19,12 @@
 // written again; the ultra "few hours" label is not (it is false for a road race).
 import { eahText, fluidLine } from '../engine/fuelCopy.ts'
 import { signedMinutes } from '../engine/predict.ts'
-import type { RoadRacePlan, RoadRacePlanSummary, RoadRaceNotice } from '../engine/racePlanRoad.ts'
+import type {
+  RoadHeat,
+  RoadRacePlan,
+  RoadRacePlanSummary,
+  RoadRaceNotice,
+} from '../engine/racePlanRoad.ts'
 import { P } from '../engine/params/index.ts'
 import type { Units } from '../types.ts'
 import {
@@ -31,6 +36,7 @@ import {
   type RaceFuelText,
   type RaceWeekText,
 } from './racePlan.ts'
+import { raceHeatSentences, raceHeatText } from './raceHeat.ts'
 import { render, tpl, type SlotSpec, type SlotValues, type Template } from './template.ts'
 import { raceEstimateSlots } from './today.ts'
 
@@ -239,7 +245,11 @@ export interface RoadRacePlanText {
 }
 
 /** A notice this build has no words for (a newer server's) is dropped by the caller, never shown blank. */
-function noticeText(notice: RoadRaceNotice, units: Units): RoadNoticeText | null {
+function noticeText(
+  notice: RoadRaceNotice,
+  units: Units,
+  heat: Pick<RoadHeat, 'state'>,
+): RoadNoticeText | null {
   switch (notice) {
     case 'no-prediction':
       return {
@@ -253,12 +263,15 @@ function noticeText(notice: RoadRaceNotice, units: Units): RoadNoticeText | null
         link: say(U['race.plan.firm.link-start-time'], {}, units),
         to: 'goals',
       }
-    case 'no-climate':
+    case 'no-climate': {
+      const state = heat.state === 'known' ? undefined : heat.state
       return {
-        text: say(U['race.plan.notice.no-climate'], {}, units),
-        link: say(U['race.plan.firm.link-climate'], {}, units),
-        to: 'goals',
+        text: raceHeatSentences(state).join(' '),
+        // A place already set leaves nothing for the runner to add.
+        link: state === 'unread' ? null : raceHeatText('race-heat.link.race'),
+        to: state === 'unread' ? null : 'goals',
       }
+    }
     case 'no-cs':
       return { text: say(T['race.plan.road.notice.no-cs'], {}, units), link: null, to: null }
     case 'cs-dated':
@@ -529,7 +542,7 @@ export function describeRoadRacePlan(plan: RoadRacePlan, units: Units): RoadRace
     firmHeading: say(U['race.plan.firm.heading'], {}, units),
     aboutRanges: say(U['race.plan.firm.about'], {}, units),
     notices: plan.notices
-      .map((notice) => noticeText(notice, units))
+      .map((notice) => noticeText(notice, units, plan.heat))
       .filter((notice): notice is RoadNoticeText => notice !== null),
     expected: expectedText(plan, units),
     pace: paceText(plan, units),

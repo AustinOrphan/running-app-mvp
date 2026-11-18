@@ -5,6 +5,7 @@
 // requests on one version fit the model once. No other history or plan query runs: the one read
 // beyond the snapshot is the stored assessments of the week a decision is about, which sit on the
 // session rows and are not part of the snapshot.
+import { raceHeatPlaces } from '../../shared/domain/raceHeat.ts'
 import { weeklyDecision } from '../../shared/engine/adapt.ts'
 import {
   explainInputs,
@@ -164,6 +165,23 @@ export async function explainView(
       const race =
         needs.race && goal !== null ? await goalModelFor(context, goal.id, { climate: true }) : null
 
+      // Why the race heat may be unknown (RH1), from the same cached climate as `race`.
+      const raceGoal = race === null ? undefined : context.goals.find((g) => g.id === goal?.id)
+      const raceHeat =
+        race === null || raceGoal === undefined
+          ? null
+          : raceHeatPlaces({
+              goal: raceGoal,
+              model: race,
+              home: {
+                lat: context.profile.homeLat,
+                lng: context.profile.homeLng,
+                use: context.profile.useHomeWeather,
+              },
+              climateKnown: race.raceWbgtC !== null,
+              today,
+            })
+
       // The state of the logs, the setup and the plan's weeks, with the readiness read of today.
       const strength =
         requested ?? (needs.strength ? await loadStrengthContext(deps, { userId, today }) : null)
@@ -174,6 +192,7 @@ export async function explainView(
         decision,
         prediction,
         race,
+        raceHeat,
         planInput,
         strength,
       })
