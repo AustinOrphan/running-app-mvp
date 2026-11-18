@@ -15,7 +15,11 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import Database from 'better-sqlite3'
 import { afterEach, beforeEach, describe, expect, test } from 'vitest'
-import { createBackup, integrityProblems } from '../../../server/services/backup.ts'
+import {
+  createBackup,
+  integrityProblems,
+  prunePreRestoreBackups,
+} from '../../../server/services/backup.ts'
 import { restoreDatabase } from '../../../server/services/restore.ts'
 
 let dir: string
@@ -75,6 +79,32 @@ describe('restoreDatabase', () => {
     expect(labelOf(backup)).toBe('older')
     expect(result.keptAsIs).toBe(false)
     expect(readdirSync(dir).filter((name) => name.startsWith('app.db'))).toEqual(['app.db'])
+  })
+
+  test('a prune long after the restore still keeps the copy just made (newest-3 floor)', async () => {
+    makeDatabase(target, 'current')
+    const backup = await backupOf('older')
+    const old = ['20250101', '20250102', '20250103', '20250104']
+    mkdirSync(join(dir, 'backups'), { recursive: true })
+    for (const day of old) writeFileSync(join(dir, 'backups', `pre-restore-${day}T000000Z.db`), 'x')
+
+    const result = await restoreDatabase(backup, target, { now: NOW })
+    // 400 days on, the copy just made is itself far past the cutoff; only the newest-3 floor saves it.
+    const later = new Date(NOW.getTime() + 400 * 86_400_000)
+    const { removed } = prunePreRestoreBackups(join(dir, 'backups'), later)
+
+    expect(removed).toEqual(['pre-restore-20250102T000000Z.db', 'pre-restore-20250101T000000Z.db'])
+    expect(
+      readdirSync(join(dir, 'backups'))
+        .filter((n) => n.startsWith('pre-restore-'))
+        .sort(),
+    ).toEqual([
+      'pre-restore-20250103T000000Z.db',
+      'pre-restore-20250104T000000Z.db',
+      'pre-restore-20261101T091500Z.db',
+    ])
+    // The rollback still restores what was replaced.
+    expect(labelOf(result.keptAs ?? '')).toBe('current')
   })
 
   /** The server: a connection in WAL mode that stays open and idle after a read. */
