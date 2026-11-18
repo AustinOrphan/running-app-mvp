@@ -3,6 +3,7 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, test, vi } from 'vitest'
+import { describeEstimate } from '../../shared/copy/raceEstimate.ts'
 import {
   describeRacePlan,
   describeRacePoints,
@@ -118,6 +119,18 @@ describe('RacePage', () => {
     // the time is one figure, and what is missing sits in one "How firm is this" list with its links
     expect(screen.getByText(text.expected.figure)).toBeInTheDocument()
     expect(screen.getByText(text.expected.source)).toBeInTheDocument()
+    // the same words the other surfaces use for the estimate (PF1)
+    const shared = describeEstimate(
+      {
+        // the raw prediction `planWith` feeds the engine, not the plan's own rounded ends
+        lowSec: 27 * HOUR,
+        highSec: 37 * HOUR,
+        predictedSec: 31 * HOUR,
+      },
+      'km',
+    )
+    expect(text.expected.figure).toBe(shared.figure)
+    if (plan.expected.basis === 'prediction') expect(text.expected.source).toBe(shared.summary)
     expect(text.notices).toHaveLength(3)
     for (const notice of text.notices) {
       const item = screen.getByText(notice.text).closest('li')
