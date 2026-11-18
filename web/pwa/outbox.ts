@@ -12,7 +12,8 @@
 //   where the PUT itself merges (a check-in keeps the keys it does not mention), replaced where it
 //   replaces. The entry keeps its place in the queue.
 // - Entries are sent oldest first, one run at a time. A run stops at the first entry that cannot
-//   be sent now (no connection, a 5xx, a 408 or 429) and leaves everything queued.
+//   be sent now (no connection, a 5xx, a 408 or 429, or the 403 `auth.password-change-required`
+//   of an account on a temporary password) and leaves everything queued.
 // - A 4xx (any other) drops the entry with one message. A 401 clears the whole queue, and so does
 //   sign-out and a new sign-in: the queue holds health data (ADR 0012). An entry older than 7 days
 //   is dropped.
@@ -770,6 +771,9 @@ export async function sendEntry(entry: OutboxEntry, signal?: AbortSignal): Promi
     if (!(error instanceof ApiError)) return { kind: 'retry' }
     const { status } = error
     if (status === 401) return { kind: 'unauthorized' }
+    // A temporary password is still in force (PW1): the write is fine and the account is not ready
+    // for it, so it stays queued and goes out once the password is changed.
+    if (status === 403 && error.code === 'auth.password-change-required') return { kind: 'retry' }
     if (status === 0 || status >= 500 || status === 408 || status === 429) return { kind: 'retry' }
     // Only "this session already has a run" is a conflict in the sense the page words alone: any
     // other 409 (a session whose kind no longer fits the run) is refused like a 400.
