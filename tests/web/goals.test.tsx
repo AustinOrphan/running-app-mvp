@@ -624,7 +624,7 @@ describe('Goals page', () => {
       ),
     ).toBeInTheDocument()
     expect(
-      within(card).getByText(/^It rests on your best efforts in training since 11 Aug/),
+      within(card).getByText(/^The estimate rests on your best efforts in training since 11 Aug/),
     ).toBeVisible()
     expect(within(card).queryByText('cs-fraction')).toBeNull()
     expect(within(card).queryByText(/32:20:31/)).toBeNull()

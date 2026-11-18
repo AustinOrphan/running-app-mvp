@@ -461,7 +461,7 @@ describe('MyPacesPage: a critical speed from training [A6]', () => {
     const events = await screen.findByRole('region', { name: 'What you can run now' })
     expect(
       within(events).getAllByText(
-        /^It rests on your best efforts in training since 11 Aug, not on races\. A short test would likely show faster\./,
+        /^The estimate rests on your best efforts in training since 11 Aug, not on races\. A short test would likely show faster\./,
       ),
     ).toHaveLength(1)
     expect(within(events).getByRole('link', { name: 'A short test' })).toHaveAttribute(
@@ -505,7 +505,7 @@ describe('MyPacesPage: a critical speed that needed efforts older than three mon
     const events = await screen.findByRole('region', { name: 'What you can run now' })
     expect(
       within(events).getAllByText(
-        /^From your best efforts in training since 1 Jun, some older than three months\./,
+        /^The estimate is from your best efforts in training since 1 Jun, some older than three months\./,
       ),
     ).toHaveLength(1)
     const half = within(events).getByRole('article', { name: 'Half marathon' })

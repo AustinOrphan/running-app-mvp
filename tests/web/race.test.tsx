@@ -122,11 +122,10 @@ describe('RacePage', () => {
     // the same words the other surfaces use for the estimate (PF1)
     const shared = describeEstimate(
       {
-        lowSec: plan.expected.lowSec,
-        highSec: plan.expected.highSec,
-        predictedSec: plan.expected.midSec,
-        trainingSince: plan.expected.trainingSince,
-        trainingWidened: plan.expected.trainingWidened,
+        // the raw prediction `planWith` feeds the engine, not the plan's own rounded ends
+        lowSec: 27 * HOUR,
+        highSec: 37 * HOUR,
+        predictedSec: 31 * HOUR,
       },
       'km',
     )

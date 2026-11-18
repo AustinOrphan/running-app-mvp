@@ -22,7 +22,7 @@ export const METHOD_WORDS: Readonly<Record<string, string>> = {
 }
 
 /** "a", "a and b", "a, b and c". */
-function joinWords(words: readonly string[]): string {
+export function joinWords(words: readonly string[]): string {
   if (words.length <= 1) return words.join('')
   return `${words.slice(0, -1).join(', ')} and ${words[words.length - 1]!}`
 }
@@ -57,15 +57,18 @@ export const RACE_ESTIMATE_TEMPLATES = {
     { low: 'duration', high: 'duration' },
     { shape: 'label' },
   ),
+  'race-estimate.round': tpl(
+    'Times are rounded to the minute (to ten minutes from six hours), and the range outward.',
+  ),
   'race-estimate.label.likely': tpl('Time', {}, { shape: 'label' }),
   'race-estimate.label.at-most': tpl('Time, at most', {}, { shape: 'label' }),
   'race-estimate.label.widened': tpl('Time, from training', {}, { shape: 'label' }),
   'race-estimate.basis.at-most': tpl(
-    'It rests on your best efforts in training since {date}, not on races. A short test would likely show faster.',
+    'The estimate rests on your best efforts in training since {date}, not on races. A short test would likely show faster.',
     { date: 'date' },
   ),
   'race-estimate.basis.widened': tpl(
-    'From your best efforts in training since {date}, some older than three months. Fitness may have changed since. A short test narrows it.',
+    'The estimate is from your best efforts in training since {date}, some older than three months. Fitness may have changed since. A short test narrows it.',
     { date: 'date' },
   ),
 } satisfies Record<string, Template>

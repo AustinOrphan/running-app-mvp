@@ -4,6 +4,7 @@
 import { describe, expect, it } from 'vitest'
 import { lintText } from '../../../shared/copy/lint.ts'
 import { RACE_CARB_ROUND_G } from '../../../shared/copy/limits.ts'
+import { describeEstimate } from '../../../shared/copy/raceEstimate.ts'
 import {
   clockRangeText,
   clockText,
@@ -352,8 +353,23 @@ describe('figures that restate a Param come from the Param', () => {
     )
   })
 
-  it('says the rounding step from r1.arrivalRoundMin', () => {
-    expect(base.expected.notes.join(' ')).toContain(`${String(P.r1.arrivalRoundMin.value)} min`)
+  it('says the rounding of the shown times, the same on every plan', () => {
+    expect(base.expected.notes.join(' ')).toContain(
+      'Times are rounded to the minute (to ten minutes from six hours), and the range outward.',
+    )
+  })
+
+  it('words a sub-6 h estimate from the raw prediction, as Today and Goals do (PF1)', () => {
+    // 4:57:10 to 5:32:20 raw; the clock window still rounds to r1.arrivalRoundMin (4:50 to 5:40).
+    const raw = { predictedSec: 18_900, lowSec: 17_830, highSec: 19_940 }
+    const plan = racePlanFor(input({ prediction: raw }))
+    const text = describeRacePlan(plan, 'km').expected
+    const sentence = 'Finish estimate 4 h 57 min to 5 h 33 min, most likely about 5 h 15 min.'
+    expect(text.source).toBe(sentence)
+    expect(text.figure).toBe('5 h 15 min')
+    expect(describeEstimate(raw, 'km').summary).toBe(sentence)
+    expect(plan.expected.lowSec).toBe(17_400)
+    expect(plan.expected.highSec).toBe(20_400)
   })
 
   it('says a prediction from training rests on training efforts that were not races (A6)', () => {
@@ -394,7 +410,7 @@ describe('figures that restate a Param come from the Param', () => {
     expect(expected.source).not.toMatch(/At most/)
     expect(expected.source).toMatch(/^Finish estimate .+, most likely about /)
     expect(notes).toMatch(
-      /From your best efforts in training since 1 Jun, some older than three months/,
+      /The estimate is from your best efforts in training since 1 Jun, some older than three months/,
     )
     expect(notes).toMatch(/Fitness may have changed since\. A short test narrows it/)
     expect(notes).not.toMatch(/not on races/)

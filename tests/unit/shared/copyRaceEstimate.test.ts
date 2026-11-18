@@ -78,7 +78,7 @@ describe('describeEstimate', () => {
       'At most about 32 h 20 min. Finish estimate 27 h 40 min to 36 h 20 min.',
     )
     expect(text.note).toBe(
-      'It rests on your best efforts in training since 11 Aug, not on races. A short test would likely show faster.',
+      'The estimate rests on your best efforts in training since 11 Aug, not on races. A short test would likely show faster.',
     )
     expect(text.note).not.toMatch(/a race or/i)
     expect(lintText(text.note ?? '')).toEqual([])
@@ -92,7 +92,9 @@ describe('describeEstimate', () => {
     expect(text.basis).toBe('widened')
     expect(text.label).toBe('Time, from training')
     expect(text.summary).not.toMatch(/At most/)
-    expect(text.note).toMatch(/^From your best efforts in training since 1 Jun, some older/)
+    expect(text.note).toMatch(
+      /^The estimate is from your best efforts in training since 1 Jun, some older/,
+    )
     expect(text.note).toMatch(/A short test narrows it\.$/)
   })
 

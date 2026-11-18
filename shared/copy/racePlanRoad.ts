@@ -32,13 +32,10 @@ import {
   type RaceWeekText,
 } from './racePlan.ts'
 import { render, tpl, type SlotSpec, type SlotValues, type Template } from './template.ts'
-import { describeEstimate, type EstimateText } from './raceEstimate.ts'
+import { describeEstimate, RACE_ESTIMATE_TEMPLATES, type EstimateText } from './raceEstimate.ts'
 
 export const RACE_PLAN_ROAD_TEMPLATES = {
   // ---- Expected time ----------------------------------------------------------------------------
-  'race.plan.road.expected.round': tpl(
-    'Times are rounded as the countdown on Today rounds them, and the range is the prediction’s own.',
-  ),
   'race.plan.road.expected.goal': tpl('Goal time {time}, an average of {pace}.', {
     time: 'duration',
     pace: 'pace',
@@ -353,7 +350,7 @@ function expectedText(plan: RoadRacePlan, units: Units): RoadExpectedText {
       ),
     )
   }
-  notes.push(say(T['race.plan.road.expected.round'], {}, units))
+  notes.push(render(RACE_ESTIMATE_TEMPLATES['race-estimate.round'], {}, units))
   return {
     heading: say(U['race.plan.expected.heading'], {}, units),
     figure,

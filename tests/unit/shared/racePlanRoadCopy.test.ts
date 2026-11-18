@@ -325,7 +325,7 @@ describe('the expected time', () => {
     expect(expected.goal).toMatch(/^Goal time 3 h 45 min, an average of \d+:\d\d \/km\.$/)
     expect(expected.source).toMatch(/^Finish estimate .+ to .+, most likely about /)
     expect(expected.clock).toMatch(/^Start 08:00\. Finish about /)
-    expect(expected.notes.join(' ')).toContain('as the countdown on Today rounds them')
+    expect(expected.notes.join(' ')).toContain('and the range outward')
   })
 
   it('says the goal is the time when there is no prediction', () => {

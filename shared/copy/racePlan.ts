@@ -43,7 +43,7 @@ import { HOW_TO_READ } from './runCharts.ts'
 import { RACE_CARB_ROUND_G } from './limits.ts'
 import { milesToM } from '../units.ts'
 import { render, tpl, type SlotSpec, type SlotValues, type Template } from './template.ts'
-import { describeEstimate } from './raceEstimate.ts'
+import { describeEstimate, RACE_ESTIMATE_TEMPLATES } from './raceEstimate.ts'
 import { TODAY_TEMPLATES } from './today.ts'
 
 export const RACE_PLAN_TEMPLATES = {
@@ -116,9 +116,6 @@ export const RACE_PLAN_TEMPLATES = {
     'Your climbing counts {faster} of the gap to the default when it is faster, {slower} when slower, and moves the time by at most {max} (L5).',
     { faster: 'percent', slower: 'percent', max: 'percent' },
   ),
-  'race.plan.expected.round': tpl('Times are rounded to {step}, and the range outward.', {
-    step: 'minutes',
-  }),
 
   // ---- Notices: what is missing, in a line each --------------------------------------------------
   'race.plan.notice.no-prediction': tpl(
@@ -1043,8 +1040,8 @@ function expectedText(plan: RacePlan, units: Units): RaceExpectedText {
   const notes: string[] = []
   const estimate = describeEstimate(
     {
-      lowSec: expected.lowSec,
-      highSec: expected.highSec,
+      lowSec: expected.rawLowSec,
+      highSec: expected.rawHighSec,
       predictedSec: expected.midSec,
       trainingSince: expected.trainingSince,
       trainingWidened: expected.trainingWidened,
@@ -1098,9 +1095,7 @@ function expectedText(plan: RacePlan, units: Units): RaceExpectedText {
       ),
     )
   }
-  notes.push(
-    say(T['race.plan.expected.round'], { step: minutes(P.r1.arrivalRoundMin.value) }, units),
-  )
+  notes.push(render(RACE_ESTIMATE_TEMPLATES['race-estimate.round'], {}, units))
   return { heading: say(T['race.plan.expected.heading'], {}, units), figure, source, clock, notes }
 }
 

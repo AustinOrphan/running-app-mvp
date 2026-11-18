@@ -397,7 +397,7 @@ describe('Today: the race countdown', () => {
     ).toBeInTheDocument()
     expect(
       within(race).getByText(
-        /^It rests on your best efforts in training since 11 Aug, not on races\./,
+        /^The estimate rests on your best efforts in training since 11 Aug, not on races\./,
       ),
     ).toBeInTheDocument()
     expect(within(race).queryByText(/most likely/)).not.toBeInTheDocument()
@@ -429,7 +429,7 @@ describe('Today: the race countdown', () => {
     ).toBeInTheDocument()
     expect(
       within(race).getByText(
-        /^From your best efforts in training since 1 Jun, some older than three months\. Fitness may have changed since/,
+        /^The estimate is from your best efforts in training since 1 Jun, some older than three months\. Fitness may have changed since/,
       ),
     ).toBeInTheDocument()
     expect(within(race).queryByText(/At most/)).not.toBeInTheDocument()
