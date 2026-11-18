@@ -5,6 +5,7 @@ import { PARQ_PLUS_URL, PLAN_NOTICE_VERSION } from '../../shared/domain/planNoti
 import type { Goal, PlanNoticeView, UserSettings } from '../../shared/types.ts'
 import { PlanPage } from '../../web/pages/PlanPage.tsx'
 import { makeProfile } from './plan-fixtures.ts'
+import { makeToday } from './today-fixtures.ts'
 import { expectCleanCopy, mockApi, renderWithProviders, type MockRoutes } from './helpers.tsx'
 
 const settings: UserSettings = {
@@ -58,6 +59,8 @@ function planRoutes(notice: () => PlanNoticeView, extra: MockRoutes = {}): MockR
     'GET /api/settings': () => settings,
     'GET /api/profile': () => makeProfile(),
     'GET /api/weeks': () => [],
+    // Read with no plan, for the first step (FH1a); the payload carries none here.
+    'GET /api/today': () => makeToday(),
     'GET /api/plan-notice': notice,
     ...extra,
   }

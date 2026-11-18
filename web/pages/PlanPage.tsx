@@ -39,6 +39,7 @@ import type { PlanRevisionView } from '../../shared/types.ts'
 import { Button } from '../components/Button.tsx'
 import { useOnline } from '../components/useOnline.ts'
 import { EmptyPreview, EmptyState } from '../components/EmptyState.tsx'
+import { FirstActionLine, firstActionTitle } from '../components/FirstAction.tsx'
 import { PlanNotice } from '../components/PlanNotice.tsx'
 import { usePlanNotice } from '../api/planNotice.ts'
 import { Field, Input, Select, Textarea } from '../components/Field.tsx'
@@ -1690,15 +1691,18 @@ export function PlanPage() {
   // Only a plan that has sessions has revisions with a diff to show.
   const revisions = usePlanRevisions({ enabled: (plan.data?.generatorVersion ?? 1) >= 2 })
   // The server's day is asked for only when an update could be worth a strip.
+  // A runner with no plan reads it for the first step too (FH1a), the one answer Today shows.
   const serverToday = useToday({
-    enabled: (revisions.data ?? []).some(
-      (revision) =>
-        revision.reason === 'weekly' &&
-        revision.auto &&
-        revision.undo.undoneAt === null &&
-        revision.diff !== null &&
-        !revision.diff.empty,
-    ),
+    enabled:
+      plan.data === null ||
+      (revisions.data ?? []).some(
+        (revision) =>
+          revision.reason === 'weekly' &&
+          revision.auto &&
+          revision.undo.undoneAt === null &&
+          revision.diff !== null &&
+          !revision.diff.empty,
+      ),
   }).data
   const update = latestUpdate(revisions.data, serverToday)
   const changedSessions = new Set(
@@ -1732,6 +1736,7 @@ export function PlanPage() {
   }
 
   const eligible = planGoals(goals.data)
+  const firstAction = serverToday?.coach.firstAction
 
   if (plan.data === null) {
     return (
@@ -1750,7 +1755,8 @@ export function PlanPage() {
           />
         ) : (
           <>
-            <EmptyState title="No plan yet. Choose a goal race, then generate weekly targets." />
+            <EmptyState title={firstActionTitle(firstAction, units ?? 'mi')} />
+            <FirstActionLine firstAction={firstAction} units={units ?? 'mi'} />
             {notice.data?.required === true ? (
               <PlanNotice notice={notice.data} />
             ) : (

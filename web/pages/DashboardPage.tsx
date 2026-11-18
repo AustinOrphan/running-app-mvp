@@ -239,6 +239,8 @@ export function DashboardPage() {
       hasPlan={planned}
       weekInPlan={coach.weekStrip?.targetRunMin != null}
       hasGoal={coach.race !== null}
+      firstAction={coach.firstAction}
+      units={units}
     />
   )
   const feedbackBlock = (

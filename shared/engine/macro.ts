@@ -704,6 +704,19 @@ export function startPath(input: EngineInput, state: AthleteState): StartPath | 
   return ref >= sessionMin - EPS && floorFits ? floor(sessionMin) : ladder(ladderEntry(ref, bound))
 }
 
+/**
+ * The start path a plan draws fresh, when it carries none on: `startPath`, except under a
+ * progression hold for a runner with a typical week, who keeps that week and draws no new start.
+ * The one place the condition is written; `generate` and `firstActionFor` both call it.
+ */
+export function freshStartFor(
+  input: EngineInput,
+  state: AthleteState,
+  hold: boolean = progressionHold(input, state),
+): StartPath | null {
+  return hold && state.typicalWeekMin > 0 ? null : startPath(input, state)
+}
+
 /** A start path as the macrocycle runs it: the step, the BMI hold left and whether it repeats. */
 interface StartPlan {
   kind: StartKind
@@ -1130,8 +1143,7 @@ function planWeeks(
   // repeats. A new start path is chosen under a hold only for a runner with no weekly running,
   // who would otherwise start from the start floor week; a runner with a typical week keeps it.
   const carried = startContinuation(input, firstMonday, hold)
-  const fresh =
-    carried !== null || (hold && state.typicalWeekMin > 0) ? null : startPath(input, state)
+  const fresh = carried !== null ? null : freshStartFor(input, state, hold)
   // The floor week the plan opened on stays on the floor when the start level has since ended the
   // start path (`floorContinuation`).
   const lapsed =
