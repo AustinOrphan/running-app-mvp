@@ -5,6 +5,8 @@ import { getProvider } from '../providers/registry.ts'
 import { ProviderAuthError, ProviderHttpError, RateLimitPause } from '../providers/types.ts'
 import { loadProfile } from '../serialize.ts'
 import { trackRow } from './activityStore.ts'
+import type { StartPassChunk } from './startPass.ts'
+import { queueSurfaceFill } from './surfaceFill.ts'
 import { isSyncing, openIntegration, providerContext } from './sync.ts'
 import { safeMessage, secretValues } from './syncLog.ts'
 import { parseActivityFile } from '../../shared/importers/files/index.ts'
@@ -15,7 +17,8 @@ import type { ParsedActivity } from '../../shared/types.ts'
 export const TRACK_FILE_BATCH = 20
 /**
  * intervals.icu stream requests per user per call. With the 5-minute tick that is one request a
- * minute, far under the provider's limits, and 76 runs take 16 ticks (80 minutes).
+ * minute, far under the provider's limits, and 76 runs take 16 ticks (80 minutes). The tick is the
+ * stream part's only trigger until the sync tail replaces it (the polls-to-events plan, PR C).
  */
 export const TRACK_STREAM_BATCH = 5
 
@@ -60,11 +63,15 @@ function isAuthBlocked(integration: { id: string; updatedAt: Date }, now: Date):
   )
 }
 
-/** A run that may have a track: a run or race, not on a treadmill, not looked at yet. */
-function waiting(userId: string) {
+/**
+ * A run that may have a track: a run or race, not on a treadmill, not looked at yet. With `ids`,
+ * only those activities.
+ */
+function waiting(userId: string, ids?: readonly string[]) {
   return {
     userId,
     trackV: null,
+    ...(ids === undefined ? {} : { id: { in: [...ids] } }),
     type: { in: RUN_TYPES },
     // `not` alone would leave out a null subtype.
     AND: [{ OR: [{ subtype: null }, { subtype: { not: 'treadmill' } }] }],
@@ -89,7 +96,8 @@ function sessionFor(
  * write) is never selected again, and `trackV` is written with `updatedAt` held, so the pass does
  * not make the explain cards stale.
  *
- * 1. Runs with a stored original (`ActivityFile`): the file is parsed again, no network.
+ * 1. Runs with a stored original (`ActivityFile`): the file is parsed again, no network. Run by the
+ *    start pass (`trackChunkFor`) and by a type edit (`activityIds`), never by a timer (ADR 0026).
  * 2. Pulled intervals.icu runs with no original: one `latlng,distance` stream request each, newest
  *    first, `TRACK_STREAM_BATCH` per call, only while the integration is connected, not paused and
  *    not syncing. A 429 stops the part and sets the integration's `pausedUntil` as the sync does; a
@@ -106,10 +114,21 @@ function sessionFor(
 export async function backfillTracks(
   deps: Deps,
   userId: string,
-  opts: { fileLimit?: number; streamLimit?: number; now?: Date } = {},
+  opts: {
+    fileLimit?: number
+    streamLimit?: number
+    now?: Date
+    /** Only these activities (the type edit). */
+    activityIds?: readonly string[]
+    /** Which parts run (both when omitted). `remaining` counts only the parts that ran. */
+    parts?: { files?: boolean; streams?: boolean }
+  } = {},
 ): Promise<TrackBackfillResult> {
   const { prisma } = deps
   const now = opts.now ?? new Date()
+  const doFiles = opts.parts?.files ?? true
+  const doStreams = opts.parts?.streams ?? true
+  const waitingRuns = waiting(userId, opts.activityIds)
   const result: TrackBackfillResult = {
     filled: 0,
     withoutPositions: 0,
@@ -153,18 +172,20 @@ export async function backfillTracks(
   }
 
   // Part 1: stored originals.
-  const withFile = await prisma.activity.findMany({
-    where: { ...waiting(userId), file: { isNot: null } },
-    select: {
-      id: true,
-      providerKey: true,
-      startUtc: true,
-      updatedAt: true,
-      file: { select: { fileName: true, format: true, gz: true } },
-    },
-    orderBy: [{ date: 'desc' }, { id: 'asc' }],
-    take: opts.fileLimit ?? TRACK_FILE_BATCH,
-  })
+  const withFile = doFiles
+    ? await prisma.activity.findMany({
+        where: { ...waitingRuns, file: { isNot: null } },
+        select: {
+          id: true,
+          providerKey: true,
+          startUtc: true,
+          updatedAt: true,
+          file: { select: { fileName: true, format: true, gz: true } },
+        },
+        orderBy: [{ date: 'desc' }, { id: 'asc' }],
+        take: opts.fileLimit ?? TRACK_FILE_BATCH,
+      })
+    : []
   if (withFile.length > 0) {
     const { timezone } = await loadProfile(prisma, userId)
     for (const row of withFile) {
@@ -184,12 +205,14 @@ export async function backfillTracks(
   }
 
   // Part 2: pulled intervals.icu runs with no original.
-  const integration = await prisma.integration.findUnique({
-    where: { userId_provider: { userId, provider: PROVIDER } },
-  })
+  const integration = doStreams
+    ? await prisma.integration.findUnique({
+        where: { userId_provider: { userId, provider: PROVIDER } },
+      })
+    : null
   const pull = getProvider(PROVIDER).pull
   const streamWhere = {
-    ...waiting(userId),
+    ...waitingRuns,
     file: { is: null },
     providerKey: { startsWith: `${PROVIDER}:` },
   }
@@ -280,14 +303,34 @@ export async function backfillTracks(
 
   result.remaining = await prisma.activity.count({
     where: {
-      ...waiting(userId),
+      ...waitingRuns,
       OR: [
-        { file: { isNot: null } },
-        ...(integration && pull?.fetchRoute
+        ...(doFiles ? [{ file: { isNot: null } }] : []),
+        ...(doStreams && integration && pull?.fetchRoute
           ? [{ file: { is: null }, providerKey: { startsWith: `${PROVIDER}:` } }]
           : []),
       ],
     },
   })
+  // A track filled means shares may be owed (ADR 0026): the matcher reads the stored track.
+  if (result.filled > 0) void queueSurfaceFill(deps, userId)
   return result
+}
+
+/**
+ * The start pass's batch for one user (ADR 0026): the stored originals only, no request. A batch
+ * of treadmill files writes no track but does settle its runs, so `filled` counts every run settled
+ * (a track written, or none to write, which includes an unreadable file: it is settled as having
+ * no positions and also listed in `unreadable`); without that the drain would stop at the
+ * first batch with no positions in it.
+ */
+export function trackChunkFor(deps: Deps): (userId: string) => () => Promise<StartPassChunk> {
+  return (userId) => async () => {
+    const result = await backfillTracks(deps, userId, { parts: { files: true, streams: false } })
+    return {
+      filled: result.filled + result.withoutPositions,
+      unreadable: result.unreadable,
+      remaining: result.remaining,
+    }
+  }
 }

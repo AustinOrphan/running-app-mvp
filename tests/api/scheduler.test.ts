@@ -1173,6 +1173,36 @@ describe('the scheduler runs the publisher', () => {
     stop()
   })
 
+  test('a runner whose run throws inside the job slows the next look to a minute', async () => {
+    const { stop } = await start('publish-sched-floor-runner@example.com', MIDMORNING)
+    // the channel list succeeds; the due check of the one runner rejects, once
+    const real = ctx.prisma.integration.findUnique.bind(ctx.prisma.integration)
+    let rejected = false
+    const spy = vi.spyOn(ctx.prisma.integration, 'findUnique').mockImplementation(((
+      args: never,
+    ) => {
+      // only the first due check of the publisher; other jobs read this table too
+      if (!rejected && new Error().stack?.includes('isPublishDue')) {
+        rejected = true
+        return Promise.reject(new Error('database is locked'))
+      }
+      return real(args)
+    }) as never)
+    await vi.advanceTimersByTimeAsync(31_000)
+    await vi.waitFor(() => {
+      expect(rejected).toBe(true)
+    })
+    expect(reads()).toBe(0)
+    await vi.advanceTimersByTimeAsync(50_000)
+    expect(reads()).toBe(0)
+    await vi.advanceTimersByTimeAsync(15_000)
+    await vi.waitFor(() => {
+      expect(reads()).toBe(1)
+    })
+    spy.mockRestore()
+    stop()
+  })
+
   test('no scheduler, no runs: writes in an API test never start the publisher', async () => {
     const seeded = await seedRunner(ctx, 'publish-sched-none@example.com', wednesday)
     await connectIntervals(ctx, seeded.u.id)

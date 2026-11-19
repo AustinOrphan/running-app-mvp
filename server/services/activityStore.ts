@@ -18,6 +18,7 @@ import { render } from '../../shared/copy/template.ts'
 import { TEMPLATES } from '../../shared/copy/templates.ts'
 import { localDateTime, summarize } from '../../shared/importers/files/index.ts'
 import { computeHrQuality } from '../../shared/importers/files/hrQuality.ts'
+import { queueSurfaceFill } from './surfaceFill.ts'
 import { computeTerrainBins, hasTerrainBins } from '../../shared/importers/files/terrainBins.ts'
 import { TRACK_VERSION, buildTrack, hasTrack } from '../../shared/importers/files/track.ts'
 import type { Track } from '../../shared/importers/files/track.ts'
@@ -227,7 +228,7 @@ export async function storeParsed(
     deviceName: parsed.deviceName,
     hrHistogram: summary.hrHistogram ? JSON.stringify(summary.hrHistogram) : null,
     ...(lookedForTrack ? { trackV: TRACK_VERSION } : {}),
-    // A replaced route makes the old trail and road shares wrong; the `surface` job computes them again.
+    // A replaced route makes the old trail and road shares wrong; `queueSurfaceFill` computes them again.
     ...(track ? { surfaceBins: null } : {}),
     decouplingPct: summary.decouplingPct,
     gapDistanceM: roundOrNull(summary.gapDistanceM),
@@ -365,6 +366,10 @@ export async function storeParsed(
     },
     { timeout: WRITE_TIMEOUT_MS },
   )
+
+  // A written track may lie inside the runner's map area (ADR 0026). Fire and forget: the import
+  // channels (sync, folder, upload, ingest) all pass through here.
+  if (track && stored.outcome !== 'duplicate') void queueSurfaceFill(deps, userId)
 
   // A stored activity may fulfil a planned session. The activity is already saved, so a failure
   // here is logged and never fails the import; the nightly sweep tries again.

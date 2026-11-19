@@ -197,7 +197,12 @@ protection reads. The Docker image must still build (`docker build .`) after a c
   95 % nearest their median, cut to about 40 x 40 km); no run or route is sent, and one download runs at a
   time per runner. The answer is stored as `MapWay` rows (a class from `classifyWay`,
   `shared/domain/surface.ts`, and a 3 m simplified polyline) plus one `MapArea` row, both non-state. The
-  `surface` job (`backfillSurfaceBins`, every 5 minutes, 20 runs per user per tick) matches each stored
+  shares are computed by `queueSurfaceFill` (`server/services/surfaceFill.ts`, ADR 0026), fire and forget,
+  one drain per user at a time (a call during a drain makes it go round once more), called after a download,
+  after `storeParsed` or the track backfill wrote a track, and after a type edit (`refreshDerivedAfterEdit`),
+  plus a start pass after each start that applies a `SURFACE_VERSION` bump; no timer. A drain calls
+  `backfillSurfaceBins` (20 runs per call, the way index built once per drain) and records one `surface`
+  run (trigger `event`), nothing for a runner without an area. It matches each stored
   track to the nearest way within 25 m (`shared/domain/surfaceMatch.ts`) and writes `Activity.surfaceBins`
   with `updatedAt` held; null means not computed, or the run has no track or lies outside the area (such a
   run is never selected). A download or a removal clears every run's bins; a change to the matcher raises
@@ -468,7 +473,10 @@ protection reads. The Docker image must still build (`docker build .`) after a c
   (`shared/importers/files/track.ts`) simplifies it with Douglas-Peucker at 5 m, caps it at 2,000 points and
   encodes a precision-5 polyline with the cumulative metres per kept point; these constants are data
   preparation, not engine Params. `ActivityTrack` (non-state) is written only by `storeParsed` and the `track`
-  backfill (`server/services/trackBackfill.ts`); `Activity.trackV` records that the positions were looked for,
+  backfill (`server/services/trackBackfill.ts`), whose local part (parsing the stored original) runs in the
+  start pass and from `refreshDerivedAfterEdit` after a type or sub-type edit, never on a timer, and whose
+  network part (intervals.icu streams) is still the 5-minute `track` job until the polls-to-events plan
+  (kept outside the repository) moves it to the sync; `Activity.trackV` records that the positions were looked for,
   so a treadmill run or one with none has no row and is not looked for again. A pull provider's positions
   come from `fetchRoute` (intervals.icu `latlng` stream: latitudes in `data`, longitudes in `data2`). The
   stored track is whole; `GET /api/activities/:id/track` cuts the first and last 200 m while

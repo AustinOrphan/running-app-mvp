@@ -17,6 +17,7 @@ import { storeParsed, type StoreOptions } from '../../server/services/activitySt
 import { runExecutionForActivity } from '../../server/services/execution.ts'
 import { scanFolder, scanFolderIntegration } from '../../server/services/folder.ts'
 import { syncProvider } from '../../server/services/sync.ts'
+import { settleSurfaceFill } from '../../server/services/surfaceFill.ts'
 import { publishForUser } from '../../server/services/publish.ts'
 import { backfillWatchRatings } from '../../server/services/watchRatingBackfill.ts'
 import { refreshWeatherCaches, settleWeatherCache } from '../../server/services/weatherCache.ts'
@@ -119,6 +120,7 @@ export async function createTestCtx(
     refusedFetches,
     async close() {
       await settleWeatherCache()
+      await settleSurfaceFill()
       await prisma.$disconnect()
       rmSync(dir, { recursive: true, force: true })
     },
