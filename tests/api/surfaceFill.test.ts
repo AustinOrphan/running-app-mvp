@@ -164,6 +164,39 @@ describe('queueSurfaceFill', () => {
     expect(await jobRuns()).toHaveLength(1)
   })
 
+  test('a run queued while a drain is past its read gets its shares from a second pass', async () => {
+    await addRun(trailRun(), '2026-10-01')
+    await download()
+    await settleSurfaceFill()
+    const second = { id: '' }
+    let queuedDuring = false
+    const racing = {
+      config: ctx.config,
+      prisma: new Proxy(ctx.prisma, {
+        get(target, key, receiver) {
+          if (key === 'mapWay') {
+            return {
+              findMany: async (args: never) => {
+                const rows = await target.mapWay.findMany(args)
+                if (!queuedDuring) {
+                  queuedDuring = true
+                  second.id = await addRun(trailRun(), '2026-10-02')
+                  void queueSurfaceFill(racing, user.id)
+                }
+                return rows
+              },
+            }
+          }
+          return Reflect.get(target, key, receiver) as unknown
+        },
+      }),
+    }
+    await addRun(trailRun(), '2026-10-03')
+    await queueSurfaceFill(racing, user.id)
+    expect(queuedDuring).toBe(true)
+    expect(await binsOf(second.id)).not.toBeNull()
+  })
+
   test('without a map area there is no work and no log entry', async () => {
     await addRun(trailRun())
     await queueSurfaceFill(ctx, user.id)

@@ -61,12 +61,18 @@ export function queueSurfaceFill(deps: SurfaceDeps, userId: string): Promise<voi
   }
   const flight: Flight = { again: false, promise: Promise.resolve() }
   flight.promise = (async () => {
-    do {
-      flight.again = false
-      await drainOnce(deps, userId)
-    } while (flight.again)
+    // The decision to stop and the removal of the flight happen in the same synchronous step, so a
+    // call either sets `again` on a flight that still goes round, or finds no flight and starts one.
+    try {
+      for (;;) {
+        flight.again = false
+        await drainOnce(deps, userId)
+        if (!flight.again) break
+      }
+    } finally {
+      flights.delete(userId)
+    }
   })().finally(() => {
-    flights.delete(userId)
     background.delete(flight.promise)
   })
   flights.set(userId, flight)

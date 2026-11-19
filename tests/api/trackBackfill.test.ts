@@ -472,7 +472,12 @@ describe('the track start pass', () => {
     })
     await pass()
     const [stored] = await jobRuns()
-    expect(stored).toMatchObject({ status: 'partial', trigger: 'catchup', failed: 1 })
+    expect(stored).toMatchObject({
+      status: 'partial',
+      trigger: 'catchup',
+      accepted: 1,
+      failed: 1,
+    })
   })
 })
 
