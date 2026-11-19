@@ -76,7 +76,7 @@ import {
   type AthleteContext,
   type SnapshotDeps,
 } from './athleteState.ts'
-import { rematchDuplicates } from './duplicates.ts'
+import { handMergeSurvivesEdit, rematchDuplicates } from './duplicates.ts'
 import { inputFromContext } from './engineInput.ts'
 import { runExecutionQuietly } from './execution.ts'
 import { assertLinkable, linkPlanSession, ownedSession } from './planEngine.ts'
@@ -326,14 +326,23 @@ async function attemptSave(
   // A new day or a new duration is a new answer to "is this the same session as the import?",
   // except for an app-logged session, whose duration is the plan's and decides no match.
   const fields = activityFields(input, activity)
-  const matchChanged =
+  const matchEdited =
     fields.date !== activity.date || ('durationSec' in fields && !isAppLoggedStrength(activity))
+  // A copy merged by hand stays merged while it is within a day of the record (MM1).
+  const matchChanged =
+    matchEdited &&
+    !(await handMergeSurvivesEdit(prisma, userId, activity, {
+      type: 'strength',
+      date: fields.date,
+    }))
   await prisma.$transaction(async (tx) => {
     await tx.activity.update({
       where: { id: activityId, userId },
       data: {
         ...fields,
-        ...(matchChanged ? { duplicateStatus: 'none', duplicateOfId: null } : {}),
+        ...(matchChanged
+          ? { duplicateStatus: 'none', duplicateOfId: null, mergedByHand: false }
+          : {}),
       },
     })
     if (existing) {

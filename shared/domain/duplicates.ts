@@ -50,7 +50,7 @@ function isStrength(activity: { type?: string }): boolean {
  * The kinds of activity the duplicate pass compares: a run (a race is one) only with a run, a
  * strength session only with a strength session. Cross-training has no rule.
  */
-function comparableKind(activity: Pick<Activity, 'type'>): 'run' | 'strength' | null {
+export function comparableKind(activity: Pick<Activity, 'type'>): 'run' | 'strength' | null {
   if (isRun(activity)) return 'run'
   return isStrength(activity) ? 'strength' : null
 }

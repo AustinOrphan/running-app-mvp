@@ -1,0 +1,55 @@
+.lead {
+  margin: 0 0 var(--space-4);
+  max-width: var(--prose-max);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.list > li {
+  display: flex;
+}
+
+/* A choice is a whole line of words, so it wraps instead of cutting at 390 px. */
+.choice {
+  width: 100%;
+  justify-content: flex-start;
+  height: auto;
+  padding-block: var(--space-3);
+  line-height: var(--lh-base);
+  text-align: left;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+.merged {
+  margin-top: var(--space-3);
+}
+
+.note {
+  margin: var(--space-3) 0 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  max-width: var(--prose-max);
+}
+
+/* A refusal says what happened in words: an ochre edge, the text stays --text. */
+.error {
+  margin: var(--space-3) 0 0;
+  padding-left: var(--space-3);
+  border-left: 3px solid var(--warning);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}

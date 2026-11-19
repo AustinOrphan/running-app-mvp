@@ -102,6 +102,7 @@ model Activity {
   importBatchId   String?
   duplicateOfId   String?
   duplicateStatus String   @default("none") // 'none' | 'possible' | 'confirmed' | 'dismissed'
+  mergedByHand    Boolean  @default(false) // the runner confirmed this copy by hand (MM1): the pass never releases it
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 

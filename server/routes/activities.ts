@@ -16,11 +16,13 @@ import {
 } from '../services/activityStore.ts'
 import {
   moveConfirmedLogs,
+  handMergeSurvivesEdit,
   rematchDuplicates,
   releaseDuplicatesOf,
   repairAfterDelete,
 } from '../services/duplicates.ts'
 import { assessSessionsQuietly, runExecutionQuietly } from '../services/execution.ts'
+import { mergeActivities, mergeCandidates } from '../services/manualMerge.ts'
 import { loadGlyphs } from '../services/glyphs.ts'
 import { standoutView } from '../services/insight.ts'
 import { strengthTypeLockedMessage } from '../../shared/copy/strengthTemplates.ts'
@@ -187,6 +189,8 @@ function attachmentName(stored: string | null, format: string, id: string): stri
 }
 
 const resolveSchema = z.object({ status: z.enum(['confirmed', 'dismissed']) })
+
+const mergeSchema = z.object({ withId: z.string().min(1).max(64) })
 
 function idParam(value: unknown): string {
   return typeof value === 'string' ? value : ''
@@ -382,11 +386,19 @@ export function activitiesRouter(deps: Deps): Router {
     // except for an app-logged one (manual, no start): its duration is the plan's, decides no
     // match, and an edit of it leaves a dismissed or flagged pair as it is.
     const durationMatters = body.type === 'strength' && !isAppLoggedStrength(existing)
-    const matchChanged =
+    const matchEdited =
       body.date !== existing.date ||
       body.distanceM !== existing.distanceM ||
       body.type !== existing.type ||
       (durationMatters && body.durationSec !== existing.durationSec)
+    // A copy the runner merged by hand stays merged through an edit that keeps it the same kind
+    // within a day of the record (MM1).
+    const matchChanged =
+      matchEdited &&
+      !(await handMergeSurvivesEdit(prisma, req.userId, existing, {
+        type: body.type,
+        date: body.date,
+      }))
     await prisma.activity.update({
       where: { id, userId: req.userId },
       data: {
@@ -396,7 +408,9 @@ export function activitiesRouter(deps: Deps): Router {
         // Clearing a rating the run had marks the watch-rating lookup done, so the backfill does not
         // write it back. The form sends null for a run with no rating too, which marks nothing.
         ...(body.rpe === null && existing.rpe !== null ? { watchRpeV: WATCH_RPE_VERSION } : {}),
-        ...(matchChanged ? { duplicateStatus: 'none', duplicateOfId: null } : {}),
+        ...(matchChanged
+          ? { duplicateStatus: 'none', duplicateOfId: null, mergedByHand: false }
+          : {}),
       },
     })
     if (matchChanged) await rematchDuplicates(prisma, req.userId, id)
@@ -435,7 +449,8 @@ export function activitiesRouter(deps: Deps): Router {
     }
     const updated = await prisma.activity.update({
       where: { id, userId: req.userId },
-      data: { duplicateStatus: status },
+      // Any verdict from here replaces a hand-made merge: Separate ends it, and the pass then leaves it.
+      data: { duplicateStatus: status, mergedByHand: false },
     })
     if (status === 'confirmed') {
       const moved: string[] = []
@@ -448,6 +463,25 @@ export function activitiesRouter(deps: Deps): Router {
       })
     }
     res.json(toActivity(updated))
+  })
+
+  // MM1: the entries a manual merge could pair this one with (the picker's rows only).
+  router.get('/:id/merge-candidates', async (req, res) => {
+    res.json(await mergeCandidates(deps, req.userId, idParam(req.params.id)))
+  })
+
+  // MM1: the runner's say-so that two entries are one session. Answers the entry that is not
+  // counted now. Undone by `POST /:id/duplicate` with `dismissed`, which the automatic pass respects.
+  router.post('/:id/merge', async (req, res) => {
+    const { withId } = parse(mergeSchema, req.body)
+    const merged = await mergeActivities(
+      deps,
+      req.userId,
+      idParam(req.params.id),
+      withId,
+      req.runnerDay.today,
+    )
+    res.json(toActivity(merged))
   })
 
   return router
