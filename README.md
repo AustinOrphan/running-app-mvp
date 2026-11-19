@@ -752,6 +752,10 @@ A server that other people use runs a version tag (`v2.1.0`), not `main`. The ve
 in the `version` field of `GET /api/health/deep` and in the start-up log line, so a tester's report
 names the release it came from.
 
+`v1.0.0` marks the July 2025 MVP that the rewrite replaced. Releases of the rewrite start at
+`v2.0.0-beta.1`: a beta is `2.0.0-beta.N`, counts up with each update sent to testers, and `2.0.0`
+follows when the beta ends. `npm run release` accepts the suffix (`SEMVER` in `scripts/release.ts`).
+
 To cut a release, raise `version` in a reviewed change and merge it, then on `main`:
 
 ```sh

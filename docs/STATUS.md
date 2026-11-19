@@ -80,6 +80,9 @@ Answered on 2026-11-14, one item at a time (the owner's answers to D1 to D11 of 
   field), on nights with both values (#739).
 - **D8. Release cadence.** A version tag per tester-facing update, after `docker build` and
   `plan:report` are read; the server runs the tag, not main; a short "what changed" note per tag.
+  Decided 2026-11-18: `v1.0.0` (2025-07-10) stays the original MVP; the rewrite's first tag is
+  `v2.0.0-beta.1` (`package.json` `2.0.0-beta.1`), later betas count up per update, and `2.0.0`
+  follows when the beta ends.
 - **D9. Accessibility scan.** `@axe-core/playwright` as a devDependency, a scan of the main pages in
   e2e, the backlog triaged and then a failure on new violations (#724). A VoiceOver pass is still
   needed for what scanners miss.
