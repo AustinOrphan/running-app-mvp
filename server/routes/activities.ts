@@ -20,6 +20,7 @@ import {
   releaseDuplicatesOf,
 } from '../services/duplicates.ts'
 import { assessSessionsQuietly, runExecutionQuietly } from '../services/execution.ts'
+import { mergeActivities, mergeCandidates } from '../services/manualMerge.ts'
 import { loadGlyphs } from '../services/glyphs.ts'
 import { standoutView } from '../services/insight.ts'
 import { strengthTypeLockedMessage } from '../../shared/copy/strengthTemplates.ts'
@@ -185,6 +186,8 @@ function attachmentName(stored: string | null, format: string, id: string): stri
 }
 
 const resolveSchema = z.object({ status: z.enum(['confirmed', 'dismissed']) })
+
+const mergeSchema = z.object({ withId: z.string().min(1).max(64) })
 
 function idParam(value: unknown): string {
   return typeof value === 'string' ? value : ''
@@ -442,6 +445,25 @@ export function activitiesRouter(deps: Deps): Router {
       })
     }
     res.json(toActivity(updated))
+  })
+
+  // MM1: the entries a manual merge could pair this one with (the picker's rows only).
+  router.get('/:id/merge-candidates', async (req, res) => {
+    res.json(await mergeCandidates(deps, req.userId, idParam(req.params.id)))
+  })
+
+  // MM1: the runner's say-so that two entries are one session. Answers the entry that is not
+  // counted now. Undone by `POST /:id/duplicate` with `dismissed`, which the automatic pass respects.
+  router.post('/:id/merge', async (req, res) => {
+    const { withId } = parse(mergeSchema, req.body)
+    const merged = await mergeActivities(
+      deps,
+      req.userId,
+      idParam(req.params.id),
+      withId,
+      req.runnerDay.today,
+    )
+    res.json(toActivity(merged))
   })
 
   return router

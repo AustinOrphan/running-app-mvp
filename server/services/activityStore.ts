@@ -687,8 +687,8 @@ export async function markActivityAsRace(
  * `pain` and `notes` fill only empty fields; then the race type, and the race result that points at the run. A race result is
  * moved only when the survivor has none of its own (`activityId` is unique).
  */
-async function carryRunnersData(
-  prisma: Deps['prisma'],
+export async function carryRunnersData(
+  prisma: Pick<PrismaClient, 'activity' | 'raceResult'>,
   userId: string,
   fromId: string,
   toId: string,

@@ -9,6 +9,7 @@ import {
 import type { StandoutView } from '../../shared/copy/standoutRender.ts'
 import { ACTIVITY_PAGE_MAX } from '../../shared/limits.ts'
 import { hasTrack } from '../../shared/importers/files/track.ts'
+import type { MergeCandidate } from '../../shared/domain/manualMerge.ts'
 import type {
   Activity,
   ActivityGlyphs,
@@ -294,6 +295,29 @@ export function useResolveDuplicate() {
   return useMutation({
     mutationFn: ({ id, status }: { id: string; status: 'confirmed' | 'dismissed' }) =>
       api<Activity>('POST', `/activities/${encodeURIComponent(id)}/duplicate`, { status }),
+    onSuccess: () => invalidateActivityData(queryClient),
+  })
+}
+
+/**
+ * The entries a manual merge could pair `id` with (`GET /api/activities/:id/merge-candidates`).
+ * Read only while the picker is open (`enabled`).
+ */
+export function useMergeCandidates(id: string, enabled: boolean) {
+  return useQuery({
+    queryKey: [keys.activities, 'merge-candidates', id],
+    enabled,
+    queryFn: () =>
+      api<MergeCandidate[]>('GET', `/activities/${encodeURIComponent(id)}/merge-candidates`),
+  })
+}
+
+/** "Same session as…": `POST /api/activities/:id/merge`; answers the entry that is no longer counted. */
+export function useMergeActivity() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, withId }: { id: string; withId: string }) =>
+      api<Activity>('POST', `/activities/${encodeURIComponent(id)}/merge`, { withId }),
     onSuccess: () => invalidateActivityData(queryClient),
   })
 }
