@@ -2,7 +2,14 @@ import { afterEach, afterAll, beforeAll, beforeEach, describe, expect, test } fr
 import { runTrackJob } from '../../server/jobs/scheduler.ts'
 import { storeParsedToday as storeParsed } from './helpers.ts'
 import { sealSecret } from '../../server/services/sync.ts'
-import { TRACK_MAX_ATTEMPTS, backfillTracks } from '../../server/services/trackBackfill.ts'
+import { refreshDerivedAfterEdit } from '../../server/services/derivedColumns.ts'
+import { runStartPass } from '../../server/services/startPass.ts'
+import {
+  TRACK_FILE_BATCH,
+  TRACK_MAX_ATTEMPTS,
+  backfillTracks,
+  trackChunkFor,
+} from '../../server/services/trackBackfill.ts'
 import { parseActivityFile } from '../../shared/importers/files/index.ts'
 import { fakeFetch } from '../fakeFetch.ts'
 import { buildFit } from '../fixtures/fit/buildFit.ts'
@@ -399,20 +406,62 @@ describe('backfillTracks from intervals.icu streams', () => {
   })
 })
 
-describe('runTrackJob', () => {
+describe('runTrackJob (the stream part only, until the sync tail replaces it)', () => {
   const jobRuns = () =>
     ctx.prisma.syncRun.findMany({
       where: { userId: user.id, channel: 'job', provider: 'track' },
     })
 
-  test('records a run that wrote tracks and stays quiet when idle', async () => {
-    await importOld(user.id, 1, 5)
+  test('records a run that wrote a track from a stream, leaves stored originals alone, stays quiet when idle', async () => {
+    await connect()
+    const pulled = await pulledRun(user.id, 'i1', '2026-01-05')
+    const old = await importOld(user.id, 1, 6)
+    ctx.fetch = fakeFetch({
+      [`GET ${BASE}/activity/`]: () => new Response(streamsBody, { status: 200 }),
+    })
     await runTrackJob(ctx)
     const [run, ...rest] = await jobRuns()
     expect(rest).toEqual([])
-    expect(run).toMatchObject({ status: 'ok', accepted: 1, failed: 0 })
+    expect(run).toMatchObject({ status: 'ok', trigger: 'schedule', accepted: 1, failed: 0 })
+    expect(await trackOf(pulled.id)).not.toBeNull()
+    expect(await trackOf(old.id)).toBeNull()
     await runTrackJob(ctx)
     expect(await jobRuns()).toHaveLength(1)
+  })
+})
+
+describe('the track start pass', () => {
+  const jobRuns = () =>
+    ctx.prisma.syncRun.findMany({
+      where: { userId: user.id, channel: 'job', provider: 'track' },
+      orderBy: { startedAt: 'asc' },
+    })
+  const pass = () =>
+    runStartPass(ctx, 'track', trackChunkFor(ctx), {
+      failureReason: 'the stored file could not be read',
+    })
+
+  test('parses the originals past one batch in one pass, makes no request, and is idempotent', async () => {
+    await connect()
+    const total = TRACK_FILE_BATCH + 5
+    for (let i = 0; i < total; i++) await importOld(user.id, i + 1, 1 + (i % 28))
+    await pass()
+    const [run, ...rest] = await jobRuns()
+    expect(rest).toEqual([])
+    expect(run).toMatchObject({ status: 'ok', trigger: 'catchup', accepted: total, failed: 0 })
+    expect(await ctx.prisma.activityTrack.count()).toBe(total)
+    await pass()
+    expect(await jobRuns()).toHaveLength(1)
+    // expectNoRefusedFetches (afterEach) shows that no request was made with intervals.icu connected.
+  })
+
+  test('a batch of runs with no positions is settled, so the drain goes on to the next', async () => {
+    for (let i = 0; i < TRACK_FILE_BATCH + 3; i++) {
+      await importOld(user.id, i + 1, 1 + (i % 28), { positions: false })
+    }
+    await pass()
+    expect(await ctx.prisma.activity.count({ where: { trackV: null } })).toBe(0)
+    expect(await ctx.prisma.activityTrack.count()).toBe(0)
   })
 
   test('an unreadable original makes a partial run', async () => {
@@ -421,8 +470,56 @@ describe('runTrackJob', () => {
       where: { activityId: run.id },
       data: { gz: new Uint8Array([1, 2, 3]) },
     })
-    await runTrackJob(ctx)
+    await pass()
     const [stored] = await jobRuns()
-    expect(stored).toMatchObject({ status: 'partial', failed: 1 })
+    expect(stored).toMatchObject({ status: 'partial', trigger: 'catchup', failed: 1 })
+  })
+})
+
+describe('the track edit hook', () => {
+  /** A run stored as cross with its original: nothing looked for positions yet. */
+  async function storedAsCross(serial: number) {
+    const name = `run-${serial}.fit`
+    const bytes = buildFit({
+      serial,
+      sessions: [
+        {
+          sport: 1,
+          startUnix: Date.UTC(2026, 0, 5, 7) / 1000,
+          durationSec: 900,
+          records: fixes.map((f) => ({ t: f.t, distanceM: f.distanceM, lat: f.lat, lng: f.lng })),
+        },
+      ],
+    })
+    const [parsed] = parseActivityFile(name, bytes, { timezone: 'UTC' })
+    const { activityId } = await storeParsed(
+      ctx,
+      user.id,
+      { ...parsed!, type: 'cross' },
+      {
+        source: 'file',
+        importBatchId: null,
+        channel: 'upload',
+        file: { name, format: 'fit', bytes },
+      },
+    )
+    return activityId
+  }
+
+  test('a run re-typed from cross gets its track from the stored original, with no request', async () => {
+    await connect()
+    const id = await storedAsCross(1)
+    expect((await ctx.prisma.activity.findUniqueOrThrow({ where: { id } })).trackV).toBeNull()
+    await ctx.prisma.activity.update({ where: { id }, data: { type: 'run' } })
+    await refreshDerivedAfterEdit(ctx, user.id, id)
+    expect(await trackOf(id)).not.toBeNull()
+    expect((await ctx.prisma.activity.findUniqueOrThrow({ where: { id } })).trackV).toBe(1)
+  })
+
+  test('an intervals.icu run with no original waits for the sync: the edit asks nothing', async () => {
+    await connect()
+    const pulled = await pulledRun(user.id, 'i1', '2026-01-05')
+    await refreshDerivedAfterEdit(ctx, user.id, pulled.id)
+    expect(await trackOf(pulled.id)).toBeNull()
   })
 })

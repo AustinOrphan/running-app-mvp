@@ -3,7 +3,7 @@
 Status: Proposed 2026-11-18
 
 Builds on ADR 0009 (athlete state is read through memos keyed by the data version) and ADR 0012
-(offline). The plan with the per-job analysis is `polls-plan.json` (job tmp, 2026-11-18), produced
+(offline). The plan with the per-job analysis (the polls-to-events plan, kept outside the repository) was produced
 read-only from `main` at 23bbd492; every file and line below is from that read.
 
 ## Context
@@ -47,8 +47,14 @@ of another `HR_QUALITY_VERSION`, kept their stale shape while `gradeCurve.ts` dr
   - `folder` (5 minutes), `weather` (10 minutes) and the daily slots (backup, matching, Monday
     re-plan, Strava check, publish-morning): an outside system, or a clock. The plan did not analyse
     `folder`, because file-system events are a different tool; it stays until it has its own analysis.
-- **Still to convert, in later changes:** `track`, `surface`, `watch-rating`, `publish`'s 2-minute
-  tick and `replan-catchup`. Each appends its own pass to the chain and removes its own interval.
+- **`surface` and the local part of `track` are converted next.** Trail and road shares are computed by
+  `queueSurfaceFill` (`server/services/surfaceFill.ts`) after a map download, an import or track fill
+  that wrote a track and a type edit, and by a start pass; its job runs carry the trigger `event`. The
+  stored-original part of `track` runs in the start pass and from `refreshDerivedAfterEdit`. The
+  chain is terrain, hr-quality, track, surface (a track is written before the shares read it).
+- **Still to convert, in later changes:** the intervals.icu stream part of `track` (still the 5-minute
+  `track` job, streams only), `watch-rating`, `publish`'s 2-minute tick and `replan-catchup`. Each
+  appends its own pass to the chain and removes its own interval.
 
 ## Reasons
 

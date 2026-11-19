@@ -17,6 +17,7 @@ import { runnerZone } from '../runnerDay.ts'
 import { loadProfile } from '../serialize.ts'
 import type { MapAreaView } from '../../shared/types.ts'
 import { clearSurfaceBins } from './surfaceBackfill.ts'
+import { queueSurfaceFill } from './surfaceFill.ts'
 import { fetchOf } from './weatherCache.ts'
 
 export const OVERPASS_URL = 'https://overpass-api.de/api/interpreter'
@@ -205,7 +206,7 @@ async function trackBoxes(prisma: Deps['prisma'], userId: string): Promise<GeoBo
 
 /**
  * Downloads the area again from scratch: asks Overpass once, replaces the runner's ways and area in
- * one transaction, and clears every run's shares so the `surface` job computes them again. Refuses a
+ * one transaction, and clears every run's shares so `queueSurfaceFill` computes them again. Refuses a
  * second download for the same runner while one runs (409), a runner with no stored route (400), an
  * answer that says it stopped early or holds no ways (502), and a timeout (504). Nothing is changed
  * on any refusal.
@@ -297,6 +298,8 @@ export async function downloadMapArea(
   } finally {
     downloading.delete(userId)
   }
+  // The shares were cleared in the transaction: compute them now, not at the next tick.
+  void queueSurfaceFill(deps, userId)
   return loadMapArea(deps.prisma, userId)
 }
 

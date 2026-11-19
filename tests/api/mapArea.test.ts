@@ -1,5 +1,13 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test, vi } from 'vitest'
 import { serverTimeZone } from '../../server/runnerDay.ts'
+
+// A download queues the background fill, which would race with the counts asserted here; the fill
+// itself is tested in surfaceFill.test.ts.
+vi.mock('../../server/services/surfaceFill.ts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../server/services/surfaceFill.ts')>()),
+  queueSurfaceFill: () => Promise.resolve(),
+}))
+
 import { OVERPASS_URL, OVERPASS_USER_AGENT } from '../../server/services/mapArea.ts'
 import { trackRow } from '../../server/services/activityStore.ts'
 import { TRACK_VERSION, buildTrack, type RoutePoint } from '../../shared/importers/files/track.ts'

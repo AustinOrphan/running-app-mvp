@@ -247,13 +247,16 @@ function isIdle(run: SyncRunInput): boolean {
  * within a day or two, and a run that failed would be gone before anyone opened the list. A manual run,
  * a run with a count or an error, and the first idle run after one that did not end ok (or the
  * first run ever) are stored, so the newest row shows the recovery. A start pass (trigger
- * `catchup`, ADR 0026) is skipped the same way.
+ * `catchup`) and an event drain (trigger `event`, ADR 0026) are skipped the same way.
  */
 export async function recordSyncRunUnlessIdle(
   deps: Pick<Deps, 'prisma' | 'config'>,
   run: SyncRunInput,
 ): Promise<void> {
-  if ((run.trigger === 'schedule' || run.trigger === 'catchup') && isIdle(run)) {
+  if (
+    (run.trigger === 'schedule' || run.trigger === 'catchup' || run.trigger === 'event') &&
+    isIdle(run)
+  ) {
     try {
       const newest = await deps.prisma.syncRun.findFirst({
         where: { userId: run.userId, provider: run.provider },

@@ -5,6 +5,7 @@ import {
   emptySurfaceBins,
   surfaceBinsOf,
   type IndexedWay,
+  type WayIndex,
 } from '../../shared/domain/surfaceMatch.ts'
 import { decodePolyline } from '../../shared/importers/files/track.ts'
 
@@ -43,6 +44,34 @@ export async function clearSurfaceBins(
 
 const RUN_TYPES = ['run', 'race']
 
+/** The way index of one area, kept between the calls of a drain. */
+export interface WayIndexHolder {
+  stamp: string | null
+  index: WayIndex | null
+}
+
+export const newWayIndexHolder = (): WayIndexHolder => ({ stamp: null, index: null })
+
+/**
+ * The user's downloaded area, or null without one. An area stored under an older matcher version
+ * (`MapArea.matchV`) first has every run's shares cleared and the version recorded, so a change to
+ * the matcher recomputes them all; the update is guarded by the `fetchedAt` and `matchV` it read, so
+ * a download in between wins.
+ */
+export async function openSurfaceArea(prisma: Deps['prisma'], userId: string) {
+  const area = await prisma.mapArea.findUnique({ where: { userId } })
+  if (!area || area.matchV === SURFACE_VERSION) return area
+  await prisma.$transaction(async (tx) => {
+    const moved = await tx.mapArea.updateMany({
+      where: { userId, fetchedAt: area.fetchedAt, matchV: area.matchV },
+      data: { matchV: SURFACE_VERSION },
+    })
+    if (moved.count === 0) return
+    await clearSurfaceBins(tx, userId)
+  })
+  return prisma.mapArea.findUnique({ where: { userId } })
+}
+
 /**
  * Computes `Activity.surfaceBins` (M1d) for the newest runs and races of one user that have a stored
  * track meeting the downloaded map area and no shares yet: each track is matched to the nearest way
@@ -54,31 +83,20 @@ const RUN_TYPES = ['run', 'race']
  * does not make the explain cards stale. Reads the database only; never touches the network.
  *
  * When the area was stored under an older matcher version (`MapArea.matchV`), every run's shares are
- * cleared first and the version is recorded, so a change to the matcher recomputes them all.
+ * cleared first and the version is recorded, so a change to the matcher recomputes them all
+ * (`openSurfaceArea`).
+ *
+ * Building the way index is the dominant cost of a call, so a drain passes the same `wayIndex`
+ * holder to every call: the index is built on the first one and again only when the area changed.
  */
 export async function backfillSurfaceBins(
   deps: Pick<Deps, 'prisma'>,
   userId: string,
-  opts: { limit?: number } = {},
+  opts: { limit?: number; wayIndex?: WayIndexHolder } = {},
 ): Promise<SurfaceBackfillResult> {
   const { prisma } = deps
-  let area = await prisma.mapArea.findUnique({ where: { userId } })
-  if (!area) return { filled: 0, unreadable: [], remaining: 0 }
-
-  if (area.matchV !== SURFACE_VERSION) {
-    const stale = area
-    await prisma.$transaction(async (tx) => {
-      const moved = await tx.mapArea.updateMany({
-        where: { userId, fetchedAt: stale.fetchedAt, matchV: stale.matchV },
-        data: { matchV: SURFACE_VERSION },
-      })
-      if (moved.count === 0) return
-      await clearSurfaceBins(tx, userId)
-    })
-    area = await prisma.mapArea.findUnique({ where: { userId } })
-    if (!area) return { filled: 0, unreadable: [], remaining: 0 }
-  }
-  const current = area
+  const current = await openSurfaceArea(prisma, userId)
+  if (!current) return { filled: 0, unreadable: [], remaining: 0 }
 
   const where = {
     userId,
@@ -101,21 +119,30 @@ export async function backfillSurfaceBins(
   })
   if (rows.length === 0) return { filled: 0, unreadable: [], remaining: 0 }
 
-  const wayRows = await prisma.mapWay.findMany({
-    where: { userId },
-    select: { cls: true, polyline: true },
-  })
-  const ways: IndexedWay[] = []
-  for (const way of wayRows) {
-    const cls = wayClassOfCode(way.cls)
-    if (cls !== null) ways.push({ cls, points: decodePolyline(way.polyline) })
+  const stamp = `${String(current.fetchedAt.getTime())}:${String(current.matchV)}`
+  let index = opts.wayIndex?.stamp === stamp ? opts.wayIndex.index : null
+  if (index === null) {
+    const wayRows = await prisma.mapWay.findMany({
+      where: { userId },
+      select: { cls: true, polyline: true },
+    })
+    const ways: IndexedWay[] = []
+    for (const way of wayRows) {
+      const cls = wayClassOfCode(way.cls)
+      if (cls !== null) ways.push({ cls, points: decodePolyline(way.polyline) })
+    }
+    index = buildWayIndex(ways, {
+      minLat: current.minLat,
+      minLng: current.minLng,
+      maxLat: current.maxLat,
+      maxLng: current.maxLng,
+    })
+    if (opts.wayIndex) {
+      opts.wayIndex.stamp = stamp
+      opts.wayIndex.index = index
+    }
   }
-  const index = buildWayIndex(ways, {
-    minLat: current.minLat,
-    minLng: current.minLng,
-    maxLat: current.maxLat,
-    maxLng: current.maxLng,
-  })
+  const wayIndex = index
 
   const unreadable: string[] = []
   const bins = rows.map((row) => {
@@ -124,7 +151,7 @@ export async function backfillSurfaceBins(
       if (!Array.isArray(distM) || distM.some((d) => typeof d !== 'number')) {
         throw new Error('distances')
       }
-      return surfaceBinsOf({ polyline: row.track!.polyline, distM: distM as number[] }, index)
+      return surfaceBinsOf({ polyline: row.track!.polyline, distM: distM as number[] }, wayIndex)
     } catch {
       unreadable.push(row.id)
       return emptySurfaceBins()

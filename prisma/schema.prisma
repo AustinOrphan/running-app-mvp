@@ -570,7 +570,7 @@ model SyncRun {
   userId         String
   provider       String // provider registry key, or the job name for channel 'job'
   channel        String // 'pull' | 'push' | 'folder' | 'publish' | 'job'
-  trigger        String // 'schedule' | 'manual' | 'push' | 'catchup'
+  trigger        String // 'schedule' | 'manual' | 'push' | 'catchup' | 'event'
   startedAt      DateTime
   finishedAt     DateTime
   status         String // 'ok' | 'partial' | 'paused' | 'error'
