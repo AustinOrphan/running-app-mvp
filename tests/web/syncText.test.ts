@@ -119,7 +119,7 @@ describe('describeRun', () => {
   test('every combination of status, wellness and counts reads clean, finished and never complete when it is not', () => {
     const statuses: SyncStatus[] = ['ok', 'partial', 'paused', 'error']
     const wellness: WellnessStatus[] = ['none', 'read', 'truncated', 'waiting', 'error']
-    const triggers: SyncTrigger[] = ['schedule', 'manual', 'push', 'catchup']
+    const triggers: SyncTrigger[] = ['schedule', 'manual', 'push', 'catchup', 'event']
     const counts = [0, 1, 2, 1284]
     let checked = 0
     for (const status of statuses) {
@@ -176,6 +176,7 @@ describe('runHeading', () => {
     ['manual', 'pull', '22 Oct, 06:00 · Manual'],
     ['push', 'push', '22 Oct, 06:00 · Push'],
     ['catchup', 'job', '22 Oct, 06:00 · Catch-up'],
+    ['event', 'job', '22 Oct, 06:00 · After a change'],
     ['schedule', 'folder', '22 Oct, 06:00 · Folder scan'],
     ['manual', 'folder', '22 Oct, 06:00 · Folder scan'],
     ['schedule', 'publish', '22 Oct, 06:00 · Sent to calendar'],

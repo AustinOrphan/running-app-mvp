@@ -28,9 +28,9 @@ import { syncProvider } from '../services/sync.ts'
 import { runStartPass } from '../services/startPass.ts'
 import { recordJob, safeMessage, syncMessage } from '../services/syncLog.ts'
 import { backfillHrQuality } from '../services/hrQualityBackfill.ts'
-import { backfillSurfaceBins } from '../services/surfaceBackfill.ts'
+import { surfaceChunkFor } from '../services/surfaceFill.ts'
 import { backfillTerrainBins } from '../services/terrainBackfill.ts'
-import { backfillTracks } from '../services/trackBackfill.ts'
+import { backfillTracks, trackChunkFor } from '../services/trackBackfill.ts'
 import { backfillWatchRatings } from '../services/watchRatingBackfill.ts'
 import { enrichWeather } from '../services/weather.ts'
 import { refreshWeatherCaches } from '../services/weatherCache.ts'
@@ -53,12 +53,10 @@ export const CATCHUP_INTERVAL_MS = 6 * 60 * MINUTE_MS
 export const PREDICTION_INTERVAL_MS = 6 * 60 * MINUTE_MS
 /** How often the publisher checks whether a runner's calendar is due (design 6.8). */
 export const PUBLISH_INTERVAL_MS = 2 * MINUTE_MS
-/** How often the track backfill reads stored originals and asks intervals.icu for a few streams. */
+/** How often the track job asks intervals.icu for a few streams (PR C of the polls plan removes it). */
 export const TRACK_INTERVAL_MS = 5 * MINUTE_MS
 /** How often the watch-rating backfill asks intervals.icu for a few activity records. */
 export const WATCH_RATING_INTERVAL_MS = 5 * MINUTE_MS
-/** How often the surface job matches a batch of tracks to the downloaded map area. */
-export const SURFACE_INTERVAL_MS = 5 * MINUTE_MS
 /** Activities that get weather per user per run. */
 const WEATHER_BATCH = 50
 /** The first run waits, so a crash loop never hammers a provider. */
@@ -239,50 +237,25 @@ export async function runWeatherJob(
 }
 
 /**
- * Computes the trail, paved-path and road shares of runs inside the runner's downloaded map area
- * (M1d), one small batch per user per tick (`backfillSurfaceBins`). A user with no area costs one
- * read. A tick that fills something (or meets an unreadable track) records a `surface` run,
- * `accepted` the runs filled and `failed` the unreadable tracks (a `partial` run when there are any);
- * an idle tick is not stored. Idempotent and resumable: filled runs are never selected again. Never uses the network.
- */
-export async function runSurfaceJob(deps: Deps, log?: Log): Promise<void> {
-  const users = await deps.prisma.user.findMany({ select: { id: true } })
-  for (const user of users) {
-    const startedAt = new Date()
-    try {
-      const result = await backfillSurfaceBins(deps, user.id)
-      await recordJob(deps, 'surface', user.id, startedAt, {
-        accepted: result.filled,
-        failed: result.unreadable.length,
-        status: result.unreadable.length > 0 ? 'partial' : 'ok',
-        failures: result.unreadable.map((ref) => ({
-          ref,
-          reason: 'the stored track could not be read',
-        })),
-        skipIdle: true,
-      })
-    } catch (error) {
-      log?.warn({ reason: safeMessage(error), userId: user.id }, 'surface job failed')
-      await recordJob(deps, 'surface', user.id, startedAt, { error })
-    }
-  }
-}
-
-/**
- * Fills the route tracks of runs imported before `ActivityTrack` existed (M1a): stored originals
- * first, then a few intervals.icu streams per tick (`backfillTracks`). A tick that fills something,
- * meets an unreadable file or makes a request records a `track` run: `accepted` the tracks written,
- * `failed` the unreadable files and failed requests, `partial` when there are any and `paused` while
- * intervals.icu is rate limiting; a tick with nothing to do is not stored. A user's failure is
- * recorded as an error run and the job goes on. Idempotent and resumable: a run that was looked at
- * is never selected again.
+ * Asks intervals.icu for the route streams of pulled runs that have no stored original, a few per
+ * tick (`backfillTracks`, stream part only). This is the one network part of the track backfill and
+ * the only reason the 5-minute `track` job is still registered: the polls-to-events plan (PR C)
+ * moves it to the end of the hourly sync and removes the job. Stored originals are parsed by the
+ * start pass and by a type edit (ADR 0026), never here. A tick that fills something, makes a
+ * request or fails one records a `track` run: `accepted` the tracks written, `failed` the failed
+ * requests, `partial` when there are any and `paused` while intervals.icu is rate limiting; a tick
+ * with nothing to do is not stored. A user's failure is recorded as an error run and the job goes
+ * on. Idempotent and resumable: a run that was looked at is never selected again.
  */
 export async function runTrackJob(deps: Deps, log?: Log, opts: { now?: Date } = {}): Promise<void> {
   const users = await deps.prisma.user.findMany({ select: { id: true } })
   for (const user of users) {
     const startedAt = new Date()
     try {
-      const result = await backfillTracks(deps, user.id, opts)
+      const result = await backfillTracks(deps, user.id, {
+        ...opts,
+        parts: { files: false, streams: true },
+      })
       const failures = [
         ...result.unreadable.map((ref) => ({ ref, reason: 'the stored file could not be read' })),
         ...result.failures,
@@ -824,8 +797,9 @@ export const PUBLISH_MORNING_SLOT: DailySlot = { hour: 4, minute: 45 }
 
 /**
  * Starts the hourly sync, 5-minute folder scan and 10-minute weather jobs, the 5-minute track
- * backfill, a start pass 30 s after start for the terrain bins and the heart-rate quality (ADR
- * 0026; edits and imports fill them as they happen), the daily database
+ * job (intervals.icu streams only, until the sync tail replaces it), a start pass 30 s after start
+ * for the terrain bins, the heart-rate quality, the stored-original tracks and the trail and road
+ * shares (ADR 0026; edits and imports fill them as they happen), the daily database
  * backup (02:00 local), the nightly matching (02:30 local), the Monday re-plan (03:00 local) and
  * its catch-up, the daily Strava check (03:30 local), and the weekly prediction log (each 30 s after start, then every 6 hours), the
  * publisher's 2-minute check and its forced 04:45 run; returns `stop()`.
@@ -945,7 +919,6 @@ export function startScheduler(deps: Deps, opts: { fetch: typeof fetch }): () =>
   every('weather', WEATHER_INTERVAL_MS, () => runWeatherJob(deps, opts, log))
   every('track', TRACK_INTERVAL_MS, () => runTrackJob(deps, log))
   every('watch-rating', WATCH_RATING_INTERVAL_MS, () => runWatchRatingJob(deps, log))
-  every('surface', SURFACE_INTERVAL_MS, () => runSurfaceJob(deps, log))
   // The daily slot and the start-up catch-up share this flag, so two copies never run at once.
   let backingUp = false
   const exclusiveBackup = async (job: () => Promise<unknown>): Promise<void> => {
@@ -964,6 +937,7 @@ export function startScheduler(deps: Deps, opts: { fetch: typeof fetch }): () =>
   // Start passes (ADR 0026): backfills for rows that predate a column or a version run once, after
   // the first-run delay and in sequence, each in its own catch so one failure never skips the next.
   // Later columns append their pass here; track goes before surface, which matches its tracks.
+  // Track here is the local part (stored originals); the intervals.icu streams stay on the tick.
   once('start-passes', async () => {
     const passes: Array<[string, () => Promise<void>]> = [
       [
@@ -980,6 +954,24 @@ export function startScheduler(deps: Deps, opts: { fetch: typeof fetch }): () =>
           runStartPass(deps, 'hr-quality', (userId) => () => backfillHrQuality(deps, userId), {
             stopped: () => stopped,
             log,
+          }),
+      ],
+      [
+        'track',
+        () =>
+          runStartPass(deps, 'track', trackChunkFor(deps), {
+            stopped: () => stopped,
+            log,
+            failureReason: 'the stored file could not be read',
+          }),
+      ],
+      [
+        'surface',
+        () =>
+          runStartPass(deps, 'surface', surfaceChunkFor(deps), {
+            stopped: () => stopped,
+            log,
+            failureReason: 'the stored track could not be read',
           }),
       ],
     ]

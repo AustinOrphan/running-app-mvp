@@ -1,5 +1,6 @@
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from 'vitest'
-import { runSurfaceJob } from '../../server/jobs/scheduler.ts'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test, vi } from 'vitest'
+import { runStartPass } from '../../server/services/startPass.ts'
+import { surfaceChunkFor } from '../../server/services/surfaceFill.ts'
 import { trackRow } from '../../server/services/activityStore.ts'
 import { downloadMapArea, removeMapArea } from '../../server/services/mapArea.ts'
 import {
@@ -19,6 +20,13 @@ import {
   type TestCtx,
   type TestUser,
 } from './helpers.ts'
+
+// A map download queues the background fill (surfaceFill.test.ts covers it); these tests call the
+// batches by hand, so the queue is switched off here.
+vi.mock('../../server/services/surfaceFill.ts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../server/services/surfaceFill.ts')>()),
+  queueSurfaceFill: () => Promise.resolve(),
+}))
 
 let ctx: TestCtx
 let user: TestUser
@@ -280,37 +288,93 @@ describe('backfillSurfaceBins', () => {
   })
 })
 
-describe('runSurfaceJob', () => {
+describe('the surface start pass', () => {
   const runs = (userId: string) =>
     ctx.prisma.syncRun.findMany({
       where: { userId, channel: 'job', provider: 'surface' },
       orderBy: { startedAt: 'asc' },
     })
+  const pass = () =>
+    runStartPass(deps(), 'surface', surfaceChunkFor(deps()), {
+      failureReason: 'the stored track could not be read',
+    })
 
-  test('records a surface run with the runs filled, then nothing once there is nothing left', async () => {
-    await addRun(user.id, trailRun())
-    await addRun(user.id, roadRun(), '2026-10-06')
+  test('fills runs past one batch in one pass as one catchup run, then nothing', async () => {
+    for (let i = 0; i < SURFACE_BACKFILL_BATCH + 5; i++) {
+      await addRun(user.id, trailRun(), `2026-09-${String(1 + (i % 28)).padStart(2, '0')}`)
+    }
     await download(user.id)
-    await runSurfaceJob(deps())
+    await pass()
     const [run, ...rest] = await runs(user.id)
     expect(rest).toEqual([])
-    expect(run).toMatchObject({ status: 'ok', trigger: 'schedule', accepted: 2, failed: 0 })
-    await runSurfaceJob(deps())
+    expect(run).toMatchObject({
+      status: 'ok',
+      trigger: 'catchup',
+      accepted: SURFACE_BACKFILL_BATCH + 5,
+      failed: 0,
+    })
+    await pass()
     expect(await runs(user.id)).toHaveLength(1)
   })
 
-  test('a tick that meets an unreadable track is a partial run', async () => {
+  test('a pass that meets an unreadable track is a partial run', async () => {
     const bad = await addRun(user.id, trailRun())
     await ctx.prisma.activityTrack.update({ where: { activityId: bad }, data: { distM: '[' } })
     await download(user.id)
-    await runSurfaceJob(deps())
-    const [recorded] = await runs(user.id)
-    expect(recorded).toMatchObject({ status: 'partial', accepted: 1, failed: 1 })
+    await pass()
+    expect((await runs(user.id))[0]).toMatchObject({ status: 'partial', accepted: 1, failed: 1 })
   })
 
-  test('a user without an area records no work', async () => {
+  test('a pass over a stale SURFACE_VERSION recomputes every run, once', async () => {
+    const id = await addRun(user.id, trailRun())
+    await download(user.id)
+    await backfillSurfaceBins(deps(), user.id)
+    const first = await binsOf(id)
+    expect(first).not.toBeNull()
+    await ctx.prisma.mapArea.update({ where: { userId: user.id }, data: { matchV: 0 } })
+    await ctx.prisma.activity.update({
+      where: { id },
+      data: { surfaceBins: JSON.stringify({ ...first, trailM: 1 }), updatedAt: new Date() },
+    })
+    await pass()
+    expect(await binsOf(id)).toEqual(first)
+    expect(
+      (await ctx.prisma.mapArea.findUniqueOrThrow({ where: { userId: user.id } })).matchV,
+    ).toBe(SURFACE_VERSION)
+    await pass()
+    expect(await runs(user.id)).toHaveLength(1)
+  })
+
+  test('a user without an area has no work', async () => {
     await addRun(other.id, trailRun())
-    await runSurfaceJob(deps())
+    await pass()
     for (const row of await runs(other.id)) expect(row.accepted).toBe(0)
+  })
+
+  test('a user whose pass throws does not stop the next user', async () => {
+    await addRun(other.id, trailRun())
+    await download(other.id)
+    const failing = {
+      prisma: new Proxy(ctx.prisma, {
+        get(target, key, receiver) {
+          if (key === 'mapArea') {
+            return {
+              ...target.mapArea,
+              findUnique: (args: { where: { userId: string } }) => {
+                if (args.where.userId === user.id) throw new Error('boom')
+                return target.mapArea.findUnique(args)
+              },
+            }
+          }
+          return Reflect.get(target, key, receiver) as unknown
+        },
+      }),
+      config: ctx.config,
+    }
+    await runStartPass(failing, 'surface', surfaceChunkFor(failing))
+    expect((await runs(user.id))[0]).toMatchObject({ status: 'error' })
+    expect(
+      await ctx.prisma.activity.count({ where: { userId: other.id, surfaceBins: null } }),
+    ).toBe(0)
   })
 })
