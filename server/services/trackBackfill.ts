@@ -7,7 +7,13 @@ import { loadProfile } from '../serialize.ts'
 import { trackRow } from './activityStore.ts'
 import type { StartPassChunk } from './startPass.ts'
 import { queueSurfaceFill } from './surfaceFill.ts'
-import { isSyncing, openIntegration, providerContext, TAIL_SYSTEMIC_4XX } from './sync.ts'
+import {
+  isSyncing,
+  leastRecentlyTried,
+  openIntegration,
+  providerContext,
+  TAIL_SYSTEMIC_4XX,
+} from './sync.ts'
 import { safeMessage, secretValues } from './syncLog.ts'
 import { parseActivityFile } from '../../shared/importers/files/index.ts'
 import { TRACK_VERSION, buildTrack, type RoutePoint } from '../../shared/importers/files/track.ts'
@@ -31,6 +37,8 @@ export const TRACK_AUTH_BACKOFF_MS = 60 * 60_000
 const PROVIDER = 'intervals'
 /** Failed requests per activity since the process started; a restart starts the count again. */
 const attempts = new Map<string, number>()
+/** When each run was last asked (ms), so the least recently tried goes first; a restart clears it. */
+const lastTriedAt = new Map<string, number>()
 /**
  * When the stream part may ask an integration again after an auth refusal, with the integration's
  * `updatedAt` at that time: a reconnect rewrites the row, so it lifts the block.
@@ -39,8 +47,6 @@ const authBlocked = new Map<string, { until: number; stamp: number }>()
 const RUN_TYPES = ['run', 'race']
 
 export interface TrackBackfillResult {
-  /** Set when `TAIL_SYSTEMIC_4XX` run-specific 4xx answers came in a row: the part stopped. */
-  systemic: boolean
   /** Runs that now have a track. */
   filled: number
   /** Runs looked at that have no positions (a treadmill file, an indoor run): marked, no row. */
@@ -135,13 +141,7 @@ export async function backfillTracks(
   const doFiles = opts.parts?.files ?? true
   const doStreams = opts.parts?.streams ?? true
   const waitingRuns = waiting(userId, opts.activityIds)
-  /** Run-specific 4xx answers of the stream part not yet charged to a run (see `flushPending`). */
-  const pending: Array<{
-    run: { id: string; providerKey: string | null; updatedAt: Date }
-    reason: string
-  }> = []
   const result: TrackBackfillResult = {
-    systemic: false,
     filled: 0,
     withoutPositions: 0,
     unreadable: [],
@@ -242,13 +242,18 @@ export async function backfillTracks(
 
   async function streamPart(row: NonNullable<typeof integration>): Promise<void> {
     // The runs first: a tail with nothing owed costs one query, no decrypt.
-    const runs = await prisma.activity.findMany({
+    // Least recently tried first, so a run the provider keeps refusing goes to the back after its
+    // try and the runs behind it are reached at the next sync.
+    const owed = await prisma.activity.findMany({
       where: streamWhere,
-      select: { id: true, providerKey: true, startUtc: true, updatedAt: true },
+      select: { id: true, date: true, providerKey: true, startUtc: true, updatedAt: true },
       orderBy: [{ date: 'desc' }, { id: 'asc' }],
-      take: opts.streamLimit ?? TRACK_STREAM_BATCH,
     })
-    if (runs.length === 0) return
+    if (owed.length === 0) return
+    const runs = leastRecentlyTried(owed, lastTriedAt).slice(
+      0,
+      opts.streamLimit ?? TRACK_STREAM_BATCH,
+    )
     let opened: ReturnType<typeof openIntegration>
     try {
       opened = openIntegration(row, deps.config.sessionSecret)
@@ -261,82 +266,94 @@ export async function backfillTracks(
       ...opened,
       ...(opts.fetch === undefined ? {} : { fetch: opts.fetch }),
     })
-    for (const run of runs) {
-      const remoteId = run.providerKey!.slice(PROVIDER.length + 1)
-      let route: Awaited<ReturnType<NonNullable<typeof pull>['fetchRoute'] & {}>>
-      try {
-        result.requests += 1
-        route = await pull!.fetchRoute!(
-          { id: remoteId, startUtc: run.startUtc ?? now.toISOString() },
-          ctx,
-        )
-      } catch (error) {
-        if (error instanceof RateLimitPause) {
-          const until = new Date(now.getTime() + error.retryAfterSec * 1000)
-          await prisma.integration.updateMany({
-            where: { id: row.id, userId },
-            data: { pausedUntil: until },
-          })
-          result.pause = { retryAfterSec: error.retryAfterSec }
-          return
+    /**
+     * Run-specific 4xx answers (anything but 401, 403, 404 and 429) are held, not charged. They are
+     * charged to their runs at every exit of the part only if a request of this pass succeeded:
+     * without that the answers may be about the service (an API change, a fault), not the runs, and
+     * are dropped. Accepted cost: a bad run with no other owed run to give that evidence is asked
+     * again about once an hour and never given up until a success elsewhere shows the endpoint works.
+     */
+    const held: Array<{ run: (typeof runs)[number]; reason: string }> = []
+    let succeeded = false
+    let streak = 0
+    async function chargeHeld(): Promise<void> {
+      const list = held.splice(0)
+      if (!succeeded) return
+      for (const { run, reason } of list) {
+        const tries = (attempts.get(run.id) ?? 0) + 1
+        if (tries < TRACK_MAX_ATTEMPTS) {
+          attempts.set(run.id, tries)
+          continue
         }
-        if (error instanceof ProviderAuthError) {
-          // Not a failure of this run: the key is refused. Leave it to the sync's needs-auth handling.
-          authBlocked.set(row.id, {
-            until: now.getTime() + TRACK_AUTH_BACKOFF_MS,
-            stamp: row.updatedAt.getTime(),
-          })
-          return
-        }
-        const reason = safeMessage(error, secrets)
-        // Only a failure specific to this run counts toward giving it up: a 4xx the provider sent
-        // for it. A rejected fetch, a 5xx or a body that is not JSON says the service is down or
-        // unreachable, which ends this tick's stream part and says nothing about the run.
-        const runSpecific =
-          error instanceof ProviderHttpError && error.status >= 400 && error.status < 500
-        if (!runSpecific) {
-          result.failures.push({ ref: run.providerKey!, reason })
-          return
-        }
-        // Hourly, three tries take three hours: the queue behind this run goes on meanwhile. The
-        // try is held back until a success shows the answer was about the run; a streak of
-        // `TAIL_SYSTEMIC_4XX` such answers says the service refuses everything, so the part stops
-        // and no run is charged for it.
-        pending.push({ run, reason })
-        if (pending.length >= TAIL_SYSTEMIC_4XX) {
-          pending.length = 0
-          result.systemic = true
-          result.failures.push({
-            ref: PROVIDER,
-            reason: `${reason} (${String(TAIL_SYSTEMIC_4XX)} answers in a row; stopped for this sync)`,
-          })
-          return
-        }
-        continue
+        // A run that fails every sync would hold the queue: give it up like a 404.
+        attempts.delete(run.id)
+        result.failures.push({
+          ref: run.providerKey!,
+          reason: `${reason} (given up after ${String(tries)} attempts)`,
+        })
+        await settle(run, null)
       }
-      await flushPending()
-      attempts.delete(run.id)
-      await settle(run, route)
     }
-    await flushPending()
-  }
-
-  /** Charges the held-back 4xx answers to their runs (a success broke the streak). */
-  async function flushPending(): Promise<void> {
-    for (const { run, reason } of pending.splice(0)) {
-      const tries = (attempts.get(run.id) ?? 0) + 1
-      if (tries < TRACK_MAX_ATTEMPTS) {
-        attempts.set(run.id, tries)
-        result.failures.push({ ref: run.providerKey!, reason })
-        continue
+    try {
+      for (const run of runs) {
+        const remoteId = run.providerKey!.slice(PROVIDER.length + 1)
+        let route: Awaited<ReturnType<NonNullable<typeof pull>['fetchRoute'] & {}>>
+        try {
+          result.requests += 1
+          lastTriedAt.set(run.id, now.getTime())
+          route = await pull!.fetchRoute!(
+            { id: remoteId, startUtc: run.startUtc ?? now.toISOString() },
+            ctx,
+          )
+        } catch (error) {
+          if (error instanceof RateLimitPause) {
+            const until = new Date(now.getTime() + error.retryAfterSec * 1000)
+            await prisma.integration.updateMany({
+              where: { id: row.id, userId },
+              data: { pausedUntil: until },
+            })
+            result.pause = { retryAfterSec: error.retryAfterSec }
+            return
+          }
+          if (error instanceof ProviderAuthError) {
+            // Not a failure of this run: the key is refused. Leave it to the sync's needs-auth handling.
+            authBlocked.set(row.id, {
+              until: now.getTime() + TRACK_AUTH_BACKOFF_MS,
+              stamp: row.updatedAt.getTime(),
+            })
+            return
+          }
+          const reason = safeMessage(error, secrets)
+          // Only a failure specific to this run counts toward giving it up: a 4xx the provider sent
+          // for it. A rejected fetch, a 5xx or a body that is not JSON says the service is down or
+          // unreachable, which ends this tick's stream part and says nothing about the run.
+          const runSpecific =
+            error instanceof ProviderHttpError && error.status >= 400 && error.status < 500
+          if (!runSpecific) {
+            result.failures.push({ ref: run.providerKey!, reason })
+            return
+          }
+          held.push({ run, reason })
+          result.failures.push({ ref: run.providerKey!, reason })
+          streak += 1
+          // Budget stop: this many refusals in a row, and the rest of the queue is left for the
+          // next sync.
+          if (streak >= TAIL_SYSTEMIC_4XX) {
+            result.failures.push({
+              ref: PROVIDER,
+              reason: `${reason} (${String(TAIL_SYSTEMIC_4XX)} answers in a row; stopped for this sync)`,
+            })
+            return
+          }
+          continue
+        }
+        succeeded = true
+        streak = 0
+        attempts.delete(run.id)
+        await settle(run, route)
       }
-      // A run that fails every sync would block the ones behind it: give it up like a 404.
-      attempts.delete(run.id)
-      result.failures.push({
-        ref: run.providerKey!,
-        reason: `${reason} (given up after ${String(tries)} attempts)`,
-      })
-      await settle(run, null)
+    } finally {
+      await chargeHeld()
     }
   }
 

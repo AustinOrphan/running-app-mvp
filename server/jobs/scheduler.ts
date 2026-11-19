@@ -31,11 +31,7 @@ import { backfillHrQuality } from '../services/hrQualityBackfill.ts'
 import { surfaceChunkFor } from '../services/surfaceFill.ts'
 import { backfillTerrainBins } from '../services/terrainBackfill.ts'
 import { backfillTracks, TRACK_STREAMS_PER_SYNC, trackChunkFor } from '../services/trackBackfill.ts'
-import {
-  backfillWatchRatings,
-  WATCH_RATING_BATCH,
-  WATCH_RATING_PASS_MAX,
-} from '../services/watchRatingBackfill.ts'
+import { backfillWatchRatings, WATCH_RATING_PASS_MAX } from '../services/watchRatingBackfill.ts'
 import { enrichWeather } from '../services/weather.ts'
 import { refreshWeatherCaches } from '../services/weatherCache.ts'
 import {
@@ -302,9 +298,9 @@ export async function runTrackStreams(
 
 /**
  * The second tail of an intervals.icu sync (ADR 0026): fills the watch rating of the runner's
- * intervals.icu runs stored without one (WB1). It calls `backfillWatchRatings` until a call makes
- * no request, meets a pause or a refused key, fails, leaves nothing waiting, or
- * `WATCH_RATING_PASS_MAX` requests are spent. `createdBefore` is the start of the sync before the
+ * intervals.icu runs stored without one (WB1). It makes one `backfillWatchRatings` call of up to
+ * `WATCH_RATING_PASS_MAX` requests, least recently tried run first, stopping at a pause, a refused
+ * key, an outage or three run-specific 4xx answers in a row. `createdBefore` is the start of the sync before the
  * tail: a run that sync imported is asked at the next sync, so the second chance of a run rated on
  * the watch after its first sync is not spent within seconds. A pass that fills a rating, fails a
  * request or meets a pause or a refused key records a `watch-rating` run: `accepted` the ratings
@@ -321,43 +317,27 @@ export async function runWatchRatingPass(
 ): Promise<void> {
   const startedAt = new Date()
   try {
-    let filled = 0
-    let requests = 0
-    let paused = false
-    let authRefused = false
-    const failures: Array<{ ref: string; reason: string }> = []
-    // A run asked once in this pass is not asked again in it, so a bad run is charged one try a sync.
-    const asked: string[] = []
-    while (requests < WATCH_RATING_PASS_MAX) {
-      const result = await backfillWatchRatings(deps, userId, {
-        today: opts.today,
-        ...(opts.now === undefined ? {} : { now: opts.now }),
-        ...(opts.fetch === undefined ? {} : { fetch: opts.fetch }),
-        ...(opts.createdBefore === undefined ? {} : { createdBefore: opts.createdBefore }),
-        exclude: asked,
-        limit: Math.min(WATCH_RATING_BATCH, WATCH_RATING_PASS_MAX - requests),
-      })
-      filled += result.filled
-      requests += result.requests
-      failures.push(...result.failures)
-      asked.push(...result.asked)
-      if (result.pause !== null && result.requests > 0) paused = true
-      if (result.authRefused) authRefused = true
-      // A failure that is specific to one run does not stop the pass (`halt` is not set for it).
-      if (result.requests === 0 || result.halt || result.remaining === 0) break
-    }
-    const status = authRefused
+    // One call for the whole pass (limit 60), so the evidence rule (a held 4xx is charged only if
+    // a request of the pass succeeded) sees every request of it.
+    const result = await backfillWatchRatings(deps, userId, {
+      today: opts.today,
+      ...(opts.now === undefined ? {} : { now: opts.now }),
+      ...(opts.fetch === undefined ? {} : { fetch: opts.fetch }),
+      ...(opts.createdBefore === undefined ? {} : { createdBefore: opts.createdBefore }),
+      limit: WATCH_RATING_PASS_MAX,
+    })
+    const status = result.authRefused
       ? 'error'
-      : paused
+      : result.pause !== null && result.requests > 0
         ? 'paused'
-        : failures.length > 0
+        : result.failures.length > 0
           ? 'partial'
           : 'ok'
     await recordJob(deps, 'watch-rating', userId, startedAt, {
-      accepted: filled,
-      failed: failures.length,
+      accepted: result.filled,
+      failed: result.failures.length,
       status,
-      failures,
+      failures: result.failures,
       skipIdle: true,
     })
   } catch (error) {

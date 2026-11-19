@@ -274,11 +274,18 @@ describe('backfillWatchRatings', () => {
     expect(await backfillWatchRatings(ctx, user.id, { now: later })).toMatchObject({ requests: 1 })
 
     ctx.fetch = fakeFetch({ [`GET ${BASE}/activity/`]: () => new Response('', { status: 400 }) })
-    await backfillWatchRatings(ctx, user.id, { now: NOW })
-    await backfillWatchRatings(ctx, user.id, { now: NOW })
-    expect(await get(row.id)).toMatchObject({ watchRpeV: null })
-    const last = await backfillWatchRatings(ctx, user.id, { now: NOW })
-    expect(last.failures[0]!.reason).toContain('given up after 3 attempts')
+    // Repeated 4xx with no success in the call to show the endpoint works are never charged.
+    for (let i = 0; i < 4; i += 1) await backfillWatchRatings(ctx, user.id, { now: NOW })
+    expect(await get(row.id)).toMatchObject({ rpe: null, watchRpeV: null })
+    // A success elsewhere is the evidence: the held answers are then charged, and the run given up.
+    for (let i = 0; i < 3; i += 1) {
+      await run(`ok${String(i)}`, '2026-01-01')
+      ctx.fetch = fakeFetch({
+        [`GET ${BASE}/activity/ok`]: () => new Response('{"icu_rpe":3}', { status: 200 }),
+        [`GET ${BASE}/activity/`]: () => new Response('', { status: 400 }),
+      })
+      await backfillWatchRatings(ctx, user.id, { now: NOW })
+    }
     expect(await get(row.id)).toMatchObject({ rpe: null, watchRpeV: 1 })
   })
 
@@ -429,40 +436,77 @@ describe('runWatchRatingPass', () => {
     expect((await jobRuns()).at(-1)).toMatchObject({ status: 'partial', accepted: 1, failed: 1 })
   })
 
-  test('three 4xx answers in a row stop the call and are charged to no run', async () => {
+  test('bad runs at the head do not block the queue across batches, and are given up once a success is seen', async () => {
     await connect()
-    const rows = [
-      await run('sa1', '2026-01-09'),
-      await run('sa2', '2026-01-08'),
-      await run('sa3', '2026-01-07'),
-    ]
-    ctx.fetch = fakeFetch({ [`GET ${BASE}/activity/`]: () => new Response('', { status: 422 }) })
-    for (let call = 0; call < WATCH_RATING_MAX_ATTEMPTS + 1; call += 1) {
-      const result = await backfillWatchRatings(ctx, user.id, { now: NOW })
-      expect(result).toMatchObject({ requests: 3, halt: true })
-      expect(result.failures.at(-1)!.ref).toBe('intervals')
-    }
-    for (const row of rows) expect(await get(row.id)).toMatchObject({ watchRpeV: null })
-  })
-
-  test('a 4xx, a success and a 4xx are run-specific and charged', async () => {
-    await connect()
-    const a = await run('sb1', '2026-01-09')
-    const b = await run('sb2', '2026-01-08')
-    const c = await run('sb3', '2026-01-07')
+    // Seven bad runs, newer than the good ones: more than one budget stop of three each.
+    const bad = []
+    for (let i = 1; i <= 7; i += 1) bad.push(await run(`hb${String(i)}`, `2026-01-${10 + i}`))
+    const goods = [await run('hg1', '2026-01-02'), await run('hg2', '2026-01-03')]
+    const rated = new Set<string>()
     ctx.fetch = fakeFetch({
-      [`GET ${BASE}/activity/sb2`]: () =>
-        new Response(JSON.stringify({ id: 'sb2', icu_rpe: 5 }), { status: 200 }),
+      [`GET ${BASE}/activity/hg`]: (req) => {
+        const id = new URL(req.url).pathname.split('/').pop()!
+        rated.add(id)
+        return new Response(JSON.stringify({ id, icu_rpe: 4 }), { status: 200 })
+      },
       [`GET ${BASE}/activity/`]: () => new Response('', { status: 422 }),
     })
-    for (let call = 0; call < WATCH_RATING_MAX_ATTEMPTS; call += 1) {
-      const result = await backfillWatchRatings(ctx, user.id, { now: NOW })
-      expect(result.halt).toBe(false)
+    const call = () => backfillWatchRatings(ctx, user.id, { now: NOW })
+    // Passes 1 and 2: three refusals each, no success, so nothing is charged.
+    expect(await call()).toMatchObject({ requests: 3, filled: 0 })
+    expect(await call()).toMatchObject({ requests: 3, filled: 0 })
+    // Pass 3: the untried runs go first, so the good ones are reached.
+    const third = await call()
+    expect(third.filled).toBeGreaterThan(0)
+    expect(rated.size).toBeGreaterThan(0)
+    // Further passes reach every good run, and charge the bad ones, given up after three tries.
+    for (let n = 0; n < 6; n += 1) {
+      await call()
+      // A fresh good run is the success that lets the held answers be charged.
+      await run(`hgx${String(n)}`, '2026-01-01')
     }
-    expect(await get(b.id)).toMatchObject({ rpe: 5 })
-    // Charged every call, the two bad runs are given up on the third.
-    expect(await get(a.id)).toMatchObject({ rpe: null, watchRpeV: 1 })
-    expect(await get(c.id)).toMatchObject({ rpe: null, watchRpeV: 1 })
+    for (const row of goods) expect(await get(row.id)).toMatchObject({ rpe: 4 })
+    const marked = await ctx.prisma.activity.count({
+      where: { id: { in: bad.map((row) => row.id) }, watchRpeV: 1 },
+    })
+    expect(marked).toBeGreaterThan(0)
+  })
+
+  test('a lone bad run during a provider-wide 422 is never charged', async () => {
+    await connect()
+    const lone = await run('lone1', '2026-01-09')
+    ctx.fetch = fakeFetch({ [`GET ${BASE}/activity/`]: () => new Response('', { status: 422 }) })
+    for (let call = 0; call < WATCH_RATING_MAX_ATTEMPTS + 2; call += 1) {
+      expect(await backfillWatchRatings(ctx, user.id, { now: NOW })).toMatchObject({ requests: 1 })
+    }
+    expect(await get(lone.id)).toMatchObject({ rpe: null, watchRpeV: null })
+  })
+
+  test('a 4xx then a 5xx in one call: the 4xx is not charged', async () => {
+    await connect()
+    const a = await run('mx1', '2026-01-09')
+    await run('mx2', '2026-01-08')
+    ctx.fetch = fakeFetch({
+      [`GET ${BASE}/activity/mx1`]: () => new Response('', { status: 422 }),
+      [`GET ${BASE}/activity/mx2`]: () => new Response('', { status: 500 }),
+    })
+    for (let call = 0; call < WATCH_RATING_MAX_ATTEMPTS + 1; call += 1) {
+      await backfillWatchRatings(ctx, user.id, { now: NOW })
+    }
+    expect(await get(a.id)).toMatchObject({ watchRpeV: null })
+  })
+
+  test('a 404 marks the run and counts as a success for the held answers', async () => {
+    await connect()
+    const gone = await run('gx1', '2026-01-09')
+    const bad = await run('gx2', '2026-01-08')
+    ctx.fetch = fakeFetch({
+      [`GET ${BASE}/activity/gx1`]: () => new Response('', { status: 404 }),
+      [`GET ${BASE}/activity/gx2`]: () => new Response('', { status: 422 }),
+    })
+    await backfillWatchRatings(ctx, user.id, { now: NOW })
+    expect(await get(gone.id)).toMatchObject({ rpe: null, watchRpeV: 1 })
+    expect(await get(bad.id)).toMatchObject({ watchRpeV: null })
   })
 
   test('createdBefore leaves a run created at or after it for the next pass', async () => {
@@ -643,11 +687,11 @@ describe('what the backfill leaves alone or hands on', () => {
     // Within the back-off nothing is asked.
     await backfillWatchRatings(ctx, user.id, { now: new Date(NOW.getTime() + 60_000) })
     expect(seen).toHaveLength(1)
-    // After the back-off the same newest run is tried until it is passed over; then the next one.
+    // After the back-off the least recently tried run goes first, so the two runs take turns.
     for (let i = 1; i <= 2; i += 1) {
       await backfillWatchRatings(ctx, user.id, { now: new Date(NOW.getTime() + i * 61 * 60_000) })
     }
-    expect(seen).toEqual(['i2', 'i2', 'i2'])
+    expect(seen).toEqual(['i2', 'i1', 'i2'])
     await backfillWatchRatings(ctx, user.id, { now: new Date(NOW.getTime() + 3 * 61 * 60_000) })
     expect(seen.at(-1)).toBe('i1')
     expect(await get(first.id)).toMatchObject({ rpe: null, watchRpeV: null })

@@ -57,11 +57,17 @@ of another `HR_QUALITY_VERSION`, kept their stale shape while `gradeCurve.ts` dr
   5-minute job but `folder` is left. After the provider loop and the `sync` run, `runSyncJob` runs two
   tails for each runner whose providers include `intervals`, each in its own try/catch:
   `runTrackStreams` (up to 60 stream requests, `TRACK_STREAMS_PER_SYNC`) and `runWatchRatingPass`
-  (batches of 5 until 60 requests, `WATCH_RATING_PASS_MAX`, a pause, a refused key or a failure). The
-  60 an hour is what the two 5-minute jobs spent. A 4xx for one run moves the tail on to the next
-  run and is charged to that run (three tries, three syncs); `TAIL_SYSTEMIC_4XX` (3) such answers in
-  a row stop the tail for the sync and are charged to no run, so a changed API cannot settle every run
-  for good. A 429 in either tail sets `pausedUntil`, which the
+  (one call of up to 60 requests, `WATCH_RATING_PASS_MAX`). The 60 an hour is what the two 5-minute
+  jobs spent. Each tail asks the owed runs least recently tried first, so a run the provider
+  refuses goes to the back after its try and the queue behind it is reached at the next sync. A
+  4xx for one run (anything but 401, 403, 404 and 429) is held and the tail moves on. The held
+  tries are charged to their runs (three tries give a run up) at every exit of the tail only if a
+  request of the same tail succeeded in it; otherwise they are dropped uncharged, because the
+  answers may be about the service (an API change, a fault) and not the runs. `TAIL_SYSTEMIC_4XX`
+  (3) such answers in a row stop the tail for the sync, to bound the requests. Accepted cost: a bad
+  run with no other owed run to give that evidence is retried at about one request an hour and
+  never given up until a success elsewhere shows the endpoint works; that trades a few requests
+  for never losing a track or a rating to a provider-wide fault. A 429 in either tail sets `pausedUntil`, which the
   other tail and the next sync honour. The rating tail selects only runs created before the sync
   started (`createdBefore`): a run the sync has just imported unrated is asked at the next sync, an
   hour on, so the second chance of a run rated on the watch after its first sync is kept. A manual
