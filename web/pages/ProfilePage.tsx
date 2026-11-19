@@ -51,6 +51,7 @@ import { Sheet } from '../components/Sheet.tsx'
 import { useToast } from '../components/Toast.tsx'
 import { ZoneSummary } from '../components/ZoneSummary.tsx'
 import { formatLongDate } from '../components/format.ts'
+import { LATITUDE_REFUSAL, LONGITUDE_REFUSAL, parseCoordinate } from '../components/goalFormat.ts'
 import { strengthProfileHint } from '../components/strength/profileHint.ts'
 import styles from './ProfilePage.module.css'
 
@@ -256,6 +257,20 @@ function parseNumber(
   return number
 }
 
+/** Blank is null; text that is not a coordinate within `limit` is reported against `path`. */
+function parseHomeCoordinate(
+  raw: string,
+  limit: number,
+  path: string,
+  refusal: string,
+  problems: Problems,
+): number | null {
+  if (raw.trim() === '') return null
+  const value = parseCoordinate(raw, limit)
+  if (value === null) problems.add(path, refusal)
+  return value
+}
+
 /** `m:ss` per the runner's unit, returned as whole seconds per km. */
 function parsePace(raw: string, units: Units, problems: Problems): number | null {
   const value = raw.trim()
@@ -320,8 +335,8 @@ function toProfile(
       notes: injury.notes.trim() === '' ? null : injury.notes.trim(),
     }
   })
-  const lat = parseNumber(draft.homeLat, 'homeLat', problems, { integer: false })
-  const lng = parseNumber(draft.homeLng, 'homeLng', problems, { integer: false })
+  const lat = parseHomeCoordinate(draft.homeLat, 90, 'homeLat', LATITUDE_REFUSAL, problems)
+  const lng = parseHomeCoordinate(draft.homeLng, 180, 'homeLng', LONGITUDE_REFUSAL, problems)
   const strength = Number(draft.strength) as AthleteProfile['strengthPreference']
   return {
     birthYear: parseNumber(draft.birthYear, 'birthYear', problems, int),
@@ -340,8 +355,8 @@ function toProfile(
     terrain: draft.terrain,
     strengthPreference: strength,
     timezone: draft.timezone,
-    homeLat: lat === null ? null : round2(lat),
-    homeLng: lng === null ? null : round2(lng),
+    homeLat: lat,
+    homeLng: lng,
     useHomeWeather: draft.useHomeWeather,
   }
 }
@@ -615,7 +630,9 @@ function ProfileForm({ initial, units, weightUnit }: { initial: AthleteProfile }
                 <Input
                   {...control}
                   type="text"
-                  inputMode="numeric"
+                  // the pace needs a colon, which the number pad has not got
+                  inputMode="text"
+                  autoComplete="off"
                   value={draft.pace}
                   onChange={(event) => {
                     set('pace', event.target.value)
@@ -933,7 +950,9 @@ function ProfileForm({ initial, units, weightUnit }: { initial: AthleteProfile }
                   {...control}
                   ref={latRef}
                   type="text"
-                  inputMode="decimal"
+                  // south is negative, and a decimal keypad has no minus
+                  inputMode="text"
+                  autoComplete="off"
                   value={draft.homeLat}
                   onChange={(event) => {
                     set('homeLat', event.target.value)
@@ -946,7 +965,9 @@ function ProfileForm({ initial, units, weightUnit }: { initial: AthleteProfile }
                 <Input
                   {...control}
                   type="text"
-                  inputMode="decimal"
+                  // west is negative, and a decimal keypad has no minus
+                  inputMode="text"
+                  autoComplete="off"
                   value={draft.homeLng}
                   onChange={(event) => {
                     set('homeLng', event.target.value)

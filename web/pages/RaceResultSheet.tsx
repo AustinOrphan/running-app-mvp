@@ -283,7 +283,9 @@ export function RaceResultSheet({ goal, result, units, onClose }: RaceResultShee
             {(a) => (
               <Input
                 {...a}
-                inputMode="numeric"
+                // the time needs a colon, which the number pad has not got
+                inputMode="text"
+                autoComplete="off"
                 value={time}
                 onChange={(e) => {
                   setTime(e.target.value)

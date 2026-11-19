@@ -1,6 +1,6 @@
 // Text to value and value to text for the goal and race-result forms: distances in the runner's
 // units, whole metres, finish times and coordinates. Pure, so both sheets share one reading of
-// what a runner types.
+// what a runner types. The profile's home place reads its coordinates here too.
 import type { Units } from '../../shared/types.ts'
 import { kmToM, milesToM, mToKm, mToMiles } from '../../shared/units.ts'
 
@@ -32,10 +32,18 @@ export function parseTime(text: string): number | null {
   return seconds > 0 ? seconds : null
 }
 
-/** A coordinate kept to 0.01 degrees; null when the text is not a number in range. */
+/** The refusals for a coordinate, shared by the goal sheet and the profile's home place. */
+export const LATITUDE_REFUSAL = 'Enter a latitude from −90 to 90, like 41.88 or −33.87.'
+export const LONGITUDE_REFUSAL = 'Enter a longitude from −180 to 180, like 8.23 or −87.63.'
+
+/**
+ * A coordinate kept to 0.01 degrees; null when the text is not a number in range. A leading
+ * U+2212 minus (pasted, or from a keyboard that types it) reads as '-', and a comma as a point.
+ */
 export function parseCoordinate(text: string, limit: number): number | null {
-  const value = Number(text.trim().replace(',', '.'))
-  if (text.trim() === '' || !Number.isFinite(value) || Math.abs(value) > limit) return null
+  const trimmed = text.trim().replace(/^−/, '-')
+  const value = Number(trimmed.replace(',', '.'))
+  if (trimmed === '' || !Number.isFinite(value) || Math.abs(value) > limit) return null
   const rounded = Math.round(value * 100) / 100
   return rounded === 0 ? 0 : rounded
 }

@@ -714,6 +714,22 @@ describe('RacePage: the checkpoint table', () => {
     ])
   })
 
+  test('the elapsed cutoff asks for the plain keyboard, since it needs a colon', async () => {
+    const plan = planWith({}, 'aided', POINTS)
+    mockApi({
+      'GET /api/race/plan': () => ({ plan, reason: null }),
+      'GET /api/settings': () => SETTINGS,
+      'GET /api/race/checkpoints': () => ROWS_VIEW(plan),
+    })
+    const user = userEvent.setup()
+    renderWithProviders(<RacePage />, { route: '/race' })
+    await user.click(await screen.findByRole('button', { name: 'Edit checkpoints' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Edit checkpoints' })
+    const first = await within(dialog).findByRole('group', { name: 'Point 1' })
+    const cutoff = within(first).getByPlaceholderText('9:30')
+    expect(cutoff).toHaveAttribute('inputmode', 'text')
+  })
+
   test('refuses a point with no name, a distance past the finish and a repeated distance, and sends nothing', async () => {
     const plan = planWith({}, 'aided', POINTS)
     const { calls } = mockApi({
