@@ -144,13 +144,24 @@ protection reads. The Docker image must still build (`docker build .`) after a c
   `forecastStamp(prisma, userId)`. The fetch is `Deps.fetch`, read at each call (the global `fetch`
   when unset); tests inject one through the API helpers' `ctx.fetch` and never stub the global, and
   settle a background refresh with `settleWeatherCache`.
+- Work follows events (ADR 0026): a derived column is filled where its inputs are written (import, the
+  edit route); a backfill for rows that predate a column or a version is a start pass, run once by
+  `startScheduler` 30 s after start through `once('start-passes', ...)`, never awaited before `listen`.
+  `runStartPass` (`server/services/startPass.ts`) drains each user in the backfill's 20-row batches with
+  a `setImmediate` between them, stops on a batch that wrote nothing or on `stopped()`, records one
+  `catchup` run per user through `recordJob` (`syncLog.ts`; an idle one is skipped) and logs one line of
+  counts. A new timer is for time (a clock, a week) or an outside system that cannot notify.
 - Terrain bins (D2-2): `Activity.terrainBins` (JSON text, `TerrainBins` in `shared/types.ts`) holds a
   run's or race's moving seconds, metres and walking seconds by grade band, and `flatCv`, from the
   stored 10 s stream (distance and altitude, no heart rate). `computeTerrainBins`
-  (`shared/importers/files/terrainBins.ts`) is the one function; `storeParsed` writes it at import and
-  the `terrain` job (`runTerrainJob`, every 5 minutes, `server/services/terrainBackfill.ts`) fills runs
-  imported before the column, 20 per user per tick, idempotent, recording a `terrain` job run (`partial`
-  when a stored stream is unreadable). Null means not computed; a run with nothing to read (no altitude,
+  (`shared/importers/files/terrainBins.ts`) is the one function; `storeParsed` writes it at import, by the
+  row's stored type (an update never writes `type`), and `PUT /api/activities/:id` fills it through
+  `refreshDerivedAfterEdit` (`server/services/derivedColumns.ts`) when the type or sub-type changes. A
+  start pass 30 s after each start (`backfillTerrainBins`, `server/services/terrainBackfill.ts`) fills
+  runs imported before the column and recomputes bins of another shape (`terrainShapePrefix`: version,
+  window, edges, `c9.walkingFloorMps`), 20 per transaction, idempotent, recording a `terrain` job run
+  (trigger `catchup`; `partial` when a stored stream is unreadable) only when it did something. No timer.
+  Null means not computed; a run with nothing to read (no altitude,
   or under 2 m of it) stores all-zero bins. The list read omits the column.
 - Strength pairing: an app-logged strength session (`isAppLoggedStrength`, `shared/domain/duplicates.ts`:
   `manual`, no start instant) holds the plan's minutes, so `matchStrength` pairs it with a device session
@@ -318,9 +329,11 @@ protection reads. The Docker image must still build (`docker build .`) after a c
   one read outside the snapshot is the ids of the stored streams. It feeds nothing back, and a new count
   is a read of an engine reader, never a second window of its own. Words: `shared/copy/planInputs.ts`.
 - Heart-rate quality (rule B2, batch HQ1, ADR 0019 addendum): `Activity.hrQuality` (JSON `HrQuality`) is
-  written by `storeParsed` (`computeHrQuality`, `shared/importers/files/hrQuality.ts`) and by the
-  `hr-quality` job (`backfillHrQuality`, every 5 minutes, newest runs first), which also computes again a
-  summary whose `th` (the eight data-preparation thresholds) differs from the current ones. It stores
+  written by `storeParsed` (`computeHrQuality`, `shared/importers/files/hrQuality.ts`; by the row's stored
+  type), by `refreshDerivedAfterEdit` on a type or sub-type edit (before the execution pass, which reads
+  it) and by a start pass 30 s after each start (`backfillHrQuality`, newest runs first), which also
+  computes again a summary of another `v` or `th` (the eight data-preparation thresholds;
+  `HR_QUALITY_STAMP` is the stored prefix). No timer. It stores
   counts only; whether a run passes is read by `hrQualityPasses` (`shared/engine/hrQuality.ts`): at least
   `hrModel.minDurationMin` of moving time, and an external-sensor source (FIT `device_info`, `hrSource.ts`) or at
   least `b2.qMinCleanShare` clean. Only the Trends panels read it, through `HrFitOptions.hilly` and
