@@ -10,7 +10,7 @@ Builds on ADR 0009 (athlete state is read through memos keyed by the data versio
 
 The scheduler (`startScheduler`, `server/jobs/scheduler.ts`) ran seven jobs on a 2 to 5 minute tick
 that were written to backfill one column or to catch up one missed event: `terrain`, `hr-quality`,
-`track`, `surface`, `watch-rating`, `replan-catchup` and the 2-minute `publish` check. After the
+`track`, `surface`, `watch-rating`, `replan-catchup` (every 6 h) and the 2-minute `publish` check. After the
 strength pairing job was replaced by a start pass (SP2, #796), the owner asked about the others
 (2026-11-18).
 
@@ -53,10 +53,14 @@ of another `HR_QUALITY_VERSION`, kept their stale shape while `gradeCurve.ts` dr
   that wrote a track and a type edit, and by a start pass; its job runs carry the trigger `event`. The
   stored-original part of `track` runs in the start pass and from `refreshDerivedAfterEdit`. The
   chain is terrain, hr-quality, track, surface (a track is written before the shares read it).
+- **`replan-catchup` is converted** (2026-11-18): a start pass of `runReplanJob({ catchUp: true })`
+  for a restart after Monday 03:00, plus one retry armed only by a failure (`WEEKLY_RETRY_MS`, 6 h;
+  a failed re-plan clears with time and sends no event). A weekday slot is due for the whole week,
+  and a plan restore or a goal-date change runs the catch-up for that runner.
 - **`publish` is converted** (events and wakes after every run, ADR 0008 addendum 2026-11-18).
 - **Still to convert, in later changes:** the intervals.icu stream part of `track` (still the 5-minute
-  `track` job, streams only), `watch-rating` and `replan-catchup`. Each appends its own pass to the
-  chain and removes its own interval.
+  `track` job, streams only) and `watch-rating`. Each appends its own pass to the chain and removes its
+  own interval.
 
 ## Reasons
 

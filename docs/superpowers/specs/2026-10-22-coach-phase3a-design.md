@@ -564,9 +564,10 @@ absorbs E1's first task) defines:
   `TodayHealth` builds "This week's plan update has not run yet" and "Sync is paused" from them.
 - **Catch-up.** `daily()` seeds its slot at start, so a server restarted on Monday after 03:00
   skipped that week's re-plan silently. `runReplanJob(deps, { catchUp: true })` runs on process
-  start and every 6 hours for users with an active version-2 plan whose current week's slot has
+  start (once, 30 s after) for users with an active version-2 plan whose current week's slot has
   passed and who have no revision of reason `weekly` or `break` since it; runs are recorded with
-  trigger `catchup`, and a failed catch-up waits for the next tick. The 03:00 slot is unchanged.
+  trigger `catchup`, and a failed catch-up arms one retry 6 hours later (ADR 0026; amended
+  2026-11-18, it was a 6-hour poll). The 03:00 slot is unchanged.
 
 ### 4.8 Conventions every task follows
 

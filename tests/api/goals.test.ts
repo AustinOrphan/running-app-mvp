@@ -506,6 +506,65 @@ const planRows = (userId: string) =>
 const activeGoalIds = async (userId: string) =>
   (await ctx.prisma.goal.findMany({ where: { userId, isActive: true } })).map((g) => g.id)
 
+describe('PUT /api/goals/:id and the weekly update', () => {
+  const catchups = (userId: string) =>
+    ctx.prisma.syncRun.count({ where: { userId, provider: 'replan', trigger: 'catchup' } })
+  const weekly = (planId: string) =>
+    ctx.prisma.planRevision.count({ where: { planId, reason: 'weekly' } })
+
+  /** A runner whose plan is older than this week's Monday slot, on a Wednesday. */
+  async function owedRunner() {
+    const runner = await runnerWithPlan()
+    await ctx.prisma.plan.update({
+      where: { id: runner.plan.id },
+      data: { createdAt: new Date(2026, 9, 5) },
+    })
+    return runner
+  }
+
+  async function putOnWednesday(who: TestUser, goalId: string, body: Record<string, unknown>) {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date(2026, 9, 21, 12))
+    try {
+      return await client(ctx, who).put(`/api/goals/${goalId}`).send(body)
+    } finally {
+      vi.useRealTimers()
+    }
+  }
+
+  test('moving the date in a week with no update makes it: one catch-up run, one weekly revision', async () => {
+    const { who, half, plan } = await owedRunner()
+    const res = await putOnWednesday(who, half.id, { targetDate: addDays(half.targetDate, 7) })
+    expect(res.status, JSON.stringify(res.body)).toBe(200)
+    expect(await catchups(who.id)).toBe(1)
+    expect(await weekly(plan.id)).toBe(1)
+  })
+
+  test('moving the date in a week that already has its update does nothing more', async () => {
+    const { who, half, plan } = await owedRunner()
+    await ctx.prisma.planRevision.create({
+      data: {
+        planId: plan.id,
+        reason: 'weekly',
+        summary: 'Synthetic.',
+        createdAt: new Date(2026, 9, 20, 9),
+      },
+    })
+    const res = await putOnWednesday(who, half.id, { targetDate: addDays(half.targetDate, 7) })
+    expect(res.status).toBe(200)
+    expect(await catchups(who.id)).toBe(0)
+    expect(await weekly(plan.id)).toBe(1)
+  })
+
+  test('editing another field makes no catch-up', async () => {
+    const { who, half, plan } = await owedRunner()
+    const res = await putOnWednesday(who, half.id, { name: 'Renamed half' })
+    expect(res.status).toBe(200)
+    expect(await catchups(who.id)).toBe(0)
+    expect(await weekly(plan.id)).toBe(0)
+  })
+})
+
 describe('POST /api/goals/:id/activate while a plan follows another goal', () => {
   test('answers 409 with what it takes and changes nothing; the body is optional and strict', async () => {
     const { who, half, tenK, plan } = await runnerWithPlan()
@@ -783,6 +842,27 @@ describe('POST /api/plan/archived/:id/restore', () => {
     // The plan for the other goal is now the one in the archive, and can come back in turn.
     const archived = (await client(ctx, who).get('/api/plan/archived')).body as ArchivedPlanView[]
     expect(archived).toMatchObject([{ id: switched!.id, goalId: tenK.id, restorable: true }])
+  })
+
+  test('a week with no update yet is made at the restore, not at the next start', async () => {
+    const { who, tenK, plan } = await runnerWithPlan()
+    await activate(who, tenK.id, { replacePlan: true })
+    // The restored plan is older than this week's Monday slot and the week has no weekly revision.
+    await ctx.prisma.plan.update({
+      where: { id: plan.id },
+      data: { createdAt: new Date(2026, 9, 5) },
+    })
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date(2026, 9, 21, 12))
+    try {
+      expect((await restore(who, plan.id)).status).toBe(200)
+    } finally {
+      vi.useRealTimers()
+    }
+    const runs = await ctx.prisma.syncRun.count({
+      where: { userId: who.id, provider: 'replan', trigger: 'catchup' },
+    })
+    expect(runs).toBe(1)
   })
 
   test('answers 409 for a finished goal, a passed race date, an older plan and the active plan', async () => {

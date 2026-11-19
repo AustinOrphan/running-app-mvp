@@ -1305,7 +1305,7 @@ async function writeSettled(
  * Re-plans the active plan from the updated state and writes a `PlanRevision`. A request that
  * lands between the read and the write moves the plan's newest revision; the re-plan is then
  * decided again, once. A second collision is a 409 for the caller to report (the weekly job logs
- * it and the next tick tries again).
+ * it and arms its one retry).
  */
 export async function replanActivePlan(
   deps: Deps,
