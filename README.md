@@ -538,8 +538,8 @@ answer. A fatal process error (an uncaught exception or unhandled rejection) is 
 level and the process exits with code 1, so Docker's restart policy restarts it (`restart: unless-stopped`
 in `docker-compose.yml`, `--restart unless-stopped` in the `docker run` example). The deep answer is
 reused for 10 seconds, so a burst of polls costs one read. The `terrain` and `hr-quality` entries of
-`jobs` come from a pass that runs once, 30 seconds after each start, and from edits; their age is not
-a liveness signal (ADR 0026).
+`jobs` come from a pass that runs once, 30 seconds after each start, and from nothing else; an idle
+pass stores no run after an ok one, so their age is not a liveness signal (ADR 0026).
 
 The files are in `backups/`, next to the database file: `/data/backups/` in Docker, and
 `prisma/data/backups/` for the default `DATABASE_URL` in a checkout. The folder follows
