@@ -32,6 +32,10 @@ export function sourceRank(source: string): number {
  */
 type MatchFields = Pick<Activity, 'date' | 'startUtc' | 'distanceM' | 'durationSec'> & {
   type?: string
+  /** Read to tell an app-logged strength session (`isAppLoggedStrength`); absent reads as not. */
+  source?: string
+  /** ISO instant the row was stored; read to rank device sessions against an app-logged one. */
+  createdAt?: string
 }
 
 function isRun(activity: Pick<Activity, 'type'>): boolean {
@@ -82,17 +86,34 @@ export function matchActivities(a: MatchFields, b: MatchFields): 'start' | 'date
 }
 
 /**
+ * A strength session the runner logged in the app (`createManualActivity`): `manual` source, no
+ * start instant. Its duration is the plan's planned minutes, not a measurement, so it never decides
+ * a match. (A strength session typed in by hand through the activity form has the same shape and is
+ * read the same way.)
+ */
+export function isAppLoggedStrength(activity: {
+  type?: string
+  source?: string
+  startUtc: string | null
+}): boolean {
+  return isStrength(activity) && activity.source === 'manual' && activity.startUtc === null
+}
+
+/**
  * How two strength sessions match, or `null`. A session has no distance, so the start instant or
  * the duration decides, with the constants of the run rule. Both with a start instant: `'start'`
- * within START_TOLERANCE_SEC, and no match otherwise. Without one on both sides: `'date'` for the
- * same date and durations within RELATIVE_TOLERANCE.
+ * within START_TOLERANCE_SEC, and no match otherwise. When exactly one is app-logged
+ * (`isAppLoggedStrength`): `'date'` for the same date, whatever the durations. Otherwise `'date'`
+ * for the same date and durations within RELATIVE_TOLERANCE.
  */
 function matchStrength(a: MatchFields, b: MatchFields): 'start' | 'date' | null {
   if (a.startUtc !== null && b.startUtc !== null) {
     const gapSec = Math.abs(Date.parse(a.startUtc) - Date.parse(b.startUtc)) / 1000
     return Number.isNaN(gapSec) || gapSec > START_TOLERANCE_SEC ? null : 'start'
   }
-  return a.date === b.date && withinRelative(a.durationSec, b.durationSec) ? 'date' : null
+  if (a.date !== b.date) return null
+  if (isAppLoggedStrength(a) !== isAppLoggedStrength(b)) return 'date'
+  return withinRelative(a.durationSec, b.durationSec) ? 'date' : null
 }
 
 /**
@@ -109,8 +130,20 @@ export function duplicateStatusFor(
     : 'possible'
 }
 
-/** Smaller is closer: distance gap, or duration gap when either lacks distance or is strength. */
+/**
+ * Smaller is closer: distance gap, or duration gap when either lacks distance or is strength.
+ * Between an app-logged strength session and a device session the duration says nothing (the log
+ * holds the plan's minutes), so the gap is the device session's start instant to the moment the
+ * log was stored: a log is saved soon after the session ends. Without both instants the gap is
+ * Infinity for every candidate, and the first row of `others` (ties keep the earlier) wins.
+ */
 function closeness(a: Activity, b: Activity): number {
+  if (isStrength(a) && isAppLoggedStrength(a) !== isAppLoggedStrength(b)) {
+    const [logged, device] = isAppLoggedStrength(a) ? [a, b] : [b, a]
+    if (device.startUtc === null) return Infinity
+    const gapMs = Math.abs(Date.parse(device.startUtc) - Date.parse(logged.createdAt))
+    return Number.isNaN(gapMs) ? Infinity : gapMs
+  }
   return a.type !== 'strength' && a.distanceM !== null && b.distanceM !== null
     ? Math.abs(a.distanceM - b.distanceM)
     : Math.abs(a.durationSec - b.durationSec)
