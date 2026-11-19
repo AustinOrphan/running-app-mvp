@@ -5,7 +5,7 @@ import {
   runPredictionJob,
   runPublishJob,
   runReplanJob,
-  runWatchRatingJob,
+  runWatchRatingPass,
   runWeatherJob,
 } from '../../server/jobs/scheduler.ts'
 import { usersDueForWeeklyUpdate } from '../../server/jobs/weeklyUpdate.ts'
@@ -368,7 +368,9 @@ describe('the other jobs read each runner is own day', () => {
       [la.userId, dayIn('America/Los_Angeles', NOW)],
     ])
 
-    await runWatchRatingJob(deps(), undefined, { now: NOW, days })
+    for (const [userId, day] of days) {
+      await runWatchRatingPass(deps(), userId, { today: day.today, now: NOW })
+    }
 
     expect(
       new Map(vi.mocked(backfillWatchRatings).mock.calls.map(([, id, opts]) => [id, opts?.today])),

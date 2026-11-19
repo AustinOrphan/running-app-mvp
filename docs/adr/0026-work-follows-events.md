@@ -53,14 +53,36 @@ of another `HR_QUALITY_VERSION`, kept their stale shape while `gradeCurve.ts` dr
   that wrote a track and a type edit, and by a start pass; its job runs carry the trigger `event`. The
   stored-original part of `track` runs in the start pass and from `refreshDerivedAfterEdit`. The
   chain is terrain, hr-quality, track, surface (a track is written before the shares read it).
+- **The intervals.icu part of `track` and `watch-rating` ride the hourly sync.** All five 5-minute
+  backfills (`terrain`, `hr-quality`, `track`, `surface`, `watch-rating`) are converted, and no
+  5-minute job but `folder` is left. After the provider loop and the `sync` run, `runSyncJob` runs two
+  tails for each runner whose providers include `intervals`, each in its own try/catch:
+  `runTrackStreams` (up to 60 stream requests, `TRACK_STREAMS_PER_SYNC`) and `runWatchRatingPass`
+  (one call of up to 60 requests, `WATCH_RATING_PASS_MAX`). The 60 an hour is what the two 5-minute
+  jobs spent. Each tail asks the owed runs least recently tried first, so a run the provider
+  refuses goes to the back after its try and the queue behind it is reached at the next sync. A
+  4xx for one run (anything but 401, 403, 404 and 429) is held and the tail moves on. The held
+  tries are charged to their runs (three tries give a run up) at every exit of the tail only if a
+  request of the same tail succeeded in it; otherwise they are dropped uncharged, because the
+  answers may be about the service (an API change, a fault) and not the runs. `TAIL_SYSTEMIC_4XX`
+  (3) such answers in a row stop the tail for the sync, to bound the requests. Accepted cost: a bad
+  run with no other owed run to give that evidence is retried at about one request an hour and
+  never given up until a success elsewhere shows the endpoint works; that trades a few requests
+  for never losing a track or a rating to a provider-wide fault. A 429 in either tail sets `pausedUntil`, which the
+  other tail and the next sync honour. The rating tail selects only runs created before the sync
+  started (`createdBefore`): a run the sync has just imported unrated is asked at the next sync, an
+  hour on, so the second chance of a run rated on the watch after its first sync is kept. A manual
+  intervals.icu sync does not run the tails (it would need a per-user guard against a tail already
+  running; the hourly sync carries them). The first sync tick, 30 s after start, is the pass after a
+  deploy, so there is no start pass of its own for runs imported before WR1. The cost is that a map
+  or a watch rating can arrive up to an hour later after an outage, a 429 or a reconnect.
 - **`replan-catchup` is converted** (2026-11-18): a start pass of `runReplanJob({ catchUp: true })`
   for a restart after Monday 03:00, plus one retry armed only by a failure (`WEEKLY_RETRY_MS`, 6 h;
   a failed re-plan clears with time and sends no event). A weekday slot is due for the whole week,
   and a plan restore or a goal-date change runs the catch-up for that runner.
 - **`publish` is converted** (events and wakes after every run, ADR 0008 addendum 2026-11-18).
-- **Still to convert, in later changes:** the intervals.icu stream part of `track` (still the 5-minute
-  `track` job, streams only) and `watch-rating`. Each appends its own pass to the chain and removes its
-  own interval.
+- **Nothing is left to convert** except what stays a timer by design: `folder` (5 minutes),
+  `weather` (10 minutes), `predictions` (6 h), the hourly `sync` and its tails, and the daily slots.
 
 ## Reasons
 

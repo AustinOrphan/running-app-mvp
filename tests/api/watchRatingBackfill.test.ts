@@ -1,5 +1,6 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from 'vitest'
-import { runWatchRatingJob } from '../../server/jobs/scheduler.ts'
+import { runWatchRatingPass } from '../../server/jobs/scheduler.ts'
+import { addDays, todayIso } from '../../shared/dates.ts'
 import { dataVersionKey } from '../../server/dataVersion.ts'
 import { storeParsedToday as storeParsed, syncProviderToday as syncProvider } from './helpers.ts'
 import { sealSecret } from '../../server/services/sync.ts'
@@ -9,6 +10,8 @@ import { syntheticRun } from '../fixtures/syntheticRoute.ts'
 import {
   WATCH_RATING_BATCH,
   WATCH_RATING_DEFER_MS,
+  WATCH_RATING_MAX_ATTEMPTS,
+  WATCH_RATING_PASS_MAX,
 } from '../../server/services/watchRatingBackfill.ts'
 import { P } from '../../shared/engine/params/index.ts'
 import { fakeFetch } from '../fakeFetch.ts'
@@ -271,11 +274,20 @@ describe('backfillWatchRatings', () => {
     expect(await backfillWatchRatings(ctx, user.id, { now: later })).toMatchObject({ requests: 1 })
 
     ctx.fetch = fakeFetch({ [`GET ${BASE}/activity/`]: () => new Response('', { status: 400 }) })
-    await backfillWatchRatings(ctx, user.id, { now: NOW })
-    await backfillWatchRatings(ctx, user.id, { now: NOW })
-    expect(await get(row.id)).toMatchObject({ watchRpeV: null })
-    const last = await backfillWatchRatings(ctx, user.id, { now: NOW })
-    expect(last.failures[0]!.reason).toContain('given up after 3 attempts')
+    // Repeated 4xx with no success in the call to show the endpoint works are never charged.
+    for (let i = 0; i < 4; i += 1) await backfillWatchRatings(ctx, user.id, { now: NOW })
+    expect(await get(row.id)).toMatchObject({ rpe: null, watchRpeV: null })
+    // A success elsewhere is the evidence: the held answers are then charged, and the run given up.
+    let last = await backfillWatchRatings(ctx, user.id, { now: NOW })
+    for (let i = 0; i < 3; i += 1) {
+      await run(`ok${String(i)}`, '2026-01-01')
+      ctx.fetch = fakeFetch({
+        [`GET ${BASE}/activity/ok`]: () => new Response('{"icu_rpe":3}', { status: 200 }),
+        [`GET ${BASE}/activity/`]: () => new Response('', { status: 400 }),
+      })
+      last = await backfillWatchRatings(ctx, user.id, { now: NOW })
+    }
+    expect(last.failures.some((f) => f.reason.includes('given up after 3 attempts'))).toBe(true)
     expect(await get(row.id)).toMatchObject({ rpe: null, watchRpeV: 1 })
   })
 
@@ -304,22 +316,24 @@ describe('backfillWatchRatings', () => {
   })
 })
 
-describe('runWatchRatingJob', () => {
+describe('runWatchRatingPass', () => {
   const jobRuns = () =>
     ctx.prisma.syncRun.findMany({
       where: { userId: user.id, channel: 'job', provider: 'watch-rating' },
       orderBy: { startedAt: 'asc' },
     })
+  const pass = (over: { createdBefore?: Date } = {}) =>
+    runWatchRatingPass(ctx, user.id, { today: todayIso(NOW), now: NOW, ...over })
 
   test('records a run that wrote ratings and stays quiet when idle', async () => {
     await connect()
     await run('i1', '2026-01-05')
     ctx.fetch = icu({ i1: 6 })
-    await runWatchRatingJob(ctx, undefined, { now: NOW })
+    await pass()
     const [stored, ...rest] = await jobRuns()
     expect(rest).toEqual([])
     expect(stored).toMatchObject({ status: 'ok', accepted: 1, failed: 0 })
-    await runWatchRatingJob(ctx, undefined, { now: NOW })
+    await pass()
     expect(await jobRuns()).toHaveLength(1)
   })
 
@@ -329,7 +343,7 @@ describe('runWatchRatingJob', () => {
     ctx.fetch = fakeFetch({
       [`GET ${BASE}/activity/`]: () => new Response('', { status: 429 }),
     })
-    await runWatchRatingJob(ctx, undefined, { now: NOW })
+    await pass()
     expect((await jobRuns()).at(-1)).toMatchObject({ status: 'paused' })
     await ctx.prisma.integration.update({
       where: { id: integration.id },
@@ -338,8 +352,179 @@ describe('runWatchRatingJob', () => {
     ctx.fetch = fakeFetch({
       [`GET ${BASE}/activity/`]: () => new Response('', { status: 401 }),
     })
-    await runWatchRatingJob(ctx, undefined, { now: NOW })
+    await pass()
     expect((await jobRuns()).at(-1)).toMatchObject({ status: 'error', failed: 1 })
+  })
+
+  test('drains more than one batch in one call', async () => {
+    await connect()
+    const total = WATCH_RATING_BATCH * 2 + 2
+    const ratings: Record<string, number> = {}
+    for (let i = 1; i <= total; i += 1) {
+      await run(`i${String(i)}`, `2026-01-${String(i).padStart(2, '0')}`)
+      ratings[`i${String(i)}`] = 5
+    }
+    const seen: string[] = []
+    ctx.fetch = icu(ratings, seen)
+    await pass()
+    expect(seen).toHaveLength(total)
+    expect((await jobRuns()).at(-1)).toMatchObject({ status: 'ok', accepted: total })
+  })
+
+  test('stops at a 429 with the integration paused, and at a 5xx, leaving the rest waiting', async () => {
+    const integration = await connect()
+    for (let i = 1; i <= 8; i += 1) await run(`i${String(i)}`, `2026-01-0${String(i)}`)
+    let calls = 0
+    ctx.fetch = fakeFetch({
+      [`GET ${BASE}/activity/`]: () => {
+        calls += 1
+        return new Response('', { status: 429, headers: { 'retry-after': '300' } })
+      },
+    })
+    await pass()
+    expect(calls).toBe(1)
+    const row = await ctx.prisma.integration.findUniqueOrThrow({ where: { id: integration.id } })
+    expect(row.pausedUntil).toEqual(new Date(NOW.getTime() + 300_000))
+    expect(await ctx.prisma.activity.count({ where: { watchRpeV: null } })).toBe(8)
+
+    await ctx.prisma.integration.update({
+      where: { id: integration.id },
+      data: { pausedUntil: null },
+    })
+    calls = 0
+    ctx.fetch = fakeFetch({
+      [`GET ${BASE}/activity/`]: () => {
+        calls += 1
+        return new Response('', { status: 503 })
+      },
+    })
+    await pass()
+    expect(calls).toBe(1)
+    expect((await jobRuns()).at(-1)).toMatchObject({ status: 'partial', failed: 1 })
+  })
+
+  test('stops at WATCH_RATING_PASS_MAX requests', async () => {
+    await connect()
+    const total = WATCH_RATING_PASS_MAX + 7
+    const rows = Array.from({ length: total }, (_, i) => ({
+      userId: user.id,
+      type: 'run',
+      date: addDays('2026-01-01', i % 300),
+      durationSec: 900,
+      source: 'intervals',
+      providerKey: `intervals:b${String(i)}`,
+      startUtc: '2026-01-01T07:00:00Z',
+    }))
+    await ctx.prisma.activity.createMany({ data: rows })
+    const seen: string[] = []
+    ctx.fetch = icu({}, seen)
+    await pass()
+    expect(seen).toHaveLength(WATCH_RATING_PASS_MAX)
+    expect(await ctx.prisma.activity.count({ where: { watchRpeV: null } })).toBe(7)
+  })
+
+  test('one bad run does not hold the ratings behind it', async () => {
+    await connect()
+    const bad = await run('bad1', '2026-01-09')
+    const good = await run('good1', '2026-01-08')
+    ctx.fetch = fakeFetch({
+      [`GET ${BASE}/activity/bad1`]: () => new Response('', { status: 422 }),
+      [`GET ${BASE}/activity/good1`]: () =>
+        new Response(JSON.stringify({ id: 'good1', icu_rpe: 4 }), { status: 200 }),
+    })
+    await pass()
+    expect(await get(good.id)).toMatchObject({ rpe: 4, rpeSource: 'watch' })
+    expect(await get(bad.id)).toMatchObject({ rpe: null, watchRpeV: null })
+    expect((await jobRuns()).at(-1)).toMatchObject({ status: 'partial', accepted: 1, failed: 1 })
+  })
+
+  test('bad runs at the head do not block the queue across batches, and are given up once a success is seen', async () => {
+    await connect()
+    // Seven bad runs, newer than the good ones: more than one budget stop of three each.
+    const bad = []
+    for (let i = 1; i <= 7; i += 1) bad.push(await run(`hb${String(i)}`, `2026-01-${10 + i}`))
+    const goods = [await run('hg1', '2026-01-02'), await run('hg2', '2026-01-03')]
+    const rated = new Set<string>()
+    ctx.fetch = fakeFetch({
+      [`GET ${BASE}/activity/hg`]: (req) => {
+        const id = new URL(req.url).pathname.split('/').pop()!
+        rated.add(id)
+        return new Response(JSON.stringify({ id, icu_rpe: 4 }), { status: 200 })
+      },
+      [`GET ${BASE}/activity/`]: () => new Response('', { status: 422 }),
+    })
+    const call = () => backfillWatchRatings(ctx, user.id, { now: NOW })
+    // Passes 1 and 2: three refusals each, no success, so nothing is charged.
+    expect(await call()).toMatchObject({ requests: 3, filled: 0 })
+    expect(await call()).toMatchObject({ requests: 3, filled: 0 })
+    // Pass 3: the untried runs go first, so the good ones are reached.
+    const third = await call()
+    expect(third.filled).toBeGreaterThan(0)
+    expect(rated.size).toBeGreaterThan(0)
+    // Further passes reach every good run, and charge the bad ones, given up after three tries.
+    for (let n = 0; n < 6; n += 1) {
+      await call()
+      // A fresh good run is the success that lets the held answers be charged.
+      await run(`hgx${String(n)}`, '2026-01-01')
+    }
+    for (const row of goods) expect(await get(row.id)).toMatchObject({ rpe: 4 })
+    const marked = await ctx.prisma.activity.count({
+      where: { id: { in: bad.map((row) => row.id) }, watchRpeV: 1 },
+    })
+    expect(marked).toBeGreaterThan(0)
+  })
+
+  test('a lone bad run during a provider-wide 422 is never charged', async () => {
+    await connect()
+    const lone = await run('lone1', '2026-01-09')
+    ctx.fetch = fakeFetch({ [`GET ${BASE}/activity/`]: () => new Response('', { status: 422 }) })
+    for (let call = 0; call < WATCH_RATING_MAX_ATTEMPTS + 2; call += 1) {
+      expect(await backfillWatchRatings(ctx, user.id, { now: NOW })).toMatchObject({ requests: 1 })
+    }
+    expect(await get(lone.id)).toMatchObject({ rpe: null, watchRpeV: null })
+  })
+
+  test('a 4xx then a 5xx in one call: the 4xx is not charged', async () => {
+    await connect()
+    const a = await run('mx1', '2026-01-09')
+    await run('mx2', '2026-01-08')
+    ctx.fetch = fakeFetch({
+      [`GET ${BASE}/activity/mx1`]: () => new Response('', { status: 422 }),
+      [`GET ${BASE}/activity/mx2`]: () => new Response('', { status: 500 }),
+    })
+    for (let call = 0; call < WATCH_RATING_MAX_ATTEMPTS + 1; call += 1) {
+      await backfillWatchRatings(ctx, user.id, { now: NOW })
+    }
+    expect(await get(a.id)).toMatchObject({ watchRpeV: null })
+  })
+
+  test('a 404 marks the run and counts as a success for the held answers', async () => {
+    await connect()
+    const gone = await run('gx1', '2026-01-09')
+    const bad = await run('gx2', '2026-01-08')
+    ctx.fetch = fakeFetch({
+      [`GET ${BASE}/activity/gx1`]: () => new Response('', { status: 404 }),
+      [`GET ${BASE}/activity/gx2`]: () => new Response('', { status: 422 }),
+    })
+    await backfillWatchRatings(ctx, user.id, { now: NOW })
+    expect(await get(gone.id)).toMatchObject({ rpe: null, watchRpeV: 1 })
+    expect(await get(bad.id)).toMatchObject({ watchRpeV: null })
+  })
+
+  test('createdBefore leaves a run created at or after it for the next pass', async () => {
+    await connect()
+    const before = await run('i1', '2026-01-05')
+    const cut = new Date(before.createdAt.getTime() + 1)
+    await new Promise((resolve) => setTimeout(resolve, 5))
+    const after = await run('i2', '2026-01-06')
+    const seen: string[] = []
+    ctx.fetch = icu({ i1: 5, i2: 7 }, seen)
+    await pass({ createdBefore: cut })
+    expect(seen).toEqual(['i1'])
+    expect(await get(after.id)).toMatchObject({ rpe: null, watchRpeV: null })
+    await pass({ createdBefore: new Date(after.createdAt.getTime() + 1) })
+    expect(seen).toEqual(['i1', 'i2'])
+    expect(await get(after.id)).toMatchObject({ rpe: 7, rpeSource: 'watch' })
   })
 })
 
@@ -504,15 +689,43 @@ describe('what the backfill leaves alone or hands on', () => {
     // Within the back-off nothing is asked.
     await backfillWatchRatings(ctx, user.id, { now: new Date(NOW.getTime() + 60_000) })
     expect(seen).toHaveLength(1)
-    // After the back-off the same newest run is tried until it is passed over; then the next one.
+    // After the back-off the least recently tried run goes first, so the two runs take turns.
     for (let i = 1; i <= 2; i += 1) {
       await backfillWatchRatings(ctx, user.id, { now: new Date(NOW.getTime() + i * 61 * 60_000) })
     }
-    expect(seen).toEqual(['i2', 'i2', 'i2'])
+    expect(seen).toEqual(['i2', 'i1', 'i2'])
     await backfillWatchRatings(ctx, user.id, { now: new Date(NOW.getTime() + 3 * 61 * 60_000) })
     expect(seen.at(-1)).toBe('i1')
     expect(await get(first.id)).toMatchObject({ rpe: null, watchRpeV: null })
     expect(await get(second.id)).toMatchObject({ rpe: null, watchRpeV: null })
+  })
+
+  test('a run refused with a 403 three times is not asked again until the deferral ends', async () => {
+    await connect()
+    const only = await run('d1', '2026-01-06')
+    const seen: string[] = []
+    ctx.fetch = fakeFetch({
+      [`GET ${BASE}/activity/`]: (req) => {
+        seen.push(new URL(req.url).pathname.split('/').pop()!)
+        return new Response('', { status: 403 })
+      },
+    })
+    const hour = 61 * 60_000
+    // Each call is past the one-hour back-off of the one before.
+    for (let i = 0; i < WATCH_RATING_MAX_ATTEMPTS; i += 1) {
+      await backfillWatchRatings(ctx, user.id, { now: new Date(NOW.getTime() + i * hour) })
+    }
+    expect(seen).toEqual(['d1', 'd1', 'd1'])
+    const lastRefusal = NOW.getTime() + (WATCH_RATING_MAX_ATTEMPTS - 1) * hour
+    // Past the back-off but inside the deferral: not asked.
+    await backfillWatchRatings(ctx, user.id, { now: new Date(lastRefusal + hour) })
+    expect(seen).toHaveLength(3)
+    // Once the deferral ends, it is asked again.
+    await backfillWatchRatings(ctx, user.id, {
+      now: new Date(lastRefusal + WATCH_RATING_DEFER_MS + 1000),
+    })
+    expect(seen).toHaveLength(4)
+    expect(await get(only.id)).toMatchObject({ rpe: null, watchRpeV: null })
   })
 
   test('a sync in progress keeps the job from asking', async () => {

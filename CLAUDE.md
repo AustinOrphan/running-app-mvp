@@ -484,10 +484,13 @@ protection reads. The Docker image must still build (`docker build .`) after a c
   preparation, not engine Params. `ActivityTrack` (non-state) is written only by `storeParsed` and the `track`
   backfill (`server/services/trackBackfill.ts`), whose local part (parsing the stored original) runs in the
   start pass and from `refreshDerivedAfterEdit` after a type or sub-type edit, never on a timer, and whose
-  network part (intervals.icu streams) is still the 5-minute `track` job until the polls-to-events plan
-  (kept outside the repository) moves it to the sync; `Activity.trackV` records that the positions were looked for,
+  network part (intervals.icu streams, `runTrackStreams`) is the first tail of the hourly intervals.icu sync
+  (ADR 0026), up to 60 requests; `Activity.trackV` records that the positions were looked for,
   so a treadmill run or one with none has no row and is not looked for again. A pull provider's positions
   come from `fetchRoute` (intervals.icu `latlng` stream: latitudes in `data`, longitudes in `data2`). The
+  watch rating of a pulled run that the import left unrated (`backfillWatchRatings`) is asked for by the
+  second tail of the same sync (`runWatchRatingPass`, up to 60 requests, `createdBefore` the sync's start so
+  a run just imported waits for the next sync); a 429 in a tail pauses the next sync. The
   stored track is whole; `GET /api/activities/:id/track` cuts the first and last 200 m while
   `User.hideMapEnds` is on (the default), and nothing else may serve the stored polyline.
 - The run map (`web/components/map/RunMap.tsx`, tile maths in `shared/domain/mapTiles.ts`) uses no map

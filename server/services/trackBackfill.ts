@@ -7,7 +7,13 @@ import { loadProfile } from '../serialize.ts'
 import { trackRow } from './activityStore.ts'
 import type { StartPassChunk } from './startPass.ts'
 import { queueSurfaceFill } from './surfaceFill.ts'
-import { isSyncing, openIntegration, providerContext } from './sync.ts'
+import {
+  isSyncing,
+  leastRecentlyTried,
+  openIntegration,
+  providerContext,
+  TAIL_SYSTEMIC_4XX,
+} from './sync.ts'
 import { safeMessage, secretValues } from './syncLog.ts'
 import { parseActivityFile } from '../../shared/importers/files/index.ts'
 import { TRACK_VERSION, buildTrack, type RoutePoint } from '../../shared/importers/files/track.ts'
@@ -15,12 +21,13 @@ import type { ParsedActivity } from '../../shared/types.ts'
 
 /** Stored originals parsed per user per call: local work, no network. */
 export const TRACK_FILE_BATCH = 20
-/**
- * intervals.icu stream requests per user per call. With the 5-minute tick that is one request a
- * minute, far under the provider's limits, and 76 runs take 16 ticks (80 minutes). The tick is the
- * stream part's only trigger until the sync tail replaces it (the polls-to-events plan, PR C).
- */
+/** intervals.icu stream requests per call when the caller names no limit. */
 export const TRACK_STREAM_BATCH = 5
+/**
+ * intervals.icu stream requests per user per sync tail: 60 an hour, the budget the retired
+ * 5-minute job spent (5 every 5 minutes), far under the provider's limits.
+ */
+export const TRACK_STREAMS_PER_SYNC = 60
 
 /** Failed stream requests for one run before the run is given up on (marked, no route). */
 export const TRACK_MAX_ATTEMPTS = 3
@@ -30,6 +37,8 @@ export const TRACK_AUTH_BACKOFF_MS = 60 * 60_000
 const PROVIDER = 'intervals'
 /** Failed requests per activity since the process started; a restart starts the count again. */
 const attempts = new Map<string, number>()
+/** When each run was last asked (ms), so the least recently tried goes first; a restart clears it. */
+const lastTriedAt = new Map<string, number>()
 /**
  * When the stream part may ask an integration again after an auth refusal, with the integration's
  * `updatedAt` at that time: a reconnect rewrites the row, so it lifts the block.
@@ -98,9 +107,10 @@ function sessionFor(
  *
  * 1. Runs with a stored original (`ActivityFile`): the file is parsed again, no network. Run by the
  *    start pass (`trackChunkFor`) and by a type edit (`activityIds`), never by a timer (ADR 0026).
- * 2. Pulled intervals.icu runs with no original: one `latlng,distance` stream request each, newest
- *    first, `TRACK_STREAM_BATCH` per call, only while the integration is connected, not paused and
- *    not syncing. A 429 stops the part and sets the integration's `pausedUntil` as the sync does; a
+ * 2. Pulled intervals.icu runs with no original: one `latlng,distance` stream request each, least
+ *    recently tried first (ties newest first), `TRACK_STREAM_BATCH` per call (the tail of the hourly sync asks for
+ *    `TRACK_STREAMS_PER_SYNC`), only while the integration is connected, not paused and not
+ *    syncing. The sync tail is its only trigger (ADR 0026). A 429 stops the part and sets the integration's `pausedUntil` as the sync does; a
  *    404 means no streams (marked); a 401 or 403 stops the part for an hour (the sync's needs-auth
  *    handling owns it); any other failure ends the part and leaves the run for the next call.
  *    Only a 4xx the provider sent for the run counts toward giving it up: after
@@ -118,6 +128,8 @@ export async function backfillTracks(
     fileLimit?: number
     streamLimit?: number
     now?: Date
+    /** The sync's fetch, so a sync and its tail use the same one (default: the deps' fetch). */
+    fetch?: typeof fetch
     /** Only these activities (the type edit). */
     activityIds?: readonly string[]
     /** Which parts run (both when omitted). `remaining` counts only the parts that ran. */
@@ -229,6 +241,19 @@ export async function backfillTracks(
   }
 
   async function streamPart(row: NonNullable<typeof integration>): Promise<void> {
+    // The runs first: a tail with nothing owed costs one query, no decrypt.
+    // Least recently tried first, so a run the provider keeps refusing goes to the back after its
+    // try and the runs behind it are reached at the next sync.
+    const owed = await prisma.activity.findMany({
+      where: streamWhere,
+      select: { id: true, date: true, providerKey: true, startUtc: true, updatedAt: true },
+      orderBy: [{ date: 'desc' }, { id: 'asc' }],
+    })
+    if (owed.length === 0) return
+    const runs = leastRecentlyTried(owed, lastTriedAt).slice(
+      0,
+      opts.streamLimit ?? TRACK_STREAM_BATCH,
+    )
     let opened: ReturnType<typeof openIntegration>
     try {
       opened = openIntegration(row, deps.config.sessionSecret)
@@ -237,67 +262,98 @@ export async function backfillTracks(
       throw error
     }
     const secrets = secretValues(opened.secret)
-    const ctx = await providerContext(deps, userId, PROVIDER, opened)
-    const runs = await prisma.activity.findMany({
-      where: streamWhere,
-      select: { id: true, providerKey: true, startUtc: true, updatedAt: true },
-      orderBy: [{ date: 'desc' }, { id: 'asc' }],
-      take: opts.streamLimit ?? TRACK_STREAM_BATCH,
+    const ctx = await providerContext(deps, userId, PROVIDER, {
+      ...opened,
+      ...(opts.fetch === undefined ? {} : { fetch: opts.fetch }),
     })
-    for (const run of runs) {
-      const remoteId = run.providerKey!.slice(PROVIDER.length + 1)
-      let route: Awaited<ReturnType<NonNullable<typeof pull>['fetchRoute'] & {}>>
-      try {
-        result.requests += 1
-        route = await pull!.fetchRoute!(
-          { id: remoteId, startUtc: run.startUtc ?? now.toISOString() },
-          ctx,
-        )
-      } catch (error) {
-        if (error instanceof RateLimitPause) {
-          const until = new Date(now.getTime() + error.retryAfterSec * 1000)
-          await prisma.integration.updateMany({
-            where: { id: row.id, userId },
-            data: { pausedUntil: until },
-          })
-          result.pause = { retryAfterSec: error.retryAfterSec }
-          return
-        }
-        if (error instanceof ProviderAuthError) {
-          // Not a failure of this run: the key is refused. Leave it to the sync's needs-auth handling.
-          authBlocked.set(row.id, {
-            until: now.getTime() + TRACK_AUTH_BACKOFF_MS,
-            stamp: row.updatedAt.getTime(),
-          })
-          return
-        }
-        const reason = safeMessage(error, secrets)
-        // Only a failure specific to this run counts toward giving it up: a 4xx the provider sent
-        // for it. A rejected fetch, a 5xx or a body that is not JSON says the service is down or
-        // unreachable, which ends this tick's stream part and says nothing about the run.
-        const runSpecific =
-          error instanceof ProviderHttpError && error.status >= 400 && error.status < 500
-        if (!runSpecific) {
-          result.failures.push({ ref: run.providerKey!, reason })
-          return
-        }
+    /**
+     * Run-specific 4xx answers (anything but 401, 403, 404 and 429) are held, not charged. They are
+     * charged to their runs at every exit of the part only if a request of this pass succeeded:
+     * without that the answers may be about the service (an API change, a fault), not the runs, and
+     * are dropped. Accepted cost: a bad run with no other owed run to give that evidence is asked
+     * again about once an hour and never given up until a success elsewhere shows the endpoint works.
+     */
+    const held: Array<{ run: (typeof runs)[number]; reason: string }> = []
+    let succeeded = false
+    let streak = 0
+    async function chargeHeld(): Promise<void> {
+      const list = held.splice(0)
+      if (!succeeded) return
+      for (const { run, reason } of list) {
         const tries = (attempts.get(run.id) ?? 0) + 1
         if (tries < TRACK_MAX_ATTEMPTS) {
           attempts.set(run.id, tries)
-          result.failures.push({ ref: run.providerKey!, reason })
-          return
+          continue
         }
-        // A run that fails every tick would block the ones behind it: give it up like a 404.
+        // A run that fails every sync would hold the queue: give it up like a 404.
         attempts.delete(run.id)
         result.failures.push({
           ref: run.providerKey!,
           reason: `${reason} (given up after ${String(tries)} attempts)`,
         })
         await settle(run, null)
-        continue
       }
-      attempts.delete(run.id)
-      await settle(run, route)
+    }
+    try {
+      for (const run of runs) {
+        const remoteId = run.providerKey!.slice(PROVIDER.length + 1)
+        let route: Awaited<ReturnType<NonNullable<typeof pull>['fetchRoute'] & {}>>
+        try {
+          result.requests += 1
+          lastTriedAt.set(run.id, now.getTime())
+          route = await pull!.fetchRoute!(
+            { id: remoteId, startUtc: run.startUtc ?? now.toISOString() },
+            ctx,
+          )
+        } catch (error) {
+          if (error instanceof RateLimitPause) {
+            const until = new Date(now.getTime() + error.retryAfterSec * 1000)
+            await prisma.integration.updateMany({
+              where: { id: row.id, userId },
+              data: { pausedUntil: until },
+            })
+            result.pause = { retryAfterSec: error.retryAfterSec }
+            return
+          }
+          if (error instanceof ProviderAuthError) {
+            // Not a failure of this run: the key is refused. Leave it to the sync's needs-auth handling.
+            authBlocked.set(row.id, {
+              until: now.getTime() + TRACK_AUTH_BACKOFF_MS,
+              stamp: row.updatedAt.getTime(),
+            })
+            return
+          }
+          const reason = safeMessage(error, secrets)
+          // Only a failure specific to this run counts toward giving it up: a 4xx the provider sent
+          // for it. A rejected fetch, a 5xx or a body that is not JSON says the service is down or
+          // unreachable, which ends this tick's stream part and says nothing about the run.
+          const runSpecific =
+            error instanceof ProviderHttpError && error.status >= 400 && error.status < 500
+          if (!runSpecific) {
+            result.failures.push({ ref: run.providerKey!, reason })
+            return
+          }
+          held.push({ run, reason })
+          result.failures.push({ ref: run.providerKey!, reason })
+          streak += 1
+          // Budget stop: this many refusals in a row, and the rest of the queue is left for the
+          // next sync.
+          if (streak >= TAIL_SYSTEMIC_4XX) {
+            result.failures.push({
+              ref: PROVIDER,
+              reason: `${reason} (${String(TAIL_SYSTEMIC_4XX)} answers in a row; stopped for this sync)`,
+            })
+            return
+          }
+          continue
+        }
+        succeeded = true
+        streak = 0
+        attempts.delete(run.id)
+        await settle(run, route)
+      }
+    } finally {
+      await chargeHeld()
     }
   }
 

@@ -39,8 +39,8 @@ import { recordJob, safeMessage, syncMessage } from '../services/syncLog.ts'
 import { backfillHrQuality } from '../services/hrQualityBackfill.ts'
 import { surfaceChunkFor } from '../services/surfaceFill.ts'
 import { backfillTerrainBins } from '../services/terrainBackfill.ts'
-import { backfillTracks, trackChunkFor } from '../services/trackBackfill.ts'
-import { backfillWatchRatings } from '../services/watchRatingBackfill.ts'
+import { backfillTracks, TRACK_STREAMS_PER_SYNC, trackChunkFor } from '../services/trackBackfill.ts'
+import { backfillWatchRatings, WATCH_RATING_PASS_MAX } from '../services/watchRatingBackfill.ts'
 import { enrichWeather } from '../services/weather.ts'
 import { onForecastStored, refreshWeatherCaches } from '../services/weatherCache.ts'
 import {
@@ -67,10 +67,6 @@ export const PUBLISH_SETTLE_MS = 5_000
 export const PUBLISH_FAILURE_FLOOR_MS = MINUTE_MS
 /** A run is never held back longer than this after the first event of a burst. */
 export const PUBLISH_MAX_WAIT_MS = 2 * MINUTE_MS
-/** How often the track job asks intervals.icu for a few streams (PR C of the polls plan removes it). */
-export const TRACK_INTERVAL_MS = 5 * MINUTE_MS
-/** How often the watch-rating backfill asks intervals.icu for a few activity records. */
-export const WATCH_RATING_INTERVAL_MS = 5 * MINUTE_MS
 /** Activities that get weather per user per run. */
 const WEATHER_BATCH = 50
 /** The first run waits, so a crash loop never hammers a provider. */
@@ -164,6 +160,27 @@ export async function runSyncJob(
       duplicate: sum('duplicate'),
       failed: sum('failed'),
     })
+    // The tails (ADR 0026): intervals.icu cannot notify the app, and the hourly sync is the one
+    // poll of it, so the network work that follows an import rides on it. The sync has released its
+    // lock by now, a 429 from either tail sets `pausedUntil` (the other tail and the next sync
+    // honour it), and each tail records and logs its own failure, so one never stops the other.
+    if (providers.includes('intervals')) {
+      await runTrackStreams(deps, userId, log, {
+        fetch: opts.fetch,
+        ...(opts.now === undefined ? {} : { now: opts.now }),
+      })
+      await runWatchRatingPass(
+        deps,
+        userId,
+        {
+          today: day.today,
+          createdBefore: startedAt,
+          fetch: opts.fetch,
+          ...(opts.now === undefined ? {} : { now: opts.now }),
+        },
+        log,
+      )
+    }
   }
 }
 
@@ -251,94 +268,95 @@ export async function runWeatherJob(
 }
 
 /**
- * Asks intervals.icu for the route streams of pulled runs that have no stored original, a few per
- * tick (`backfillTracks`, stream part only). This is the one network part of the track backfill and
- * the only reason the 5-minute `track` job is still registered: the polls-to-events plan (PR C)
- * moves it to the end of the hourly sync and removes the job. Stored originals are parsed by the
- * start pass and by a type edit (ADR 0026), never here. A tick that fills something, makes a
- * request or fails one records a `track` run: `accepted` the tracks written, `failed` the failed
- * requests, `partial` when there are any and `paused` while intervals.icu is rate limiting; a tick
- * with nothing to do is not stored. A user's failure is recorded as an error run and the job goes
- * on. Idempotent and resumable: a run that was looked at is never selected again.
+ * The first tail of an intervals.icu sync (ADR 0026): asks intervals.icu for the route streams of
+ * the runner's pulled runs that have no stored original (`backfillTracks`, stream part only), up
+ * to `TRACK_STREAMS_PER_SYNC` requests. Stored originals are parsed by the start pass and by a
+ * type edit, never here. A tail that fills something, makes a request or fails one records a
+ * `track` run: `accepted` the tracks written, `failed` the failed requests, `partial` when there
+ * are any and `paused` when this tail met a 429; a tail with nothing to do is not stored. A
+ * failure is recorded as an error run and logged, never thrown, so the next tail still runs.
+ * Idempotent and resumable: a run that was looked at is never selected again. A 429 sets
+ * `pausedUntil`, which also holds back the next sync.
  */
-export async function runTrackJob(deps: Deps, log?: Log, opts: { now?: Date } = {}): Promise<void> {
-  const users = await deps.prisma.user.findMany({ select: { id: true } })
-  for (const user of users) {
-    const startedAt = new Date()
-    try {
-      const result = await backfillTracks(deps, user.id, {
-        ...opts,
-        parts: { files: false, streams: true },
-      })
-      const failures = [
-        ...result.unreadable.map((ref) => ({ ref, reason: 'the stored file could not be read' })),
-        ...result.failures,
-      ]
-      await recordJob(deps, 'track', user.id, startedAt, {
-        accepted: result.filled,
-        failed: failures.length,
-        // Only a 429 met in this tick is a `paused` run; waiting out an earlier pause is idle.
-        status:
-          result.pause && result.requests > 0 ? 'paused' : failures.length > 0 ? 'partial' : 'ok',
-        failures,
-        skipIdle: true,
-      })
-    } catch (error) {
-      log?.warn({ reason: safeMessage(error), userId: user.id }, 'track backfill failed')
-      await recordJob(deps, 'track', user.id, startedAt, { error })
-    }
+export async function runTrackStreams(
+  deps: Deps,
+  userId: string,
+  log?: Log,
+  opts: { now?: Date; fetch?: typeof fetch } = {},
+): Promise<void> {
+  const startedAt = new Date()
+  try {
+    const result = await backfillTracks(deps, userId, {
+      ...opts,
+      streamLimit: TRACK_STREAMS_PER_SYNC,
+      parts: { files: false, streams: true },
+    })
+    const failures = [
+      ...result.unreadable.map((ref) => ({ ref, reason: 'the stored file could not be read' })),
+      ...result.failures,
+    ]
+    await recordJob(deps, 'track', userId, startedAt, {
+      accepted: result.filled,
+      failed: failures.length,
+      // Only a 429 met in this tail is a `paused` run; waiting out an earlier pause is idle.
+      status:
+        result.pause && result.requests > 0 ? 'paused' : failures.length > 0 ? 'partial' : 'ok',
+      failures,
+      skipIdle: true,
+    })
+  } catch (error) {
+    log?.warn({ reason: safeMessage(error), userId }, 'track backfill failed')
+    await recordJob(deps, 'track', userId, startedAt, { error }).catch(() => undefined)
   }
 }
 
 /**
- * Fills the watch rating of intervals.icu runs stored without one (WB1), a few `/activity/{id}`
- * requests per user per tick (`backfillWatchRatings`). A tick that fills a rating, fails a
+ * The second tail of an intervals.icu sync (ADR 0026): fills the watch rating of the runner's
+ * intervals.icu runs stored without one (WB1). It makes one `backfillWatchRatings` call of up to
+ * `WATCH_RATING_PASS_MAX` requests, least recently tried run first, stopping at a pause, a refused
+ * key, an outage or three run-specific 4xx answers in a row. `createdBefore` is the start of the sync before the
+ * tail: a run that sync imported is asked at the next sync, so the second chance of a run rated on
+ * the watch after its first sync is not spent within seconds. A pass that fills a rating, fails a
  * request or meets a pause or a refused key records a `watch-rating` run: `accepted` the ratings
- * written, `failed` the failed requests, `partial` when there are any, `paused` while intervals.icu is
- * rate limiting and `error` when it refused the key. A tick that only marks runs (no rating held) is
- * idle and not stored, like one with nothing to do. A user's failure is recorded as
- * an error run and the job goes on. Idempotent and resumable: a run that was asked about is never
- * selected again.
+ * written, `failed` the failed requests, `partial` when there are any, `paused` when this pass
+ * met a 429 and `error` when intervals.icu refused the key. A pass that only marks runs (no rating
+ * held) is idle and not stored. A failure is recorded as an error run and logged, never thrown.
+ * Idempotent and resumable: a run that was asked about is never selected again.
  */
-export async function runWatchRatingJob(
+export async function runWatchRatingPass(
   deps: Deps,
+  userId: string,
+  opts: { today: string; createdBefore?: Date; now?: Date; fetch?: typeof fetch },
   log?: Log,
-  opts: { now?: Date; days?: ReadonlyMap<string, RunnerDay> } = {},
 ): Promise<void> {
-  const users = await deps.prisma.user.findMany({ select: { id: true } })
-  const days = await daysFor(
-    deps,
-    opts.now ?? new Date(),
-    users.map((user) => user.id),
-    opts.days,
-  )
-  for (const user of users) {
-    const startedAt = new Date()
-    const day = days.get(user.id)
-    if (day === undefined) continue
-    try {
-      const result = await backfillWatchRatings(deps, user.id, {
-        ...(opts.now === undefined ? {} : { now: opts.now }),
-        today: day.today,
-      })
-      const status = result.authRefused
-        ? 'error'
-        : result.pause && result.requests > 0
-          ? 'paused'
-          : result.failures.length > 0
-            ? 'partial'
-            : 'ok'
-      await recordJob(deps, 'watch-rating', user.id, startedAt, {
-        accepted: result.filled,
-        failed: result.failures.length,
-        status,
-        failures: result.failures,
-        skipIdle: true,
-      })
-    } catch (error) {
-      log?.warn({ reason: safeMessage(error), userId: user.id }, 'watch rating backfill failed')
-      await recordJob(deps, 'watch-rating', user.id, startedAt, { error })
-    }
+  const startedAt = new Date()
+  try {
+    // One call for the whole pass (limit 60), so the evidence rule (a held 4xx is charged only if
+    // a request of the pass succeeded) sees every request of it.
+    const result = await backfillWatchRatings(deps, userId, {
+      today: opts.today,
+      ...(opts.now === undefined ? {} : { now: opts.now }),
+      ...(opts.fetch === undefined ? {} : { fetch: opts.fetch }),
+      ...(opts.createdBefore === undefined ? {} : { createdBefore: opts.createdBefore }),
+      limit: WATCH_RATING_PASS_MAX,
+    })
+    const status = result.authRefused
+      ? 'error'
+      : result.pause !== null && result.requests > 0
+        ? 'paused'
+        : result.failures.length > 0
+          ? 'partial'
+          : 'ok'
+    await recordJob(deps, 'watch-rating', userId, startedAt, {
+      accepted: result.filled,
+      failed: result.failures.length,
+      status,
+      failures: result.failures,
+      skipIdle: true,
+    })
+  } catch (error) {
+    log?.warn({ reason: safeMessage(error), userId }, 'watch rating backfill failed')
+    await recordJob(deps, 'watch-rating', userId, startedAt, { error }).catch(() => undefined)
   }
 }
 
@@ -858,8 +876,8 @@ export const STRAVA_SLOT: DailySlot = { hour: 3, minute: 30 }
 export const PUBLISH_MORNING_SLOT: DailySlot = { hour: 4, minute: 45 }
 
 /**
- * Starts the hourly sync, 5-minute folder scan and 10-minute weather jobs, the 5-minute track
- * job (intervals.icu streams only, until the sync tail replaces it), a start pass 30 s after start
+ * Starts the hourly sync (its intervals.icu tails fetch the owed track streams and ask the watch
+ * ratings, ADR 0026), the 5-minute folder scan and 10-minute weather jobs, a start pass 30 s after start
  * for the terrain bins, the heart-rate quality, the stored-original tracks and the trail and road
  * shares (ADR 0026; edits and imports fill them as they happen), the daily database
  * backup (02:00 local), the nightly matching (02:30 local), the Monday re-plan (03:00 local) and
@@ -1101,8 +1119,6 @@ export function startScheduler(deps: Deps, opts: { fetch: typeof fetch }): () =>
   every('sync', SYNC_INTERVAL_MS, () => runSyncJob(deps, opts, log))
   every('folder', FOLDER_INTERVAL_MS, () => runFolderJob(deps, log))
   every('weather', WEATHER_INTERVAL_MS, () => runWeatherJob(deps, opts, log))
-  every('track', TRACK_INTERVAL_MS, () => runTrackJob(deps, log))
-  every('watch-rating', WATCH_RATING_INTERVAL_MS, () => runWatchRatingJob(deps, log))
   // The daily slot and the start-up catch-up share this flag, so two copies never run at once.
   let backingUp = false
   const exclusiveBackup = async (job: () => Promise<unknown>): Promise<void> => {
@@ -1121,7 +1137,8 @@ export function startScheduler(deps: Deps, opts: { fetch: typeof fetch }): () =>
   // Start passes (ADR 0026): backfills for rows that predate a column or a version run once, after
   // the first-run delay and in sequence, each in its own catch so one failure never skips the next.
   // Later columns append their pass here; track goes before surface, which matches its tracks.
-  // Track here is the local part (stored originals); the intervals.icu streams stay on the tick.
+  // Track here is the local part (stored originals); the intervals.icu streams and the watch
+  // ratings follow the sync, whose first tick (30 s after start) is their pass after a deploy.
   once('start-passes', async () => {
     const passes: Array<[string, () => Promise<void>]> = [
       [

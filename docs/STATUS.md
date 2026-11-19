@@ -151,7 +151,8 @@ Answered on 2026-11-09, one item at a time with options:
   - Owner decisions of 2026-11-14, built:
     - #725: an empty rating is filled from the watch's `icu_rpe` with a source marker
       (`Activity.rpeSource`), read by the engine only after a spread check (rule B1, three grade D
-      Params); #727: a `watch-rating` job fills it for stored runs.
+      Params); #727: a `watch-rating` job fills it for stored runs (since ADR 0026, a pass after
+      each hourly intervals.icu sync).
     - #728: downhill work is ordered and cued (rule H5): lead weeks, a controlled-descent cue, a
       10-day cut-off before the race and a pause on quad soreness, flags and words only.
     - #731: the plan draws around B and C races entered before the goal race (rule K6, H12, four
@@ -2492,8 +2493,8 @@ things stand" gives counts and percentages without a weekly total or a date.
     the session (#704); it over-refuses inside that window by design.
 39. The e2e job's image tag in `ci.yml` is not touched by Dependabot's npm update, so a Playwright
     bump changes it by hand (#707).
-40. A watch rating given after the first pull is not picked up (the sync skips a stored activity),
-    and a rating stored from the watch is never refreshed when intervals.icu later holds another
+40. A watch rating given after the first pull is not picked up (the sync skips a stored activity;
+    the rating is asked again once, at the next hourly sync), and a rating stored from the watch is never refreshed when intervals.icu later holds another
     value (#725, #727). A stored standout and the stored execution assessments are not recomputed
     when the spread check first passes; they follow the next rating, edit or re-assessment. The
     three thresholds of the spread check are defaults, not measured on real data.

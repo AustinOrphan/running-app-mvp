@@ -61,6 +61,31 @@ export async function settleBackground(): Promise<void> {
   while (background.size > 0) await Promise.all([...background])
 }
 
+/**
+ * Run-specific 4xx answers in a row (no success between) after which a sync tail (the track
+ * streams, the watch ratings) stops for this sync, to bound the requests spent on a service that
+ * refuses everything. Whether the answers are charged to their runs is a separate rule: only when
+ * a request of the same part succeeded in the same pass. Data preparation, not an engine Param.
+ */
+export const TAIL_SYSTEMIC_4XX = 3
+
+/**
+ * Owed runs, least recently tried first (never tried first), ties newest first (date descending,
+ * then id). A run that a tail tried and the provider refused moves behind the runs not yet tried,
+ * so one bad run, or three, never hold the queue; `tried` is the tail's per-process map.
+ */
+export function leastRecentlyTried<T extends { id: string; date: string }>(
+  runs: readonly T[],
+  tried: ReadonlyMap<string, number>,
+): T[] {
+  return [...runs].sort(
+    (a, b) =>
+      (tried.get(a.id) ?? -1) - (tried.get(b.id) ?? -1) ||
+      (a.date < b.date ? 1 : a.date > b.date ? -1 : 0) ||
+      (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
+  )
+}
+
 export function isSyncing(userId: string, provider: string): boolean {
   return running.has(`${userId}:${provider}`)
 }

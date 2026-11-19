@@ -1,5 +1,5 @@
 import { afterEach, afterAll, beforeAll, beforeEach, describe, expect, test } from 'vitest'
-import { runTrackJob } from '../../server/jobs/scheduler.ts'
+import { runTrackStreams } from '../../server/jobs/scheduler.ts'
 import { storeParsedToday as storeParsed } from './helpers.ts'
 import { sealSecret } from '../../server/services/sync.ts'
 import { refreshDerivedAfterEdit } from '../../server/services/derivedColumns.ts'
@@ -7,6 +7,7 @@ import { runStartPass } from '../../server/services/startPass.ts'
 import {
   TRACK_FILE_BATCH,
   TRACK_MAX_ATTEMPTS,
+  TRACK_STREAMS_PER_SYNC,
   backfillTracks,
   trackChunkFor,
 } from '../../server/services/trackBackfill.ts'
@@ -282,25 +283,97 @@ describe('backfillTracks from intervals.icu streams', () => {
     ).toBeNull()
   })
 
-  test('a run that fails every tick is given up after the attempt limit and the next one goes on', async () => {
+  const trackV = async (id: string) =>
+    (await ctx.prisma.activity.findUniqueOrThrow({ where: { id } })).trackV
+
+  test('a run that fails every call is given up after the attempt limit, once a success is seen each call', async () => {
     await connect()
-    const bad = await pulledRun(user.id, 'bad', '2026-01-06')
-    const good = await pulledRun(user.id, 'good', '2026-01-05')
+    const bad = await pulledRun(user.id, 'bad1', '2026-01-06')
     ctx.fetch = fakeFetch({
-      [`GET ${BASE}/activity/bad/`]: () => new Response('', { status: 422 }),
-      [`GET ${BASE}/activity/good/`]: () => new Response(streamsBody, { status: 200 }),
+      [`GET ${BASE}/activity/bad`]: () => new Response('', { status: 422 }),
+      [`GET ${BASE}/activity/good`]: () => new Response(streamsBody, { status: 200 }),
     })
-    for (let tick = 1; tick < TRACK_MAX_ATTEMPTS; tick++) {
+    for (let call = 1; call <= TRACK_MAX_ATTEMPTS; call++) {
+      // A fresh good run each call: the success that shows the endpoint works.
+      const good = await pulledRun(user.id, `good${String(call)}`, '2026-01-05')
       const result = await backfillTracks(ctx, user.id)
-      expect(result.failures).toHaveLength(1)
-      expect(await trackOf(good.id)).toBeNull()
+      expect(result.filled).toBe(1)
+      expect(await trackOf(good.id)).not.toBeNull()
+      if (call < TRACK_MAX_ATTEMPTS) expect(await trackV(bad.id)).toBeNull()
+      else expect(result.failures.at(-1)!.reason).toContain('given up')
     }
-    const last = await backfillTracks(ctx, user.id)
-    expect(last.failures[0]!.reason).toContain('given up')
-    expect(last).toMatchObject({ withoutPositions: 1, filled: 1 })
-    expect((await ctx.prisma.activity.findUniqueOrThrow({ where: { id: bad.id } })).trackV).toBe(1)
+    expect(await trackV(bad.id)).toBe(1)
     expect(await trackOf(bad.id)).toBeNull()
+  })
+
+  test('three bad runs at the head do not block the good run behind them, and are given up later', async () => {
+    await connect()
+    const bad = [
+      await pulledRun(user.id, 'bad1', '2026-01-09'),
+      await pulledRun(user.id, 'bad2', '2026-01-08'),
+      await pulledRun(user.id, 'bad3', '2026-01-07'),
+    ]
+    const good = await pulledRun(user.id, 'good1', '2026-01-02')
+    ctx.fetch = fakeFetch({
+      [`GET ${BASE}/activity/bad`]: () => new Response('', { status: 422 }),
+      [`GET ${BASE}/activity/good`]: () => new Response(streamsBody, { status: 200 }),
+    })
+    // Sync 1: three refusals stop the part before the good run; no success, so nothing is charged.
+    expect(await backfillTracks(ctx, user.id)).toMatchObject({ requests: 3, filled: 0 })
+    expect(await trackOf(good.id)).toBeNull()
+    // Sync 2: the untried good run goes first and succeeds, so the bad runs are charged once.
+    expect(await backfillTracks(ctx, user.id)).toMatchObject({ filled: 1 })
     expect(await trackOf(good.id)).not.toBeNull()
+    for (const row of bad) expect(await trackV(row.id)).toBeNull()
+    // Syncs 3 and 4: each has a new good run, so the bad runs are charged to three tries in all.
+    await pulledRun(user.id, 'good2', '2026-01-01')
+    await backfillTracks(ctx, user.id)
+    for (const row of bad) expect(await trackV(row.id)).toBeNull()
+    await pulledRun(user.id, 'good3', '2026-01-01')
+    await backfillTracks(ctx, user.id)
+    for (const row of bad) expect(await trackV(row.id)).toBe(1)
+  })
+
+  test('one owed run with a provider-wide 422 is never charged, however many syncs', async () => {
+    await connect()
+    const lone = await pulledRun(user.id, 'bad1', '2026-01-09')
+    ctx.fetch = fakeFetch({ [`GET ${BASE}/activity/`]: () => new Response('', { status: 422 }) })
+    for (let call = 0; call < TRACK_MAX_ATTEMPTS + 2; call++) {
+      expect(await backfillTracks(ctx, user.id)).toMatchObject({ requests: 1 })
+    }
+    expect(await trackV(lone.id)).toBeNull()
+  })
+
+  test('a 4xx and then a 5xx in one pass: the 4xx is not charged', async () => {
+    await connect()
+    const first = await pulledRun(user.id, 'mx1', '2026-01-09')
+    await pulledRun(user.id, 'mx2', '2026-01-08')
+    ctx.fetch = fakeFetch({
+      [`GET ${BASE}/activity/mx1`]: () => new Response('', { status: 422 }),
+      [`GET ${BASE}/activity/mx2`]: () => new Response('', { status: 500 }),
+    })
+    for (let call = 0; call < TRACK_MAX_ATTEMPTS + 1; call++) await backfillTracks(ctx, user.id)
+    expect(await trackV(first.id)).toBeNull()
+  })
+
+  test('a 4xx, a success and a 4xx in one pass charge both 4xx runs', async () => {
+    await connect()
+    const a = await pulledRun(user.id, 'bad1', '2026-01-09')
+    await pulledRun(user.id, 'good0', '2026-01-08')
+    const c = await pulledRun(user.id, 'bad2', '2026-01-07')
+    ctx.fetch = fakeFetch({
+      [`GET ${BASE}/activity/good`]: () => new Response(streamsBody, { status: 200 }),
+      [`GET ${BASE}/activity/bad`]: () => new Response('', { status: 422 }),
+    })
+    for (let call = 1; call <= TRACK_MAX_ATTEMPTS; call++) {
+      // The first pass reaches the untried good run before the bad ones; later passes get a new one.
+      if (call > 1) await pulledRun(user.id, `good${String(call)}`, '2026-01-01')
+      await backfillTracks(ctx, user.id)
+    }
+    for (const row of [a, c]) {
+      expect(await trackV(row.id)).toBe(1)
+      expect(await trackOf(row.id)).toBeNull()
+    }
   })
 
   test('an outage never counts toward giving a run up: 5xx, a rejected fetch, a non-JSON body', async () => {
@@ -406,7 +479,7 @@ describe('backfillTracks from intervals.icu streams', () => {
   })
 })
 
-describe('runTrackJob (the stream part only, until the sync tail replaces it)', () => {
+describe('runTrackStreams (the stream part, run by the sync tail)', () => {
   const jobRuns = () =>
     ctx.prisma.syncRun.findMany({
       where: { userId: user.id, channel: 'job', provider: 'track' },
@@ -419,14 +492,25 @@ describe('runTrackJob (the stream part only, until the sync tail replaces it)', 
     ctx.fetch = fakeFetch({
       [`GET ${BASE}/activity/`]: () => new Response(streamsBody, { status: 200 }),
     })
-    await runTrackJob(ctx)
+    await runTrackStreams(ctx, user.id)
     const [run, ...rest] = await jobRuns()
     expect(rest).toEqual([])
     expect(run).toMatchObject({ status: 'ok', trigger: 'schedule', accepted: 1, failed: 0 })
     expect(await trackOf(pulled.id)).not.toBeNull()
     expect(await trackOf(old.id)).toBeNull()
-    await runTrackJob(ctx)
+    await runTrackStreams(ctx, user.id)
     expect(await jobRuns()).toHaveLength(1)
+  })
+
+  test('asks up to TRACK_STREAMS_PER_SYNC runs in one call', async () => {
+    await connect()
+    for (let i = 0; i < 7; i++) await pulledRun(user.id, `i${String(i)}`, `2026-01-${10 + i}`)
+    ctx.fetch = fakeFetch({
+      [`GET ${BASE}/activity/`]: () => new Response(streamsBody, { status: 200 }),
+    })
+    await runTrackStreams(ctx, user.id)
+    expect(await ctx.prisma.activityTrack.count()).toBe(7)
+    expect(TRACK_STREAMS_PER_SYNC).toBe(60)
   })
 })
 
