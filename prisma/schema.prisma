@@ -405,7 +405,7 @@ model ActivityTrack {
 // degrees) that was asked for, when, what Overpass said its data dated from, and how many ways came
 // back. `v` is the class version the ways were classified under (`SURFACE_CLASS_VERSION`); `matchV`
 // the matcher version the activities' `surfaceBins` were last cleared for (`SURFACE_VERSION`).
-// Non-state: written by the download route and the `surface` job, read straight from the table.
+// Non-state: written by the download route and the surface fill, read straight from the table.
 model MapArea {
   userId        String   @id
   minLat        Float
@@ -570,7 +570,7 @@ model SyncRun {
   userId         String
   provider       String // provider registry key, or the job name for channel 'job'
   channel        String // 'pull' | 'push' | 'folder' | 'publish' | 'job'
-  trigger        String // 'schedule' | 'manual' | 'push' | 'catchup'
+  trigger        String // 'schedule' | 'manual' | 'push' | 'catchup' | 'event'
   startedAt      DateTime
   finishedAt     DateTime
   status         String // 'ok' | 'partial' | 'paused' | 'error'

@@ -476,7 +476,7 @@ export interface IntegrationStatus {
 
 // The sync and job log (spec 4.7): one finished run per row.
 export type SyncChannel = 'pull' | 'push' | 'folder' | 'publish' | 'job'
-export type SyncTrigger = 'schedule' | 'manual' | 'push' | 'catchup'
+export type SyncTrigger = 'schedule' | 'manual' | 'push' | 'catchup' | 'event'
 export type SyncStatus = 'ok' | 'partial' | 'paused' | 'error'
 export type WellnessStatus = 'none' | 'read' | 'truncated' | 'waiting' | 'error'
 /** An item a run could not import: what it was, and the service's own words for why. */

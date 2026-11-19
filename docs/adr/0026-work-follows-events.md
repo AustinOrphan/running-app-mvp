@@ -47,12 +47,18 @@ of another `HR_QUALITY_VERSION`, kept their stale shape while `gradeCurve.ts` dr
   - `folder` (5 minutes), `weather` (10 minutes) and the daily slots (backup, matching, Monday
     re-plan, Strava check, publish-morning): an outside system, or a clock. The plan did not analyse
     `folder`, because file-system events are a different tool; it stays until it has its own analysis.
+- **`surface` and the local part of `track` are converted next.** Trail and road shares are computed by
+  `queueSurfaceFill` (`server/services/surfaceFill.ts`) after a map download, an import or track fill
+  that wrote a track and a type edit, and by a start pass; its job runs carry the trigger `event`. The
+  stored-original part of `track` runs in the start pass and from `refreshDerivedAfterEdit`. The
+  chain is terrain, hr-quality, track, surface (a track is written before the shares read it).
 - **`replan-catchup` is converted** (2026-11-18): a start pass of `runReplanJob({ catchUp: true })`
   for a restart after Monday 03:00, plus one retry armed only by a failure (`WEEKLY_RETRY_MS`, 6 h;
   a failed re-plan clears with time and sends no event). A weekday slot is due for the whole week,
   and a plan restore or a goal-date change runs the catch-up for that runner.
-- **Still to convert, in later changes:** `track`, `surface`, `watch-rating` and `publish`'s
-  2-minute tick. Each appends its own pass to the chain and removes its own interval.
+- **Still to convert, in later changes:** the intervals.icu stream part of `track` (still the 5-minute
+  `track` job, streams only), `watch-rating` and `publish`'s 2-minute tick. Each appends its own pass
+  to the chain and removes its own interval.
 
 ## Reasons
 

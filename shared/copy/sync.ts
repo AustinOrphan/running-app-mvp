@@ -23,6 +23,7 @@ export const SYNC_TEMPLATES = {
   'sync.how.manual': tpl('Manual', {}, { shape: 'label' }),
   'sync.how.push': tpl('Push', {}, { shape: 'label' }),
   'sync.how.catchup': tpl('Catch-up', {}, { shape: 'label' }),
+  'sync.how.event': tpl('After a change', {}, { shape: 'label' }),
   'sync.how.folder': tpl('Folder scan', {}, { shape: 'label' }),
   'sync.how.publish': tpl('Sent to calendar', {}, { shape: 'label' }),
 
