@@ -3,7 +3,7 @@ import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { createPrisma } from '../../server/db.ts'
 import { OVERPASS_URL, downloadMapArea } from '../../server/services/mapArea.ts'
-import { backfillSurfaceBins } from '../../server/services/surfaceBackfill.ts'
+import { settleSurfaceFill } from '../../server/services/surfaceFill.ts'
 import { addDays, todayIso } from '../../shared/dates.ts'
 import { fakeFetch } from '../fakeFetch.ts'
 import { trackOf, type Metres } from '../fixtures/routeShapes.ts'
@@ -13,9 +13,9 @@ import { resetData, seedRunWithTrack, signedInApi } from './helpers.ts'
 // Trail and road (M1d): Settings, Maps, "Trail and road" downloads the area, and a run inside it
 // says how much of it was on trail and road. The server makes the one request to Overpass, which a
 // browser route cannot reach, so the spec answers the download itself: the route handler runs the
-// server's own `downloadMapArea` against this database with a synthetic Overpass answer, and the
-// `surface` job's tick (the 5-minute job) is run by `backfillSurfaceBins`. The page, the API reads
-// and the delete are the real ones.
+// server's own `downloadMapArea` against this database with a synthetic Overpass answer; that call
+// queues the fill of the shares (`queueSurfaceFill`, ADR 0026), which the spec awaits with
+// `settleSurfaceFill`. The page, the API reads and the delete are the real ones.
 //
 // Setting TRAIL_SHOTS_DIR also writes screenshots of the block and of the run page line at 390 px,
 // light and dark.
@@ -108,7 +108,6 @@ test('download the area, see a run’s shares, remove the area', async ({ page, 
       ),
     ).toBeVisible()
     await expect(group.getByText('The OpenStreetMap data is from Sun 8 Nov 2026.')).toBeVisible()
-    await expect(group.getByText(/0 of 1 runs are worked out so far/)).toBeVisible()
     await expect(group.getByRole('button', { name: 'Download again' })).toBeVisible()
     await expect(group.getByRole('button', { name: 'Remove' })).toBeVisible()
     expect(requests).toHaveLength(1)
@@ -116,8 +115,9 @@ test('download the area, see a run’s shares, remove the area', async ({ page, 
     expect([...new URLSearchParams(requests[0]).keys()]).toEqual(['data'])
     expect(requests[0]).not.toContain(runId)
 
-    // The job's tick, then the shares show on the run page and the block counts the run done.
-    expect(await backfillSurfaceBins(deps, user.id)).toMatchObject({ filled: 1, remaining: 0 })
+    // The download queued the fill in this process (ADR 0026); wait for that drain, then the shares
+    // show on the run page and the block counts the run done.
+    await settleSurfaceFill()
     await page.reload()
     await expect(block(page).getByText('Every run inside the area has its shares.')).toBeVisible()
     await shot(page, 'settings-after', block(page))
