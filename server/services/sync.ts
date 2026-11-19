@@ -61,6 +61,14 @@ export async function settleBackground(): Promise<void> {
   while (background.size > 0) await Promise.all([...background])
 }
 
+/**
+ * Run-specific 4xx answers in a row (no success between) after which a sync tail (the track
+ * streams, the watch ratings) stops for this sync and charges no run: a service that answers 400,
+ * 410 or 422 to everything would otherwise settle every run for good. Data preparation, not an
+ * engine Param.
+ */
+export const TAIL_SYSTEMIC_4XX = 3
+
 export function isSyncing(userId: string, provider: string): boolean {
   return running.has(`${userId}:${provider}`)
 }

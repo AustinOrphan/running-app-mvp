@@ -155,13 +155,17 @@ export async function runSyncJob(
     // lock by now, a 429 from either tail sets `pausedUntil` (the other tail and the next sync
     // honour it), and each tail records and logs its own failure, so one never stops the other.
     if (providers.includes('intervals')) {
-      await runTrackStreams(deps, userId, log, opts.now === undefined ? {} : { now: opts.now })
+      await runTrackStreams(deps, userId, log, {
+        fetch: opts.fetch,
+        ...(opts.now === undefined ? {} : { now: opts.now }),
+      })
       await runWatchRatingPass(
         deps,
         userId,
         {
           today: day.today,
           createdBefore: startedAt,
+          fetch: opts.fetch,
           ...(opts.now === undefined ? {} : { now: opts.now }),
         },
         log,
@@ -268,7 +272,7 @@ export async function runTrackStreams(
   deps: Deps,
   userId: string,
   log?: Log,
-  opts: { now?: Date } = {},
+  opts: { now?: Date; fetch?: typeof fetch } = {},
 ): Promise<void> {
   const startedAt = new Date()
   try {
@@ -312,7 +316,7 @@ export async function runTrackStreams(
 export async function runWatchRatingPass(
   deps: Deps,
   userId: string,
-  opts: { today: string; createdBefore?: Date; now?: Date },
+  opts: { today: string; createdBefore?: Date; now?: Date; fetch?: typeof fetch },
   log?: Log,
 ): Promise<void> {
   const startedAt = new Date()
@@ -322,27 +326,25 @@ export async function runWatchRatingPass(
     let paused = false
     let authRefused = false
     const failures: Array<{ ref: string; reason: string }> = []
+    // A run asked once in this pass is not asked again in it, so a bad run is charged one try a sync.
+    const asked: string[] = []
     while (requests < WATCH_RATING_PASS_MAX) {
       const result = await backfillWatchRatings(deps, userId, {
         today: opts.today,
         ...(opts.now === undefined ? {} : { now: opts.now }),
+        ...(opts.fetch === undefined ? {} : { fetch: opts.fetch }),
         ...(opts.createdBefore === undefined ? {} : { createdBefore: opts.createdBefore }),
+        exclude: asked,
         limit: Math.min(WATCH_RATING_BATCH, WATCH_RATING_PASS_MAX - requests),
       })
       filled += result.filled
       requests += result.requests
       failures.push(...result.failures)
+      asked.push(...result.asked)
       if (result.pause !== null && result.requests > 0) paused = true
       if (result.authRefused) authRefused = true
-      if (
-        result.requests === 0 ||
-        result.pause !== null ||
-        result.authRefused ||
-        result.failures.length > 0 ||
-        result.remaining === 0
-      ) {
-        break
-      }
+      // A failure that is specific to one run does not stop the pass (`halt` is not set for it).
+      if (result.requests === 0 || result.halt || result.remaining === 0) break
     }
     const status = authRefused
       ? 'error'

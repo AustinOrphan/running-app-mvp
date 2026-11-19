@@ -7,7 +7,7 @@ import { loadProfile } from '../serialize.ts'
 import { trackRow } from './activityStore.ts'
 import type { StartPassChunk } from './startPass.ts'
 import { queueSurfaceFill } from './surfaceFill.ts'
-import { isSyncing, openIntegration, providerContext } from './sync.ts'
+import { isSyncing, openIntegration, providerContext, TAIL_SYSTEMIC_4XX } from './sync.ts'
 import { safeMessage, secretValues } from './syncLog.ts'
 import { parseActivityFile } from '../../shared/importers/files/index.ts'
 import { TRACK_VERSION, buildTrack, type RoutePoint } from '../../shared/importers/files/track.ts'
@@ -39,6 +39,8 @@ const authBlocked = new Map<string, { until: number; stamp: number }>()
 const RUN_TYPES = ['run', 'race']
 
 export interface TrackBackfillResult {
+  /** Set when `TAIL_SYSTEMIC_4XX` run-specific 4xx answers came in a row: the part stopped. */
+  systemic: boolean
   /** Runs that now have a track. */
   filled: number
   /** Runs looked at that have no positions (a treadmill file, an indoor run): marked, no row. */
@@ -120,6 +122,8 @@ export async function backfillTracks(
     fileLimit?: number
     streamLimit?: number
     now?: Date
+    /** The sync's fetch, so a sync and its tail use the same one (default: the deps' fetch). */
+    fetch?: typeof fetch
     /** Only these activities (the type edit). */
     activityIds?: readonly string[]
     /** Which parts run (both when omitted). `remaining` counts only the parts that ran. */
@@ -131,7 +135,13 @@ export async function backfillTracks(
   const doFiles = opts.parts?.files ?? true
   const doStreams = opts.parts?.streams ?? true
   const waitingRuns = waiting(userId, opts.activityIds)
+  /** Run-specific 4xx answers of the stream part not yet charged to a run (see `flushPending`). */
+  const pending: Array<{
+    run: { id: string; providerKey: string | null; updatedAt: Date }
+    reason: string
+  }> = []
   const result: TrackBackfillResult = {
+    systemic: false,
     filled: 0,
     withoutPositions: 0,
     unreadable: [],
@@ -247,7 +257,10 @@ export async function backfillTracks(
       throw error
     }
     const secrets = secretValues(opened.secret)
-    const ctx = await providerContext(deps, userId, PROVIDER, opened)
+    const ctx = await providerContext(deps, userId, PROVIDER, {
+      ...opened,
+      ...(opts.fetch === undefined ? {} : { fetch: opts.fetch }),
+    })
     for (const run of runs) {
       const remoteId = run.providerKey!.slice(PROVIDER.length + 1)
       let route: Awaited<ReturnType<NonNullable<typeof pull>['fetchRoute'] & {}>>
@@ -285,24 +298,45 @@ export async function backfillTracks(
           result.failures.push({ ref: run.providerKey!, reason })
           return
         }
-        const tries = (attempts.get(run.id) ?? 0) + 1
-        if (tries < TRACK_MAX_ATTEMPTS) {
-          // Hourly, three tries take three hours: the queue behind this run goes on meanwhile.
-          attempts.set(run.id, tries)
-          result.failures.push({ ref: run.providerKey!, reason })
-          continue
+        // Hourly, three tries take three hours: the queue behind this run goes on meanwhile. The
+        // try is held back until a success shows the answer was about the run; a streak of
+        // `TAIL_SYSTEMIC_4XX` such answers says the service refuses everything, so the part stops
+        // and no run is charged for it.
+        pending.push({ run, reason })
+        if (pending.length >= TAIL_SYSTEMIC_4XX) {
+          pending.length = 0
+          result.systemic = true
+          result.failures.push({
+            ref: PROVIDER,
+            reason: `${reason} (${String(TAIL_SYSTEMIC_4XX)} answers in a row; stopped for this sync)`,
+          })
+          return
         }
-        // A run that fails every tick would block the ones behind it: give it up like a 404.
-        attempts.delete(run.id)
-        result.failures.push({
-          ref: run.providerKey!,
-          reason: `${reason} (given up after ${String(tries)} attempts)`,
-        })
-        await settle(run, null)
         continue
       }
+      await flushPending()
       attempts.delete(run.id)
       await settle(run, route)
+    }
+    await flushPending()
+  }
+
+  /** Charges the held-back 4xx answers to their runs (a success broke the streak). */
+  async function flushPending(): Promise<void> {
+    for (const { run, reason } of pending.splice(0)) {
+      const tries = (attempts.get(run.id) ?? 0) + 1
+      if (tries < TRACK_MAX_ATTEMPTS) {
+        attempts.set(run.id, tries)
+        result.failures.push({ ref: run.providerKey!, reason })
+        continue
+      }
+      // A run that fails every sync would block the ones behind it: give it up like a 404.
+      attempts.delete(run.id)
+      result.failures.push({
+        ref: run.providerKey!,
+        reason: `${reason} (given up after ${String(tries)} attempts)`,
+      })
+      await settle(run, null)
     }
   }
 

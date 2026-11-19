@@ -58,7 +58,10 @@ of another `HR_QUALITY_VERSION`, kept their stale shape while `gradeCurve.ts` dr
   tails for each runner whose providers include `intervals`, each in its own try/catch:
   `runTrackStreams` (up to 60 stream requests, `TRACK_STREAMS_PER_SYNC`) and `runWatchRatingPass`
   (batches of 5 until 60 requests, `WATCH_RATING_PASS_MAX`, a pause, a refused key or a failure). The
-  60 an hour is what the two 5-minute jobs spent. A 429 in either tail sets `pausedUntil`, which the
+  60 an hour is what the two 5-minute jobs spent. A 4xx for one run moves the tail on to the next
+  run and is charged to that run (three tries, three syncs); `TAIL_SYSTEMIC_4XX` (3) such answers in
+  a row stop the tail for the sync and are charged to no run, so a changed API cannot settle every run
+  for good. A 429 in either tail sets `pausedUntil`, which the
   other tail and the next sync honour. The rating tail selects only runs created before the sync
   started (`createdBefore`): a run the sync has just imported unrated is asked at the next sync, an
   hour on, so the second chance of a run rated on the watch after its first sync is kept. A manual

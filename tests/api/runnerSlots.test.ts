@@ -96,6 +96,8 @@ beforeEach(async () => {
     failures: [],
     pause: null,
     authRefused: false,
+    halt: false,
+    asked: [],
     remaining: 0,
   })
   vi.mocked(refreshWeatherCaches).mockResolvedValue({ refreshed: 0, failed: 0, error: null })

@@ -63,10 +63,14 @@ async function connect(
 }
 
 /** A pulled run with no original: owed a track and a watch rating. */
-function pulledRun(who: TestUser, remoteId: string, daysAgo: number) {
+function pulledRun(who: TestUser, remoteId: string, daysAgo: number, createdAt?: Date) {
   const date = addDays(todayIso(), -daysAgo)
   return ctx.prisma.activity.create({
     data: {
+      // Older than the sync that follows, as a run from an earlier sync is; the rating tail skips a
+      // row created in the same millisecond as the sync's start. A run imported during the sync
+      // passes the current time.
+      createdAt: createdAt ?? new Date(Date.now() - 60_000),
       userId: who.id,
       type: 'run',
       date,
@@ -136,7 +140,7 @@ describe('the intervals.icu sync tail', () => {
     const icu = remote({
       during: async () => {
         // A run the sync imports unrated: created after the sync started.
-        made.id ??= (await pulledRun(user, 'new', 2)).id
+        made.id ??= (await pulledRun(user, 'new', 2, new Date())).id
       },
     })
 

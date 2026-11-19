@@ -308,6 +308,55 @@ describe('backfillTracks from intervals.icu streams', () => {
     expect(await trackOf(good.id)).not.toBeNull()
   })
 
+  test('three 4xx answers in a row stop the part and are charged to no run', async () => {
+    await connect()
+    const rows = [
+      await pulledRun(user.id, 'sa1', '2026-01-09'),
+      await pulledRun(user.id, 'sa2', '2026-01-08'),
+      await pulledRun(user.id, 'sa3', '2026-01-07'),
+      await pulledRun(user.id, 'sa4', '2026-01-06'),
+    ]
+    let calls = 0
+    ctx.fetch = fakeFetch({
+      [`GET ${BASE}/activity/`]: () => {
+        calls += 1
+        return new Response('', { status: 422 })
+      },
+    })
+    for (let call = 0; call < TRACK_MAX_ATTEMPTS + 1; call += 1) {
+      const result = await backfillTracks(ctx, user.id)
+      expect(result).toMatchObject({ requests: 3, systemic: true, withoutPositions: 0 })
+      expect(result.failures.at(-1)!.ref).toBe('intervals')
+    }
+    expect(calls).toBe(3 * (TRACK_MAX_ATTEMPTS + 1))
+    for (const row of rows) {
+      expect(
+        (await ctx.prisma.activity.findUniqueOrThrow({ where: { id: row.id } })).trackV,
+      ).toBeNull()
+    }
+  })
+
+  test('a 4xx, a success and a 4xx are run-specific and charged', async () => {
+    await connect()
+    const a = await pulledRun(user.id, 'sb1', '2026-01-09')
+    const b = await pulledRun(user.id, 'sb2', '2026-01-08')
+    const c = await pulledRun(user.id, 'sb3', '2026-01-07')
+    ctx.fetch = fakeFetch({
+      [`GET ${BASE}/activity/sb2/`]: () => new Response(streamsBody, { status: 200 }),
+      [`GET ${BASE}/activity/`]: () => new Response('', { status: 422 }),
+    })
+    for (let call = 0; call < TRACK_MAX_ATTEMPTS; call += 1) {
+      expect((await backfillTracks(ctx, user.id)).systemic).toBe(false)
+    }
+    expect(await trackOf(b.id)).not.toBeNull()
+    for (const row of [a, c]) {
+      expect((await ctx.prisma.activity.findUniqueOrThrow({ where: { id: row.id } })).trackV).toBe(
+        1,
+      )
+      expect(await trackOf(row.id)).toBeNull()
+    }
+  })
+
   test('an outage never counts toward giving a run up: 5xx, a rejected fetch, a non-JSON body', async () => {
     await connect()
     const run = await pulledRun(user.id, 'i1', '2026-01-05')

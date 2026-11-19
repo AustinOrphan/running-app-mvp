@@ -4,7 +4,7 @@ import { getProvider } from '../providers/registry.ts'
 import { ProviderAuthError, ProviderHttpError, RateLimitPause } from '../providers/types.ts'
 import { settleWatchRatings } from './activityStore.ts'
 import { runExecutionQuietly } from './execution.ts'
-import { isSyncing, openIntegration, providerContext } from './sync.ts'
+import { isSyncing, openIntegration, providerContext, TAIL_SYSTEMIC_4XX } from './sync.ts'
 import { safeMessage, secretValues } from './syncLog.ts'
 import { addDays } from '../../shared/dates.ts'
 import { P } from '../../shared/engine/params/index.ts'
@@ -57,6 +57,14 @@ export interface WatchRatingBackfillResult {
   pause: { retryAfterSec: number } | null
   /** Set when intervals.icu refused the key: the job stopped and waits for a reconnect or an hour. */
   authRefused: boolean
+  /**
+   * Set when the call met a pause, a refused key, an outage (a failure that says nothing about the
+   * run) or `TAIL_SYSTEMIC_4XX` run-specific 4xx answers in a row: a pass stops. A run-specific
+   * 4xx alone does not set it, so one bad run never holds the ratings behind it.
+   */
+  halt: boolean
+  /** Ids of the runs asked in this call, for a pass to leave out of its next call. */
+  asked: string[]
   /** Runs still waiting for a look. */
   remaining: number
 }
@@ -97,7 +105,16 @@ function waiting(userId: string, from: string, skip: string[] = [], createdBefor
 export async function backfillWatchRatings(
   deps: Deps,
   userId: string,
-  opts: { limit?: number; now?: Date; today: string; createdBefore?: Date },
+  opts: {
+    limit?: number
+    now?: Date
+    today: string
+    /** The sync's fetch, so a sync and its tail use the same one (default: the deps' fetch). */
+    fetch?: typeof fetch
+    createdBefore?: Date
+    /** Runs a pass already asked in an earlier call, so a failed one is not asked twice in a sync. */
+    exclude?: readonly string[]
+  },
 ): Promise<WatchRatingBackfillResult> {
   const { prisma } = deps
   const now = opts.now ?? new Date()
@@ -111,6 +128,8 @@ export async function backfillWatchRatings(
     failures: [],
     pause: null,
     authRefused: false,
+    halt: false,
+    asked: [],
     remaining: 0,
   }
 
@@ -129,7 +148,12 @@ export async function backfillWatchRatings(
     outages.clear()
   }
   for (const [id, until] of deferred) if (until <= now.getTime()) deferred.delete(id)
-  const where = waiting(userId, from, [...deferred.keys()], opts.createdBefore)
+  const where = waiting(
+    userId,
+    from,
+    [...deferred.keys(), ...(opts.exclude ?? [])],
+    opts.createdBefore,
+  )
   const block = authBlocked.get(integration.id)
   if (integration.pausedUntil !== null && integration.pausedUntil > now) {
     result.pause = {
@@ -165,7 +189,10 @@ export async function backfillWatchRatings(
       throw error
     }
     const secrets = secretValues(opened.secret)
-    const ctx = await providerContext(deps, userId, PROVIDER, opened)
+    const ctx = await providerContext(deps, userId, PROVIDER, {
+      ...opened,
+      ...(opts.fetch === undefined ? {} : { fetch: opts.fetch }),
+    })
     const runs = await prisma.activity.findMany({
       where,
       select: { id: true, providerKey: true, startUtc: true, updatedAt: true },
@@ -173,15 +200,37 @@ export async function backfillWatchRatings(
       take: opts.limit ?? WATCH_RATING_BATCH,
     })
     const settled: Array<{ id: string; updatedAt: Date; rating: number | null }> = []
+    /** Run-specific 4xx answers not yet charged to a run (see `flushPending`). */
+    const pending: Array<{ run: (typeof runs)[number]; reason: string }> = []
+    /** Charges the held-back 4xx answers to their runs (a success broke the streak). */
+    function flushPending(): void {
+      for (const { run, reason } of pending.splice(0)) {
+        const tries = (attempts.get(run.id) ?? 0) + 1
+        if (tries < WATCH_RATING_MAX_ATTEMPTS) {
+          attempts.set(run.id, tries)
+          result.failures.push({ ref: run.providerKey!, reason })
+          continue
+        }
+        // A run that fails every sync would block the ones behind it: give it up like a 404.
+        attempts.delete(run.id)
+        result.failures.push({
+          ref: run.providerKey!,
+          reason: `${reason} (given up after ${String(tries)} attempts)`,
+        })
+        settled.push({ id: run.id, updatedAt: run.updatedAt, rating: null })
+      }
+    }
     try {
       for (const run of runs) {
         const remoteId = run.providerKey!.slice(PROVIDER.length + 1)
         try {
           result.requests += 1
+          result.asked.push(run.id)
           const rating = await pull!.fetchRating!(
             { id: remoteId, startUtc: run.startUtc ?? now.toISOString() },
             ctx,
           )
+          flushPending()
           attempts.delete(run.id)
           outages.delete(run.id)
           settled.push({ id: run.id, updatedAt: run.updatedAt, rating })
@@ -193,6 +242,7 @@ export async function backfillWatchRatings(
               data: { pausedUntil: until },
             })
             result.pause = { retryAfterSec: error.retryAfterSec }
+            result.halt = true
             return
           }
           if (error instanceof ProviderAuthError) {
@@ -201,6 +251,7 @@ export async function backfillWatchRatings(
               stamp: row.updatedAt.getTime(),
             })
             result.authRefused = true
+            result.halt = true
             result.failures.push({ ref: run.providerKey!, reason: safeMessage(error, secrets) })
             countFailure(run.id)
             return
@@ -208,26 +259,29 @@ export async function backfillWatchRatings(
           const reason = safeMessage(error, secrets)
           const runSpecific =
             error instanceof ProviderHttpError && error.status >= 400 && error.status < 500
-          const tries = (attempts.get(run.id) ?? 0) + 1
           if (!runSpecific) {
             result.failures.push({ ref: run.providerKey!, reason })
             countFailure(run.id)
+            result.halt = true
             return
           }
-          if (tries < WATCH_RATING_MAX_ATTEMPTS) {
-            attempts.set(run.id, tries)
-            result.failures.push({ ref: run.providerKey!, reason })
+          // Hourly, three tries take three hours: the runs behind this one go on meanwhile. The try
+          // is held back until a success shows the answer was about the run; a streak of
+          // `TAIL_SYSTEMIC_4XX` such answers says the service refuses everything, so the call
+          // stops and no run is charged for it.
+          pending.push({ run, reason })
+          if (pending.length >= TAIL_SYSTEMIC_4XX) {
+            pending.length = 0
+            result.halt = true
+            result.failures.push({
+              ref: PROVIDER,
+              reason: `${reason} (${String(TAIL_SYSTEMIC_4XX)} answers in a row; stopped for this sync)`,
+            })
             return
           }
-          // A run that fails every tick would block the ones behind it: give it up like a 404.
-          attempts.delete(run.id)
-          result.failures.push({
-            ref: run.providerKey!,
-            reason: `${reason} (given up after ${String(tries)} attempts)`,
-          })
-          settled.push({ id: run.id, updatedAt: run.updatedAt, rating: null })
         }
       }
+      flushPending()
     } finally {
       // Whatever was learned before a pause, a refused key or an outage is kept.
       const changed = await settleWatchRatings(deps, userId, settled)

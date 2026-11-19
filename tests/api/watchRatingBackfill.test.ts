@@ -10,6 +10,7 @@ import { syntheticRun } from '../fixtures/syntheticRoute.ts'
 import {
   WATCH_RATING_BATCH,
   WATCH_RATING_DEFER_MS,
+  WATCH_RATING_MAX_ATTEMPTS,
   WATCH_RATING_PASS_MAX,
 } from '../../server/services/watchRatingBackfill.ts'
 import { P } from '../../shared/engine/params/index.ts'
@@ -411,6 +412,57 @@ describe('runWatchRatingPass', () => {
     await pass()
     expect(seen).toHaveLength(WATCH_RATING_PASS_MAX)
     expect(await ctx.prisma.activity.count({ where: { watchRpeV: null } })).toBe(7)
+  })
+
+  test('one bad run does not hold the ratings behind it', async () => {
+    await connect()
+    const bad = await run('bad1', '2026-01-09')
+    const good = await run('good1', '2026-01-08')
+    ctx.fetch = fakeFetch({
+      [`GET ${BASE}/activity/bad1`]: () => new Response('', { status: 422 }),
+      [`GET ${BASE}/activity/good1`]: () =>
+        new Response(JSON.stringify({ id: 'good1', icu_rpe: 4 }), { status: 200 }),
+    })
+    await pass()
+    expect(await get(good.id)).toMatchObject({ rpe: 4, rpeSource: 'watch' })
+    expect(await get(bad.id)).toMatchObject({ rpe: null, watchRpeV: null })
+    expect((await jobRuns()).at(-1)).toMatchObject({ status: 'partial', accepted: 1, failed: 1 })
+  })
+
+  test('three 4xx answers in a row stop the call and are charged to no run', async () => {
+    await connect()
+    const rows = [
+      await run('sa1', '2026-01-09'),
+      await run('sa2', '2026-01-08'),
+      await run('sa3', '2026-01-07'),
+    ]
+    ctx.fetch = fakeFetch({ [`GET ${BASE}/activity/`]: () => new Response('', { status: 422 }) })
+    for (let call = 0; call < WATCH_RATING_MAX_ATTEMPTS + 1; call += 1) {
+      const result = await backfillWatchRatings(ctx, user.id, { now: NOW })
+      expect(result).toMatchObject({ requests: 3, halt: true })
+      expect(result.failures.at(-1)!.ref).toBe('intervals')
+    }
+    for (const row of rows) expect(await get(row.id)).toMatchObject({ watchRpeV: null })
+  })
+
+  test('a 4xx, a success and a 4xx are run-specific and charged', async () => {
+    await connect()
+    const a = await run('sb1', '2026-01-09')
+    const b = await run('sb2', '2026-01-08')
+    const c = await run('sb3', '2026-01-07')
+    ctx.fetch = fakeFetch({
+      [`GET ${BASE}/activity/sb2`]: () =>
+        new Response(JSON.stringify({ id: 'sb2', icu_rpe: 5 }), { status: 200 }),
+      [`GET ${BASE}/activity/`]: () => new Response('', { status: 422 }),
+    })
+    for (let call = 0; call < WATCH_RATING_MAX_ATTEMPTS; call += 1) {
+      const result = await backfillWatchRatings(ctx, user.id, { now: NOW })
+      expect(result.halt).toBe(false)
+    }
+    expect(await get(b.id)).toMatchObject({ rpe: 5 })
+    // Charged every call, the two bad runs are given up on the third.
+    expect(await get(a.id)).toMatchObject({ rpe: null, watchRpeV: 1 })
+    expect(await get(c.id)).toMatchObject({ rpe: null, watchRpeV: 1 })
   })
 
   test('createdBefore leaves a run created at or after it for the next pass', async () => {
