@@ -2,6 +2,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test, vi 
 import { addDays, mondayOf } from '../../shared/dates.ts'
 import type { JobsView } from '../../shared/types.ts'
 import {
+  catchUpWeekFor,
   REPLAN_SLOT,
   runMatchingJob,
   runReplanJob,
@@ -11,7 +12,7 @@ import {
   WEEKLY_RETRY_MS,
   weekSlotStart,
 } from '../../server/jobs/scheduler.ts'
-import { serverTimeZone } from '../../server/runnerDay.ts'
+import { runnerDays, serverTimeZone } from '../../server/runnerDay.ts'
 import { runNightlyMatching } from '../../server/services/execution.ts'
 import { replanActivePlan } from '../../server/services/planEngine.ts'
 import { sealSecret } from '../../server/services/sync.ts'
@@ -541,6 +542,55 @@ describe(
       await runReplanJob(deps(), { userIds: [second.user.id] })
       expect(await weeklyRevisions(second.planId)).toBe(1)
       stopAgain()
+    })
+
+    test('flows started together for one runner make one weekly revision', async () => {
+      const { user, planId } = await planFor()
+      replanWritesARevision()
+      const day = (await runnerDays(ctx.prisma, new Date())).get(user.id)!
+      // Slot and catch-up together, then the catch-up and two route hooks together.
+      await Promise.all([
+        runReplanJob(deps(), { userIds: [user.id] }),
+        runReplanJob(deps(), { catchUp: true }),
+      ])
+      expect(await weeklyRevisions(planId)).toBe(1)
+
+      const second = await planFor()
+      const secondDay = (await runnerDays(ctx.prisma, new Date())).get(second.user.id)!
+      await Promise.all([
+        runReplanJob(deps(), { catchUp: true, userIds: [second.user.id] }),
+        catchUpWeekFor(deps(), second.user.id, secondDay),
+        catchUpWeekFor(deps(), second.user.id, secondDay),
+      ])
+      expect(await weeklyRevisions(second.planId)).toBe(1)
+      expect(day.tz).toBe(secondDay.tz)
+    })
+
+    test('the 03:00 slot failing arms the retry, which runs after WEEKLY_RETRY_MS', async () => {
+      const { user } = await planFor()
+      fakeClock()
+      // Monday 02:50: the slot has not come, so the start seeds nothing and the catch-up owes nothing.
+      vi.setSystemTime(at(19, 2, 50))
+      vi.mocked(replanActivePlan).mockRejectedValue(new Error('blocked'))
+      const stop = startScheduler(deps(), { fetch: never })
+
+      await vi.advanceTimersByTimeAsync(31_000)
+      expect(await catchups(user.id)).toBe(0)
+      // The 10-minute check after 03:00 runs the slot, which fails.
+      await vi.advanceTimersByTimeAsync(11 * 60_000)
+      await vi.waitFor(async () => {
+        expect(
+          await ctx.prisma.syncRun.count({
+            where: { userId: user.id, provider: 'replan', trigger: 'schedule', status: 'error' },
+          }),
+        ).toBe(1)
+      })
+      expect(await catchups(user.id)).toBe(0)
+      await vi.advanceTimersByTimeAsync(WEEKLY_RETRY_MS)
+      await vi.waitFor(async () => {
+        expect(await catchups(user.id)).toBe(1)
+      })
+      stop()
     })
   },
 )

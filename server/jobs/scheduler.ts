@@ -681,15 +681,19 @@ export async function runReplanJob(
     const day = days.get(userId)
     if (day === undefined) continue
     const { today } = day
+    // The claim is synchronous (no await between the check and the add), so two flows for one
+    // runner (the slot, the start pass, the retry, a route hook) never both pass it.
     if (replanning.has(userId)) continue
-    // The slot and the catch-up never make a second update in one local week: a runner who moved
-    // zone across Monday's slot, or whose zone differs from the server's, would otherwise get one.
-    if (!opts.catchUp && (await weekAlreadyUpdated(deps.prisma, userId, day))) continue
     replanning.add(userId)
     const startedAt = new Date()
     // What the brief describes: the revision the re-plan wrote, or the error that stopped it.
     let outcome: { revisionId: string } | { failure: unknown } | undefined
     try {
+      // The slot and the catch-up never make a second update in one local week: a runner who moved
+      // zone across Monday's slot, or whose zone differs from the server's, would otherwise get one,
+      // and a flow that finished since this one listed its runners has already made it. Read inside
+      // the claim.
+      if (await weekAlreadyUpdated(deps.prisma, userId, day)) continue
       try {
         const revision = await replanActivePlan(deps, { userId, reason: 'weekly', today })
         outcome = { revisionId: revision.id }
