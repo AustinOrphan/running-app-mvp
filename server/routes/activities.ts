@@ -24,6 +24,7 @@ import { loadGlyphs } from '../services/glyphs.ts'
 import { standoutView } from '../services/insight.ts'
 import { strengthTypeLockedMessage } from '../../shared/copy/strengthTemplates.ts'
 import { isIsoDate } from '../../shared/dates.ts'
+import { isAppLoggedStrength } from '../../shared/domain/duplicates.ts'
 import {
   ACTIVITY_GLYPH_IDS_MAX,
   ACTIVITY_OFFSET_MAX,
@@ -376,12 +377,15 @@ export function activitiesRouter(deps: Deps): Router {
       if (log) throw conflict(strengthTypeLockedMessage(), { logId: log.id })
     }
 
-    // A strength session has no distance, so its duration is what the duplicate pass compares.
+    // A strength session has no distance, so its duration is what the duplicate pass compares,
+    // except for an app-logged one (manual, no start): its duration is the plan's, decides no
+    // match, and an edit of it leaves a dismissed or flagged pair as it is.
+    const durationMatters = body.type === 'strength' && !isAppLoggedStrength(existing)
     const matchChanged =
       body.date !== existing.date ||
       body.distanceM !== existing.distanceM ||
       body.type !== existing.type ||
-      (body.type === 'strength' && body.durationSec !== existing.durationSec)
+      (durationMatters && body.durationSec !== existing.durationSec)
     await prisma.activity.update({
       where: { id, userId: req.userId },
       data: {

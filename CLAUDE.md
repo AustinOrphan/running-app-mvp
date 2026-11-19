@@ -152,6 +152,15 @@ protection reads. The Docker image must still build (`docker build .`) after a c
   imported before the column, 20 per user per tick, idempotent, recording a `terrain` job run (`partial`
   when a stored stream is unreadable). Null means not computed; a run with nothing to read (no altitude,
   or under 2 m of it) stores all-zero bins. The list read omits the column.
+- Strength pairing: an app-logged strength session (`isAppLoggedStrength`, `shared/domain/duplicates.ts`:
+  `manual`, no start instant) holds the plan's minutes, so `matchStrength` pairs it with a device session
+  on the same date whatever the durations, and an edit of its duration neither resets nor rematches. The
+  `strength-pair` job (`runStrengthPairJob`, every 5 minutes, `pairLoggedStrength` in
+  `server/services/duplicates.ts`) runs `markDuplicates` over manual strength activities with no start that
+  hold a strength log and have status `none`; it never selects a `possible`, `confirmed` or `dismissed` row
+  or a run. It records a `strength-pair` job run (`accepted` the rows flagged) through
+  `recordSyncRunUnlessIdle`, so an idle tick stores a run only when the newest is not `ok`; a failure
+  is an `error` run.
 - Trail and road (M1d): the runner's one OpenStreetMap download. `POST /api/map-area`
   (`server/routes/mapArea.ts`, `server/services/mapArea.ts`) sends Overpass (`ctx`-style, through
   `Deps.fetch`) only the box from `mapAreaBox` (`shared/domain/mapArea.ts`: the stored tracks' centres, the

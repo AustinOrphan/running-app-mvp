@@ -1388,6 +1388,32 @@ describe('a strength session entered by hand and imported too', () => {
     })
   })
 
+  test('a duration edit leaves a dismissed pair dismissed, from the sheet and from the form', async () => {
+    const user = await newUser()
+    const originalId = await importStrength(user, { elapsedSec: 2754 })
+    const saved = await putLog(user, uuid(134), logBody({ durationMin: 40 }))
+    const copyId = resultOf(saved).activity.id
+    expect((await confirm(user, copyId, 'dismissed')).status).toBe(200)
+
+    // The sheet path: the log saved again with other minutes.
+    expect((await putLog(user, uuid(134), logBody({ durationMin: 46 }))).status).toBe(200)
+    expect(await reloadActivity(copyId)).toMatchObject({
+      durationSec: 2760,
+      duplicateStatus: 'dismissed',
+    })
+
+    // The form path: the activity edited with another duration.
+    const edited = await client(ctx, user)
+      .put(`/api/activities/${copyId}`)
+      .send({ date: todayIso(), type: 'strength', durationSec: 1800 })
+    expect(edited.status).toBe(200)
+    expect(await reloadActivity(copyId)).toMatchObject({
+      durationSec: 1800,
+      duplicateStatus: 'dismissed',
+    })
+    expect(await reloadActivity(originalId)).toMatchObject({ duplicateStatus: 'none' })
+  })
+
   describe('an app log that was passed over under the old 5% rule (pairLoggedStrength)', () => {
     /** The 2026-11-18 case: the log first, the export 46 minutes against 40, flags cleared. */
     async function passedOver(user: TestUser, logId: string) {
