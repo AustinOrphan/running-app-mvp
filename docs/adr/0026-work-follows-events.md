@@ -10,7 +10,7 @@ Builds on ADR 0009 (athlete state is read through memos keyed by the data versio
 
 The scheduler (`startScheduler`, `server/jobs/scheduler.ts`) ran seven jobs on a 2 to 5 minute tick
 that were written to backfill one column or to catch up one missed event: `terrain`, `hr-quality`,
-`track`, `surface`, `watch-rating`, `replan-catchup` and the 2-minute `publish` check. After the
+`track`, `surface`, `watch-rating`, `replan-catchup` (every 6 h) and the 2-minute `publish` check. After the
 strength pairing job was replaced by a start pass (SP2, #796), the owner asked about the others
 (2026-11-18).
 
@@ -43,7 +43,8 @@ of another `HR_QUALITY_VERSION`, kept their stale shape while `gradeCurve.ts` dr
   - `sync`, hourly: the one poll of intervals.icu, which cannot notify the app.
   - `publish`, a 30-minute check of intervals.icu (`PUBLISH_BACKSTOP_MS`) and the forced 04:45 run:
     the remote calendar can lose an event, show a push error or change its sport settings without a
-    message to the app. The 2-minute tick that wakes the publisher is converted later.
+    message to the app. The 2-minute tick that woke the publisher is converted to events and wakes
+    (ADR 0008, addendum 2026-11-18).
   - `folder` (5 minutes), `weather` (10 minutes) and the daily slots (backup, matching, Monday
     re-plan, Strava check, publish-morning): an outside system, or a clock. The plan did not analyse
     `folder`, because file-system events are a different tool; it stays until it has its own analysis.
@@ -75,8 +76,13 @@ of another `HR_QUALITY_VERSION`, kept their stale shape while `gradeCurve.ts` dr
   running; the hourly sync carries them). The first sync tick, 30 s after start, is the pass after a
   deploy, so there is no start pass of its own for runs imported before WR1. The cost is that a map
   or a watch rating can arrive up to an hour later after an outage, a 429 or a reconnect.
-- **Still to convert, in later changes:** `publish`'s 2-minute tick and `replan-catchup`. Each
-  appends its own pass to the chain and removes its own interval.
+- **`replan-catchup` is converted** (2026-11-18): a start pass of `runReplanJob({ catchUp: true })`
+  for a restart after Monday 03:00, plus one retry armed only by a failure (`WEEKLY_RETRY_MS`, 6 h;
+  a failed re-plan clears with time and sends no event). A weekday slot is due for the whole week,
+  and a plan restore or a goal-date change runs the catch-up for that runner.
+- **`publish` is converted** (events and wakes after every run, ADR 0008 addendum 2026-11-18).
+- **Nothing is left to convert** except what stays a timer by design: `folder` (5 minutes),
+  `weather` (10 minutes), `predictions` (6 h), the hourly `sync` and its tails, and the daily slots.
 
 ## Reasons
 

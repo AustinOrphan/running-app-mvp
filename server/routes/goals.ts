@@ -4,6 +4,7 @@ import { resultRefusal } from '../../shared/copy/trackRecord.ts'
 import { isIsoDate } from '../../shared/dates.ts'
 import { MAX_DURATION_SEC } from '../../shared/limits.ts'
 import type { Deps } from '../app.ts'
+import { catchUpWeekFor } from '../jobs/scheduler.ts'
 import { conflict, notFound, parse, validationError } from '../errors.ts'
 import { toGoal } from '../serialize.ts'
 import { replanAfterGoalWrite } from '../services/enteredRaces.ts'
@@ -303,6 +304,10 @@ export function goalsRouter(deps: Deps): Router {
       before: toGoal(existing),
       after: toGoal(goal),
     })
+    // A date moved off a passed one makes the plan's week owed again (it was skipped while passed).
+    if (body.targetDate !== undefined && body.targetDate !== existing.targetDate) {
+      await catchUpWeekFor(deps, req.userId, req.runnerDay)
+    }
     res.json(toGoal(goal))
   })
 

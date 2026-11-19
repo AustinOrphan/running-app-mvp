@@ -4,6 +4,7 @@ import { isIsoDate, mondayOf } from '../../shared/dates.ts'
 import { LOAD_APPETITES, PRESET_IDS } from '../../shared/engine/types.ts'
 import type { PlanWeek } from '../../shared/types.ts'
 import type { Deps } from '../app.ts'
+import { catchUpWeekFor } from '../jobs/scheduler.ts'
 import { notFound, parse, validationError } from '../errors.ts'
 import { toPlanWeek } from '../serialize.ts'
 import { adjustmentOfPatch } from '../services/adjust.ts'
@@ -292,13 +293,15 @@ export function planRouter(deps: Deps): Router {
   })
 
   router.post('/archived/:id/restore', async (req, res) => {
-    res.json(
-      await restoreArchivedPlan(deps, {
-        userId: req.userId,
-        planId: req.params.id,
-        today: req.runnerDay.today,
-      }),
-    )
+    const result = await restoreArchivedPlan(deps, {
+      userId: req.userId,
+      planId: req.params.id,
+      today: req.runnerDay.today,
+    })
+    // A restored plan keeps its old creation time and the restore's 'owner' revision is not a weekly
+    // one, so a week with no update yet is owed: made now, not at the next start (ADR 0026).
+    await catchUpWeekFor(deps, req.userId, req.runnerDay)
+    res.json(result)
   })
 
   // What an action would do, from the code that commits it. A refusal is information (200).

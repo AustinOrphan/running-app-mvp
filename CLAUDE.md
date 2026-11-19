@@ -96,7 +96,11 @@ protection reads. The Docker image must still build (`docker build .`) after a c
   `buildDeliverables` (`server/services/workouts.ts`) is the one builder of what goes out: the
   intervals.icu events, the FIT files and the calendar feed render the same `WorkoutPlan`. The
   calendar feed is not a provider (a route behind a hashed token on `DeliveryChannel`, no registry
-  entry). How a session stands on its way to the watch is read only through `readWristItems`
+  entry). The publisher is event-driven (ADR 0008, addendum 2026-11-18): `startScheduler` alone
+  subscribes it to `onDataVersionChange`, `onForecastStored` and `wantPublish()` (a reconnect), runs
+  5 s after the last event (at most 2 minutes after the first of a burst) and arms one wake after every
+  run, whoever started it (`onPublisherRan`; `nextPublishWake`: pause end, retry, the 30-minute backstop for what intervals.icu cannot
+  announce, local midnight). A script's write is seen only at the backstop. How a session stands on its way to the watch is read only through `readWristItems`
   (`server/services/wristItems.ts`), for the Plan page, the settings, Today's `watch` slot and the
   health note about tomorrow's run alike; `WRIST_CHANNEL` there is the one place the channel name
   is written.
@@ -151,6 +155,15 @@ protection reads. The Docker image must still build (`docker build .`) after a c
   a `setImmediate` between them, stops on a batch that wrote nothing or on `stopped()`, records one
   `catchup` run per user through `recordJob` (`syncLog.ts`; an idle one is skipped) and logs one line of
   counts. A new timer is for time (a clock, a week) or an outside system that cannot notify.
+- The weekly update's catch-up (ADR 0007, 0026) is `once('replan-catchup', ...)`: `runReplanJob(deps,
+{ catchUp: true })` 30 s after start, which covers a restart after Monday 03:00. It returns
+  `{ failed }`; `armWeeklyRetry` (`startScheduler`) keeps one pending `setTimeout` of `WEEKLY_RETRY_MS`
+  (6 h), armed only when runners failed or the job rejected before the per-user catch, re-armed by a
+  retry that fails again, cleared by `stop()`. A weekday slot (`dueRunners`, only `REPLAN_SLOT`) is due
+  for the whole local week through `weekSlotStart`, so a host suspended through Monday or a zone jump
+  still runs it; `weekAlreadyUpdated` is the backstop against a second update. `catchUpWeekFor`
+  (`scheduler.ts`) runs the catch-up for one runner after a plan restore and a goal-date change, the two
+  owner writes that can make a week owed; it is best effort and does not arm the retry.
 - Terrain bins (D2-2): `Activity.terrainBins` (JSON text, `TerrainBins` in `shared/types.ts`) holds a
   run's or race's moving seconds, metres and walking seconds by grade band, and `flatCv`, from the
   stored 10 s stream (distance and altitude, no heart rate). `computeTerrainBins`
