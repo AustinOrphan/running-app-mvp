@@ -207,6 +207,10 @@
   border-top: 1px solid var(--border);
 }
 
+.housekeeping {
+  padding: var(--space-4) 0;
+}
+
 .danger {
   padding-top: var(--space-4);
   border-top: 1px solid var(--border);

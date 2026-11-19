@@ -11,6 +11,7 @@ import type { Units, WeightUnit } from '../types.ts'
 import { ACCOUNT_TEMPLATES } from './account.ts'
 import { ACTIVITY_LIST_TEMPLATES } from './activityList.ts'
 import { ACTIVITY_PAGE_TEMPLATES } from './activityPage.ts'
+import { MANUAL_MERGE_TEMPLATES } from './manualMerge.ts'
 import { BRIEF_TEMPLATES } from './briefTemplates.ts'
 import { DATA_IN_USE_TEMPLATES } from './dataInUse.ts'
 import { DISTANCE_ESTIMATE_TEMPLATES } from './distanceEstimate.ts'
@@ -81,6 +82,7 @@ export const TEMPLATES = {
   ...WINDOW_VIEW_TEMPLATES,
   ...ACTIVITY_LIST_TEMPLATES,
   ...ACTIVITY_PAGE_TEMPLATES,
+  ...MANUAL_MERGE_TEMPLATES,
   ...EXPLAIN_TEMPLATES,
   ...PUBLISH_TEMPLATES,
   ...GOALS_TEMPLATES,

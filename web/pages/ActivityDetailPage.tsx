@@ -44,6 +44,8 @@ import { useSettings } from '../api/settings.ts'
 import { useZones } from '../api/zones.ts'
 import { Button } from '../components/Button.tsx'
 import { ConfirmSheet } from '../components/ConfirmSheet.tsx'
+import { MergedNote, SameSessionAction } from '../components/SameSession.tsx'
+import { comparableKind } from '../../shared/domain/duplicates.ts'
 import { TrashGlyph } from '../components/Glyphs.tsx'
 import { StreamChart } from '../components/charts/lazyCharts.tsx'
 import { buildSeries, type StreamChannel } from '../components/charts/streamSeries.ts'
@@ -259,7 +261,11 @@ function Summary({
         </>
       )}
       {activity.duplicateStatus === 'confirmed' ? (
-        <p className={styles.note}>Marked as a duplicate. It is not counted in totals.</p>
+        activity.duplicateOfId === null ? (
+          <p className={styles.note}>Marked as a duplicate. It is not counted in totals.</p>
+        ) : (
+          <MergedNote activity={activity} />
+        )
       ) : null}
       {activity.duplicateStatus === 'possible' ? (
         <p className={styles.note}>
@@ -770,6 +776,7 @@ export function ActivityDetailPage() {
     (activity.type === 'run' || activity.type === 'race') &&
     activity.distanceM !== null &&
     activity.distanceM > 0
+  const mergedCopy = activity.duplicateStatus === 'confirmed' && activity.duplicateOfId !== null
 
   return (
     <>
@@ -798,14 +805,17 @@ export function ActivityDetailPage() {
         <RouteMap activity={activity} units={units} cursor={cursor} />
       ) : null}
       <Charts detail={detail.data} units={units} cursor={cursor} />
-      {activity.type === 'strength' ? <ActivitySets activity={activity} /> : null}
+      {activity.type === 'strength' && !mergedCopy ? <ActivitySets activity={activity} /> : null}
       <AgainstThePlan activity={activity} units={units} />
-      {/* Keyed on the stored values, so the pickers start again from them when they change. */}
-      <Feedback
-        key={`${activity.id}:${String(activity.rpe)}:${String(activity.feel)}:${String(activity.pain)}:${String(activity.heatExposure)}`}
-        activity={activity}
-        units={units}
-      />
+      {/* Keyed on the stored values, so the pickers start again from them when they change. A
+          confirmed copy takes no rating and no sets: they belong to the record it points at. */}
+      {mergedCopy ? null : (
+        <Feedback
+          key={`${activity.id}:${String(activity.rpe)}:${String(activity.feel)}:${String(activity.pain)}:${String(activity.heatExposure)}`}
+          activity={activity}
+          units={units}
+        />
+      )}
       <FuelSection activity={activity} />
       {laps !== null && laps.length > 0 ? (
         <LapsTable laps={laps} units={units} hasPace={hasPace} />
@@ -826,6 +836,13 @@ export function ActivityDetailPage() {
             Download original file
           </a>
         </p>
+      ) : null}
+      {/* Pairing by hand is rare, so the action sits with the record's housekeeping, below the
+          figures, and does not push the result of a run off the first screen. */}
+      {activity.duplicateStatus !== 'confirmed' && comparableKind(activity) !== null ? (
+        <div className={styles.housekeeping}>
+          <SameSessionAction activity={activity} />
+        </div>
       ) : null}
       <DeleteActivity activity={activity} />
 

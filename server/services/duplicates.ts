@@ -8,7 +8,8 @@ import {
 } from '../../shared/domain/duplicates.ts'
 import { compatible } from '../../shared/engine/execution.ts'
 import type { SessionKind } from '../../shared/engine/types.ts'
-import type { DuplicateStatus } from '../../shared/types.ts'
+import { mergeRefusal } from '../../shared/domain/manualMerge.ts'
+import type { Activity, DuplicateStatus } from '../../shared/types.ts'
 
 /** The activity types the pass compares, each only with its own kind (`findPossibleDuplicate`). */
 const COUNTED_TYPES = ['run', 'race', 'strength']
@@ -249,7 +250,7 @@ export async function markDuplicates(
       }
       await prisma.activity.update({
         where: { id: duplicate.id, userId },
-        data: { duplicateStatus: status, duplicateOfId: original.id },
+        data: { duplicateStatus: status, duplicateOfId: original.id, mergedByHand: false },
       })
       await prisma.activity.updateMany({
         where: { userId, duplicateOfId: duplicate.id, id: { not: original.id } },
@@ -314,7 +315,7 @@ export async function releaseDuplicates(
   if (rows.length === 0) return []
   await prisma.activity.updateMany({
     where,
-    data: { duplicateStatus: 'none', duplicateOfId: null },
+    data: { duplicateStatus: 'none', duplicateOfId: null, mergedByHand: false },
   })
   return rows.map((r) => r.id)
 }
@@ -333,7 +334,9 @@ export async function releaseDuplicatesOf(
 
 /**
  * Confirmed rows pointing at an edited original stay confirmed while the pair still matches; the
- * others go back to `none`, so their totals recover. Returns the released ids.
+ * others go back to `none`, so their totals recover. A pair the runner made by hand
+ * (`mergedByHand`, MM1) never matched by the rule and is never released here: only Separate, or
+ * deleting a row, ends it. Returns the released ids.
  */
 export async function releaseStaleConfirmed(
   prisma: PrismaClient,
@@ -347,14 +350,47 @@ export async function releaseStaleConfirmed(
     where: { userId, duplicateOfId: originalId, duplicateStatus: 'confirmed' },
   })
   const stale = confirmed
-    .filter((copy) => findPossibleDuplicate(toActivity(copy), [original]) === null)
+    .filter(
+      (copy) => !copy.mergedByHand && findPossibleDuplicate(toActivity(copy), [original]) === null,
+    )
     .map((copy) => copy.id)
   if (stale.length === 0) return []
   await prisma.activity.updateMany({
     where: { id: { in: stale }, userId },
-    data: { duplicateStatus: 'none', duplicateOfId: null },
+    data: { duplicateStatus: 'none', duplicateOfId: null, mergedByHand: false },
   })
   return stale
+}
+
+/**
+ * Whether an edit of `row` that changes its date, type, distance or duration leaves a hand-made
+ * confirmed copy as it is: only a type of another kind or a date more than a day from the original
+ * ends it (`mergeRefusal`). A row that is no hand-made copy never survives (the caller clears its
+ * flag and runs the pass again).
+ */
+export async function handMergeSurvivesEdit(
+  prisma: Pick<PrismaClient, 'activity'>,
+  userId: string,
+  row: { id: string; mergedByHand: boolean; duplicateStatus: string; duplicateOfId: string | null },
+  next: { type: string; date: string },
+): Promise<boolean> {
+  if (!row.mergedByHand || row.duplicateStatus !== 'confirmed' || row.duplicateOfId === null) {
+    return false
+  }
+  const original = await prisma.activity.findFirst({ where: { id: row.duplicateOfId, userId } })
+  if (!original) return false
+  return (
+    mergeRefusal(
+      {
+        id: row.id,
+        type: next.type as Activity['type'],
+        date: next.date,
+        duplicateStatus: 'none',
+        duplicateOfId: null,
+      },
+      toActivity(original),
+    ) === null
+  )
 }
 
 /**

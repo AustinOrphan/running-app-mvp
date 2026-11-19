@@ -2123,6 +2123,47 @@ function verifyWellnessInBed(db: DatabaseSync, before: Snapshot): void {
   expect(rowsOf(db, 'SELECT "inBedSec" FROM "WellnessDay"')).toEqual([{ inBedSec: 28_800 }])
 }
 
+function seedMergedByHandRelease(db: DatabaseSync): void {
+  insert(db, 'User', {
+    id: 'u1',
+    email: 'runner@example.com',
+    passwordHash: 'not-a-real-hash',
+    updatedAt: STAMP,
+  })
+  insert(db, 'Activity', {
+    id: 'a1',
+    userId: 'u1',
+    date: '2026-03-02',
+    type: 'strength',
+    durationSec: 2760,
+    source: 'intervals',
+    providerKey: 'intervals:1',
+    updatedAt: STAMP,
+  })
+  insert(db, 'Activity', {
+    id: 'a2',
+    userId: 'u1',
+    date: '2026-03-02',
+    type: 'strength',
+    durationSec: 2400,
+    duplicateOfId: 'a1',
+    duplicateStatus: 'confirmed',
+    updatedAt: STAMP,
+  })
+}
+
+function verifyMergedByHand(db: DatabaseSync, before: Snapshot): void {
+  expectNothingLost(before, db)
+  expectConsistent(db)
+  // A pair of the previous release was made by the pass, so no row reads as made by hand.
+  expect(
+    rowsOf(db, 'SELECT id, "duplicateStatus", "mergedByHand" FROM "Activity" ORDER BY id'),
+  ).toEqual([
+    { id: 'a1', duplicateStatus: 'none', mergedByHand: 0 },
+    { id: 'a2', duplicateStatus: 'confirmed', mergedByHand: 0 },
+  ])
+}
+
 function verifyActivityHeatExposure(db: DatabaseSync, before: Snapshot): void {
   // Rows, including the sessions linked to activities, are all kept.
   expectNothingLost(before, db)
@@ -2460,6 +2501,11 @@ const CASES: FixtureCase[] = [
     migration: 'wellness_in_bed',
     seed: seedWellnessRelease,
     verify: verifyWellnessInBed,
+  },
+  {
+    migration: 'activity_merged_by_hand',
+    seed: seedMergedByHandRelease,
+    verify: verifyMergedByHand,
   },
 ]
 
