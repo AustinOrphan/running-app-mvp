@@ -325,14 +325,15 @@ export async function backfillTracks(
 /**
  * The start pass's batch for one user (ADR 0026): the stored originals only, no request. A batch
  * of treadmill files writes no track but does settle its runs, so `filled` counts every run settled
- * (a track written, none to write, or an unreadable file); without that the drain would stop at the
+ * (a track written, or none to write, which includes an unreadable file: it is settled as having
+ * no positions and also listed in `unreadable`); without that the drain would stop at the
  * first batch with no positions in it.
  */
 export function trackChunkFor(deps: Deps): (userId: string) => () => Promise<StartPassChunk> {
   return (userId) => async () => {
     const result = await backfillTracks(deps, userId, { parts: { files: true, streams: false } })
     return {
-      filled: result.filled + result.withoutPositions + result.unreadable.length,
+      filled: result.filled + result.withoutPositions,
       unreadable: result.unreadable,
       remaining: result.remaining,
     }
