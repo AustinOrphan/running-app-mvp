@@ -48,8 +48,9 @@ of another `HR_QUALITY_VERSION`, kept their stale shape while `gradeCurve.ts` dr
   - `folder` (5 minutes), `weather` (10 minutes) and the daily slots (backup, matching, Monday
     re-plan, Strava check, publish-morning): an outside system, or a clock. The plan did not analyse
     `folder`, because file-system events are a different tool; it stays until it has its own analysis.
-- **Still to convert, in later changes:** `track`, `surface`, `watch-rating` and `replan-catchup`
-  (`publish`'s 2-minute tick is converted in its own change, stacked on this one). Each appends its own pass to the chain and removes its own interval.
+- **Converted:** `publish` (events and wakes after every run, ADR 0008 addendum 2026-11-18).
+- **Still to convert, in later changes:** `track`, `surface`, `watch-rating` and `replan-catchup`.
+  Each appends its own pass to the chain and removes its own interval.
 
 ## Reasons
 

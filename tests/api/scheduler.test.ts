@@ -22,7 +22,13 @@ import {
   startScheduler,
 } from '../../server/jobs/scheduler.ts'
 import { backupDirectory, integrityProblems } from '../../server/services/backup.ts'
-import { PUBLISH_BACKSTOP_MS, nextPublishWake, wantPublish } from '../../server/services/publish.ts'
+import {
+  PUBLISH_BACKSTOP_MS,
+  nextPublishWake,
+  publishChangeKey,
+  publishForUser,
+  wantPublish,
+} from '../../server/services/publish.ts'
 import { settleBackground } from '../../server/services/sync.ts'
 import { fakeFetch } from '../fakeFetch.ts'
 import {
@@ -1047,9 +1053,14 @@ describe('the scheduler runs the publisher', () => {
     const now = new Date(2026, 9, 21, 10, 0)
     const userId = seeded.u.id
     const lastRunAt = new Date(now.getTime() - 10 * MINUTE)
-    await ctx.prisma.deliveryChannel.updateMany({ where: { userId }, data: { lastRunAt } })
+    const dataKey = await publishChangeKey(ctx, userId, wednesday)
+    await ctx.prisma.deliveryChannel.updateMany({ where: { userId }, data: { lastRunAt, dataKey } })
     // the backstop, 30 minutes after the last run
     expect(await nextPublishWake(ctx, now)).toEqual(new Date(lastRunAt.getTime() + 30 * MINUTE))
+    // a stored key that is not the current one (a trigger a held flight dropped) wakes at once
+    await ctx.prisma.deliveryChannel.updateMany({ where: { userId }, data: { dataKey: 'old' } })
+    expect(await nextPublishWake(ctx, now)).toEqual(now)
+    await ctx.prisma.deliveryChannel.updateMany({ where: { userId }, data: { dataKey } })
     // a pause pushes it back to the pause's end
     const pausedUntil = new Date(now.getTime() + 45 * MINUTE)
     await ctx.prisma.deliveryChannel.updateMany({ where: { userId }, data: { pausedUntil } })
@@ -1077,6 +1088,89 @@ describe('the scheduler runs the publisher', () => {
     await ctx.prisma.integration.updateMany({ where: { userId }, data: { status: 'connected' } })
     await ctx.prisma.deliveryChannel.updateMany({ where: { userId }, data: { enabled: false } })
     expect(await nextPublishWake(ctx, now)).toBeNull()
+  })
+
+  test('the 04:45 slot re-arms the wake: its pause end runs the publisher, not the backstop', async () => {
+    const { u, stop } = await start('publish-sched-morning-wake@example.com')
+    await vi.advanceTimersByTimeAsync(31_000)
+    await vi.waitFor(async () => {
+      const channel = await ctx.prisma.deliveryChannel.findFirstOrThrow({ where: { userId: u.id } })
+      expect(channel.dataKey).not.toBeNull()
+    })
+    expect(reads()).toBe(1)
+
+    // the forced run at 04:50 meets an outage and pauses the channel for 5 minutes
+    fake.hooks.list = () => new Response('{}', { status: 503 })
+    await vi.advanceTimersByTimeAsync(9 * MINUTE + 40_000)
+    await vi.waitFor(() => {
+      expect(reads()).toBe(2)
+    })
+    await vi.waitFor(async () => {
+      const channel = await ctx.prisma.deliveryChannel.findFirstOrThrow({ where: { userId: u.id } })
+      expect(channel.pausedUntil).not.toBeNull()
+    })
+    delete fake.hooks.list
+    // something is waiting for the pause to end
+    await ctx.prisma.deliveryChannel.updateMany({
+      where: { userId: u.id },
+      data: { dataKey: null },
+    })
+    await vi.advanceTimersByTimeAsync(4 * MINUTE)
+    expect(reads()).toBe(2)
+    await vi.advanceTimersByTimeAsync(MINUTE + 10_000)
+    await vi.waitFor(() => {
+      expect(reads()).toBe(3)
+    })
+    stop()
+  })
+
+  test('a manual send that fails is tried again at its retry instant', async () => {
+    const { u, stop } = await start('publish-sched-manual@example.com', MIDMORNING)
+    await vi.advanceTimersByTimeAsync(31_000)
+    await vi.waitFor(async () => {
+      const channel = await ctx.prisma.deliveryChannel.findFirstOrThrow({ where: { userId: u.id } })
+      expect(channel.dataKey).not.toBeNull()
+    })
+    expect(reads()).toBe(1)
+
+    // a manual run (not the scheduler's) is paused by an outage, and nothing else moves
+    await ctx.prisma.deliveryChannel.updateMany({
+      where: { userId: u.id },
+      data: { dataKey: null },
+    })
+    fake.hooks.list = () => new Response('{}', { status: 503 })
+    await publishForUser(ctx, u.id, { trigger: 'manual', fetch: fake.fetch, today: wednesday })
+    expect(reads()).toBe(2)
+    delete fake.hooks.list
+    await vi.advanceTimersByTimeAsync(4 * MINUTE)
+    expect(reads()).toBe(2)
+    await vi.advanceTimersByTimeAsync(MINUTE + 10_000)
+    await vi.waitFor(() => {
+      expect(reads()).toBe(3)
+    })
+    stop()
+  })
+
+  test('a run that throws is looked at again no sooner than a minute later', async () => {
+    const { stop } = await start('publish-sched-floor@example.com', MIDMORNING)
+    const real = ctx.prisma.deliveryChannel.findMany.bind(ctx.prisma.deliveryChannel)
+    const spy = vi
+      .spyOn(ctx.prisma.deliveryChannel, 'findMany')
+      .mockRejectedValueOnce(new Error('database is locked'))
+    await vi.advanceTimersByTimeAsync(31_000)
+    await vi.waitFor(() => {
+      expect(spy).toHaveBeenCalled()
+    })
+    spy.mockImplementation(real)
+    expect(reads()).toBe(0)
+    await vi.advanceTimersByTimeAsync(50_000)
+    expect(reads()).toBe(0)
+    await vi.advanceTimersByTimeAsync(15_000)
+    await vi.waitFor(() => {
+      expect(reads()).toBe(1)
+    })
+    spy.mockRestore()
+    stop()
   })
 
   test('no scheduler, no runs: writes in an API test never start the publisher', async () => {

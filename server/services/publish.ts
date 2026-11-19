@@ -343,6 +343,29 @@ export async function publishForUser(
     return await flight
   } finally {
     if (flights.get(userId) === flight) flights.delete(userId)
+    // Every run, whoever started it (the scheduler, a manual send, the 04:45 slot), may have set a
+    // retry instant or a pause that only the scheduler's wake can act on.
+    publisherRan()
+  }
+}
+
+const publisherRanListeners = new Set<() => void>()
+
+/** Calls `listener` after every publisher run ends. Returns the function that stops it. */
+export function onPublisherRan(listener: () => void): () => void {
+  publisherRanListeners.add(listener)
+  return () => {
+    publisherRanListeners.delete(listener)
+  }
+}
+
+function publisherRan(): void {
+  for (const listener of [...publisherRanListeners]) {
+    try {
+      listener()
+    } catch {
+      // A listener only re-arms a timer; its failure must not fail the run.
+    }
   }
 }
 
@@ -1072,7 +1095,8 @@ export async function isPublishDue(
  * addendum 2026-11-18): the earliest of, per runner who publishes, the end of a pause, the due
  * instant of an unsent row of today or later, 30 minutes after the last run (the backstop for
  * what intervals.icu cannot announce), the runner's next local midnight (the window slides) and
- * now when a run is in flight (a trigger dropped by a held flight needs a second look). A pause
+ * now when a run is in flight or the stored change key is stale (a trigger dropped by a held
+ * flight needs a second look). A pause
  * pushes every one of them back to its end. Null when no runner publishes.
  */
 export async function nextPublishWake(deps: Deps, now: Date): Promise<Date | null> {
@@ -1118,7 +1142,16 @@ export async function nextPublishWake(deps: Deps, now: Date): Promise<Date | nul
     } catch {
       // An unknown zone has no midnight to wake for; the backstop still covers the runner.
     }
-    if (isPublishing(channel.userId)) candidates.push(now.getTime())
+    if (isPublishing(channel.userId)) {
+      candidates.push(now.getTime())
+    } else if (
+      channel.lastRunAt !== null &&
+      channel.dataKey !== (await publishChangeKey(deps, channel.userId, day.today))
+    ) {
+      // What changed since the last finished run (a trigger a held flight dropped) is not waiting
+      // for the backstop.
+      candidates.push(now.getTime())
+    }
     const pausedUntil = channel.pausedUntil?.getTime() ?? 0
     if (pausedUntil > now.getTime()) candidates.push(pausedUntil)
     for (const at of candidates) {

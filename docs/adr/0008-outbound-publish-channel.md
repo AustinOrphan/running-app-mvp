@@ -129,9 +129,10 @@ scheduler notices, not what starts a run.
 - A run starts 5 s after the last event (`PUBLISH_SETTLE_MS`), at most 2 minutes after the first
   event of a burst (`PUBLISH_MAX_WAIT_MS`, the old worst-case latency), and not inside an open
   transaction. `runPublishJob` and `isPublishDue` are unchanged and still filter per runner.
-- After each run one wake is armed for the next known instant (`nextPublishWake`): the end of a
-  pause, a failed send's retry instant, 30 minutes after the last run, and each runner's next local
-  midnight. The first run is 30 s after start and rebuilds the wake, because no timer survives a
+- After every run, whoever started it (the scheduler, a manual send, the 04:45 slot), one wake is
+  armed for the next known instant (`nextPublishWake`): the end of a pause, a failed send's retry
+  instant, 30 minutes after the last run, each runner's next local midnight, and at once when the
+  stored change key is stale. A run that threw is looked at again no sooner than a minute later. The first run is 30 s after start and rebuilds the wake, because no timer survives a
   restart.
 - **Fact.** intervals.icu cannot notify the app (personal API key, LAN install), so a deleted event,
   a Garmin `push_error` or a sport-settings change is seen only by looking. The 30-minute backstop

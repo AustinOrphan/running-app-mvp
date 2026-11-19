@@ -28,6 +28,7 @@ import {
   isPublishDue,
   nextPublishWake,
   onPublishWanted,
+  onPublisherRan,
   publishForUser,
 } from '../services/publish.ts'
 import { onDataVersionChange, openTransactions } from '../dataVersion.ts'
@@ -61,6 +62,8 @@ export const CATCHUP_INTERVAL_MS = 6 * 60 * MINUTE_MS
 export const PREDICTION_INTERVAL_MS = 6 * 60 * MINUTE_MS
 /** The publisher waits this long after the last event before it runs (a trailing debounce). */
 export const PUBLISH_SETTLE_MS = 5_000
+/** The wake after a run that threw is at least this far off, so a failure cannot loop. */
+export const PUBLISH_FAILURE_FLOOR_MS = MINUTE_MS
 /** A run is never held back longer than this after the first event of a burst. */
 export const PUBLISH_MAX_WAIT_MS = 2 * MINUTE_MS
 /** How often the track backfill reads stored originals and asks intervals.icu for a few streams. */
@@ -600,7 +603,12 @@ export async function runMatchingJob(
  */
 export async function runPublishJob(
   deps: Deps,
-  opts: { fetch: typeof fetch; force?: boolean } & RunnerJobOptions,
+  opts: {
+    fetch: typeof fetch
+    force?: boolean
+    /** Called for a runner whose run threw, so a caller can slow down its next look. */
+    onError?: (error: unknown) => void
+  } & RunnerJobOptions,
   log?: Log,
 ): Promise<void> {
   const now = opts.now ?? new Date()
@@ -632,6 +640,7 @@ export async function runPublishJob(
     } catch (error) {
       // The run recorded the failure itself; this only keeps the loop going.
       log?.warn({ reason: safeMessage(error) }, 'scheduled publishing failed')
+      opts.onError?.(error)
     }
   }
 }
@@ -843,7 +852,7 @@ export const PUBLISH_MORNING_SLOT: DailySlot = { hour: 4, minute: 45 }
  * The publisher (ADR 0008, addendum 2026-11-18) subscribes here and nowhere else, so an API test
  * that never starts the scheduler never starts a run. It listens to the in-process data version, a
  * stored forecast and a reconnect, runs 5 s after the last event (at most 2 minutes after the
- * first of a burst), and after each run arms one wake for the next known instant. A write by
+ * first of a burst), and after every run (also a manual send and the 04:45 slot) arms one wake for the next known instant. A write by
  * another process (a script) moves no in-process version and is seen only at the 30-minute
  * backstop.
  * A job never overlaps itself: a tick that finds its previous run still going does nothing.
@@ -963,7 +972,7 @@ export function startScheduler(deps: Deps, opts: { fetch: typeof fetch }): () =>
    * The event-driven publisher. Events (data-version change, stored forecast, reconnect) arm one
    * trailing debounce: `PUBLISH_SETTLE_MS` after the last event, at most `PUBLISH_MAX_WAIT_MS` after
    * the first of a burst, and not inside an open transaction. One run at a time; a debounce that
-   * fires during a run makes the run go round once more. After each run one wake is armed for the
+   * fires during a run makes the run go round once more. After every run, whoever started it (`onPublisherRan`), one wake is armed for the
    * next known instant (`nextPublishWake`), at most `PUBLISH_BACKSTOP_MS` away. Events are ignored
    * until the start run (30 s after start, the same instant as the old first tick, which also
    * rebuilds the wake because no timer survives a restart: the boot id makes every key stale).
@@ -982,23 +991,29 @@ export function startScheduler(deps: Deps, opts: { fetch: typeof fetch }): () =>
       return timer
     }
 
+    // A run that threw before it could store its outcome leaves its key stale and no pause: the
+    // wake after it waits at least this long, so a persistent failure never loops every 5 s.
+    let lastRunFailed = false
+
     const armWake = async (): Promise<void> => {
-      if (wakeTimer !== null) clearTimeout(wakeTimer)
-      wakeTimer = null
       const now = new Date()
       let delay = PUBLISH_BACKSTOP_MS
       try {
         const at = await nextPublishWake(deps, now)
-        if (at !== null)
-          delay = Math.min(delay, Math.max(PUBLISH_SETTLE_MS, at.getTime() - now.getTime()))
+        const floor = lastRunFailed ? PUBLISH_FAILURE_FLOOR_MS : PUBLISH_SETTLE_MS
+        if (at !== null) delay = Math.min(delay, Math.max(floor, at.getTime() - now.getTime()))
+        else if (lastRunFailed) delay = Math.max(delay, floor)
       } catch (error) {
         log.error({ err: error, job: 'publish' }, 'publish wake could not be read')
       }
+      // Overlapping calls each end here: the latest one replaces the timer, none is orphaned.
       if (stopped) return
-      wakeTimer = arm(delay, () => {
-        wakeTimer = null
+      if (wakeTimer !== null) clearTimeout(wakeTimer)
+      const timer = arm(delay, () => {
+        if (wakeTimer === timer) wakeTimer = null
         void run()
       })
+      wakeTimer = timer
     }
 
     const run = async (): Promise<void> => {
@@ -1008,12 +1023,17 @@ export function startScheduler(deps: Deps, opts: { fetch: typeof fetch }): () =>
         return
       }
       running = true
+      lastRunFailed = false
+      const failed = (): void => {
+        lastRunFailed = true
+      }
       try {
         do {
           again = false
-          await runPublishJob(deps, opts, log)
+          await runPublishJob(deps, { ...opts, onError: failed }, log)
         } while (again && !stopped)
       } catch (error) {
+        failed()
         log.error({ err: error, job: 'publish' }, 'scheduled job failed')
       } finally {
         running = false
@@ -1043,6 +1063,10 @@ export function startScheduler(deps: Deps, opts: { fetch: typeof fetch }): () =>
       onDataVersionChange(deps.prisma, request),
       onForecastStored(request),
       onPublishWanted(request),
+      // A manual send and the 04:45 slot also end in a retry instant or a pause: re-arm the wake.
+      onPublisherRan(() => {
+        if (ready && !stopped) void armWake()
+      }),
     ]
     once('publish-start', async () => {
       ready = true
