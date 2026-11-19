@@ -306,6 +306,16 @@ const empty = (source: HrSource): HrQuality => ({
   gapDecouplingPct: null,
 })
 
+/**
+ * The start of the stored JSON of a summary computed under the current version and thresholds, in
+ * the key order `empty` writes (derived from the same constants, so the writer and the backfill's
+ * stale test cannot drift).
+ */
+export const HR_QUALITY_STAMP = JSON.stringify({
+  v: HR_QUALITY_VERSION,
+  th: HR_QUALITY_THRESHOLDS,
+}).slice(0, -1)
+
 const tenth = (v: number): number => Math.round(v * 10) / 10
 
 /**

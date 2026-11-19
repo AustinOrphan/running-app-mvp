@@ -21,6 +21,7 @@ import {
   releaseDuplicatesOf,
   repairAfterDelete,
 } from '../services/duplicates.ts'
+import { refreshDerivedAfterEdit } from '../services/derivedColumns.ts'
 import { assessSessionsQuietly, runExecutionQuietly } from '../services/execution.ts'
 import { mergeActivities, mergeCandidates } from '../services/manualMerge.ts'
 import { loadGlyphs } from '../services/glyphs.ts'
@@ -422,6 +423,11 @@ export function activitiesRouter(deps: Deps): Router {
         : body.type !== existing.type || subtypeChanged
           ? 'type'
           : undefined
+    // A run re-typed from cross has a stream and no bins or quality summary; fill them now, before
+    // the assessment below reads the summary (ADR 0026).
+    if (body.type !== existing.type || subtypeChanged) {
+      await refreshDerivedAfterEdit(deps, req.userId, id)
+    }
     await runExecutionQuietly(deps, {
       userId: req.userId,
       activityId: id,

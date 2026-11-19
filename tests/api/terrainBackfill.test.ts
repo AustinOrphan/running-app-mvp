@@ -1,8 +1,12 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'vitest'
-import { runTerrainJob } from '../../server/jobs/scheduler.ts'
 import { storeParsedToday as storeParsed } from './helpers.ts'
-import { backfillTerrainBins } from '../../server/services/terrainBackfill.ts'
+import { runStartPass } from '../../server/services/startPass.ts'
+import {
+  backfillTerrainBins,
+  TERRAIN_BACKFILL_BATCH,
+} from '../../server/services/terrainBackfill.ts'
 import { parseActivityFile } from '../../shared/importers/files/index.ts'
+import { computeTerrainBins, terrainShapePrefix } from '../../shared/importers/files/terrainBins.ts'
 import type { TerrainBins } from '../../shared/types.ts'
 import { COURSE, courseFit } from '../fixtures/fit/terrainCourse.ts'
 import { createTestCtx, seedUser, type TestCtx, type TestUser } from './helpers.ts'
@@ -96,11 +100,49 @@ describe('backfillTerrainBins', () => {
     expect(await binsOf(lift.id)).toBeNull()
   })
 
-  test('does not overwrite bins an import wrote in the meantime', async () => {
+  test('does not overwrite current-shape bins an import wrote in the meantime', async () => {
     const run = await importOld(user.id, 1, 5)
-    await ctx.prisma.activity.update({ where: { id: run.id }, data: { terrainBins: '{"v":9}' } })
+    const current = `${terrainShapePrefix()}"sec":[1],"m":[1],"walkSec":[1],"flatCv":null}`
+    await ctx.prisma.activity.update({ where: { id: run.id }, data: { terrainBins: current } })
     expect(await backfillTerrainBins(deps(), user.id)).toMatchObject({ filled: 0, remaining: 0 })
-    expect(await binsOf(run.id)).toBe('{"v":9}')
+    expect(await binsOf(run.id)).toBe(current)
+  })
+
+  test.each([
+    ['version', (bins: TerrainBins) => ({ ...bins, v: bins.v + 1 })],
+    ['walking floor', (bins: TerrainBins) => ({ ...bins, walkMps: bins.walkMps + 0.5 })],
+    ['edges', (bins: TerrainBins) => ({ ...bins, edgesPct: bins.edgesPct.map((e) => e + 1) })],
+    ['window', (bins: TerrainBins) => ({ ...bins, windowM: bins.windowM + 5 })],
+  ])('computes bins of another %s again, to the import value', async (_name, change) => {
+    const run = await importOld(user.id, 1, 5)
+    const old = change(JSON.parse(run.importedBins) as TerrainBins)
+    await ctx.prisma.activity.update({
+      where: { id: run.id },
+      data: { terrainBins: JSON.stringify(old) },
+    })
+    expect(await backfillTerrainBins(deps(), user.id)).toMatchObject({ filled: 1, remaining: 0 })
+    expect(await binsOf(run.id)).toBe(run.importedBins)
+  })
+
+  test('the shape prefix starts what the writer stores, empty bins and real ones', async () => {
+    const run = await importOld(user.id, 1, 5)
+    expect(run.importedBins.startsWith(terrainShapePrefix())).toBe(true)
+    const flat = computeTerrainBins(
+      { t: [], d: null, hr: null, alt: null, cad: null, pwr: null },
+      10,
+    )
+    expect(JSON.stringify(flat).startsWith(terrainShapePrefix())).toBe(true)
+  })
+
+  test('the ids option fills only the named rows', async () => {
+    const a = await importOld(user.id, 1, 5)
+    const b = await importOld(user.id, 2, 6)
+    expect(await backfillTerrainBins(deps(), user.id, { ids: [a.id] })).toMatchObject({
+      filled: 1,
+      remaining: 0,
+    })
+    expect(await binsOf(a.id)).toBe(a.importedBins)
+    expect(await binsOf(b.id)).toBeNull()
   })
 
   test('an unreadable stream gets all-zero bins, is reported and is not met again', async () => {
@@ -124,35 +166,81 @@ describe('backfillTerrainBins', () => {
   })
 })
 
-describe('runTerrainJob', () => {
+describe('the terrain start pass', () => {
   const runs = (userId: string) =>
     ctx.prisma.syncRun.findMany({
       where: { userId, channel: 'job', provider: 'terrain' },
       orderBy: { startedAt: 'asc' },
     })
+  const pass = () =>
+    runStartPass(deps(), 'terrain', (userId) => () => backfillTerrainBins(deps(), userId))
 
-  test('records a terrain run with the runs filled, then nothing once there is nothing left', async () => {
-    await importOld(user.id, 1, 5)
-    await importOld(user.id, 2, 6)
-    await runTerrainJob(deps())
+  test('fills runs past one batch in one pass and records one catchup run, then nothing', async () => {
+    for (let i = 0; i < TERRAIN_BACKFILL_BATCH + 5; i++)
+      await importOld(user.id, i + 1, 1 + (i % 28))
+    await pass()
     const [run, ...rest] = await runs(user.id)
     expect(rest).toEqual([])
-    expect(run).toMatchObject({ status: 'ok', trigger: 'schedule', accepted: 2, failed: 0 })
+    expect(run).toMatchObject({
+      status: 'ok',
+      trigger: 'catchup',
+      accepted: TERRAIN_BACKFILL_BATCH + 5,
+      failed: 0,
+    })
+    expect(await backfillTerrainBins(deps(), user.id)).toMatchObject({ filled: 0, remaining: 0 })
 
-    await runTerrainJob(deps())
+    await pass()
+    // The second pass finds nothing: it stores no new run for the user it filled.
     expect(await runs(user.id)).toHaveLength(1)
-    // A user with nothing to fill gets one idle run the first time, so the log shows the job ran.
-    expect(await runs(other.id)).toHaveLength(1)
   })
 
-  test('a tick that meets an unreadable stream is a partial run', async () => {
+  test('recomputes bins of another walking floor, once', async () => {
+    const run = await importOld(user.id, 1, 5)
+    const old = { ...(JSON.parse(run.importedBins) as TerrainBins), walkMps: 9 }
+    await ctx.prisma.activity.update({
+      where: { id: run.id },
+      data: { terrainBins: JSON.stringify(old) },
+    })
+    await pass()
+    expect(await binsOf(run.id)).toBe(run.importedBins)
+    expect((await runs(user.id))[0]).toMatchObject({ trigger: 'catchup', accepted: 1 })
+  })
+
+  test('a pass that meets an unreadable stream is a partial run', async () => {
     const run = await importOld(user.id, 1, 5)
     await ctx.prisma.activityStream.update({
       where: { activityId: run.id },
       data: { data: '[' },
     })
-    await runTerrainJob(deps())
+    await pass()
     const [recorded] = await runs(user.id)
     expect(recorded).toMatchObject({ status: 'partial', accepted: 1, failed: 1 })
+  })
+})
+
+describe('terrain bins follow the stored type', () => {
+  /** A course run parsed from a FIT file, with the type the provider reports. */
+  function parsedAs(type: 'run' | 'cross') {
+    const bytes = courseFit(COURSE, { serial: 7, startUnix: Date.UTC(2026, 0, 12, 7) / 1000 })
+    const [parsed] = parseActivityFile('run-7.fit', bytes, { timezone: 'UTC' })
+    return { ...parsed!, type }
+  }
+  const store = (parsed: ReturnType<typeof parsedAs>) =>
+    storeParsed(deps(), user.id, parsed, { source: 'file', importBatchId: null, channel: 'upload' })
+
+  test('a run the runner re-typed from cross keeps its bins when the provider still says cross', async () => {
+    const { activityId } = await store(parsedAs('cross'))
+    expect(await binsOf(activityId)).toBeNull()
+    await ctx.prisma.activity.update({ where: { id: activityId }, data: { type: 'run' } })
+    await store(parsedAs('cross'))
+    expect(await binsOf(activityId)).not.toBeNull()
+  })
+
+  test('a run the runner re-typed to cross gets no bins from a re-import that says run', async () => {
+    const { activityId } = await store(parsedAs('run'))
+    expect(await binsOf(activityId)).not.toBeNull()
+    await ctx.prisma.activity.update({ where: { id: activityId }, data: { type: 'cross' } })
+    await store(parsedAs('run'))
+    expect(await binsOf(activityId)).toBeNull()
   })
 })

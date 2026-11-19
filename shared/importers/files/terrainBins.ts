@@ -70,6 +70,17 @@ function emptyBins(): TerrainBins {
   }
 }
 
+/**
+ * The start of the stored JSON of bins computed under the current shape: the version, window, walking
+ * floor and edges, in the key order `emptyBins` writes (the writer and this prefix share it, so they
+ * cannot drift). The backfill treats stored bins that do not start with it as stale and computes them
+ * again.
+ */
+export function terrainShapePrefix(): string {
+  const json = JSON.stringify(emptyBins())
+  return json.slice(0, json.indexOf('"sec":'))
+}
+
 /** Whether a run or race gets terrain bins; every other type stores none. */
 export function hasTerrainBins(type: ActivityType): boolean {
   return type === 'run' || type === 'race'

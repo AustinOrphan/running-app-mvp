@@ -1,5 +1,5 @@
 import type { Deps } from '../app.ts'
-import { computeTerrainBins } from '../../shared/importers/files/terrainBins.ts'
+import { computeTerrainBins, terrainShapePrefix } from '../../shared/importers/files/terrainBins.ts'
 import type { ActivityStreamData } from '../../shared/types.ts'
 
 /** Runs read and written per user per call: small, so a call is short and a request never queues behind it. */
@@ -10,32 +10,41 @@ export interface TerrainBackfillResult {
   filled: number
   /** Of those, the ones whose stored stream could not be read (they got all-zero bins). */
   unreadable: string[]
-  /** Runs with a stream and no bins that this call left for the next one. */
+  /** Runs with a stream and no (or stale) bins that this call left for the next one. */
   remaining: number
 }
 
 const RUN_TYPES = ['run', 'race']
 
+/** No bins yet, or bins of another shape (version, window, walking floor or edges). */
+const staleBins = () => [
+  { terrainBins: null },
+  { NOT: { terrainBins: { startsWith: terrainShapePrefix() } } },
+]
+
 /**
  * Fills `Activity.terrainBins` from the stored stream for the newest runs and races of one user
- * that have a stream and no bins, with the function the import uses (both read the 10 s stream,
- * so the numbers agree). Idempotent and resumable: a run with bins is never selected again, a run
- * is written only while its column is still null (an import that wins the race is not overwritten),
- * and the batch is one transaction, so an interrupted call leaves no half-filled batch. A stream
- * that cannot be parsed gets all-zero bins, so the job does not meet it again, and is reported in
- * `unreadable`. Reads `ActivityStream`, never the original file, and never touches the network.
+ * that have a stream and no bins or bins of another shape (`terrainShapePrefix`), with the function
+ * the import uses (both read the 10 s stream, so the numbers agree). Run by the start pass (ADR
+ * 0026) and, with `ids`, for the one activity whose type was just edited. Idempotent and resumable:
+ * a run with current bins is never selected again, a run is written only while its bins are still
+ * stale (an import that wins the race is not overwritten), and the batch is one transaction, so an
+ * interrupted call leaves no half-filled batch. A stream that cannot be parsed gets all-zero bins,
+ * so the pass does not meet it again, and is reported in `unreadable`. Reads `ActivityStream`, never
+ * the original file, and never touches the network.
  */
 export async function backfillTerrainBins(
   deps: Pick<Deps, 'prisma'>,
   userId: string,
-  opts: { limit?: number } = {},
+  opts: { limit?: number; ids?: readonly string[] } = {},
 ): Promise<TerrainBackfillResult> {
   const { prisma } = deps
   const where = {
     userId,
-    terrainBins: null,
+    OR: staleBins(),
     type: { in: RUN_TYPES },
     stream: { isNot: null },
+    ...(opts.ids === undefined ? {} : { id: { in: [...opts.ids] } }),
   }
   const rows = await prisma.activity.findMany({
     where,
@@ -55,7 +64,7 @@ export async function backfillTerrainBins(
       bins = computeTerrainBins({ t: [], d: null, hr: null, alt: null, cad: null, pwr: null }, 10)
     }
     return prisma.activity.updateMany({
-      where: { id: row.id, userId, terrainBins: null },
+      where: { id: row.id, userId, OR: staleBins() },
       data: { terrainBins: JSON.stringify(bins) },
     })
   })

@@ -1,8 +1,15 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'vitest'
-import { runHrQualityJob } from '../../server/jobs/scheduler.ts'
 import { storeParsedToday as storeParsed } from './helpers.ts'
-import { backfillHrQuality } from '../../server/services/hrQualityBackfill.ts'
-import { HR_QUALITY_THRESHOLDS } from '../../shared/importers/files/hrQuality.ts'
+import {
+  backfillHrQuality,
+  HR_QUALITY_BACKFILL_BATCH,
+} from '../../server/services/hrQualityBackfill.ts'
+import { runStartPass } from '../../server/services/startPass.ts'
+import {
+  HR_QUALITY_STAMP,
+  HR_QUALITY_THRESHOLDS,
+  HR_QUALITY_VERSION,
+} from '../../shared/importers/files/hrQuality.ts'
 import { hrQualityPasses } from '../../shared/engine/hrQuality.ts'
 import { parseActivityFile } from '../../shared/importers/files/index.ts'
 import type { HrQuality } from '../../shared/types.ts'
@@ -146,9 +153,42 @@ describe('backfillHrQuality', () => {
     expect(await qualityOf(noStream.id)).toBeNull()
   })
 
+  test('a summary the import has just written is not stale (the stamp pins the key order)', async () => {
+    const run = await importOld(user.id, 1, 5)
+    await ctx.prisma.activity.update({ where: { id: run.id }, data: { hrQuality: run.imported } })
+    expect(run.imported.startsWith(HR_QUALITY_STAMP)).toBe(true)
+    expect(await backfillHrQuality(deps(), user.id)).toEqual({
+      filled: 0,
+      unreadable: [],
+      remaining: 0,
+    })
+  })
+
+  test('computes again a summary of another version with the current thresholds', async () => {
+    const run = await importOld(user.id, 1, 5)
+    const old = { ...(JSON.parse(run.imported) as HrQuality), v: HR_QUALITY_VERSION + 1 }
+    await ctx.prisma.activity.update({
+      where: { id: run.id },
+      data: { hrQuality: JSON.stringify(old) },
+    })
+    expect(await backfillHrQuality(deps(), user.id)).toMatchObject({ filled: 1, remaining: 0 })
+    expect(await qualityOf(run.id)).toBe(run.imported)
+  })
+
+  test('the ids option limits the pass to the named rows', async () => {
+    const a = await importOld(user.id, 1, 5)
+    const b = await importOld(user.id, 2, 6)
+    expect(await backfillHrQuality(deps(), user.id, { ids: [a.id] })).toMatchObject({
+      filled: 1,
+      remaining: 0,
+    })
+    expect(await qualityOf(a.id)).toBe(a.imported)
+    expect(await qualityOf(b.id)).toBeNull()
+  })
+
   test('does not overwrite a summary an import wrote in the meantime', async () => {
     const run = await importOld(user.id, 1, 5)
-    const current = JSON.stringify({ v: 9, th: HR_QUALITY_THRESHOLDS })
+    const current = JSON.stringify({ v: HR_QUALITY_VERSION, th: HR_QUALITY_THRESHOLDS })
     await ctx.prisma.activity.update({ where: { id: run.id }, data: { hrQuality: current } })
     expect(await backfillHrQuality(deps(), user.id)).toMatchObject({ filled: 0, remaining: 0 })
     expect(await qualityOf(run.id)).toBe(current)
@@ -178,29 +218,68 @@ describe('backfillHrQuality', () => {
   })
 })
 
-describe('runHrQualityJob', () => {
+describe('the hr-quality start pass', () => {
   const runs = (userId: string) =>
     ctx.prisma.syncRun.findMany({
       where: { userId, channel: 'job', provider: 'hr-quality' },
       orderBy: { startedAt: 'asc' },
     })
+  const pass = (stopped?: () => boolean) =>
+    runStartPass(deps(), 'hr-quality', (userId) => () => backfillHrQuality(deps(), userId), {
+      stopped,
+    })
 
-  test('records an hr-quality run with the runs filled, then nothing once there is nothing left', async () => {
-    await importOld(user.id, 1, 5)
-    await importOld(user.id, 2, 6)
-    await runHrQualityJob(deps())
+  test('fills more than one batch in one pass and records one catchup run, then nothing', async () => {
+    for (let i = 0; i < HR_QUALITY_BACKFILL_BATCH + 3; i++)
+      await importOld(user.id, i + 1, 1 + (i % 28))
+    await pass()
     const [run, ...rest] = await runs(user.id)
     expect(rest).toEqual([])
-    expect(run).toMatchObject({ status: 'ok', trigger: 'schedule', accepted: 2, failed: 0 })
-    await runHrQualityJob(deps())
+    expect(run).toMatchObject({
+      status: 'ok',
+      trigger: 'catchup',
+      accepted: HR_QUALITY_BACKFILL_BATCH + 3,
+      failed: 0,
+    })
+    await pass()
     expect(await runs(user.id)).toHaveLength(1)
   })
 
-  test('a tick that meets an unreadable stream is a partial run', async () => {
+  test('a pass that meets an unreadable stream is a partial run', async () => {
     const run = await importOld(user.id, 1, 5)
     await ctx.prisma.activityStream.update({ where: { activityId: run.id }, data: { data: '[' } })
-    await runHrQualityJob(deps())
+    await pass()
     const [recorded] = await runs(user.id)
     expect(recorded).toMatchObject({ status: 'partial', accepted: 1, failed: 1 })
+  })
+
+  test('a user whose pass throws gets an error run and the next user is still filled', async () => {
+    const mine = await importOld(user.id, 1, 5)
+    const theirs = await importOld(other.id, 2, 6)
+    await runStartPass(deps(), 'hr-quality', (userId) => () => {
+      if (userId === user.id) return Promise.reject(new Error('boom'))
+      return backfillHrQuality(deps(), userId)
+    })
+    expect(await runs(user.id)).toEqual([expect.objectContaining({ status: 'error' })])
+    expect(await qualityOf(mine.id)).toBeNull()
+    expect(await qualityOf(theirs.id)).not.toBeNull()
+  })
+})
+
+describe('the quality summary follows the stored type', () => {
+  /** A run parsed from a FIT file, with the type the provider reports. */
+  function parsedAs(type: 'run' | 'cross') {
+    const [parsed] = parseActivityFile('run-9.fit', runFit(9, 12, false), { timezone: 'UTC' })
+    return { ...parsed!, type }
+  }
+  const store = (parsed: ReturnType<typeof parsedAs>) =>
+    storeParsed(deps(), user.id, parsed, { source: 'file', importBatchId: null, channel: 'upload' })
+
+  test('a run the runner re-typed from cross keeps its summary when the provider still says cross', async () => {
+    const { activityId } = await store(parsedAs('cross'))
+    expect(await qualityOf(activityId)).toBeNull()
+    await ctx.prisma.activity.update({ where: { id: activityId }, data: { type: 'run' } })
+    await store(parsedAs('cross'))
+    expect(await qualityOf(activityId)).not.toBeNull()
   })
 })
