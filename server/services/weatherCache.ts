@@ -272,6 +272,30 @@ function forecastDue(row: ForecastRow | null, now: Date): boolean {
  * Fetches the cell's forecast and stores it. A failure keeps the old hours, records the time and
  * the reason for the back-off, and throws. Concurrent callers share one request.
  */
+const forecastListeners = new Set<() => void>()
+
+/**
+ * Calls `listener` after a forecast is stored. `ForecastCache` is non-state, so a stored forecast
+ * moves no data version; the publisher listens here because its change key reads the forecast
+ * (`forecastStamp`). Returns the function that stops it.
+ */
+export function onForecastStored(listener: () => void): () => void {
+  forecastListeners.add(listener)
+  return () => {
+    forecastListeners.delete(listener)
+  }
+}
+
+function forecastStored(): void {
+  for (const listener of [...forecastListeners]) {
+    try {
+      listener()
+    } catch {
+      // A listener only asks for work later; its failure must not fail the refresh.
+    }
+  }
+}
+
 function refreshForecast(
   prisma: PrismaClient,
   fetchFn: typeof fetch,
@@ -291,6 +315,7 @@ function refreshForecast(
         create: { ...cell, ...data },
         update: data,
       })
+      forecastStored()
       return { hours, fetchedAt: now }
     } catch (error) {
       const lastError = safeMessage(error)

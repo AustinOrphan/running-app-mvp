@@ -11,8 +11,9 @@ import {
   dueSlot,
   FOLDER_INTERVAL_MS,
   MATCHING_SLOT,
-  PUBLISH_INTERVAL_MS,
+  PUBLISH_MAX_WAIT_MS,
   PUBLISH_MORNING_SLOT,
+  PUBLISH_SETTLE_MS,
   runBackupJob,
   runPublishJob,
   runReplanJob,
@@ -21,6 +22,13 @@ import {
   startScheduler,
 } from '../../server/jobs/scheduler.ts'
 import { backupDirectory, integrityProblems } from '../../server/services/backup.ts'
+import {
+  PUBLISH_BACKSTOP_MS,
+  nextPublishWake,
+  publishChangeKey,
+  publishForUser,
+  wantPublish,
+} from '../../server/services/publish.ts'
 import { settleBackground } from '../../server/services/sync.ts'
 import { fakeFetch } from '../fakeFetch.ts'
 import {
@@ -28,7 +36,9 @@ import {
   client,
   createTestCtx,
   expectNoRefusedFetches,
+  gmtServerHours,
   noNetwork,
+  refreshWeatherCachesToday,
   seedUser,
   type TestCtx,
   type TestUser,
@@ -799,7 +809,10 @@ describe('the scheduler runs the publisher', () => {
     await ctx.prisma.user.deleteMany({ where: { email: { startsWith: 'publish-sched' } } })
   })
 
-  async function start(email: string) {
+  /** After the 04:45 slot's day check and well before midnight: only the publisher's own wakes matter. */
+  const MIDMORNING = new Date(2026, 9, 21, 10, 0)
+
+  async function start(email: string, at: Date = WEDNESDAY_EARLY) {
     const seeded = await seedRunner(ctx, email, wednesday)
     await connectIntervals(ctx, seeded.u.id)
     await enablePublishing(ctx, seeded.u.id)
@@ -807,14 +820,16 @@ describe('the scheduler runs the publisher', () => {
     vi.useFakeTimers({
       toFake: ['Date', 'setTimeout', 'setInterval', 'clearTimeout', 'clearInterval'],
     })
-    vi.setSystemTime(WEDNESDAY_EARLY)
+    vi.setSystemTime(at)
     const stop = startScheduler({ prisma: ctx.prisma, config: ctx.config }, { fetch: fake.fetch })
     return { ...seeded, stop }
   }
   const reads = () => fake.made('GET', 'events').length
 
-  test('checks 30 s after start and every 2 minutes, never overlaps itself, and stops', async () => {
-    expect(PUBLISH_INTERVAL_MS).toBe(2 * MINUTE)
+  test('runs 30 s after start, never overlaps itself, then waits for an event', async () => {
+    expect(PUBLISH_SETTLE_MS).toBe(5_000)
+    expect(PUBLISH_MAX_WAIT_MS).toBe(2 * MINUTE)
+    expect(PUBLISH_BACKSTOP_MS).toBe(30 * MINUTE)
     const { u, stop } = await start('publish-sched-tick@example.com')
     // hold the first run open on the calendar read
     let release: () => void = () => {}
@@ -832,8 +847,8 @@ describe('the scheduler runs the publisher', () => {
     await vi.waitFor(() => {
       expect(reads()).toBe(1)
     })
-    // two more ticks come while the run is still open: they do nothing
-    await vi.advanceTimersByTimeAsync(2 * PUBLISH_INTERVAL_MS)
+    // nothing else starts while the run is open
+    await vi.advanceTimersByTimeAsync(PUBLISH_SETTLE_MS * 3)
     expect(reads()).toBe(1)
 
     release()
@@ -845,18 +860,362 @@ describe('the scheduler runs the publisher', () => {
     })
     expect(fake.events.size).toBe(1)
 
-    // quiet while nothing moves; a write makes the next tick run
-    await vi.advanceTimersByTimeAsync(PUBLISH_INTERVAL_MS)
+    // quiet while nothing moves; a write makes a run within the debounce
+    await vi.advanceTimersByTimeAsync(PUBLISH_SETTLE_MS * 2)
     expect(reads()).toBe(1)
     await ctx.prisma.planSession.updateMany({ data: { purpose: 'Edited.' } })
-    await vi.advanceTimersByTimeAsync(PUBLISH_INTERVAL_MS)
+    await vi.advanceTimersByTimeAsync(PUBLISH_SETTLE_MS - 1_000)
+    expect(reads()).toBe(1)
+    await vi.advanceTimersByTimeAsync(1_500)
     await vi.waitFor(() => {
       expect(reads()).toBe(2)
     })
 
     stop()
-    await vi.advanceTimersByTimeAsync(10 * PUBLISH_INTERVAL_MS)
+    expect(vi.getTimerCount()).toBe(0)
+    await ctx.prisma.planSession.updateMany({ data: { purpose: 'After stop.' } })
+    await vi.advanceTimersByTimeAsync(PUBLISH_MAX_WAIT_MS * 3)
     expect(reads()).toBe(2)
+    expectNoRefusedFetches(ctx)
+  })
+
+  test('a write during a held run gives exactly one more run', async () => {
+    const { stop } = await start('publish-sched-held@example.com', MIDMORNING)
+    let release: () => void = () => {}
+    const held = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    fake.hooks.list = async () => {
+      await held
+      return undefined
+    }
+    await vi.advanceTimersByTimeAsync(31_000)
+    await vi.waitFor(() => {
+      expect(reads()).toBe(1)
+    })
+    await ctx.prisma.planSession.updateMany({ data: { purpose: 'Edited while open.' } })
+    await vi.advanceTimersByTimeAsync(PUBLISH_SETTLE_MS + 1_000)
+    expect(reads()).toBe(1)
+
+    delete fake.hooks.list
+    release()
+    await vi.waitFor(() => {
+      expect(reads()).toBe(2)
+    })
+    await vi.advanceTimersByTimeAsync(PUBLISH_SETTLE_MS * 3)
+    expect(reads()).toBe(2)
+    stop()
+  })
+
+  test('a burst of writes gives one run, and a long burst at most one per 2 minutes', async () => {
+    const { stop } = await start('publish-sched-burst@example.com', MIDMORNING)
+    await vi.advanceTimersByTimeAsync(31_000)
+    await vi.waitFor(() => {
+      expect(reads()).toBe(1)
+    })
+
+    for (let i = 0; i < 20; i += 1) {
+      await ctx.prisma.planSession.updateMany({ data: { purpose: `Burst ${String(i)}.` } })
+    }
+    await vi.advanceTimersByTimeAsync(PUBLISH_SETTLE_MS + 1_000)
+    await vi.waitFor(() => {
+      expect(reads()).toBe(2)
+    })
+    await vi.advanceTimersByTimeAsync(PUBLISH_MAX_WAIT_MS)
+    expect(reads()).toBe(2)
+
+    // a write every second for 5 minutes never lets the debounce settle: the cap gives the runs
+    for (let second = 0; second < 300; second += 1) {
+      await ctx.prisma.planSession.updateMany({ data: { purpose: `Steady ${String(second)}.` } })
+      await vi.advanceTimersByTimeAsync(1_000)
+    }
+    const runs = reads() - 2
+    expect(runs).toBeGreaterThanOrEqual(2)
+    expect(runs).toBeLessThanOrEqual(3)
+    stop()
+  })
+
+  test('with no write, the backstop runs 30 minutes after the last run and not before', async () => {
+    const { stop } = await start('publish-sched-backstop@example.com', MIDMORNING)
+    await vi.advanceTimersByTimeAsync(31_000)
+    await vi.waitFor(() => {
+      expect(reads()).toBe(1)
+    })
+    await vi.advanceTimersByTimeAsync(29 * MINUTE)
+    expect(reads()).toBe(1)
+    await vi.advanceTimersByTimeAsync(2 * MINUTE)
+    await vi.waitFor(() => {
+      expect(reads()).toBe(2)
+    })
+    stop()
+  })
+
+  test('a failed run is tried again when its pause ends, a failed send at its retry instant', async () => {
+    const { u, stop } = await start('publish-sched-retry@example.com', MIDMORNING)
+    fake.hooks.list = () => new Response('{}', { status: 503 })
+    await vi.advanceTimersByTimeAsync(31_000)
+    await vi.waitFor(() => {
+      expect(reads()).toBe(1)
+    })
+    const paused = await ctx.prisma.deliveryChannel.findFirstOrThrow({ where: { userId: u.id } })
+    expect(paused.pausedUntil).not.toBeNull()
+
+    // still paused 4 minutes on; the run after the pause finds the calendar and sends
+    await vi.advanceTimersByTimeAsync(4 * MINUTE)
+    expect(reads()).toBe(1)
+    delete fake.hooks.list
+    fake.hooks.create = () => new Response('{}', { status: 503 })
+    await vi.advanceTimersByTimeAsync(2 * MINUTE)
+    await vi.waitFor(() => {
+      expect(reads()).toBe(2)
+    })
+    const failed = await vi.waitFor(async () => {
+      const row = await ctx.prisma.wristPublication.findFirstOrThrow({ where: { userId: u.id } })
+      expect(row.nextAttemptAt).not.toBeNull()
+      return row
+    })
+
+    // the row is tried again at its own instant, with no write and before the backstop
+    delete fake.hooks.create
+    const wait = failed.nextAttemptAt!.getTime() - Date.now()
+    expect(wait).toBeLessThan(30 * MINUTE)
+    await vi.advanceTimersByTimeAsync(wait - 1_000)
+    expect(reads()).toBe(2)
+    await vi.advanceTimersByTimeAsync(2_000)
+    await vi.waitFor(() => {
+      expect(fake.events.size).toBe(1)
+    })
+    stop()
+  })
+
+  test('a reconnect and a stored forecast each ask for a run', async () => {
+    const { u, stop } = await start('publish-sched-signals@example.com', MIDMORNING)
+    await vi.advanceTimersByTimeAsync(31_000)
+    await vi.waitFor(() => {
+      expect(reads()).toBe(1)
+    })
+
+    await vi.waitFor(async () => {
+      const run = await ctx.prisma.deliveryChannel.findFirstOrThrow({ where: { userId: u.id } })
+      expect(run.dataKey).not.toBeNull()
+    })
+
+    // a reconnect clears the stored key and moves no data version
+    await ctx.prisma.deliveryChannel.updateMany({
+      where: { userId: u.id },
+      data: { dataKey: null },
+    })
+    await vi.advanceTimersByTimeAsync(PUBLISH_SETTLE_MS * 2)
+    expect(reads()).toBe(1)
+    wantPublish()
+    await vi.advanceTimersByTimeAsync(PUBLISH_SETTLE_MS - 1_000)
+    expect(reads()).toBe(1)
+    await vi.advanceTimersByTimeAsync(1_500)
+    await vi.waitFor(() => {
+      expect(reads()).toBe(2)
+    })
+
+    // a forecast is stored for the home place
+    await ctx.prisma.athleteProfile.update({
+      where: { userId: u.id },
+      data: { homeLat: 40.1, homeLng: -105.2, useHomeWeather: true },
+    })
+    await vi.advanceTimersByTimeAsync(PUBLISH_SETTLE_MS + 1_000)
+    await vi.waitFor(() => {
+      expect(reads()).toBe(3)
+    })
+    const times = gmtServerHours(wednesday, 24)
+    await refreshWeatherCachesToday(ctx, u.id, {
+      fetch: fakeFetch({
+        'GET https://api.open-meteo.com/v1/forecast': () =>
+          Response.json({
+            hourly: {
+              time: times,
+              temperature_2m: times.map(() => 18),
+              relative_humidity_2m: times.map(() => 60),
+              dew_point_2m: times.map(() => 10),
+              wind_speed_10m: times.map(() => 5),
+            },
+          }),
+      }),
+    })
+    await vi.advanceTimersByTimeAsync(PUBLISH_SETTLE_MS + 1_000)
+    await vi.waitFor(() => {
+      expect(reads()).toBe(4)
+    })
+    stop()
+  })
+
+  test('nextPublishWake names the earliest known instant and nothing for a channel that is off', async () => {
+    const seeded = await seedRunner(ctx, 'publish-sched-wake@example.com', wednesday)
+    await connectIntervals(ctx, seeded.u.id)
+    await enablePublishing(ctx, seeded.u.id)
+    const now = new Date(2026, 9, 21, 10, 0)
+    const userId = seeded.u.id
+    const lastRunAt = new Date(now.getTime() - 10 * MINUTE)
+    const dataKey = await publishChangeKey(ctx, userId, wednesday)
+    await ctx.prisma.deliveryChannel.updateMany({ where: { userId }, data: { lastRunAt, dataKey } })
+    // the backstop, 30 minutes after the last run
+    expect(await nextPublishWake(ctx, now)).toEqual(new Date(lastRunAt.getTime() + 30 * MINUTE))
+    // a stored key that is not the current one (a trigger a held flight dropped) wakes at once
+    await ctx.prisma.deliveryChannel.updateMany({ where: { userId }, data: { dataKey: 'old' } })
+    expect(await nextPublishWake(ctx, now)).toEqual(now)
+    await ctx.prisma.deliveryChannel.updateMany({ where: { userId }, data: { dataKey } })
+    // a pause pushes it back to the pause's end
+    const pausedUntil = new Date(now.getTime() + 45 * MINUTE)
+    await ctx.prisma.deliveryChannel.updateMany({ where: { userId }, data: { pausedUntil } })
+    expect(await nextPublishWake(ctx, now)).toEqual(pausedUntil)
+    await ctx.prisma.deliveryChannel.updateMany({ where: { userId }, data: { pausedUntil: null } })
+    // a retry that falls before the backstop
+    const retryAt = new Date(now.getTime() + 5 * MINUTE)
+    await ctx.prisma.wristPublication.create({
+      data: {
+        userId,
+        channel: 'intervals',
+        externalId: 'wake-row',
+        date: addDays(wednesday, 1),
+        kind: 'easy',
+        title: 'Easy run',
+        desiredHash: 'x',
+        state: 'failed',
+        nextAttemptAt: retryAt,
+      },
+    })
+    expect(await nextPublishWake(ctx, now)).toEqual(retryAt)
+    // needs_auth and off give nothing
+    await ctx.prisma.integration.updateMany({ where: { userId }, data: { status: 'needs_auth' } })
+    expect(await nextPublishWake(ctx, now)).toBeNull()
+    await ctx.prisma.integration.updateMany({ where: { userId }, data: { status: 'connected' } })
+    await ctx.prisma.deliveryChannel.updateMany({ where: { userId }, data: { enabled: false } })
+    expect(await nextPublishWake(ctx, now)).toBeNull()
+  })
+
+  test('the 04:45 slot re-arms the wake: its pause end runs the publisher, not the backstop', async () => {
+    const { u, stop } = await start('publish-sched-morning-wake@example.com')
+    await vi.advanceTimersByTimeAsync(31_000)
+    await vi.waitFor(async () => {
+      const channel = await ctx.prisma.deliveryChannel.findFirstOrThrow({ where: { userId: u.id } })
+      expect(channel.dataKey).not.toBeNull()
+    })
+    expect(reads()).toBe(1)
+
+    // the forced run at 04:50 meets an outage and pauses the channel for 5 minutes
+    fake.hooks.list = () => new Response('{}', { status: 503 })
+    await vi.advanceTimersByTimeAsync(9 * MINUTE + 40_000)
+    await vi.waitFor(() => {
+      expect(reads()).toBe(2)
+    })
+    await vi.waitFor(async () => {
+      const channel = await ctx.prisma.deliveryChannel.findFirstOrThrow({ where: { userId: u.id } })
+      expect(channel.pausedUntil).not.toBeNull()
+    })
+    delete fake.hooks.list
+    // something is waiting for the pause to end
+    await ctx.prisma.deliveryChannel.updateMany({
+      where: { userId: u.id },
+      data: { dataKey: null },
+    })
+    await vi.advanceTimersByTimeAsync(4 * MINUTE)
+    expect(reads()).toBe(2)
+    await vi.advanceTimersByTimeAsync(MINUTE + 10_000)
+    await vi.waitFor(() => {
+      expect(reads()).toBe(3)
+    })
+    stop()
+  })
+
+  test('a manual send that fails is tried again at its retry instant', async () => {
+    const { u, stop } = await start('publish-sched-manual@example.com', MIDMORNING)
+    await vi.advanceTimersByTimeAsync(31_000)
+    await vi.waitFor(async () => {
+      const channel = await ctx.prisma.deliveryChannel.findFirstOrThrow({ where: { userId: u.id } })
+      expect(channel.dataKey).not.toBeNull()
+    })
+    expect(reads()).toBe(1)
+
+    // a manual run (not the scheduler's) is paused by an outage, and nothing else moves
+    await ctx.prisma.deliveryChannel.updateMany({
+      where: { userId: u.id },
+      data: { dataKey: null },
+    })
+    fake.hooks.list = () => new Response('{}', { status: 503 })
+    await publishForUser(ctx, u.id, { trigger: 'manual', fetch: fake.fetch, today: wednesday })
+    expect(reads()).toBe(2)
+    delete fake.hooks.list
+    await vi.advanceTimersByTimeAsync(4 * MINUTE)
+    expect(reads()).toBe(2)
+    await vi.advanceTimersByTimeAsync(MINUTE + 10_000)
+    await vi.waitFor(() => {
+      expect(reads()).toBe(3)
+    })
+    stop()
+  })
+
+  test('a run that throws is looked at again no sooner than a minute later', async () => {
+    const { stop } = await start('publish-sched-floor@example.com', MIDMORNING)
+    const real = ctx.prisma.deliveryChannel.findMany.bind(ctx.prisma.deliveryChannel)
+    const spy = vi
+      .spyOn(ctx.prisma.deliveryChannel, 'findMany')
+      .mockRejectedValueOnce(new Error('database is locked'))
+    await vi.advanceTimersByTimeAsync(31_000)
+    await vi.waitFor(() => {
+      expect(spy).toHaveBeenCalled()
+    })
+    spy.mockImplementation(real)
+    expect(reads()).toBe(0)
+    await vi.advanceTimersByTimeAsync(50_000)
+    expect(reads()).toBe(0)
+    await vi.advanceTimersByTimeAsync(15_000)
+    await vi.waitFor(() => {
+      expect(reads()).toBe(1)
+    })
+    spy.mockRestore()
+    stop()
+  })
+
+  test('a runner whose run throws inside the job slows the next look to a minute', async () => {
+    const { stop } = await start('publish-sched-floor-runner@example.com', MIDMORNING)
+    // the channel list succeeds; the due check of the one runner rejects, once
+    const real = ctx.prisma.integration.findUnique.bind(ctx.prisma.integration)
+    let rejected = false
+    const spy = vi.spyOn(ctx.prisma.integration, 'findUnique').mockImplementation(((
+      args: never,
+    ) => {
+      // only the first due check of the publisher; other jobs read this table too
+      if (!rejected && new Error().stack?.includes('isPublishDue')) {
+        rejected = true
+        return Promise.reject(new Error('database is locked'))
+      }
+      return real(args)
+    }) as never)
+    await vi.advanceTimersByTimeAsync(31_000)
+    await vi.waitFor(() => {
+      expect(rejected).toBe(true)
+    })
+    expect(reads()).toBe(0)
+    await vi.advanceTimersByTimeAsync(50_000)
+    expect(reads()).toBe(0)
+    await vi.advanceTimersByTimeAsync(15_000)
+    await vi.waitFor(() => {
+      expect(reads()).toBe(1)
+    })
+    spy.mockRestore()
+    stop()
+  })
+
+  test('no scheduler, no runs: writes in an API test never start the publisher', async () => {
+    const seeded = await seedRunner(ctx, 'publish-sched-none@example.com', wednesday)
+    await connectIntervals(ctx, seeded.u.id)
+    await enablePublishing(ctx, seeded.u.id)
+    await place(ctx, seeded.planId, [{ date: addDays(wednesday, 1), kind: 'easy' }])
+    vi.useFakeTimers({
+      toFake: ['Date', 'setTimeout', 'setInterval', 'clearTimeout', 'clearInterval'],
+    })
+    await ctx.prisma.planSession.updateMany({ data: { purpose: 'Edited.' } })
+    wantPublish()
+    await vi.advanceTimersByTimeAsync(PUBLISH_BACKSTOP_MS * 2)
+    expect(fake.calls).toEqual([])
+    expectNoRefusedFetches(ctx)
   })
 
   test('forces a run at 04:45 after matching and the Monday re-plan', async () => {
@@ -870,7 +1229,7 @@ describe('the scheduler runs the publisher', () => {
     })
     expect(reads()).toBe(1)
     await vi.advanceTimersByTimeAsync(8 * MINUTE)
-    // 04:48:30: two-minute ticks found nothing due
+    // 04:48:30: nothing moved and the backstop is not up
     expect(reads()).toBe(1)
 
     // the daily check at 04:50 finds the 04:45 slot passed and forces a run, 10 minutes after the last

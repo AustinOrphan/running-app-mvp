@@ -11,7 +11,7 @@ import { PROVIDERS, getProvider } from '../providers/registry.ts'
 import { authorizeUrl, exchangeCode, type StravaConfig } from '../providers/strava.ts'
 import { parseJson, toIntegrationStatus } from '../serialize.ts'
 import { resolveFolderRoot, scanFolderIntegration } from '../services/folder.ts'
-import { prepareDisconnect, resetForNewAthlete } from '../services/publish.ts'
+import { prepareDisconnect, resetForNewAthlete, wantPublish } from '../services/publish.ts'
 import { countStravaActivities, disconnectStrava } from '../services/stravaRemoval.ts'
 import {
   SECRET_CHANGED,
@@ -215,6 +215,8 @@ export function integrationsRouter(deps: Deps): Router {
       create: { userId, provider, ...data },
       update: data,
     })
+    // Integration is non-state, so a reconnect moves no data version: ask the publisher itself.
+    if (registered.publish) wantPublish()
 
     const result: IntegrationStatus & { authorizeUrl?: string } = await statusOf(userId, provider)
     if (provider === 'strava') {

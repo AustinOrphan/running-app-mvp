@@ -24,8 +24,11 @@
 // The tables are non-state: a run never raises the data version, and it opens no transaction (a
 // transaction raises the version when it ends). The run is a function of the composed change key
 // (`publishChangeKey`), a retry that is due and a 30-minute backstop; there is no other watermark.
+// The scheduler starts a run on an event (a data-version change, a stored forecast, a reconnect)
+// or at the instant `nextPublishWake` names; it does not poll (ADR 0008, addendum).
 import { createHash } from 'node:crypto'
-import { addDays, daysBetween, isIsoDate } from '../../shared/dates.ts'
+import { addDays, daysBetween, instantAtWallTime, isIsoDate } from '../../shared/dates.ts'
+import { runnerDays } from '../runnerDay.ts'
 import { publishSentence, wristRangeSentence, wristSentence } from '../../shared/copy/publish.ts'
 import { workoutExternalId } from '../../shared/domain/sessionIdentity.ts'
 import type {
@@ -340,6 +343,29 @@ export async function publishForUser(
     return await flight
   } finally {
     if (flights.get(userId) === flight) flights.delete(userId)
+    // Every run, whoever started it (the scheduler, a manual send, the 04:45 slot), may have set a
+    // retry instant or a pause that only the scheduler's wake can act on.
+    publisherRan()
+  }
+}
+
+const publisherRanListeners = new Set<() => void>()
+
+/** Calls `listener` after every publisher run ends. Returns the function that stops it. */
+export function onPublisherRan(listener: () => void): () => void {
+  publisherRanListeners.add(listener)
+  return () => {
+    publisherRanListeners.delete(listener)
+  }
+}
+
+function publisherRan(): void {
+  for (const listener of [...publisherRanListeners]) {
+    try {
+      listener()
+    } catch {
+      // A listener only re-arms a timer; its failure must not fail the run.
+    }
   }
 }
 
@@ -1062,6 +1088,102 @@ export async function isPublishDue(
     },
   })
   return waiting > 0
+}
+
+/**
+ * When the scheduler should look at the publisher again with no event to prompt it (ADR 0008,
+ * addendum 2026-11-18): the earliest of, per runner who publishes, the end of a pause, the due
+ * instant of an unsent row of today or later, 30 minutes after the last run (the backstop for
+ * what intervals.icu cannot announce), the runner's next local midnight (the window slides) and
+ * now when a run is in flight or the stored change key is stale (a trigger dropped by a held
+ * flight needs a second look). A pause
+ * pushes every one of them back to its end. Null when no runner publishes.
+ */
+export async function nextPublishWake(deps: Deps, now: Date): Promise<Date | null> {
+  const { prisma } = deps
+  const channels = await prisma.deliveryChannel.findMany({
+    where: { channel: CHANNEL, enabled: true },
+  })
+  if (channels.length === 0) return null
+  const days = await runnerDays(
+    prisma,
+    now,
+    channels.map((channel) => channel.userId),
+  )
+  let earliest: number | null = null
+  for (const channel of channels) {
+    const day = days.get(channel.userId)
+    if (day === undefined) continue
+    const integration = await prisma.integration.findUnique({
+      where: { userId_provider: { userId: channel.userId, provider: PROVIDER } },
+      select: { status: true },
+    })
+    if (!integration || integration.status === 'needs_auth') continue
+    const candidates: number[] = []
+    candidates.push(
+      channel.lastRunAt === null
+        ? now.getTime()
+        : channel.lastRunAt.getTime() + PUBLISH_BACKSTOP_MS,
+    )
+    const retry = await prisma.wristPublication.findFirst({
+      where: {
+        userId: channel.userId,
+        channel: CHANNEL,
+        state: { in: [...UNSENT_STATES] },
+        date: { gte: day.today },
+        nextAttemptAt: { not: null },
+      },
+      orderBy: { nextAttemptAt: 'asc' },
+      select: { nextAttemptAt: true },
+    })
+    if (retry?.nextAttemptAt) candidates.push(retry.nextAttemptAt.getTime())
+    try {
+      candidates.push(instantAtWallTime(addDays(day.today, 1), 0, day.tz).getTime())
+    } catch {
+      // An unknown zone has no midnight to wake for; the backstop still covers the runner.
+    }
+    if (isPublishing(channel.userId)) {
+      candidates.push(now.getTime())
+    } else if (
+      channel.lastRunAt !== null &&
+      channel.dataKey !== (await publishChangeKey(deps, channel.userId, day.today))
+    ) {
+      // What changed since the last finished run (a trigger a held flight dropped) is not waiting
+      // for the backstop.
+      candidates.push(now.getTime())
+    }
+    const pausedUntil = channel.pausedUntil?.getTime() ?? 0
+    if (pausedUntil > now.getTime()) candidates.push(pausedUntil)
+    for (const at of candidates) {
+      const wake = Math.max(at, pausedUntil)
+      if (earliest === null || wake < earliest) earliest = wake
+    }
+  }
+  return earliest === null ? null : new Date(earliest)
+}
+
+const publishWanted = new Set<() => void>()
+
+/**
+ * Calls `listener` when something that moves no data version asks for a run: a reconnect of
+ * intervals.icu (`Integration` is non-state). Returns the function that stops it.
+ */
+export function onPublishWanted(listener: () => void): () => void {
+  publishWanted.add(listener)
+  return () => {
+    publishWanted.delete(listener)
+  }
+}
+
+/** Asks the scheduler's publisher for a run; a no-op when none is listening. */
+export function wantPublish(): void {
+  for (const listener of [...publishWanted]) {
+    try {
+      listener()
+    } catch {
+      // A listener only asks for work later; its failure must not fail the write that asked.
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------------------------

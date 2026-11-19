@@ -22,7 +22,16 @@ import { installOwnerId } from '../installOwner.ts'
 import { scanFolderIntegration } from '../services/folder.ts'
 import { replanActivePlan } from '../services/planEngine.ts'
 import { ensureWeeklyPrediction } from '../services/predictionLog.ts'
-import { CHANNEL as PUBLISH_CHANNEL, isPublishDue, publishForUser } from '../services/publish.ts'
+import {
+  CHANNEL as PUBLISH_CHANNEL,
+  PUBLISH_BACKSTOP_MS,
+  isPublishDue,
+  nextPublishWake,
+  onPublishWanted,
+  onPublisherRan,
+  publishForUser,
+} from '../services/publish.ts'
+import { onDataVersionChange, openTransactions } from '../dataVersion.ts'
 import { runStravaJob } from '../services/stravaRemoval.ts'
 import { syncProvider } from '../services/sync.ts'
 import { runStartPass } from '../services/startPass.ts'
@@ -33,7 +42,7 @@ import { backfillTerrainBins } from '../services/terrainBackfill.ts'
 import { backfillTracks, trackChunkFor } from '../services/trackBackfill.ts'
 import { backfillWatchRatings } from '../services/watchRatingBackfill.ts'
 import { enrichWeather } from '../services/weather.ts'
-import { refreshWeatherCaches } from '../services/weatherCache.ts'
+import { onForecastStored, refreshWeatherCaches } from '../services/weatherCache.ts'
 import {
   REPLAN_SLOT,
   usersDueForWeeklyUpdate,
@@ -51,8 +60,12 @@ export const WEATHER_INTERVAL_MS = 10 * MINUTE_MS
 export const CATCHUP_INTERVAL_MS = 6 * 60 * MINUTE_MS
 /** How often the weekly prediction job looks for a week that has no logged prediction. */
 export const PREDICTION_INTERVAL_MS = 6 * 60 * MINUTE_MS
-/** How often the publisher checks whether a runner's calendar is due (design 6.8). */
-export const PUBLISH_INTERVAL_MS = 2 * MINUTE_MS
+/** The publisher waits this long after the last event before it runs (a trailing debounce). */
+export const PUBLISH_SETTLE_MS = 5_000
+/** The wake after a run that threw is at least this far off, so a failure cannot loop. */
+export const PUBLISH_FAILURE_FLOOR_MS = MINUTE_MS
+/** A run is never held back longer than this after the first event of a burst. */
+export const PUBLISH_MAX_WAIT_MS = 2 * MINUTE_MS
 /** How often the track job asks intervals.icu for a few streams (PR C of the polls plan removes it). */
 export const TRACK_INTERVAL_MS = 5 * MINUTE_MS
 /** How often the watch-rating backfill asks intervals.icu for a few activity records. */
@@ -555,14 +568,20 @@ export async function runMatchingJob(
 
 /**
  * Sends the next 14 days of run sessions to intervals.icu for every runner who turned publishing
- * on (design 6.8). A tick runs the publisher for a runner whose composed change key moved, whose
+ * on (design 6.8). A call runs the publisher for a runner whose composed change key moved, whose
  * retry is due, or after 30 minutes; with `force` (the 04:45 slot, after matching and the Monday
  * re-plan) every such runner is run regardless. Each run that happens records one `publish` run in
- * the sync log; a tick that finds nothing due records nothing.
+ * the sync log; a call that finds nothing due records nothing. The scheduler calls it on events and
+ * at the instants `nextPublishWake` names (`startScheduler`), not on a timer.
  */
 export async function runPublishJob(
   deps: Deps,
-  opts: { fetch: typeof fetch; force?: boolean } & RunnerJobOptions,
+  opts: {
+    fetch: typeof fetch
+    force?: boolean
+    /** Called for a runner whose run threw, so a caller can slow down its next look. */
+    onError?: (error: unknown) => void
+  } & RunnerJobOptions,
   log?: Log,
 ): Promise<void> {
   const now = opts.now ?? new Date()
@@ -594,6 +613,7 @@ export async function runPublishJob(
     } catch (error) {
       // The run recorded the failure itself; this only keeps the loop going.
       log?.warn({ reason: safeMessage(error) }, 'scheduled publishing failed')
+      opts.onError?.(error)
     }
   }
 }
@@ -802,7 +822,13 @@ export const PUBLISH_MORNING_SLOT: DailySlot = { hour: 4, minute: 45 }
  * shares (ADR 0026; edits and imports fill them as they happen), the daily database
  * backup (02:00 local), the nightly matching (02:30 local), the Monday re-plan (03:00 local) and
  * its catch-up, the daily Strava check (03:30 local), and the weekly prediction log (each 30 s after start, then every 6 hours), the
- * publisher's 2-minute check and its forced 04:45 run; returns `stop()`.
+ * event-driven publisher and its forced 04:45 run; returns `stop()`.
+ * The publisher (ADR 0008, addendum 2026-11-18) subscribes here and nowhere else, so an API test
+ * that never starts the scheduler never starts a run. It listens to the in-process data version, a
+ * stored forecast and a reconnect, runs 5 s after the last event (at most 2 minutes after the
+ * first of a burst), and after every run (also a manual send and the 04:45 slot) arms one wake for the next known instant. A write by
+ * another process (a script) moves no in-process version and is seen only at the 30-minute
+ * backstop.
  * A job never overlaps itself: a tick that finds its previous run still going does nothing.
  * Called from `server/index.ts` only, never in tests.
  */
@@ -810,6 +836,8 @@ export function startScheduler(deps: Deps, opts: { fetch: typeof fetch }): () =>
   const log = createLogger(deps.config)
   let stopped = false
   const timers = new Set<NodeJS.Timeout>()
+  /** What `stop()` also undoes: listeners and the timers that are not in `timers`. */
+  const stops: Array<() => void> = []
 
   function every(name: string, intervalMs: number, job: () => Promise<void>): void {
     let active = false
@@ -914,6 +942,119 @@ export function startScheduler(deps: Deps, opts: { fetch: typeof fetch }): () =>
     timers.add(timer)
   }
 
+  /**
+   * The event-driven publisher. Events (data-version change, stored forecast, reconnect) arm one
+   * trailing debounce: `PUBLISH_SETTLE_MS` after the last event, at most `PUBLISH_MAX_WAIT_MS` after
+   * the first of a burst, and not inside an open transaction. One run at a time; a debounce that
+   * fires during a run makes the run go round once more. After every run, whoever started it (`onPublisherRan`), one wake is armed for the
+   * next known instant (`nextPublishWake`), at most `PUBLISH_BACKSTOP_MS` away. Events are ignored
+   * until the start run (30 s after start, the same instant as the old first tick, which also
+   * rebuilds the wake because no timer survives a restart: the boot id makes every key stale).
+   */
+  function publishOnEvents(): void {
+    let ready = false
+    let running = false
+    let again = false
+    let firstEventAt: number | null = null
+    let settleTimer: NodeJS.Timeout | null = null
+    let wakeTimer: NodeJS.Timeout | null = null
+
+    const arm = (delayMs: number, fire: () => void): NodeJS.Timeout => {
+      const timer = setTimeout(fire, delayMs)
+      timer.unref()
+      return timer
+    }
+
+    // A run that threw before it could store its outcome leaves its key stale and no pause: the
+    // wake after it waits at least this long, so a persistent failure never loops every 5 s.
+    let lastRunFailed = false
+
+    const armWake = async (): Promise<void> => {
+      const now = new Date()
+      let delay = PUBLISH_BACKSTOP_MS
+      try {
+        const at = await nextPublishWake(deps, now)
+        const floor = lastRunFailed ? PUBLISH_FAILURE_FLOOR_MS : PUBLISH_SETTLE_MS
+        if (at !== null) delay = Math.min(delay, Math.max(floor, at.getTime() - now.getTime()))
+        else if (lastRunFailed) delay = Math.max(delay, floor)
+      } catch (error) {
+        log.error({ err: error, job: 'publish' }, 'publish wake could not be read')
+      }
+      // Overlapping calls each end here: the latest one replaces the timer, none is orphaned.
+      if (stopped) return
+      if (wakeTimer !== null) clearTimeout(wakeTimer)
+      const timer = arm(delay, () => {
+        if (wakeTimer === timer) wakeTimer = null
+        void run()
+      })
+      wakeTimer = timer
+    }
+
+    const run = async (): Promise<void> => {
+      if (stopped) return
+      if (running) {
+        again = true
+        return
+      }
+      running = true
+      lastRunFailed = false
+      const failed = (): void => {
+        lastRunFailed = true
+      }
+      try {
+        do {
+          again = false
+          await runPublishJob(deps, { ...opts, onError: failed }, log)
+        } while (again && !stopped)
+      } catch (error) {
+        failed()
+        log.error({ err: error, job: 'publish' }, 'scheduled job failed')
+      } finally {
+        running = false
+      }
+      await armWake()
+    }
+
+    const request = (): void => {
+      if (stopped || !ready) return
+      const now = Date.now()
+      firstEventAt ??= now
+      const fireAt = Math.min(now + PUBLISH_SETTLE_MS, firstEventAt + PUBLISH_MAX_WAIT_MS)
+      if (settleTimer !== null) clearTimeout(settleTimer)
+      const fire = (): void => {
+        if (openTransactions(deps.prisma) > 0) {
+          settleTimer = arm(PUBLISH_SETTLE_MS, fire)
+          return
+        }
+        settleTimer = null
+        firstEventAt = null
+        void run()
+      }
+      settleTimer = arm(Math.max(0, fireAt - now), fire)
+    }
+
+    const unsubscribe = [
+      onDataVersionChange(deps.prisma, request),
+      onForecastStored(request),
+      onPublishWanted(request),
+      // A manual send and the 04:45 slot also end in a retry instant or a pause: re-arm the wake.
+      onPublisherRan(() => {
+        if (ready && !stopped) void armWake()
+      }),
+    ]
+    once('publish-start', async () => {
+      ready = true
+      await run()
+    })
+    stops.push(() => {
+      for (const off of unsubscribe) off()
+      if (settleTimer !== null) clearTimeout(settleTimer)
+      if (wakeTimer !== null) clearTimeout(wakeTimer)
+      settleTimer = null
+      wakeTimer = null
+    })
+  }
+
   every('sync', SYNC_INTERVAL_MS, () => runSyncJob(deps, opts, log))
   every('folder', FOLDER_INTERVAL_MS, () => runFolderJob(deps, log))
   every('weather', WEATHER_INTERVAL_MS, () => runWeatherJob(deps, opts, log))
@@ -993,7 +1134,7 @@ export function startScheduler(deps: Deps, opts: { fetch: typeof fetch }): () =>
   // The daily slot is seeded at start, so a restart after 03:00 on Monday would skip the week.
   every('replan-catchup', CATCHUP_INTERVAL_MS, () => runReplanJob(deps, { catchUp: true }, log))
   every('predictions', PREDICTION_INTERVAL_MS, () => runPredictionJob(deps, {}, log))
-  every('publish', PUBLISH_INTERVAL_MS, () => runPublishJob(deps, opts, log))
+  publishOnEvents()
   dailyPerRunner(
     'publish-morning',
     PUBLISH_MORNING_SLOT,
@@ -1009,6 +1150,7 @@ export function startScheduler(deps: Deps, opts: { fetch: typeof fetch }): () =>
 
   return () => {
     stopped = true
+    for (const undo of stops) undo()
     for (const timer of timers) {
       clearTimeout(timer)
       clearInterval(timer)
