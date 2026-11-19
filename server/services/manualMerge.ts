@@ -79,20 +79,42 @@ export async function mergeActivities(
   withId: string,
   today: string,
 ): Promise<ActivityRow> {
-  const rowA = await findOwned(deps, userId, id)
-  const rowB = await findOwned(deps, userId, withId)
-  const a = toActivity(rowA)
-  const b = toActivity(rowB)
-  if (alreadyMerged(a, b)) return a.duplicateOfId === b.id ? rowA : rowB
-  const refusal = mergeRefusal(a, b)
-  if (refusal !== null) throw conflict(mergeRefusalText(refusal))
-
-  const { duplicate, original } = pickDuplicate(a, b)
   const moved: string[] = []
+  // Both rows are read inside the transaction, so two merges at once see each other's flags.
   const merged = await deps.prisma.$transaction(async (tx) => {
+    const own = async (rowId: string) => {
+      const found = rowId ? await tx.activity.findFirst({ where: { id: rowId, userId } }) : null
+      if (!found) throw notFound('Activity not found.')
+      return found
+    }
+    const rowA = await own(id)
+    const rowB = await own(withId)
+    const a = toActivity(rowA)
+    const b = toActivity(rowB)
+    if (alreadyMerged(a, b)) return a.duplicateOfId === b.id ? rowA : rowB
+    const refusal = mergeRefusal(a, b)
+    if (refusal !== null) throw conflict(mergeRefusalText(refusal))
+
+    const { duplicate, original } = pickDuplicate(a, b)
+    // An activity holds one log of each kind: a second would stay on the entry that no longer counts.
+    const [sets, fuel] = await Promise.all([
+      Promise.all(
+        [duplicate.id, original.id].map((activityId) =>
+          tx.strengthLog.findUnique({ where: { activityId }, select: { id: true } }),
+        ),
+      ),
+      Promise.all(
+        [duplicate.id, original.id].map((activityId) =>
+          tx.fuelLog.findUnique({ where: { activityId }, select: { id: true } }),
+        ),
+      ),
+    ])
+    if (sets.every((log) => log !== null)) throw conflict(mergeRefusalText('sets'))
+    if (fuel.every((log) => log !== null)) throw conflict(mergeRefusalText('fuel'))
+
     await tx.activity.update({
       where: { id: duplicate.id, userId },
-      data: { duplicateOfId: original.id, duplicateStatus: 'confirmed' },
+      data: { duplicateOfId: original.id, duplicateStatus: 'confirmed', mergedByHand: true },
     })
     await tx.activity.updateMany({
       where: { userId, duplicateOfId: duplicate.id, id: { not: original.id } },

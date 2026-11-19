@@ -24,9 +24,12 @@ export const MANUAL_MERGE_TEMPLATES = {
     { fallback: 'One entry stays as the record.' },
   ),
   'merge.confirm.moves': tpl(
-    '{dropped} is not counted. Its plan session, fuel log, strength log, rating, feel, pain and notes move to the record where it has none.',
+    '{dropped} is not counted. Its plan session, fuel log and strength log move to the record.',
     { dropped: 'text' },
     { fallback: 'The other entry is not counted.' },
+  ),
+  'merge.confirm.copied': tpl(
+    'Your rating, feel, pain, notes, heat mark and race result are copied to the record where it has none.',
   ),
   'merge.confirm.undo': tpl(
     'Separate on the merged entry counts it again. Logs that moved stay on the record.',
@@ -40,6 +43,8 @@ export const MANUAL_MERGE_TEMPLATES = {
   ),
   'merge.merged-into': tpl('Merged into', {}, { shape: 'label' }),
   'merge.merged-into.other': tpl('the other entry', {}, { shape: 'label' }),
+  // Item 7: a merged copy shows no rating form or sets; the record holds them.
+  'merge.unavailable.note': tpl('To rate it or log sets, open the record it was paired with.'),
   'merge.not-counted': tpl('It is not counted in totals.'),
   'merge.separate': tpl('Separate', {}, { shape: 'label' }),
   'merge.separate.note': tpl(
@@ -57,6 +62,10 @@ export const MANUAL_MERGE_TEMPLATES = {
     'Only a run with a run, or a strength session with a strength session, can be merged.',
   ),
   'merge.refuse.days': tpl('Only entries dated within a day of each other can be merged.'),
+  // Both entries hold a log of one kind, and an activity holds one: the copy's would stay on a row
+  // that no longer counts, so nothing is merged until the runner removes one.
+  'merge.refuse.sets': tpl('Both entries have sets logged. Remove one set log first.'),
+  'merge.refuse.fuel': tpl('Both entries have a fuel log. Remove one fuel log first.'),
   'merge.refuse.copy': tpl(
     'One of these entries is already merged into another activity. Separate it first.',
   ),
@@ -77,11 +86,12 @@ export function mergeEmptyText(kind: 'run' | 'strength'): string {
   return render(T[`merge.picker.empty.${kind}`], {}, UNITS)
 }
 
-/** The confirm step's two lines: which entry stays, and what the other one gives up. */
-export function mergeConfirmLines(kept: string, dropped: string): [string, string] {
+/** The confirm step's lines: which entry stays, what moves off the other, and what is copied. */
+export function mergeConfirmLines(kept: string, dropped: string): [string, string, string] {
   return [
     render(T['merge.confirm.stays'], { kept }, UNITS),
     render(T['merge.confirm.moves'], { dropped }, UNITS),
+    render(T['merge.confirm.copied'], {}, UNITS),
   ]
 }
 
@@ -105,6 +115,7 @@ export function mergeLabel(
     | 'merge.confirm.title'
     | 'merge.confirm.undo'
     | 'merge.confirm.merge'
+    | 'merge.unavailable.note'
     | 'merge.confirm.back'
     | 'merge.merged-into'
     | 'merge.merged-into.other'

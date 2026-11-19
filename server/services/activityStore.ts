@@ -771,7 +771,7 @@ export async function deleteActivities(
       })
       await prisma.activity.update({
         where: { id: survivor.id, userId },
-        data: { duplicateOfId: null, duplicateStatus: 'none' },
+        data: { duplicateOfId: null, duplicateStatus: 'none', mergedByHand: false },
       })
       await prisma.activity.update({
         where: { id, userId },

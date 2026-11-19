@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   mergeConfirmLines,
@@ -45,9 +45,18 @@ function candidateLine(entry: MergeCandidate): string {
     .join(' · ')
 }
 
-/** "The intervals.icu entry (46 min)": which of the two a sentence of the confirm step means. */
-function entryName(entry: { source: string; durationSec: number }): string {
-  return `The ${sourceLabel(entry.source) ?? 'hand-entered'} entry (${minutes(entry.durationSec)})`
+/**
+ * "This entry (intervals.icu, Wed 18 Nov 2026, 07:12, 46 min)" or "The one you chose (...)": which
+ * of the two a sentence of the confirm step means, told apart by the role and by day and time, so
+ * two entries of one source never read alike.
+ */
+function entryName(
+  entry: { source: string; date: string; startTime: string | null; durationSec: number },
+  role: 'this' | 'chosen',
+): string {
+  const when = `${formatLongDate(entry.date)}${entry.startTime === null ? '' : `, ${entry.startTime}`}`
+  const who = role === 'this' ? 'This entry' : 'The one you chose'
+  return `${who} (${sourceLabel(entry.source) ?? 'entered by hand'}, ${when}, ${minutes(entry.durationSec)})`
 }
 
 function reasonOf(error: unknown): string {
@@ -95,9 +104,25 @@ export function SameSessionAction({ activity }: { activity: Activity }) {
     chosen === null || sides === null
       ? null
       : mergeConfirmLines(
-          entryName(sides.original.id === chosen.id ? chosen : activity),
-          entryName(sides.duplicate.id === chosen.id ? chosen : activity),
+          sides.original.id === chosen.id
+            ? entryName(chosen, 'chosen')
+            : entryName(activity, 'this'),
+          sides.duplicate.id === chosen.id
+            ? entryName(chosen, 'chosen')
+            : entryName(activity, 'this'),
         )
+
+  // Focus follows the step: Merge when the confirm step opens, the first choice when Back returns.
+  const firstChoice = useRef<HTMLButtonElement>(null)
+  const mergeButton = useRef<HTMLButtonElement>(null)
+  const chosenBefore = useRef(false)
+  useEffect(() => {
+    const isChosen = chosen !== null
+    if (isChosen !== chosenBefore.current) {
+      ;(isChosen ? mergeButton : firstChoice).current?.focus()
+    }
+    chosenBefore.current = isChosen
+  }, [chosen])
 
   return (
     <>
@@ -132,9 +157,10 @@ export function SameSessionAction({ activity }: { activity: Activity }) {
             ) : null}
             {candidates.data !== undefined && candidates.data.length > 0 ? (
               <ul className={styles.list}>
-                {candidates.data.map((entry) => (
+                {candidates.data.map((entry, index) => (
                   <li key={entry.id}>
                     <Button
+                      ref={index === 0 ? firstChoice : undefined}
                       className={styles.choice}
                       onClick={() => {
                         setChosen(entry)
@@ -149,9 +175,9 @@ export function SameSessionAction({ activity }: { activity: Activity }) {
           </>
         ) : (
           <>
-            <p className={styles.lead}>{candidateLine(chosen)}</p>
             <p className={styles.lead}>{lines[0]}</p>
             <p className={styles.lead}>{lines[1]}</p>
+            <p className={styles.lead}>{lines[2]}</p>
             <p className={styles.lead}>{mergeLabel('merge.confirm.undo')}</p>
             {merge.isError ? (
               <p role="alert" className={styles.error}>
@@ -160,6 +186,7 @@ export function SameSessionAction({ activity }: { activity: Activity }) {
             ) : null}
             <div className={styles.actions}>
               <Button
+                ref={mergeButton}
                 variant="primary"
                 busy={merge.isPending}
                 onClick={() => {
@@ -219,6 +246,7 @@ export function MergedNote({ activity }: { activity: Activity }) {
         <Link to={`/activities/${encodeURIComponent(originalId)}`}>{name}</Link>.{' '}
         {mergeLabel('merge.not-counted')}
       </p>
+      <p className={styles.note}>{mergeLabel('merge.unavailable.note')}</p>
       <p className={styles.note}>{mergeLabel('merge.separate.note')}</p>
       <div className={styles.actions}>
         <Button variant="secondary" loading={resolve.isPending} onClick={() => void separate()}>

@@ -776,6 +776,7 @@ export function ActivityDetailPage() {
     (activity.type === 'run' || activity.type === 'race') &&
     activity.distanceM !== null &&
     activity.distanceM > 0
+  const mergedCopy = activity.duplicateStatus === 'confirmed' && activity.duplicateOfId !== null
 
   return (
     <>
@@ -804,14 +805,17 @@ export function ActivityDetailPage() {
         <RouteMap activity={activity} units={units} cursor={cursor} />
       ) : null}
       <Charts detail={detail.data} units={units} cursor={cursor} />
-      {activity.type === 'strength' ? <ActivitySets activity={activity} /> : null}
+      {activity.type === 'strength' && !mergedCopy ? <ActivitySets activity={activity} /> : null}
       <AgainstThePlan activity={activity} units={units} />
-      {/* Keyed on the stored values, so the pickers start again from them when they change. */}
-      <Feedback
-        key={`${activity.id}:${String(activity.rpe)}:${String(activity.feel)}:${String(activity.pain)}:${String(activity.heatExposure)}`}
-        activity={activity}
-        units={units}
-      />
+      {/* Keyed on the stored values, so the pickers start again from them when they change. A
+          confirmed copy takes no rating and no sets: they belong to the record it points at. */}
+      {mergedCopy ? null : (
+        <Feedback
+          key={`${activity.id}:${String(activity.rpe)}:${String(activity.feel)}:${String(activity.pain)}:${String(activity.heatExposure)}`}
+          activity={activity}
+          units={units}
+        />
+      )}
       <FuelSection activity={activity} />
       {laps !== null && laps.length > 0 ? (
         <LapsTable laps={laps} units={units} hasPace={hasPace} />

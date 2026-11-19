@@ -79,6 +79,10 @@ describe('the words of the merge', () => {
     expect(lines[0]).toBe(
       'The intervals.icu entry (46 min) stays as the record, with its own time and heart rate.',
     )
+    expect(lines).toHaveLength(3)
     expect(lines.flatMap(lintText)).toEqual([])
+    for (const reason of ['sets', 'fuel'] as const) {
+      expect(lintText(mergeRefusalText(reason))).toEqual([])
+    }
   })
 })

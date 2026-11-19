@@ -306,6 +306,98 @@ describe('POST /api/activities/:id/merge', () => {
   })
 })
 
+describe('a merge made by hand survives edits', () => {
+  function edit(id: string, body: Record<string, unknown>) {
+    return client(ctx, user).put(`/api/activities/${id}`).send(body)
+  }
+
+  test('editing the record’s distance and day leaves the pair confirmed and flagged by hand', async () => {
+    const typed = await seed('run', 'manual')
+    const record = await seed('run', 'file')
+    expect((await merge(typed.id, record.id)).status).toBe(200)
+    expect((await row(typed.id)).mergedByHand).toBe(true)
+
+    const res = await edit(record.id, {
+      date: yesterday,
+      type: 'run',
+      durationSec: 2400,
+      distanceM: 9000,
+    })
+    expect(res.status).toBe(200)
+    expect(await row(typed.id)).toMatchObject({
+      duplicateStatus: 'confirmed',
+      duplicateOfId: record.id,
+      mergedByHand: true,
+    })
+  })
+
+  test('editing the copy within a day keeps it merged; moving it two days away ends it', async () => {
+    const typed = await seed('run', 'manual')
+    const record = await seed('run', 'file')
+    await merge(typed.id, record.id)
+    await edit(typed.id, { date: yesterday, type: 'run', durationSec: 2400, distanceM: 9000 })
+    expect(await row(typed.id)).toMatchObject({ duplicateStatus: 'confirmed', mergedByHand: true })
+    await edit(typed.id, {
+      date: addDays(today, -3),
+      type: 'run',
+      durationSec: 2400,
+      distanceM: 9000,
+    })
+    expect(await row(typed.id)).toMatchObject({ duplicateStatus: 'none', mergedByHand: false })
+  })
+
+  test('the strength duration of the record is edited with the pair intact', async () => {
+    const watch = await seed('strength', 'intervals', { durationSec: 2760 })
+    const app = await seed('strength', 'manual', { durationSec: 2400 })
+    await merge(app.id, watch.id)
+    await edit(watch.id, { date: today, type: 'strength', durationSec: 5400 })
+    expect(await row(app.id)).toMatchObject({ duplicateStatus: 'confirmed', mergedByHand: true })
+  })
+
+  test('after Separate an edit of the record pairs nothing again', async () => {
+    const typed = await seed('run', 'manual')
+    const record = await seed('run', 'file')
+    await merge(typed.id, record.id)
+    await client(ctx, user)
+      .post(`/api/activities/${typed.id}/duplicate`)
+      .send({ status: 'dismissed' })
+    expect((await row(typed.id)).mergedByHand).toBe(false)
+    await edit(record.id, { date: today, type: 'run', durationSec: 2400, distanceM: 9000 })
+    expect(await row(typed.id)).toMatchObject({ duplicateStatus: 'dismissed' })
+    expect(await row(record.id)).toMatchObject({ duplicateStatus: 'none' })
+  })
+})
+
+describe('both entries hold a log of one kind', () => {
+  test('two strength logs refuse the merge and nothing moves', async () => {
+    const app = await seed('strength', 'manual')
+    const watch = await seed('strength', 'intervals')
+    await strengthLog(app.id)
+    await strengthLog(watch.id)
+    const res = await merge(app.id, watch.id)
+    expect(res.status).toBe(409)
+    expect((res.body as { error: { message: string } }).error.message).toBe(
+      'Both entries have sets logged. Remove one set log first.',
+    )
+    expect(await row(app.id)).toMatchObject({ duplicateStatus: 'none', mergedByHand: false })
+  })
+
+  test('two fuel logs refuse the merge', async () => {
+    const typed = await seed('run', 'manual')
+    const device = await seed('run', 'file')
+    await ctx.prisma.fuelLog.create({
+      data: { userId: user.id, activityId: typed.id, skipped: true },
+    })
+    await ctx.prisma.fuelLog.create({
+      data: { userId: user.id, activityId: device.id, skipped: true },
+    })
+    const res = await merge(typed.id, device.id)
+    expect(res.status).toBe(409)
+    expect((res.body as { error: { message: string } }).error.message).toMatch(/fuel log/)
+    expect((await row(typed.id)).duplicateStatus).toBe('none')
+  })
+})
+
 describe('separating a merged entry', () => {
   test('POST /:id/duplicate with dismissed counts it again and the pass leaves the pair alone', async () => {
     // A pair the pass would flag on its own (same day, lengths within 5%, no start instants).

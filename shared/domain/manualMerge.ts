@@ -11,7 +11,7 @@ export const MERGE_MAX_DAYS = 1
 type MergeFields = Pick<Activity, 'id' | 'type' | 'date' | 'duplicateStatus' | 'duplicateOfId'>
 
 /** Why a manual merge is refused, or `null`. The words are `mergeRefusalText`. */
-export type MergeRefusal = 'same' | 'kind' | 'days' | 'copy'
+export type MergeRefusal = 'same' | 'kind' | 'days' | 'copy' | 'sets' | 'fuel'
 
 /** What a candidate in the picker needs, as `GET /api/activities/:id/merge-candidates` sends it. */
 export interface MergeCandidate {

@@ -16,6 +16,7 @@ import {
 } from '../services/activityStore.ts'
 import {
   moveConfirmedLogs,
+  handMergeSurvivesEdit,
   rematchDuplicates,
   releaseDuplicatesOf,
 } from '../services/duplicates.ts'
@@ -384,11 +385,19 @@ export function activitiesRouter(deps: Deps): Router {
     // except for an app-logged one (manual, no start): its duration is the plan's, decides no
     // match, and an edit of it leaves a dismissed or flagged pair as it is.
     const durationMatters = body.type === 'strength' && !isAppLoggedStrength(existing)
-    const matchChanged =
+    const matchEdited =
       body.date !== existing.date ||
       body.distanceM !== existing.distanceM ||
       body.type !== existing.type ||
       (durationMatters && body.durationSec !== existing.durationSec)
+    // A copy the runner merged by hand stays merged through an edit that keeps it the same kind
+    // within a day of the record (MM1).
+    const matchChanged =
+      matchEdited &&
+      !(await handMergeSurvivesEdit(prisma, req.userId, existing, {
+        type: body.type,
+        date: body.date,
+      }))
     await prisma.activity.update({
       where: { id, userId: req.userId },
       data: {
@@ -398,7 +407,9 @@ export function activitiesRouter(deps: Deps): Router {
         // Clearing a rating the run had marks the watch-rating lookup done, so the backfill does not
         // write it back. The form sends null for a run with no rating too, which marks nothing.
         ...(body.rpe === null && existing.rpe !== null ? { watchRpeV: WATCH_RPE_VERSION } : {}),
-        ...(matchChanged ? { duplicateStatus: 'none', duplicateOfId: null } : {}),
+        ...(matchChanged
+          ? { duplicateStatus: 'none', duplicateOfId: null, mergedByHand: false }
+          : {}),
       },
     })
     if (matchChanged) await rematchDuplicates(prisma, req.userId, id)
@@ -436,7 +447,8 @@ export function activitiesRouter(deps: Deps): Router {
     }
     const updated = await prisma.activity.update({
       where: { id, userId: req.userId },
-      data: { duplicateStatus: status },
+      // Any verdict from here replaces a hand-made merge: Separate ends it, and the pass then leaves it.
+      data: { duplicateStatus: status, mergedByHand: false },
     })
     if (status === 'confirmed') {
       const moved: string[] = []

@@ -161,6 +161,17 @@ protection reads. The Docker image must still build (`docker build .`) after a c
   or a run. It records a `strength-pair` job run (`accepted` the rows flagged) through
   `recordSyncRunUnlessIdle`, so an idle tick stores a run only when the newest is not `ok`; a failure
   is an `error` run.
+- Manual merge (MM1): "Same session as…" on the activity page, `POST /api/activities/:id/merge` with
+  `{ withId }` (`mergeActivities`, `server/services/manualMerge.ts`; candidates from
+  `GET /:id/merge-candidates`). The pair is a run or race with a run or race, or a strength session with a
+  strength session, dated within a day (`mergeRefusal`, `shared/domain/manualMerge.ts`); a refusal is a 409,
+  also when both entries hold a strength log or both a fuel log. `pickDuplicate` picks the record; the copy
+  becomes `confirmed` with `Activity.mergedByHand` set, and `moveConfirmedLogs` and `carryRunnersData` hand
+  over what hangs on it, in one transaction that re-reads both rows. `mergedByHand` marks a pair the rule
+  never matched: `releaseStaleConfirmed` skips it, and an edit of the copy keeps it unless the kind or the
+  one-day window breaks (`handMergeSurvivesEdit`). Every write of another verdict clears the flag, and
+  Separate is `POST /:id/duplicate` with `dismissed`, which the pass then leaves alone. Logs that moved are
+  not moved back: nothing records where a log came from.
 - Trail and road (M1d): the runner's one OpenStreetMap download. `POST /api/map-area`
   (`server/routes/mapArea.ts`, `server/services/mapArea.ts`) sends Overpass (`ctx`-style, through
   `Deps.fetch`) only the box from `mapAreaBox` (`shared/domain/mapArea.ts`: the stored tracks' centres, the
@@ -399,8 +410,9 @@ protection reads. The Docker image must still build (`docker build .`) after a c
   `shared/domain/strengthLibrary.ts` (never renamed or reused; a retired one stays), and a route that
   takes one checks `isExerciseId`.
 - A strength log is saved only through `server/services/strength.ts` (`saveStrengthLog`, an
-  idempotent replace on the log id, with `createManualActivity` for its activity); the duplicate pass
-  alone hands a log to the original activity. The logging sheet's draft (`strength-draft:<logId>`) and
+  idempotent replace on the log id, with `createManualActivity` for its activity); only two paths
+  hand a log to the original activity: the duplicate pass and the manual merge
+  (`POST /api/activities/:id/merge`, `server/services/manualMerge.ts`). The logging sheet's draft (`strength-draft:<logId>`) and
   the count prompt's "Not now" (`strength-prompt:*`) are named in `web/pwa/drafts.ts` and purged with
   the other drafts by `purgeDrafts()`, so by `purgeDeviceData()`.
 - The `strength.state` memo (`memoByVersion`) is the one read of the strength window (the setup, the

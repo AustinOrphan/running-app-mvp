@@ -91,12 +91,20 @@ describe('Same session as…', () => {
 
     const confirm = await screen.findByRole('dialog', { name: 'Merge these two entries?' })
     expect(
-      within(confirm).getByText(/The intervals\.icu entry \(46 min\) stays as the record/),
+      within(confirm).getByText(
+        /The one you chose \(intervals\.icu, .*2026, 07:10, 46 min\) stays as the record/,
+      ),
     ).toBeTruthy()
     expect(
-      within(confirm).getByText(/The hand-entered entry \(40 min\) is not counted/),
+      within(confirm).getByText(/This entry \(entered by hand, .*2026, 40 min\) is not counted/),
     ).toBeTruthy()
+    expect(within(confirm).getByText(/heat mark and race result are copied/)).toBeTruthy()
     expect(within(confirm).getByText(/Logs that moved stay on the record/)).toBeTruthy()
+    // Focus follows the step: Merge on the confirm step, the first choice again on Back.
+    expect(within(confirm).getByRole('button', { name: 'Merge' })).toHaveFocus()
+    await user.click(within(confirm).getByRole('button', { name: 'Back' }))
+    expect(await screen.findByRole('button', { name: /intervals\.icu/ })).toHaveFocus()
+    await user.click(screen.getByRole('button', { name: /intervals\.icu/ }))
     expectCleanCopy(confirm)
     expect(api.calls.some((c) => c.method === 'POST')).toBe(false)
 
@@ -168,6 +176,9 @@ describe('a merged duplicate', () => {
     expect(screen.getByText(/Merged into/)).toBeTruthy()
     expect(screen.getByText(/It is not counted in totals\./)).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Same session as…' })).toBeNull()
+    // The rating form belongs to the record, not to the merged copy.
+    expect(screen.queryByRole('heading', { name: 'How did it go?' })).toBeNull()
+    expect(screen.getByText(/open the record it was paired with/)).toBeTruthy()
     expectCleanCopy(document.body)
 
     await user.click(screen.getByRole('button', { name: 'Separate' }))
