@@ -10,6 +10,7 @@ import { blockPosition, strengthTemplate, structuresFor } from '../../shared/eng
 import { dataVersionKey } from '../../server/dataVersion.ts'
 import { loadAthleteContext } from '../../server/services/athleteState.ts'
 import { storeParsedToday as storeParsed } from './helpers.ts'
+import { pairLoggedStrength } from '../../server/services/duplicates.ts'
 import { loadStrengthContext, loadStrengthState } from '../../server/services/strength.ts'
 import type {
   Activity,
@@ -1345,36 +1346,37 @@ describe('a strength session entered by hand and imported too', () => {
     }
   })
 
-  test('saving the log again with new minutes pairs the session, or releases the pair', async () => {
+  test('a log of 40 minutes against an export of 45 is a possible duplicate, whatever the minutes', async () => {
     const user = await newUser()
     const originalId = await importStrength(user, { elapsedSec: 2700 })
-    // 40 minutes against 45 is further apart than 5%.
+    // 40 minutes against 45 is further apart than 5%, but the log's length is the plan's.
     const saved = await putLog(user, uuid(110), logBody({ durationMin: 40 }))
     const copyId = resultOf(saved).activity.id
-    expect((await reloadActivity(copyId)).duplicateStatus).toBe('none')
-
-    expect((await putLog(user, uuid(110), logBody({ durationMin: 44 }))).status).toBe(200)
     expect(await reloadActivity(copyId)).toMatchObject({
-      durationSec: 2640,
       duplicateStatus: 'possible',
       duplicateOfId: originalId,
     })
 
+    // New minutes neither release nor change the pair.
     expect((await putLog(user, uuid(110), logBody({ durationMin: 30 }))).status).toBe(200)
     expect(await reloadActivity(copyId)).toMatchObject({
-      duplicateStatus: 'none',
-      duplicateOfId: null,
+      durationSec: 1800,
+      duplicateStatus: 'possible',
+      duplicateOfId: originalId,
     })
   })
 
-  test('editing the duration of a strength activity pairs it too', async () => {
+  test('editing a hand-typed strength activity on the same day keeps it paired', async () => {
     const user = await newUser()
     const originalId = await importStrength(user, { elapsedSec: 2700 })
     const created = await client(ctx, user)
       .post('/api/activities')
       .send({ date: todayIso(), type: 'strength', durationSec: 1800 })
     const copyId = (created.body as Activity).id
-    expect((await reloadActivity(copyId)).duplicateStatus).toBe('none')
+    expect(await reloadActivity(copyId)).toMatchObject({
+      duplicateStatus: 'possible',
+      duplicateOfId: originalId,
+    })
 
     const edited = await client(ctx, user)
       .put(`/api/activities/${copyId}`)
@@ -1383,6 +1385,93 @@ describe('a strength session entered by hand and imported too', () => {
     expect(await reloadActivity(copyId)).toMatchObject({
       duplicateStatus: 'possible',
       duplicateOfId: originalId,
+    })
+  })
+
+  describe('an app log that was passed over under the old 5% rule (pairLoggedStrength)', () => {
+    /** The 2026-11-18 case: the log first, the export 46 minutes against 40, flags cleared. */
+    async function passedOver(user: TestUser, logId: string) {
+      const saved = await putLog(user, logId, logBody({ durationMin: 40 }))
+      const copyId = resultOf(saved).activity.id
+      const originalId = await importStrength(user, { elapsedSec: 2754 })
+      await ctx.prisma.activity.update({
+        where: { id: copyId },
+        data: { duplicateStatus: 'none', duplicateOfId: null },
+      })
+      return { copyId, originalId }
+    }
+
+    test('flags the pair once, and a second call changes nothing', async () => {
+      const user = await newUser()
+      const { copyId, originalId } = await passedOver(user, uuid(130))
+      expect(await pairLoggedStrength(ctx.prisma, user.id)).toBe(1)
+      expect(await reloadActivity(copyId)).toMatchObject({
+        duplicateStatus: 'possible',
+        duplicateOfId: originalId,
+      })
+      expect(await pairLoggedStrength(ctx.prisma, user.id)).toBe(0)
+      expect(await reloadActivity(copyId)).toMatchObject({
+        duplicateStatus: 'possible',
+        duplicateOfId: originalId,
+      })
+      expect(await reloadActivity(originalId)).toMatchObject({ duplicateStatus: 'none' })
+    })
+
+    test('confirming moves the log to the export, which keeps its own time and heart rate', async () => {
+      const user = await newUser()
+      const { copyId, originalId } = await passedOver(user, uuid(131))
+      await pairLoggedStrength(ctx.prisma, user.id)
+      expect((await confirm(user, copyId, 'confirmed')).status).toBe(200)
+      const log = await ctx.prisma.strengthLog.findUniqueOrThrow({ where: { id: uuid(131) } })
+      expect(log.activityId).toBe(originalId)
+      expect(await reloadActivity(originalId)).toMatchObject({
+        durationSec: 2754,
+        avgHr: 118,
+        maxHr: 150,
+        source: 'file',
+      })
+      expect(await reloadActivity(copyId)).toMatchObject({ duplicateStatus: 'confirmed' })
+    })
+
+    test('never touches a possible, confirmed or dismissed row', async () => {
+      const user = await newUser()
+      const { copyId } = await passedOver(user, uuid(132))
+      for (const status of ['dismissed', 'confirmed', 'possible']) {
+        await ctx.prisma.activity.update({
+          where: { id: copyId },
+          data: { duplicateStatus: status, duplicateOfId: null },
+        })
+        expect(await pairLoggedStrength(ctx.prisma, user.id), status).toBe(0)
+        expect(await reloadActivity(copyId), status).toMatchObject({
+          duplicateStatus: status,
+          duplicateOfId: null,
+        })
+      }
+    })
+
+    test('never pairs a log with a run or with a session of another day', async () => {
+      const user = await newUser()
+      const saved = await putLog(user, uuid(133), logBody({ durationMin: 40 }))
+      const copyId = resultOf(saved).activity.id
+      await importStrength(user, { type: 'run', subtype: 'road', distanceM: 5000 })
+      await importStrength(user, { startUtc: '2020-01-02T12:00:00.000Z' })
+      expect(await pairLoggedStrength(ctx.prisma, user.id)).toBe(0)
+      expect(await reloadActivity(copyId)).toMatchObject({ duplicateStatus: 'none' })
+    })
+
+    test('leaves a hand-typed session without a log alone', async () => {
+      const user = await newUser()
+      const created = await client(ctx, user)
+        .post('/api/activities')
+        .send({ date: todayIso(), type: 'strength', durationSec: 1800 })
+      const bareId = (created.body as Activity).id
+      await importStrength(user, { elapsedSec: 2754 })
+      await ctx.prisma.activity.update({
+        where: { id: bareId },
+        data: { duplicateStatus: 'none', duplicateOfId: null },
+      })
+      expect(await pairLoggedStrength(ctx.prisma, user.id)).toBe(0)
+      expect(await reloadActivity(bareId)).toMatchObject({ duplicateStatus: 'none' })
     })
   })
 })

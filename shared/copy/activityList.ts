@@ -2,7 +2,7 @@
 // screen, the button for the next page and the note when a page did not load. The numbers are the
 // server's `ActivityListPage.total` and the rows already read; the words are the templates below,
 // spread into `TEMPLATES`.
-import { matchActivities } from '../domain/duplicates.ts'
+import { isAppLoggedStrength, matchActivities } from '../domain/duplicates.ts'
 import type { Activity, Units } from '../types.ts'
 import { render, tpl, type Template } from './template.ts'
 
@@ -53,6 +53,9 @@ export const ACTIVITY_LIST_TEMPLATES = {
   ),
   'activity-list.dup.strength.date': tpl(
     'Another strength session on this day is about as long. The other one is counted.',
+  ),
+  'activity-list.dup.strength.logged': tpl(
+    'Another strength session on this day may be the same one, whatever its length. The other one is counted.',
   ),
   'activity-list.dup.strength.start': tpl(
     'Another strength session started within 2 minutes of this one. The other one is counted.',
@@ -126,7 +129,9 @@ export function activitySetsText(sets: number | null | undefined): string | null
   return render(T['activity-list.sets.many'], { n: { kind: 'count', n: sets } }, UNITS)
 }
 
-type DuplicateRow = Pick<Activity, 'type' | 'date' | 'startUtc' | 'distanceM' | 'durationSec'>
+type DuplicateRow = Pick<Activity, 'type' | 'date' | 'startUtc' | 'distanceM' | 'durationSec'> & {
+  source?: string
+}
 
 /**
  * The note under a possible duplicate, by kind (a strength session or a run, a race being one) and
@@ -136,5 +141,14 @@ type DuplicateRow = Pick<Activity, 'type' | 'date' | 'startUtc' | 'distanceM' | 
 export function possibleDuplicateNote(copy: DuplicateRow, original: DuplicateRow | null): string {
   const kind = copy.type === 'strength' ? 'strength' : 'run'
   const basis = original === null ? null : matchActivities(copy, original)
+  // A session logged in the app holds the plan's length, so "about as long" would not be true.
+  if (
+    kind === 'strength' &&
+    basis === 'date' &&
+    original !== null &&
+    (isAppLoggedStrength(copy) || isAppLoggedStrength(original))
+  ) {
+    return render(T['activity-list.dup.strength.logged'], {}, UNITS)
+  }
   return render(T[`activity-list.dup.${kind}.${basis ?? 'unknown'}`], {}, UNITS)
 }
