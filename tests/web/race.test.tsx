@@ -726,7 +726,9 @@ describe('RacePage: the checkpoint table', () => {
     await user.click(await screen.findByRole('button', { name: 'Edit checkpoints' }))
     const dialog = await screen.findByRole('dialog', { name: 'Edit checkpoints' })
     const first = await within(dialog).findByRole('group', { name: 'Point 1' })
-    const cutoff = within(first).getByPlaceholderText('9:30')
+    const cutoff = within(first).getByRole('textbox', {
+      name: 'Cutoff, hours and minutes into the race',
+    })
     expect(cutoff).toHaveAttribute('inputmode', 'text')
   })
 
