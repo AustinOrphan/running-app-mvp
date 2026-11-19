@@ -113,3 +113,34 @@ Alternatives:
 - Parts of the intervals.icu text syntax and three FIT details cannot be confirmed offline; one live
   run against the owner's account and one load of each file kind on the owner's watch are manual
   acceptance steps, recorded without account data.
+
+## Addendum 2026-11-18: the publisher is event-driven (ADR 0026)
+
+Accepted 2026-11-18 on owner decision 2026-11-18: "Take care of the other polls." The decision text
+above stays: a publish run still starts when the data-version key, the local day or the home
+forecast changes, with a 30-minute backstop and a forced run at 04:45. What changes is how the
+scheduler notices, not what starts a run.
+
+- The 2-minute check (`PUBLISH_INTERVAL_MS`) is removed. `startScheduler` subscribes a coalescing
+  publisher to `onDataVersionChange`, to a new `onForecastStored` signal (`ForecastCache` is
+  non-state, so a stored forecast moves no version) and to `wantPublish()`, called after an
+  intervals.icu reconnect (`Integration` is non-state). It subscribes nowhere else, so an API test
+  never starts a run.
+- A run starts 5 s after the last event (`PUBLISH_SETTLE_MS`), at most 2 minutes after the first
+  event of a burst (`PUBLISH_MAX_WAIT_MS`, the old worst-case latency), and not inside an open
+  transaction. `runPublishJob` and `isPublishDue` are unchanged and still filter per runner.
+- After each run one wake is armed for the next known instant (`nextPublishWake`): the end of a
+  pause, a failed send's retry instant, 30 minutes after the last run, and each runner's next local
+  midnight. The first run is 30 s after start and rebuilds the wake, because no timer survives a
+  restart.
+- **Fact.** intervals.icu cannot notify the app (personal API key, LAN install), so a deleted event,
+  a Garmin `push_error` or a sport-settings change is seen only by looking. The 30-minute backstop
+  stays for that (`PUBLISH_BACKSTOP_MS`, unchanged).
+- **Fact.** `onDataVersionChange` fires only for writes through the server's own Prisma client. A
+  write by another process (`create-user`, `reset-password`, other scripts) moves
+  `PRAGMA data_version` but no in-process listener, so it reaches the watch at the next backstop
+  run, at most 30 minutes later. Restore and migrate need a stopped server, and the first run after
+  a start covers them.
+- **Opinion.** A trailing debounce capped at 2 minutes is chosen over a run per event: every
+  `$transaction` raises the version, so a start pass or an import would otherwise start a remote
+  run about every 5 s.
