@@ -16,8 +16,9 @@ import { addDays } from '../../shared/dates.ts'
 import { P } from '../../shared/engine/params/index.ts'
 
 /**
- * intervals.icu activity requests per user per call (data preparation, not an engine Param). A
- * pass after the hourly sync (`runWatchRatingPass`) calls until `WATCH_RATING_PASS_MAX` is spent.
+ * intervals.icu activity requests per user per call when the caller names no limit (data
+ * preparation, not an engine Param). The pass after the hourly sync (`runWatchRatingPass`) is one
+ * call of up to `WATCH_RATING_PASS_MAX`.
  */
 export const WATCH_RATING_BATCH = 5
 /**
@@ -33,7 +34,7 @@ export const WATCH_RATING_AUTH_BACKOFF_MS = 60 * 60_000
 /**
  * How long a run is passed over after `WATCH_RATING_MAX_ATTEMPTS` failures that say nothing about
  * the run (an outage, a body that is not JSON, a refused key). It is not marked, so the rating is
- * asked for again later; the newest-first selection no longer meets it first every tick.
+ * asked for again later; the deferral keeps it out of the selection until then.
  */
 export const WATCH_RATING_DEFER_MS = 6 * 60 * 60_000
 
@@ -86,8 +87,9 @@ function waiting(userId: string, from: string, skip: string[] = [], createdBefor
 /**
  * Asks intervals.icu for the watch rating of runs stored before the import read it, or rated on the
  * watch after their first sync (`Activity.rpe` null, pulled from intervals.icu, inside the history
- * window the spread check reads, `P.a5.historyWindowDays`). Newest first, `WATCH_RATING_BATCH` per
- * call, only while the integration is connected, not paused and not syncing. With `createdBefore`
+ * window the spread check reads, `P.a5.historyWindowDays`). Least recently tried first (never tried
+ * first, ties newest first), `WATCH_RATING_BATCH` per call by default and up to
+ * `WATCH_RATING_PASS_MAX` in the sync's pass, only while the integration is connected, not paused and not syncing. With `createdBefore`
  * (the tail of a sync passes the sync's start), a run the sync has just imported is left for the
  * next sync, an hour on: that is the second chance of a run rated on the watch after its first
  * sync, which a pass straight after the import would spend within seconds. One `/activity/{id}`

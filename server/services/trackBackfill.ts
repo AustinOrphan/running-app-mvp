@@ -107,8 +107,8 @@ function sessionFor(
  *
  * 1. Runs with a stored original (`ActivityFile`): the file is parsed again, no network. Run by the
  *    start pass (`trackChunkFor`) and by a type edit (`activityIds`), never by a timer (ADR 0026).
- * 2. Pulled intervals.icu runs with no original: one `latlng,distance` stream request each, newest
- *    first, `TRACK_STREAM_BATCH` per call (the tail of the hourly sync asks for
+ * 2. Pulled intervals.icu runs with no original: one `latlng,distance` stream request each, least
+ *    recently tried first (ties newest first), `TRACK_STREAM_BATCH` per call (the tail of the hourly sync asks for
  *    `TRACK_STREAMS_PER_SYNC`), only while the integration is connected, not paused and not
  *    syncing. The sync tail is its only trigger (ADR 0026). A 429 stops the part and sets the integration's `pausedUntil` as the sync does; a
  *    404 means no streams (marked); a 401 or 403 stops the part for an hour (the sync's needs-auth

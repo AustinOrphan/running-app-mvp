@@ -278,14 +278,16 @@ describe('backfillWatchRatings', () => {
     for (let i = 0; i < 4; i += 1) await backfillWatchRatings(ctx, user.id, { now: NOW })
     expect(await get(row.id)).toMatchObject({ rpe: null, watchRpeV: null })
     // A success elsewhere is the evidence: the held answers are then charged, and the run given up.
+    let last = await backfillWatchRatings(ctx, user.id, { now: NOW })
     for (let i = 0; i < 3; i += 1) {
       await run(`ok${String(i)}`, '2026-01-01')
       ctx.fetch = fakeFetch({
         [`GET ${BASE}/activity/ok`]: () => new Response('{"icu_rpe":3}', { status: 200 }),
         [`GET ${BASE}/activity/`]: () => new Response('', { status: 400 }),
       })
-      await backfillWatchRatings(ctx, user.id, { now: NOW })
+      last = await backfillWatchRatings(ctx, user.id, { now: NOW })
     }
+    expect(last.failures.some((f) => f.reason.includes('given up after 3 attempts'))).toBe(true)
     expect(await get(row.id)).toMatchObject({ rpe: null, watchRpeV: 1 })
   })
 
@@ -696,6 +698,34 @@ describe('what the backfill leaves alone or hands on', () => {
     expect(seen.at(-1)).toBe('i1')
     expect(await get(first.id)).toMatchObject({ rpe: null, watchRpeV: null })
     expect(await get(second.id)).toMatchObject({ rpe: null, watchRpeV: null })
+  })
+
+  test('a run refused with a 403 three times is not asked again until the deferral ends', async () => {
+    await connect()
+    const only = await run('d1', '2026-01-06')
+    const seen: string[] = []
+    ctx.fetch = fakeFetch({
+      [`GET ${BASE}/activity/`]: (req) => {
+        seen.push(new URL(req.url).pathname.split('/').pop()!)
+        return new Response('', { status: 403 })
+      },
+    })
+    const hour = 61 * 60_000
+    // Each call is past the one-hour back-off of the one before.
+    for (let i = 0; i < WATCH_RATING_MAX_ATTEMPTS; i += 1) {
+      await backfillWatchRatings(ctx, user.id, { now: new Date(NOW.getTime() + i * hour) })
+    }
+    expect(seen).toEqual(['d1', 'd1', 'd1'])
+    const lastRefusal = NOW.getTime() + (WATCH_RATING_MAX_ATTEMPTS - 1) * hour
+    // Past the back-off but inside the deferral: not asked.
+    await backfillWatchRatings(ctx, user.id, { now: new Date(lastRefusal + hour) })
+    expect(seen).toHaveLength(3)
+    // Once the deferral ends, it is asked again.
+    await backfillWatchRatings(ctx, user.id, {
+      now: new Date(lastRefusal + WATCH_RATING_DEFER_MS + 1000),
+    })
+    expect(seen).toHaveLength(4)
+    expect(await get(only.id)).toMatchObject({ rpe: null, watchRpeV: null })
   })
 
   test('a sync in progress keeps the job from asking', async () => {
