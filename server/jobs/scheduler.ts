@@ -30,11 +30,7 @@ import { recordJob, safeMessage, syncMessage } from '../services/syncLog.ts'
 import { backfillHrQuality } from '../services/hrQualityBackfill.ts'
 import { surfaceChunkFor } from '../services/surfaceFill.ts'
 import { backfillTerrainBins } from '../services/terrainBackfill.ts'
-import {
-  backfillTracks,
-  TRACK_STREAMS_PER_SYNC,
-  trackChunkFor,
-} from '../services/trackBackfill.ts'
+import { backfillTracks, TRACK_STREAMS_PER_SYNC, trackChunkFor } from '../services/trackBackfill.ts'
 import {
   backfillWatchRatings,
   WATCH_RATING_BATCH,

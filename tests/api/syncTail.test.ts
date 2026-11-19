@@ -109,8 +109,7 @@ function remote(
       }
       records.push(id)
       return (
-        over.record ??
-        (() => new Response(JSON.stringify({ id, icu_rpe: 6 }), { status: 200 }))
+        over.record ?? (() => new Response(JSON.stringify({ id, icu_rpe: 6 }), { status: 200 }))
       )(req)
     },
   })
@@ -150,7 +149,9 @@ describe('the intervals.icu sync tail', () => {
     expect(icu.records).toEqual(['old'])
     expect(await get(old.id)).toMatchObject({ rpe: 6, rpeSource: 'watch', watchRpeV: 1 })
     expect(await get(importedId)).toMatchObject({ rpe: null, watchRpeV: null })
-    expect(await jobRuns('track')).toMatchObject([{ status: 'ok', accepted: 2, trigger: 'schedule' }])
+    expect(await jobRuns('track')).toMatchObject([
+      { status: 'ok', accepted: 2, trigger: 'schedule' },
+    ])
     expect(await jobRuns('watch-rating')).toMatchObject([{ status: 'ok', accepted: 1 }])
 
     // The next sync: the run is older than the sync now, so it is asked, and nothing else is.
@@ -224,10 +225,9 @@ describe('the intervals.icu sync tail', () => {
     await sync(icu)
     expect(icu.streams).toEqual([])
     expect(icu.records).toEqual([])
-    expect(await jobRuns('track')).toEqual([])
-    expect(await jobRuns('watch-rating')).toEqual([])
-    expect(
-      await ctx.prisma.syncRun.count({ where: { userId: other.id, channel: 'job' } }),
-    ).toBe(0)
+    // The connected runner's idle tails store at most the first idle row (recordSyncRunUnlessIdle).
+    expect(await jobRuns('track')).toMatchObject([{ status: 'ok', accepted: 0, failed: 0 }])
+    expect(await jobRuns('watch-rating')).toMatchObject([{ status: 'ok', accepted: 0 }])
+    expect(await ctx.prisma.syncRun.count({ where: { userId: other.id, channel: 'job' } })).toBe(0)
   })
 })

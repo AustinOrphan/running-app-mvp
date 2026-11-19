@@ -104,6 +104,8 @@ describe('startScheduler start passes', () => {
         config: JSON.stringify({ athleteId: 'i1001' }),
       },
     })
+    // The clock first: the run must predate the sync's start, which is read from the same clock.
+    fakeTimers()
     await ctx.prisma.activity.create({
       data: {
         userId: user.id,
@@ -125,7 +127,6 @@ describe('startScheduler start passes', () => {
         return new Response('{}', { status: 404 })
       },
     })
-    fakeTimers()
     const stop = startScheduler({ ...deps(), fetch: fetchFn }, { fetch: fetchFn })
     await vi.advanceTimersByTimeAsync(20_000)
     expect(asked).toEqual([])
