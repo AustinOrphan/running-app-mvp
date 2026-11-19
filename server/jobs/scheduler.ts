@@ -31,6 +31,7 @@ import {
   safeMessage,
   syncMessage,
 } from '../services/syncLog.ts'
+import { pairLoggedStrength } from '../services/duplicates.ts'
 import { backfillHrQuality } from '../services/hrQualityBackfill.ts'
 import { backfillSurfaceBins } from '../services/surfaceBackfill.ts'
 import { backfillTerrainBins } from '../services/terrainBackfill.ts'
@@ -61,6 +62,8 @@ export const PUBLISH_INTERVAL_MS = 2 * MINUTE_MS
 export const TERRAIN_INTERVAL_MS = 5 * MINUTE_MS
 /** How often the heart-rate quality backfill reads one batch of stored streams for each user. */
 export const HR_QUALITY_INTERVAL_MS = 5 * MINUTE_MS
+/** How often unflagged app-logged strength sessions are offered a pairing with a device session. */
+export const STRENGTH_PAIR_INTERVAL_MS = 5 * MINUTE_MS
 /** How often the track backfill reads stored originals and asks intervals.icu for a few streams. */
 export const TRACK_INTERVAL_MS = 5 * MINUTE_MS
 /** How often the watch-rating backfill asks intervals.icu for a few activity records. */
@@ -371,6 +374,30 @@ export async function runHrQualityJob(deps: Deps, log?: Log): Promise<void> {
     } catch (error) {
       log?.warn({ reason: safeMessage(error), userId: user.id }, 'hr quality backfill failed')
       await recordJob(deps, 'hr-quality', user.id, startedAt, { error })
+    }
+  }
+}
+
+/**
+ * Offers the pairing to app-logged strength sessions that are still unflagged (`pairLoggedStrength`),
+ * which is how a session logged before the rule "an app log's length is the plan's, not a
+ * measurement" met its device session. A tick that flags something records a `strength-pair` run,
+ * `accepted` the rows flagged; an idle tick is not stored. A user's failure is recorded as an error
+ * run and the job goes on. Idempotent: it never touches a flagged, confirmed or dismissed row.
+ */
+export async function runStrengthPairJob(deps: Deps, log?: Log): Promise<void> {
+  const users = await deps.prisma.user.findMany({ select: { id: true } })
+  for (const user of users) {
+    const startedAt = new Date()
+    try {
+      const flagged = await pairLoggedStrength(deps.prisma, user.id)
+      await recordJob(deps, 'strength-pair', user.id, startedAt, {
+        accepted: flagged,
+        skipIdle: true,
+      })
+    } catch (error) {
+      log?.warn({ reason: safeMessage(error), userId: user.id }, 'strength pairing failed')
+      await recordJob(deps, 'strength-pair', user.id, startedAt, { error })
     }
   }
 }
@@ -1040,6 +1067,7 @@ export function startScheduler(deps: Deps, opts: { fetch: typeof fetch }): () =>
   every('weather', WEATHER_INTERVAL_MS, () => runWeatherJob(deps, opts, log))
   every('terrain', TERRAIN_INTERVAL_MS, () => runTerrainJob(deps, log))
   every('hr-quality', HR_QUALITY_INTERVAL_MS, () => runHrQualityJob(deps, log))
+  every('strength-pair', STRENGTH_PAIR_INTERVAL_MS, () => runStrengthPairJob(deps, log))
   every('track', TRACK_INTERVAL_MS, () => runTrackJob(deps, log))
   every('watch-rating', WATCH_RATING_INTERVAL_MS, () => runWatchRatingJob(deps, log))
   every('surface', SURFACE_INTERVAL_MS, () => runSurfaceJob(deps, log))

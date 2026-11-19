@@ -9,6 +9,7 @@
 // `memoByVersion`, the workouts, the page view, the Today slot, the suggestions after a save) is at
 // the end of the file (E14-6).
 import { addDays, mondayOf } from '../../shared/dates.ts'
+import { isAppLoggedStrength } from '../../shared/domain/duplicates.ts'
 import { isToRun } from '../../shared/domain/sessionStatus.ts'
 import { isExerciseId, type ExerciseId } from '../../shared/domain/strengthLibrary.ts'
 import { aggregateWeeks } from '../../shared/domain/weeks.ts'
@@ -322,9 +323,11 @@ async function attemptSave(
     await assertLinkable(deps, session, activity)
   }
 
-  // A new day or a new duration is a new answer to "is this the same session as the import?".
+  // A new day or a new duration is a new answer to "is this the same session as the import?",
+  // except for an app-logged session, whose duration is the plan's and decides no match.
   const fields = activityFields(input, activity)
-  const matchChanged = fields.date !== activity.date || 'durationSec' in fields
+  const matchChanged =
+    fields.date !== activity.date || ('durationSec' in fields && !isAppLoggedStrength(activity))
   await prisma.$transaction(async (tx) => {
     await tx.activity.update({
       where: { id: activityId, userId },

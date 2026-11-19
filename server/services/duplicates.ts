@@ -267,6 +267,39 @@ export async function markDuplicates(
 }
 
 /**
+ * Offers the pairing to app-logged strength sessions that were passed over under the old duration
+ * rule (a device session more than 5% off the plan's minutes): every strength activity of the user
+ * that is manual, has no start instant, holds a strength log and is unflagged (`none`) goes through
+ * `markDuplicates`, which pairs it with a device session of its day (`matchStrength`). A row that is
+ * `possible`, `confirmed` or `dismissed` is never selected, so a decision of the runner stands, and
+ * a run is never selected. Idempotent: a row that finds no partner stays `none` and is read again
+ * on the next call, which costs one query per row and writes nothing. Runs from the
+ * `strength-pair` job. Returns how many rows were newly flagged.
+ */
+export async function pairLoggedStrength(
+  prisma: Pick<PrismaClient, 'activity' | 'fuelLog' | 'strengthLog' | 'planSession'>,
+  userId: string,
+): Promise<number> {
+  const rows = await prisma.activity.findMany({
+    where: {
+      userId,
+      type: 'strength',
+      source: 'manual',
+      startUtc: null,
+      duplicateStatus: 'none',
+      strengthLog: { isNot: null },
+    },
+    select: { id: true },
+    orderBy: [{ date: 'desc' }, { id: 'asc' }],
+  })
+  return markDuplicates(
+    prisma,
+    userId,
+    rows.map((row) => row.id),
+  )
+}
+
+/**
  * Returns the rows flagged with one of `statuses` as duplicates of `activityId` to `none` with no
  * `duplicateOfId`, and gives back their ids.
  */

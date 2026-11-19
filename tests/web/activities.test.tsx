@@ -681,12 +681,35 @@ describe('Activities page', () => {
       })
       const copy = makeActivity({
         type: 'strength',
+        source: 'csv',
         distanceM: null,
         duplicateStatus: 'possible',
         duplicateOfId: 'o3',
       })
       expect(await note([original, copy])).toBe(
         'Another strength session on this day is about as long. The other one is counted.',
+      )
+    })
+
+    test('a strength session logged in the app does not claim the same length', async () => {
+      const original = makeActivity({
+        id: 'o5',
+        type: 'strength',
+        distanceM: null,
+        durationSec: 2754,
+        startUtc: T0,
+        source: 'intervals',
+      })
+      const copy = makeActivity({
+        type: 'strength',
+        source: 'manual',
+        distanceM: null,
+        durationSec: 2400,
+        duplicateStatus: 'possible',
+        duplicateOfId: 'o5',
+      })
+      expect(await note([original, copy])).toBe(
+        'Another strength session on this day may be the same one, whatever its length. The other one is counted.',
       )
     })
 

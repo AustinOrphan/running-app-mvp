@@ -219,7 +219,7 @@ describe('markDuplicates for strength sessions', () => {
   })
 
   test('a session over 5% longer or on another day is not the same session', async () => {
-    const manual = await seed('manual', session())
+    const manual = await seed('csv', session())
     const longer = await seed('file', session({ durationSec: 2530 }))
     const nextDay = await seed('strava', session({ date: '2026-03-03' }))
     expect(await markDuplicates(ctx.prisma, user.id, [longer.id, nextDay.id])).toBe(0)

@@ -111,6 +111,74 @@ describe('matchActivities for strength sessions', () => {
     expect(matchActivities(manual, { ...strength, date: '2026-03-03' })).toBeNull()
   })
 
+  describe('an app-logged session holds the plan length, so its duration does not decide', () => {
+    const logged = { ...strength, source: 'manual', startUtc: null }
+    const device = { ...strength, source: 'intervals', startUtc: T0, durationSec: 2754 }
+
+    test('13% apart on one date: date, in either order', () => {
+      expect(matchActivities(logged, device)).toBe('date')
+      expect(matchActivities(device, logged)).toBe('date')
+      expect(matchActivities(logged, { ...device, durationSec: 600 })).toBe('date')
+    })
+
+    test('another date: no match', () => {
+      expect(matchActivities(logged, { ...device, date: '2026-03-03' })).toBeNull()
+    })
+
+    test('a device session without a start instant is still a device session', () => {
+      expect(matchActivities(logged, { ...device, startUtc: null, source: 'csv' })).toBe('date')
+    })
+
+    test('two device sessions without logs 13% apart: no match, as before', () => {
+      const a = { ...strength, source: 'csv', startUtc: null }
+      expect(matchActivities(a, { ...a, source: 'smashrun', durationSec: 2754 })).toBeNull()
+      expect(matchActivities(a, { ...a, source: 'smashrun', durationSec: 2500 })).toBe('date')
+    })
+
+    test('both with a start instant: the start rule, unchanged', () => {
+      expect(matchActivities({ ...logged, startUtc: T0 }, { ...device, startUtc: at(60) })).toBe(
+        'start',
+      )
+      expect(
+        matchActivities({ ...logged, startUtc: T0 }, { ...device, startUtc: at(3600) }),
+      ).toBeNull()
+    })
+
+    test('a run is never paired with an app log', () => {
+      expect(matchActivities(logged, { ...device, type: 'run', distanceM: 5000 })).toBeNull()
+    })
+
+    test('several device sessions on one day: the one that started nearest the log being stored', () => {
+      const stored = at(3 * 3600)
+      const log = makeActivity({
+        id: 'log',
+        type: 'strength',
+        source: 'manual',
+        distanceM: null,
+        durationSec: 2400,
+        createdAt: stored,
+      })
+      const device = (id: string, startSec: number, durationSec: number) =>
+        makeActivity({
+          id,
+          type: 'strength',
+          source: 'intervals',
+          distanceM: null,
+          startUtc: at(startSec),
+          durationSec,
+        })
+      const early = device('early', 0, 2400)
+      const late = device('late', 2 * 3600, 3300)
+      // Duration says nothing here: the early one is the exact 2400 s and still loses.
+      expect(findPossibleDuplicate(log, [early, late])).toBe(late)
+      expect(findPossibleDuplicate(log, [late, early])).toBe(late)
+      // Without a stored instant on the log every gap is equal: the first row wins.
+      const noInstant = { ...log, createdAt: 'not a date' }
+      expect(findPossibleDuplicate(noInstant, [early, late])).toBe(early)
+      expect(findPossibleDuplicate(noInstant, [late, early])).toBe(late)
+    })
+  })
+
   test('a distance on a row changes nothing: strength is compared without one', () => {
     const manual = { ...strength, startUtc: null }
     expect(matchActivities(manual, { ...strength, distanceM: 5000 })).toBe('date')

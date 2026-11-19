@@ -54,10 +54,11 @@ describe('findPossibleDuplicate', () => {
   })
 
   test('a strength candidate matches a strength session by duration, with no distance', () => {
+    // Not 'manual': a session logged in the app matches on the date alone (duplicates-sources).
     const manual = makeActivity({
       id: 's',
       type: 'strength',
-      source: 'manual',
+      source: 'csv',
       distanceM: null,
       durationSec: 2400,
     })
