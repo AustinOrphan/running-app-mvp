@@ -52,8 +52,21 @@ of another `HR_QUALITY_VERSION`, kept their stale shape while `gradeCurve.ts` dr
   that wrote a track and a type edit, and by a start pass; its job runs carry the trigger `event`. The
   stored-original part of `track` runs in the start pass and from `refreshDerivedAfterEdit`. The
   chain is terrain, hr-quality, track, surface (a track is written before the shares read it).
-- **Still to convert, in later changes:** the intervals.icu stream part of `track` (still the 5-minute
-  `track` job, streams only), `watch-rating`, `publish`'s 2-minute tick and `replan-catchup`. Each
+- **The intervals.icu part of `track` and `watch-rating` ride the hourly sync.** All five 5-minute
+  backfills (`terrain`, `hr-quality`, `track`, `surface`, `watch-rating`) are converted, and no
+  5-minute job but `folder` is left. After the provider loop and the `sync` run, `runSyncJob` runs two
+  tails for each runner whose providers include `intervals`, each in its own try/catch:
+  `runTrackStreams` (up to 60 stream requests, `TRACK_STREAMS_PER_SYNC`) and `runWatchRatingPass`
+  (batches of 5 until 60 requests, `WATCH_RATING_PASS_MAX`, a pause, a refused key or a failure). The
+  60 an hour is what the two 5-minute jobs spent. A 429 in either tail sets `pausedUntil`, which the
+  other tail and the next sync honour. The rating tail selects only runs created before the sync
+  started (`createdBefore`): a run the sync has just imported unrated is asked at the next sync, an
+  hour on, so the second chance of a run rated on the watch after its first sync is kept. A manual
+  intervals.icu sync does not run the tails (it would need a per-user guard against a tail already
+  running; the hourly sync carries them). The first sync tick, 30 s after start, is the pass after a
+  deploy, so there is no start pass of its own for runs imported before WR1. The cost is that a map
+  or a watch rating can arrive up to an hour later after an outage, a 429 or a reconnect.
+- **Still to convert, in later changes:** `publish`'s 2-minute tick and `replan-catchup`. Each
   appends its own pass to the chain and removes its own interval.
 
 ## Reasons

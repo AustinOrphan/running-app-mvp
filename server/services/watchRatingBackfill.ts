@@ -10,10 +10,15 @@ import { addDays } from '../../shared/dates.ts'
 import { P } from '../../shared/engine/params/index.ts'
 
 /**
- * intervals.icu activity requests per user per call. With the 5-minute tick that is one request a
- * minute, far under the provider's limits (data preparation, not an engine Param).
+ * intervals.icu activity requests per user per call (data preparation, not an engine Param). A
+ * pass after the hourly sync (`runWatchRatingPass`) calls until `WATCH_RATING_PASS_MAX` is spent.
  */
 export const WATCH_RATING_BATCH = 5
+/**
+ * intervals.icu activity requests per user per sync tail: 60 an hour, the budget the retired
+ * 5-minute job spent (5 every 5 minutes), far under the provider's limits.
+ */
+export const WATCH_RATING_PASS_MAX = 60
 /** Failed requests for one run (a 4xx the provider sent for it) before the run is marked unrated. */
 export const WATCH_RATING_MAX_ATTEMPTS = 3
 /** How long the job leaves an integration alone after intervals.icu refused its key. */
@@ -57,9 +62,10 @@ export interface WatchRatingBackfillResult {
 }
 
 /** Pulled intervals.icu runs and races in the history window with no rating, not looked at yet. */
-function waiting(userId: string, from: string, skip: string[] = []) {
+function waiting(userId: string, from: string, skip: string[] = [], createdBefore?: Date) {
   return {
     ...(skip.length > 0 ? { id: { notIn: skip } } : {}),
+    ...(createdBefore === undefined ? {} : { createdAt: { lt: createdBefore } }),
     userId,
     rpe: null,
     watchRpeV: null,
@@ -73,7 +79,10 @@ function waiting(userId: string, from: string, skip: string[] = []) {
  * Asks intervals.icu for the watch rating of runs stored before the import read it, or rated on the
  * watch after their first sync (`Activity.rpe` null, pulled from intervals.icu, inside the history
  * window the spread check reads, `P.a5.historyWindowDays`). Newest first, `WATCH_RATING_BATCH` per
- * call, only while the integration is connected, not paused and not syncing. One `/activity/{id}`
+ * call, only while the integration is connected, not paused and not syncing. With `createdBefore`
+ * (the tail of a sync passes the sync's start), a run the sync has just imported is left for the
+ * next sync, an hour on: that is the second chance of a run rated on the watch after its first
+ * sync, which a pass straight after the import would spend within seconds. One `/activity/{id}`
  * request each through the provider's `fetchRating` (the injected `fetch`). Idempotent: a run asked
  * about is marked (`watchRpeV`) with or without a rating and never selected again, so a rating
  * entered later in intervals.icu is not picked up for it; a stored rating (`watch` or `app`) is never
@@ -88,7 +97,7 @@ function waiting(userId: string, from: string, skip: string[] = []) {
 export async function backfillWatchRatings(
   deps: Deps,
   userId: string,
-  opts: { limit?: number; now?: Date; today: string },
+  opts: { limit?: number; now?: Date; today: string; createdBefore?: Date },
 ): Promise<WatchRatingBackfillResult> {
   const { prisma } = deps
   const now = opts.now ?? new Date()
@@ -120,7 +129,7 @@ export async function backfillWatchRatings(
     outages.clear()
   }
   for (const [id, until] of deferred) if (until <= now.getTime()) deferred.delete(id)
-  const where = waiting(userId, from, [...deferred.keys()])
+  const where = waiting(userId, from, [...deferred.keys()], opts.createdBefore)
   const block = authBlocked.get(integration.id)
   if (integration.pausedUntil !== null && integration.pausedUntil > now) {
     result.pause = {

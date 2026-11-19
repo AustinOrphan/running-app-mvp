@@ -15,12 +15,13 @@ import type { ParsedActivity } from '../../shared/types.ts'
 
 /** Stored originals parsed per user per call: local work, no network. */
 export const TRACK_FILE_BATCH = 20
-/**
- * intervals.icu stream requests per user per call. With the 5-minute tick that is one request a
- * minute, far under the provider's limits, and 76 runs take 16 ticks (80 minutes). The tick is the
- * stream part's only trigger until the sync tail replaces it (the polls-to-events plan, PR C).
- */
+/** intervals.icu stream requests per call when the caller names no limit. */
 export const TRACK_STREAM_BATCH = 5
+/**
+ * intervals.icu stream requests per user per sync tail: 60 an hour, the budget the retired
+ * 5-minute job spent (5 every 5 minutes), far under the provider's limits.
+ */
+export const TRACK_STREAMS_PER_SYNC = 60
 
 /** Failed stream requests for one run before the run is given up on (marked, no route). */
 export const TRACK_MAX_ATTEMPTS = 3
@@ -99,8 +100,9 @@ function sessionFor(
  * 1. Runs with a stored original (`ActivityFile`): the file is parsed again, no network. Run by the
  *    start pass (`trackChunkFor`) and by a type edit (`activityIds`), never by a timer (ADR 0026).
  * 2. Pulled intervals.icu runs with no original: one `latlng,distance` stream request each, newest
- *    first, `TRACK_STREAM_BATCH` per call, only while the integration is connected, not paused and
- *    not syncing. A 429 stops the part and sets the integration's `pausedUntil` as the sync does; a
+ *    first, `TRACK_STREAM_BATCH` per call (the tail of the hourly sync asks for
+ *    `TRACK_STREAMS_PER_SYNC`), only while the integration is connected, not paused and not
+ *    syncing. The sync tail is its only trigger (ADR 0026). A 429 stops the part and sets the integration's `pausedUntil` as the sync does; a
  *    404 means no streams (marked); a 401 or 403 stops the part for an hour (the sync's needs-auth
  *    handling owns it); any other failure ends the part and leaves the run for the next call.
  *    Only a 4xx the provider sent for the run counts toward giving it up: after
@@ -229,6 +231,14 @@ export async function backfillTracks(
   }
 
   async function streamPart(row: NonNullable<typeof integration>): Promise<void> {
+    // The runs first: a tail with nothing owed costs one query, no decrypt.
+    const runs = await prisma.activity.findMany({
+      where: streamWhere,
+      select: { id: true, providerKey: true, startUtc: true, updatedAt: true },
+      orderBy: [{ date: 'desc' }, { id: 'asc' }],
+      take: opts.streamLimit ?? TRACK_STREAM_BATCH,
+    })
+    if (runs.length === 0) return
     let opened: ReturnType<typeof openIntegration>
     try {
       opened = openIntegration(row, deps.config.sessionSecret)
@@ -238,12 +248,6 @@ export async function backfillTracks(
     }
     const secrets = secretValues(opened.secret)
     const ctx = await providerContext(deps, userId, PROVIDER, opened)
-    const runs = await prisma.activity.findMany({
-      where: streamWhere,
-      select: { id: true, providerKey: true, startUtc: true, updatedAt: true },
-      orderBy: [{ date: 'desc' }, { id: 'asc' }],
-      take: opts.streamLimit ?? TRACK_STREAM_BATCH,
-    })
     for (const run of runs) {
       const remoteId = run.providerKey!.slice(PROVIDER.length + 1)
       let route: Awaited<ReturnType<NonNullable<typeof pull>['fetchRoute'] & {}>>
@@ -283,9 +287,10 @@ export async function backfillTracks(
         }
         const tries = (attempts.get(run.id) ?? 0) + 1
         if (tries < TRACK_MAX_ATTEMPTS) {
+          // Hourly, three tries take three hours: the queue behind this run goes on meanwhile.
           attempts.set(run.id, tries)
           result.failures.push({ ref: run.providerKey!, reason })
-          return
+          continue
         }
         // A run that fails every tick would block the ones behind it: give it up like a 404.
         attempts.delete(run.id)

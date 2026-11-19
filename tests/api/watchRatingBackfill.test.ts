@@ -1,5 +1,6 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from 'vitest'
-import { runWatchRatingJob } from '../../server/jobs/scheduler.ts'
+import { runWatchRatingPass } from '../../server/jobs/scheduler.ts'
+import { addDays, todayIso } from '../../shared/dates.ts'
 import { dataVersionKey } from '../../server/dataVersion.ts'
 import { storeParsedToday as storeParsed, syncProviderToday as syncProvider } from './helpers.ts'
 import { sealSecret } from '../../server/services/sync.ts'
@@ -9,6 +10,7 @@ import { syntheticRun } from '../fixtures/syntheticRoute.ts'
 import {
   WATCH_RATING_BATCH,
   WATCH_RATING_DEFER_MS,
+  WATCH_RATING_PASS_MAX,
 } from '../../server/services/watchRatingBackfill.ts'
 import { P } from '../../shared/engine/params/index.ts'
 import { fakeFetch } from '../fakeFetch.ts'
@@ -304,22 +306,24 @@ describe('backfillWatchRatings', () => {
   })
 })
 
-describe('runWatchRatingJob', () => {
+describe('runWatchRatingPass', () => {
   const jobRuns = () =>
     ctx.prisma.syncRun.findMany({
       where: { userId: user.id, channel: 'job', provider: 'watch-rating' },
       orderBy: { startedAt: 'asc' },
     })
+  const pass = (over: { createdBefore?: Date } = {}) =>
+    runWatchRatingPass(ctx, user.id, { today: todayIso(NOW), now: NOW, ...over })
 
   test('records a run that wrote ratings and stays quiet when idle', async () => {
     await connect()
     await run('i1', '2026-01-05')
     ctx.fetch = icu({ i1: 6 })
-    await runWatchRatingJob(ctx, undefined, { now: NOW })
+    await pass()
     const [stored, ...rest] = await jobRuns()
     expect(rest).toEqual([])
     expect(stored).toMatchObject({ status: 'ok', accepted: 1, failed: 0 })
-    await runWatchRatingJob(ctx, undefined, { now: NOW })
+    await pass()
     expect(await jobRuns()).toHaveLength(1)
   })
 
@@ -329,7 +333,7 @@ describe('runWatchRatingJob', () => {
     ctx.fetch = fakeFetch({
       [`GET ${BASE}/activity/`]: () => new Response('', { status: 429 }),
     })
-    await runWatchRatingJob(ctx, undefined, { now: NOW })
+    await pass()
     expect((await jobRuns()).at(-1)).toMatchObject({ status: 'paused' })
     await ctx.prisma.integration.update({
       where: { id: integration.id },
@@ -338,8 +342,91 @@ describe('runWatchRatingJob', () => {
     ctx.fetch = fakeFetch({
       [`GET ${BASE}/activity/`]: () => new Response('', { status: 401 }),
     })
-    await runWatchRatingJob(ctx, undefined, { now: NOW })
+    await pass()
     expect((await jobRuns()).at(-1)).toMatchObject({ status: 'error', failed: 1 })
+  })
+
+  test('drains more than one batch in one call', async () => {
+    await connect()
+    const total = WATCH_RATING_BATCH * 2 + 2
+    const ratings: Record<string, number> = {}
+    for (let i = 1; i <= total; i += 1) {
+      await run(`i${String(i)}`, `2026-01-${String(i).padStart(2, '0')}`)
+      ratings[`i${String(i)}`] = 5
+    }
+    const seen: string[] = []
+    ctx.fetch = icu(ratings, seen)
+    await pass()
+    expect(seen).toHaveLength(total)
+    expect((await jobRuns()).at(-1)).toMatchObject({ status: 'ok', accepted: total })
+  })
+
+  test('stops at a 429 with the integration paused, and at a 5xx, leaving the rest waiting', async () => {
+    const integration = await connect()
+    for (let i = 1; i <= 8; i += 1) await run(`i${String(i)}`, `2026-01-0${String(i)}`)
+    let calls = 0
+    ctx.fetch = fakeFetch({
+      [`GET ${BASE}/activity/`]: () => {
+        calls += 1
+        return new Response('', { status: 429, headers: { 'retry-after': '300' } })
+      },
+    })
+    await pass()
+    expect(calls).toBe(1)
+    const row = await ctx.prisma.integration.findUniqueOrThrow({ where: { id: integration.id } })
+    expect(row.pausedUntil).toEqual(new Date(NOW.getTime() + 300_000))
+    expect(await ctx.prisma.activity.count({ where: { watchRpeV: null } })).toBe(8)
+
+    await ctx.prisma.integration.update({
+      where: { id: integration.id },
+      data: { pausedUntil: null },
+    })
+    calls = 0
+    ctx.fetch = fakeFetch({
+      [`GET ${BASE}/activity/`]: () => {
+        calls += 1
+        return new Response('', { status: 503 })
+      },
+    })
+    await pass()
+    expect(calls).toBe(1)
+    expect((await jobRuns()).at(-1)).toMatchObject({ status: 'partial', failed: 1 })
+  })
+
+  test('stops at WATCH_RATING_PASS_MAX requests', async () => {
+    await connect()
+    const total = WATCH_RATING_PASS_MAX + 7
+    const rows = Array.from({ length: total }, (_, i) => ({
+      userId: user.id,
+      type: 'run',
+      date: addDays('2026-01-01', i % 300),
+      durationSec: 900,
+      source: 'intervals',
+      providerKey: `intervals:b${String(i)}`,
+      startUtc: '2026-01-01T07:00:00Z',
+    }))
+    await ctx.prisma.activity.createMany({ data: rows })
+    const seen: string[] = []
+    ctx.fetch = icu({}, seen)
+    await pass()
+    expect(seen).toHaveLength(WATCH_RATING_PASS_MAX)
+    expect(await ctx.prisma.activity.count({ where: { watchRpeV: null } })).toBe(7)
+  })
+
+  test('createdBefore leaves a run created at or after it for the next pass', async () => {
+    await connect()
+    const before = await run('i1', '2026-01-05')
+    const cut = new Date(before.createdAt.getTime() + 1)
+    await new Promise((resolve) => setTimeout(resolve, 5))
+    const after = await run('i2', '2026-01-06')
+    const seen: string[] = []
+    ctx.fetch = icu({ i1: 5, i2: 7 }, seen)
+    await pass({ createdBefore: cut })
+    expect(seen).toEqual(['i1'])
+    expect(await get(after.id)).toMatchObject({ rpe: null, watchRpeV: null })
+    await pass({ createdBefore: new Date(after.createdAt.getTime() + 1) })
+    expect(seen).toEqual(['i1', 'i2'])
+    expect(await get(after.id)).toMatchObject({ rpe: 7, rpeSource: 'watch' })
   })
 })
 
