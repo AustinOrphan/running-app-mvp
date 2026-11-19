@@ -246,13 +246,14 @@ function isIdle(run: SyncRunInput): boolean {
  * the provider ended ok: one idle row per 5 or 10 minutes would replace the `MAX_RUNS_KEPT` rows
  * within a day or two, and a run that failed would be gone before anyone opened the list. A manual run,
  * a run with a count or an error, and the first idle run after one that did not end ok (or the
- * first run ever) are stored, so the newest row shows the recovery.
+ * first run ever) are stored, so the newest row shows the recovery. A start pass (trigger
+ * `catchup`, ADR 0026) is skipped the same way.
  */
 export async function recordSyncRunUnlessIdle(
   deps: Pick<Deps, 'prisma' | 'config'>,
   run: SyncRunInput,
 ): Promise<void> {
-  if (run.trigger === 'schedule' && isIdle(run)) {
+  if ((run.trigger === 'schedule' || run.trigger === 'catchup') && isIdle(run)) {
     try {
       const newest = await deps.prisma.syncRun.findFirst({
         where: { userId: run.userId, provider: run.provider },
@@ -265,6 +266,45 @@ export async function recordSyncRunUnlessIdle(
     }
   }
   await recordSyncRun(deps, run)
+}
+
+/**
+ * Writes the `job` run of one scheduled job or start pass for one user (spec 4.7). The job name is
+ * the `provider` of the row, so `GET /api/jobs` finds the latest run of each. An error is stored
+ * through `safeMessage`. With `skipIdle`, a run with nothing to report is not stored (see
+ * `recordSyncRunUnlessIdle`).
+ */
+export async function recordJob(
+  deps: Pick<Deps, 'prisma' | 'config'>,
+  job: string,
+  userId: string,
+  startedAt: Date,
+  outcome: {
+    trigger?: SyncTrigger
+    status?: SyncStatus
+    error?: unknown
+    accepted?: number
+    duplicate?: number
+    failed?: number
+    failures?: ReadonlyArray<{ ref: string; reason: unknown }>
+    skipIdle?: boolean
+  } = {},
+): Promise<void> {
+  const failed = outcome.error !== undefined && outcome.error !== null
+  const record = outcome.skipIdle ? recordSyncRunUnlessIdle : recordSyncRun
+  await record(deps, {
+    userId,
+    provider: job,
+    channel: 'job',
+    trigger: outcome.trigger ?? 'schedule',
+    startedAt,
+    status: failed ? 'error' : (outcome.status ?? 'ok'),
+    accepted: outcome.accepted ?? 0,
+    duplicate: outcome.duplicate ?? 0,
+    failed: outcome.failed ?? 0,
+    message: failed ? outcome.error : null,
+    ...(outcome.failures === undefined ? {} : { failures: outcome.failures }),
+  })
 }
 
 function parseFailures(text: string): SyncFailure[] {

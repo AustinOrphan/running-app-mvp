@@ -229,12 +229,6 @@ export async function storeParsed(
     ...(lookedForTrack ? { trackV: TRACK_VERSION } : {}),
     // A replaced route makes the old trail and road shares wrong; the `surface` job computes them again.
     ...(track ? { surfaceBins: null } : {}),
-    terrainBins: hasTerrainBins(parsed.type)
-      ? JSON.stringify(computeTerrainBins(summary.stream, sampleSec))
-      : null,
-    hrQuality: hasTerrainBins(parsed.type)
-      ? JSON.stringify(computeHrQuality(summary.stream, sampleSec, parsed.hrSource ?? 'unknown'))
-      : null,
     decouplingPct: summary.decouplingPct,
     gapDistanceM: roundOrNull(summary.gapDistanceM),
   }
@@ -261,6 +255,18 @@ export async function storeParsed(
         return { outcome: 'duplicate' as const, activityId: existing.id }
       }
 
+      // The bins and the quality summary follow the type the row has, not the type the provider
+      // reports: an update never writes `type`, so a run the runner re-typed from cross would
+      // otherwise be stored with none (ADR 0026). Both are pure and take milliseconds.
+      const derived = hasTerrainBins((existing?.type ?? parsed.type) as ActivityType)
+        ? {
+            terrainBins: JSON.stringify(computeTerrainBins(summary.stream, sampleSec)),
+            hrQuality: JSON.stringify(
+              computeHrQuality(summary.stream, sampleSec, parsed.hrSource ?? 'unknown'),
+            ),
+          }
+        : { terrainBins: null, hrQuality: null }
+
       let activityId: string
       let outcome: 'imported' | 'updated'
       if (existing) {
@@ -270,6 +276,7 @@ export async function storeParsed(
           where: { id: existing.id, userId },
           data: {
             ...fields,
+            ...derived,
             subtype: existing.subtype ?? parsed.subtype,
             // A watch rating fills an empty rating or refreshes an earlier watch rating; one the
             // runner gave (source 'app') or one of unknown source (null) is never replaced (WR1).
@@ -286,6 +293,7 @@ export async function storeParsed(
         const created = await tx.activity.create({
           data: {
             ...fields,
+            ...derived,
             userId,
             type: parsed.type,
             subtype: parsed.subtype,

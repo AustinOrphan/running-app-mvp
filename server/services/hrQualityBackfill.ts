@@ -1,7 +1,7 @@
 import { gunzipSync } from 'node:zlib'
 import type { Deps } from '../app.ts'
 import { fitHrSource } from '../../shared/importers/files/fit.ts'
-import { computeHrQuality, HR_QUALITY_THRESHOLDS } from '../../shared/importers/files/hrQuality.ts'
+import { computeHrQuality, HR_QUALITY_STAMP } from '../../shared/importers/files/hrQuality.ts'
 import type { ActivityStreamData, HrSource } from '../../shared/types.ts'
 
 /** Runs read and written per user per call: small, so a call is short and a request never queues behind it. */
@@ -12,17 +12,14 @@ export interface HrQualityBackfillResult {
   filled: number
   /** Of those, the ones whose stored stream could not be read (they got an all-zero summary). */
   unreadable: string[]
-  /** Runs with a stream and no summary that this call left for the next one. */
+  /** Runs with a stream and no (or a stale) summary that this call left for the next one. */
   remaining: number
 }
 
 const RUN_TYPES = ['run', 'race']
 
-/** No summary yet, or one computed with other data-preparation thresholds (`HR_QUALITY_THRESHOLDS`). */
-const STALE = [
-  { hrQuality: null },
-  { NOT: { hrQuality: { contains: `"th":"${HR_QUALITY_THRESHOLDS}"` } } },
-]
+/** No summary yet, or one of another version or with other thresholds (`HR_QUALITY_STAMP`). */
+const STALE = [{ hrQuality: null }, { NOT: { hrQuality: { startsWith: HR_QUALITY_STAMP } } }]
 
 /** The heart-rate source of a stored original; a file that is not FIT, or cannot be read, is unknown. */
 function sourceOfFile(file: { format: string; gz: Uint8Array } | null): HrSource {
@@ -36,18 +33,19 @@ function sourceOfFile(file: { format: string; gz: Uint8Array } | null): HrSource
 
 /**
  * Fills `Activity.hrQuality` from the stored stream for the newest runs and races of one user that
- * have a stream and no summary or a stale one (other thresholds), with the function the import uses (both read the 10 s stream, so
- * the numbers agree). The heart-rate source is read from the stored original FIT file when there is
- * one, because the stream does not carry it. Idempotent and resumable: a run with a summary is never
- * selected again, a run is written only while its column is still null (an import that wins the
- * race is not overwritten), and the batch is one transaction. A stream that cannot be parsed gets an
- * all-zero summary, so the job does not meet it again, and is reported in `unreadable`. Never
- * touches the network.
+ * have a stream and no summary or a stale one (another version or other thresholds), with the
+ * function the import uses (both read the 10 s stream, so the numbers agree). Run by the start pass
+ * (ADR 0026) and, with `ids`, for the one activity whose type was just edited. The heart-rate source
+ * is read from the stored original FIT file when there is one, because the stream does not carry it.
+ * Idempotent and resumable: a run with a current summary is never selected again, a run is written
+ * only while its summary is still stale (an import that wins the race is not overwritten), and the
+ * batch is one transaction. A stream that cannot be parsed gets an all-zero summary, so the pass
+ * does not meet it again, and is reported in `unreadable`. Never touches the network.
  */
 export async function backfillHrQuality(
   deps: Pick<Deps, 'prisma'>,
   userId: string,
-  opts: { limit?: number } = {},
+  opts: { limit?: number; ids?: readonly string[] } = {},
 ): Promise<HrQualityBackfillResult> {
   const { prisma } = deps
   const where = {
@@ -55,6 +53,7 @@ export async function backfillHrQuality(
     OR: STALE,
     type: { in: RUN_TYPES },
     stream: { isNot: null },
+    ...(opts.ids === undefined ? {} : { id: { in: [...opts.ids] } }),
   }
   const rows = await prisma.activity.findMany({
     where,

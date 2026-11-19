@@ -157,9 +157,9 @@ Status: Accepted 2026-11-08 (#672)
   per minute, spikes, dropouts, flat lines, and heart rate falling while the grade-adjusted effort
   rises). `computeHrQuality` (`shared/importers/files/hrQuality.ts`) counts the flagged moving
   seconds into `Activity.hrQuality` beside the heart-rate source read from the FIT `device_info`
-  (`hrSource.ts`) and the data-preparation thresholds it used (`th`). Import and the `hr-quality`
-  backfill job (`server/services/hrQualityBackfill.ts`, modelled on `terrain`) write it; the job also
-  computes again a summary whose `th` differs from the current thresholds.
+  (`hrSource.ts`) and the data-preparation thresholds it used (`th`). Import, a type edit and a start
+  pass 30 s after each start (`server/services/hrQualityBackfill.ts`, ADR 0026; it was a 5-minute job
+  until then) write it; the pass also computes again a summary of another version or other thresholds.
 - Whether a run passes is read from the counts (`hrQualityPasses`, `shared/engine/hrQuality.ts`), never
   stored: at least `hrModel.minDurationMin` of moving time, and either an external-sensor source or
   at least `b2.qMinCleanShare` clean. The ten `b2.q*` Params are grade D; eight are data preparation
@@ -232,7 +232,7 @@ engine decision reads the panels.
   missing or does not pass `hrQualityPasses` (rule B2, batch HQ1), puts its whole length in the
   neutral part "No usable heart rate"; a usable run puts there only the time its histogram does
   not cover. Neutral time is never spread over the zones. A summary not yet computed counts as not
-  passing, as in the other panels, so a run awaiting the `hr-quality` job sits in the neutral part.
+  passing, as in the other panels, so a run awaiting the `hr-quality` start pass sits in the neutral part.
 - Every week is read against the zones as they stand on the day the page is read. The caption says
   so, and the panel states the two limits in bpm.
 - The route is not on the offline allowlist; ADR 0012 is unchanged. Activity writes read it again
