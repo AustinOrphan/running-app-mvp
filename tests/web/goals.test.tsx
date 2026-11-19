@@ -404,6 +404,30 @@ describe('Goals page', () => {
     })
   })
 
+  test('the race coordinates and the target time ask for the plain keyboard and take a negative', async () => {
+    const user = userEvent.setup()
+    const { calls } = mockApi(
+      routes([], kmUser, { 'POST /api/goals': () => ({ status: 201, body: makeGoal() }) }),
+    )
+    renderWithProviders(<GoalsPage />)
+
+    const dialog = await openAddSheet(user)
+    await fillBasics(user, dialog, 'Southern 10K')
+    for (const label of ['Race latitude', 'Race longitude', 'Target time (h:mm:ss)']) {
+      expect(within(dialog).getByLabelText(label)).toHaveAttribute('inputmode', 'text')
+    }
+    await user.type(within(dialog).getByLabelText('Race latitude'), '−33.87')
+    await user.type(within(dialog).getByLabelText('Race longitude'), '-87.63')
+    await user.click(within(dialog).getByRole('button', { name: 'Save goal' }))
+    await waitFor(() => {
+      expect(calls.some((c) => c.method === 'POST')).toBe(true)
+    })
+    expect(calls.find((c) => c.method === 'POST')?.body).toMatchObject({
+      raceLat: -33.87,
+      raceLng: -87.63,
+    })
+  })
+
   test('a searched place fills the race coordinates and posts them only on save (PL2)', async () => {
     const user = userEvent.setup()
     const { calls } = mockApi(

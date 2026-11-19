@@ -193,6 +193,44 @@ describe('ProfilePage', () => {
     expectCleanCopy(section as HTMLElement)
   })
 
+  test('asks for the plain keyboard where the field needs a minus or a colon', async () => {
+    setup(makeProfile())
+    await loaded()
+    for (const name of ['Home latitude', 'Home longitude', /Threshold pace/]) {
+      const field = screen.getByRole('textbox', { name })
+      expect(field).toHaveAttribute('inputmode', 'text')
+      expect(field).toHaveAttribute('autocomplete', 'off')
+    }
+  })
+
+  test('saves a typed negative home place, with a minus sign or a comma', async () => {
+    const { api, user } = setup(makeProfile())
+    await loaded()
+    await type(user, 'Home latitude', '41.88')
+    await type(user, 'Home longitude', '-87.63')
+    await user.click(screen.getByRole('button', { name: 'Save profile' }))
+    await waitFor(() => {
+      expect(puts(api)).toHaveLength(1)
+    })
+    expect(puts(api)[0]?.body).toMatchObject({ homeLat: 41.88, homeLng: -87.63 })
+
+    await type(user, 'Home latitude', '−33,87')
+    await user.click(screen.getByRole('button', { name: 'Save profile' }))
+    await waitFor(() => {
+      expect(puts(api)).toHaveLength(2)
+    })
+    expect(puts(api)[1]?.body).toMatchObject({ homeLat: -33.87, homeLng: -87.63 })
+  })
+
+  test('refuses a latitude past 90 before any request', async () => {
+    const { api, user } = setup(makeProfile())
+    await loaded()
+    await type(user, 'Home latitude', '95')
+    await user.click(screen.getByRole('button', { name: 'Save profile' }))
+    expect(await screen.findByText(/Enter a latitude from/)).toBeVisible()
+    expect(puts(api)).toHaveLength(0)
+  })
+
   test('saves edited numbers, pace and selects with a full profile body', async () => {
     const { api, user } = setup(makeProfile())
     await loaded()

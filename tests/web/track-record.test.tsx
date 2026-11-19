@@ -456,6 +456,8 @@ describe('The result sheet', () => {
     expect(within(outcome).getByRole('radio', { name: 'Finished' })).toHaveFocus()
     const time = within(dialog).getByLabelText('Finish time (h:mm:ss)')
     expect(time).toHaveValue('')
+    // The time needs a colon, which the iPhone number pad has not got.
+    expect(time).toHaveAttribute('inputmode', 'text')
     expect(time).toHaveAccessibleDescription('Official time as h:mm:ss, like 3:52:10.')
     expect(within(dialog).getByLabelText('Race date')).toHaveValue(raceDay)
     expect(within(dialog).getByLabelText('Distance (mi)')).toHaveValue('13.11')

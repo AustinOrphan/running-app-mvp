@@ -38,6 +38,8 @@ import { formatLongDate } from '../components/format.ts'
 import {
   blankToNull,
   distanceInputText,
+  LATITUDE_REFUSAL,
+  LONGITUDE_REFUSAL,
   parseCoordinate,
   parseDistance,
   parseMetres,
@@ -248,9 +250,9 @@ function GoalSheet({ goal, units, onClose }: GoalFormProps) {
       }
     }
     const lat = raceLat.trim() === '' ? null : parseCoordinate(raceLat, 90)
-    if (raceLat.trim() !== '' && lat === null) local.raceLat = 'Enter a latitude like 46.81.'
+    if (raceLat.trim() !== '' && lat === null) local.raceLat = LATITUDE_REFUSAL
     const lng = raceLng.trim() === '' ? null : parseCoordinate(raceLng, 180)
-    if (raceLng.trim() !== '' && lng === null) local.raceLng = 'Enter a longitude like 8.23.'
+    if (raceLng.trim() !== '' && lng === null) local.raceLng = LONGITUDE_REFUSAL
     setErrors(local)
     setFormError(null)
     if (Object.keys(local).length > 0) return
@@ -407,7 +409,9 @@ function GoalSheet({ goal, units, onClose }: GoalFormProps) {
             {(a) => (
               <Input
                 {...a}
-                inputMode="numeric"
+                // the time needs a colon, which the number pad has not got
+                inputMode="text"
+                autoComplete="off"
                 value={targetTime}
                 onChange={(e) => {
                   setTargetTime(e.target.value)
@@ -491,7 +495,9 @@ function GoalSheet({ goal, units, onClose }: GoalFormProps) {
             <Input
               {...a}
               ref={raceLatRef}
-              inputMode="decimal"
+              // south is negative, and a decimal keypad has no minus
+              inputMode="text"
+              autoComplete="off"
               value={raceLat}
               onChange={(e) => {
                 setRaceLat(e.target.value)
@@ -503,7 +509,9 @@ function GoalSheet({ goal, units, onClose }: GoalFormProps) {
           {(a) => (
             <Input
               {...a}
-              inputMode="decimal"
+              // west is negative, and a decimal keypad has no minus
+              inputMode="text"
+              autoComplete="off"
               value={raceLng}
               onChange={(e) => {
                 setRaceLng(e.target.value)

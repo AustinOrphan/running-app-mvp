@@ -315,7 +315,9 @@ function Editor({ plan, units, rows, course, onClose }: EditorProps) {
                   {(a) => (
                     <Input
                       {...a}
-                      inputMode="numeric"
+                      // the cutoff needs a colon, which the number pad has not got
+                      inputMode="text"
+                      autoComplete="off"
                       placeholder="9:30"
                       value={draft.cutoff}
                       onChange={(e) => {
