@@ -18,6 +18,7 @@ import {
   moveConfirmedLogs,
   rematchDuplicates,
   releaseDuplicatesOf,
+  repairAfterDelete,
 } from '../services/duplicates.ts'
 import { assessSessionsQuietly, runExecutionQuietly } from '../services/execution.ts'
 import { loadGlyphs } from '../services/glyphs.ts'
@@ -419,8 +420,9 @@ export function activitiesRouter(deps: Deps): Router {
   router.delete('/:id', async (req, res) => {
     const id = idParam(req.params.id)
     await findOwned(req.userId, id)
-    await releaseDuplicatesOf(prisma, req.userId, id)
+    const released = await releaseDuplicatesOf(prisma, req.userId, id)
     await prisma.activity.delete({ where: { id, userId: req.userId } })
+    await repairAfterDelete(prisma, req.userId, released)
     res.status(204).end()
   })
 

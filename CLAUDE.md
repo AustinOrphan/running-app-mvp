@@ -156,7 +156,7 @@ protection reads. The Docker image must still build (`docker build .`) after a c
   `manual`, no start instant) holds the plan's minutes, so `matchStrength` pairs it with a device session
   on the same date whatever the durations, and an edit of its duration neither resets nor rematches. The
   pairing itself runs on save (`createManualActivity`), on import (`storeParsed`, the file import route)
-  and on edit (`rematchDuplicates`), whichever copy arrives second. There is no job: one start pass
+  on edit (`rematchDuplicates`) and on the delete of an original (`repairAfterDelete`), whichever copy arrives second. There is no job: one start pass
   (`pairLoggedStrengthAtStart` in `server/index.ts`, over `pairLoggedStrength` in
   `server/services/duplicates.ts`) offers the pairing to app logs saved before the rule, running
   `markDuplicates` over manual strength activities with no start that hold a strength log and have status

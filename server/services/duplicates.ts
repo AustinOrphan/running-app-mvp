@@ -312,12 +312,22 @@ export async function pairLoggedStrengthAtStart(
   log: { info: (obj: object, msg: string) => void; warn: (obj: object, msg: string) => void },
 ): Promise<number> {
   let flagged = 0
+  let users: { id: string }[]
   try {
-    const users = await prisma.user.findMany({ select: { id: true } })
-    for (const user of users) flagged += await pairLoggedStrength(prisma, user.id)
+    users = await prisma.user.findMany({ select: { id: true } })
   } catch (error) {
     log.warn({ reason: safeMessage(error) }, 'strength pairing at start failed')
-    return flagged
+    return 0
+  }
+  for (const user of users) {
+    try {
+      flagged += await pairLoggedStrength(prisma, user.id)
+    } catch (error) {
+      log.warn(
+        { reason: safeMessage(error), userId: user.id },
+        'strength pairing at start failed for a user',
+      )
+    }
   }
   if (flagged > 0) log.info({ flagged }, 'strength sessions flagged as possible duplicates')
   return flagged
@@ -345,14 +355,28 @@ export async function releaseDuplicates(
 
 /**
  * Rows flagged `possible` or `confirmed` as duplicates of this activity go back to `none`, so
- * their totals recover when the original is deleted.
+ * their totals recover when the original is deleted. A dismissed row is not selected. Returns the
+ * released ids, which the caller offers to `markDuplicates` once the original is gone
+ * (`repairAfterDelete`).
  */
 export async function releaseDuplicatesOf(
   prisma: PrismaClient,
   userId: string,
   activityId: string,
+): Promise<string[]> {
+  return releaseDuplicates(prisma, userId, activityId, ['possible', 'confirmed'])
+}
+
+/**
+ * Offers the rows released by a delete a new partner (`markDuplicates`), so an app log pairs with
+ * a remaining device copy of its day at once. Call after the original's row is deleted.
+ */
+export async function repairAfterDelete(
+  prisma: Pick<PrismaClient, 'activity' | 'fuelLog' | 'strengthLog' | 'planSession'>,
+  userId: string,
+  releasedIds: string[],
 ): Promise<void> {
-  await releaseDuplicates(prisma, userId, activityId, ['possible', 'confirmed'])
+  if (releasedIds.length > 0) await markDuplicates(prisma, userId, releasedIds)
 }
 
 /**
