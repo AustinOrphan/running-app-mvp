@@ -566,6 +566,64 @@ describe(
       expect(day.tz).toBe(secondDay.tz)
     })
 
+    // Plain `Promise.all` lets the slot claim first, so the bad orders are forced: the first read of
+    // a plan revision (the week check) is held open until the other flow has run.
+    async function withHeldWeekCheck(
+      during: (reached: Promise<void>, release: () => void) => Promise<void>,
+    ): Promise<void> {
+      let release!: () => void
+      const gate = new Promise<void>((resolve) => (release = resolve))
+      let reached!: () => void
+      const reachedFirst = new Promise<void>((resolve) => (reached = resolve))
+      const original = ctx.prisma.planRevision.findFirst.bind(ctx.prisma.planRevision)
+      let held = false
+      const spy = vi.spyOn(ctx.prisma.planRevision, 'findFirst').mockImplementation(((
+        args: unknown,
+      ) => {
+        if (held) return original(args as never)
+        held = true
+        return (async () => {
+          const found = await original(args as never)
+          reached()
+          await gate
+          return found
+        })()
+      }) as never)
+      try {
+        await during(reachedFirst, release)
+      } finally {
+        release()
+        spy.mockRestore()
+      }
+    }
+
+    test('interleaved flows for one runner make one weekly revision', async () => {
+      // The catch-up lists the runner as due and waits; the slot then makes the update; the
+      // catch-up resumes and must see it.
+      const first = await planFor()
+      replanWritesARevision()
+      await withHeldWeekCheck(async (reached, release) => {
+        const catchUp = runReplanJob(deps(), { catchUp: true, userIds: [first.user.id] })
+        await reached
+        await runReplanJob(deps(), { userIds: [first.user.id] })
+        expect(await weeklyRevisions(first.planId)).toBe(1)
+        release()
+        await catchUp
+      })
+      expect(await weeklyRevisions(first.planId)).toBe(1)
+
+      // The slot passes its week check and waits; a whole catch-up runs; the slot resumes.
+      const second = await planFor()
+      await withHeldWeekCheck(async (reached, release) => {
+        const slot = runReplanJob(deps(), { userIds: [second.user.id] })
+        await reached
+        await runReplanJob(deps(), { catchUp: true, userIds: [second.user.id] })
+        release()
+        await slot
+      })
+      expect(await weeklyRevisions(second.planId)).toBe(1)
+    })
+
     test('the 03:00 slot failing arms the retry, which runs after WEEKLY_RETRY_MS', async () => {
       const { user } = await planFor()
       fakeClock()
