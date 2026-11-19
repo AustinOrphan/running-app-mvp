@@ -3,8 +3,8 @@
 Status: Proposed 2026-11-18
 
 Builds on ADR 0009 (athlete state is read through memos keyed by the data version) and ADR 0012
-(offline). The plan with the per-job analysis is `polls-plan.json` (job tmp, 2026-11-18), produced
-read-only from `main` at 23bbd492; every file and line below is from that read.
+(offline). The per-job analysis is a read-only analysis of each job, kept outside the repository
+(2026-11-18), produced from `main` at 23bbd492; every file and line below is from that read.
 
 ## Context
 
