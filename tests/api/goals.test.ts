@@ -785,6 +785,27 @@ describe('POST /api/plan/archived/:id/restore', () => {
     expect(archived).toMatchObject([{ id: switched!.id, goalId: tenK.id, restorable: true }])
   })
 
+  test('a week with no update yet is made at the restore, not at the next start', async () => {
+    const { who, tenK, plan } = await runnerWithPlan()
+    await activate(who, tenK.id, { replacePlan: true })
+    // The restored plan is older than this week's Monday slot and the week has no weekly revision.
+    await ctx.prisma.plan.update({
+      where: { id: plan.id },
+      data: { createdAt: new Date(2026, 9, 5) },
+    })
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date(2026, 9, 21, 12))
+    try {
+      expect((await restore(who, plan.id)).status).toBe(200)
+    } finally {
+      vi.useRealTimers()
+    }
+    const runs = await ctx.prisma.syncRun.count({
+      where: { userId: who.id, provider: 'replan', trigger: 'catchup' },
+    })
+    expect(runs).toBe(1)
+  })
+
   test('answers 409 for a finished goal, a passed race date, an older plan and the active plan', async () => {
     const { who, half, tenK, plan } = await runnerWithPlan()
     expect((await restore(who, plan.id)).status).toBe(409)

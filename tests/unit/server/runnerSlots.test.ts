@@ -28,8 +28,10 @@ describe('dueRunners', () => {
   ]
 
   test('the Monday slot is due for the runners whose own clock is past Monday 03:00', () => {
+    // Los Angeles is still on Sunday evening: it is due for the week of the Monday before.
     expect(dueRunners(now, runners, NONE, REPLAN_SLOT)).toEqual([
       { userId: 'berlin', date: '2026-10-19' },
+      { userId: 'la', date: '2026-10-12' },
       { userId: 'kiritimati', date: '2026-10-19' },
       { userId: 'kolkata', date: '2026-10-19' },
     ])
@@ -59,6 +61,7 @@ describe('dueRunners', () => {
   test('a runner whose slot already ran that local date is not due again, the next date is', () => {
     const last = new Map([
       ['berlin', '2026-10-19'],
+      ['la', '2026-10-12'],
       ['kolkata', '2026-10-12'],
     ])
     expect(dueRunners(now, runners, last, REPLAN_SLOT).map((d) => d.userId)).toEqual([
@@ -72,7 +75,9 @@ describe('dueRunners', () => {
       dueRunners(now, runners, NONE, REPLAN_SLOT).map((d) => [d.userId, d.date] as const),
     )
     expect(dueRunners(now, runners, seed, REPLAN_SLOT)).toEqual([])
-    expect(dueRunners(utc('2026-10-26T03:30:00'), runners, seed, REPLAN_SLOT)).toHaveLength(3)
+    // A week later every runner is due for the new Monday (Los Angeles is still on its Sunday, so
+    // it is due only for the Monday it has not run).
+    expect(dueRunners(utc('2026-10-26T03:30:00'), runners, seed, REPLAN_SLOT)).toHaveLength(4)
   })
 
   test('a runner first seen after the slot has run for that day, one seen before it has not', () => {
@@ -117,6 +122,51 @@ describe('dueRunners', () => {
     expect(dueRunners(utc('2026-10-18T15:59:00'), howe, NONE, REPLAN_SLOT)).toEqual([])
     expect(dueRunners(utc('2026-10-18T16:00:00'), howe, NONE, REPLAN_SLOT)).toEqual([
       { userId: 'howe', date: '2026-10-19' },
+    ])
+  })
+})
+
+describe('dueRunners, a slot with a weekday is due for the whole week', () => {
+  const berlin = [{ userId: 'berlin', tz: 'Europe/Berlin' }]
+
+  test('on Tuesday it is due with the Monday date, once, when last lacks this Monday', () => {
+    // Tuesday 2026-10-20 10:00 UTC is Tuesday 12:00 in Berlin.
+    const tuesday = utc('2026-10-20T10:00:00')
+    expect(dueRunners(tuesday, berlin, NONE, REPLAN_SLOT)).toEqual([
+      { userId: 'berlin', date: '2026-10-19' },
+    ])
+    expect(dueRunners(tuesday, berlin, new Map([['berlin', '2026-10-19']]), REPLAN_SLOT)).toEqual(
+      [],
+    )
+    expect(dueRunners(tuesday, berlin, new Map([['berlin', '2026-10-12']]), REPLAN_SLOT)).toEqual([
+      { userId: 'berlin', date: '2026-10-19' },
+    ])
+  })
+
+  test('Sunday 23:59 still belongs to the Monday before it, and Monday 02:59 to none yet', () => {
+    // Sunday 2026-10-25 21:59 UTC is 23:59 in Berlin (UTC+1 after the fall-back).
+    expect(dueRunners(utc('2026-10-25T22:59:00'), berlin, NONE, REPLAN_SLOT)).toEqual([
+      { userId: 'berlin', date: '2026-10-19' },
+    ])
+    // Monday 2026-10-19 00:59 UTC is 02:59 in Berlin (UTC+2).
+    expect(dueRunners(utc('2026-10-19T00:59:00'), berlin, NONE, REPLAN_SLOT)).toEqual([])
+  })
+
+  test('a start on Wednesday seeds Monday, so the slot does not run at the next check', () => {
+    const state = newSlotState()
+    const runner = { userId: 'berlin', tz: 'Europe/Berlin', since: utc('2026-10-01T00:00:00') }
+    const wednesday = utc('2026-10-21T10:00:00')
+    expect(dueAtCheck(state, wednesday, [runner], REPLAN_SLOT, true)).toEqual([])
+    expect(state.last.get('berlin')).toBe('2026-10-19')
+    expect(dueAtCheck(state, utc('2026-10-21T10:10:00'), [runner], REPLAN_SLOT, false)).toEqual([])
+  })
+
+  test('a runner first seen mid-week with a plan older than the slot is due', () => {
+    const state = newSlotState()
+    dueAtCheck(state, utc('2026-10-21T09:00:00'), [], REPLAN_SLOT, true)
+    const runner = { userId: 'berlin', tz: 'Europe/Berlin', since: utc('2026-10-14T00:00:00') }
+    expect(dueAtCheck(state, utc('2026-10-21T10:00:00'), [runner], REPLAN_SLOT, false)).toEqual([
+      { userId: 'berlin', date: '2026-10-19' },
     ])
   })
 })

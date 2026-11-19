@@ -1,5 +1,5 @@
 import { basename } from 'node:path'
-import { clockInZone, instantAtWallTime, todayIso } from '../../shared/dates.ts'
+import { clockInZone, instantAtWallTime, isoDateInZone, todayIso } from '../../shared/dates.ts'
 import { runnerDays, type RunnerDay } from '../runnerDay.ts'
 import { FOLDER_SCAN_MINUTES } from '../../shared/limits.ts'
 import type { SyncStatus, SyncTrigger } from '../../shared/types.ts'
@@ -37,6 +37,7 @@ import { refreshWeatherCaches } from '../services/weatherCache.ts'
 import {
   REPLAN_SLOT,
   usersDueForWeeklyUpdate,
+  weekSlotStart,
   weekUpdated,
   type DailySlot,
 } from './weeklyUpdate.ts'
@@ -47,8 +48,8 @@ const MINUTE_MS = 60_000
 export const SYNC_INTERVAL_MS = 60 * MINUTE_MS
 export const FOLDER_INTERVAL_MS = FOLDER_SCAN_MINUTES * MINUTE_MS
 export const WEATHER_INTERVAL_MS = 10 * MINUTE_MS
-/** How often the weekly catch-up looks for a plan whose Monday update never ran. */
-export const CATCHUP_INTERVAL_MS = 6 * 60 * MINUTE_MS
+/** How long after a failed weekly re-plan the one retry runs (armed by the failure, ADR 0026). */
+export const WEEKLY_RETRY_MS = 6 * 60 * MINUTE_MS
 /** How often the weekly prediction job looks for a week that has no logged prediction. */
 export const PREDICTION_INTERVAL_MS = 6 * 60 * MINUTE_MS
 /** How often the publisher checks whether a runner's calendar is due (design 6.8). */
@@ -649,20 +650,27 @@ const replanning = new Set<string>()
  *
  * With `catchUp`, only the plans whose weekly update is due (see `usersDueForWeeklyUpdate`) are
  * re-planned and the runs are recorded with trigger `catchup`: a server that was down at 03:00 on
- * Monday still makes the week's update when it comes back (ADR 0007). A failed catch-up waits for
- * the next tick. A user whose re-plan is already running is skipped and records nothing.
+ * Monday still makes the week's update when it comes back (ADR 0007). The runners whose re-plan
+ * threw come back in `failed`; the caller arms the one retry (`armWeeklyRetry`). A user whose
+ * re-plan is already running is skipped and records nothing.
  */
 export async function runReplanJob(
   deps: Deps,
   opts: { catchUp?: boolean } & RunnerJobOptions = {},
   log?: Log,
-): Promise<void> {
+): Promise<{ failed: string[] }> {
   const now = opts.now ?? new Date()
+  const failed: string[] = []
   let users: string[]
   if (opts.catchUp) {
-    const everyone = await runnerDays(deps.prisma, now)
+    const everyone = await runnerDays(
+      deps.prisma,
+      now,
+      opts.userIds === undefined ? undefined : [...opts.userIds],
+    )
     const days = new Map([...everyone, ...(opts.days ?? [])])
-    users = await usersDueForWeeklyUpdate(deps.prisma, now, undefined, days)
+    const only = opts.userIds?.length === 1 ? opts.userIds[0] : undefined
+    users = await usersDueForWeeklyUpdate(deps.prisma, now, only, days)
   } else {
     users = await activePlanUsers(deps.prisma)
   }
@@ -689,6 +697,7 @@ export async function runReplanJob(
       } catch (error) {
         // A plan that fails its checklist or whose goal has passed stays as it is.
         outcome ??= { failure: error }
+        failed.push(userId)
         log?.warn({ reason: safeMessage(error), userId }, 'weekly re-plan failed')
         await recordJob(deps, 'replan', userId, startedAt, { trigger, error })
       }
@@ -698,6 +707,24 @@ export async function runReplanJob(
     } finally {
       replanning.delete(userId)
     }
+  }
+  return { failed }
+}
+
+/**
+ * The owner writes that can make a week owed (a restored plan, a goal date moved off a passed one)
+ * call this after the write: the weekly update for that runner if it is due, nothing otherwise.
+ * Best effort: the write has succeeded, so a failure is logged and goes no further.
+ */
+export async function catchUpWeekFor(deps: Deps, userId: string, day: RunnerDay): Promise<void> {
+  try {
+    await runReplanJob(
+      deps,
+      { catchUp: true, userIds: [userId], days: new Map([[userId, day]]) },
+      createLogger(deps.config),
+    )
+  } catch (error) {
+    createLogger(deps.config).warn({ reason: safeMessage(error), userId }, 'weekly catch-up failed')
   }
 }
 
@@ -731,8 +758,9 @@ export function dueSlot(now: Date, last: string | null, slot: DailySlot): string
 
 /**
  * The runners whose `slot` is due at `now`, each with the local date of the slot (D10, ADR 0022).
- * A runner is due when the wall clock of the runner's zone is on the slot's weekday, at or past its
- * minute, and the slot's date is not the one in `last` (the date the runner's slot last ran). Pure:
+ * A runner is due when the wall clock of the runner's zone is at or past the slot's minute (a slot
+ * with a weekday: at or past its occurrence in the current Monday-based week, on any later day of
+ * it) and the slot's date is not the one in `last` (the date the runner's slot last ran). Pure:
  * the clock is `now` and the zones are the runners'. On a spring-forward night the slot is due at
  * the first check after the skipped wall time; on a fall-back night the date in `last` stops a
  * repeat.
@@ -745,8 +773,18 @@ export function dueRunners(
 ): Array<{ userId: string; date: string }> {
   const due: Array<{ userId: string; date: string }> = []
   for (const { userId, tz } of runners) {
+    if (slot.weekday !== undefined) {
+      // A weekday slot is due for the whole week, not only on its day, so a host suspended through
+      // Monday or a zone jump past it still makes the update (the date is the slot's own day).
+      // `weekAlreadyUpdated` stops a second update.
+      const start = weekSlotStart(now, { ...slot, weekday: slot.weekday }, tz)
+      if (start === null) continue
+      const date = isoDateInZone(start, tz)
+      if (last.get(userId) === date) continue
+      due.push({ userId, date })
+      continue
+    }
     const clock = clockInZone(now, tz)
-    if (slot.weekday !== undefined && clock.weekday !== slot.weekday) continue
     if (clock.minute < slot.hour * 60 + slot.minute) continue
     if (last.get(userId) === clock.date) continue
     due.push({ userId, date: clock.date })
@@ -827,7 +865,8 @@ export const PUBLISH_MORNING_SLOT: DailySlot = { hour: 4, minute: 45 }
  * backfill, a start pass 30 s after start for the terrain bins and the heart-rate quality (ADR
  * 0026; edits and imports fill them as they happen), the daily database
  * backup (02:00 local), the nightly matching (02:30 local), the Monday re-plan (03:00 local) and
- * its catch-up, the daily Strava check (03:30 local), and the weekly prediction log (each 30 s after start, then every 6 hours), the
+ * its catch-up (once 30 s after start, then one retry 6 hours after a failure), the daily Strava
+ * check (03:30 local), and the weekly prediction log (each 30 s after start, then every 6 hours), the
  * publisher's 2-minute check and its forced 04:45 run; returns `stop()`.
  * A job never overlaps itself: a tick that finds its previous run still going does nothing.
  * Called from `server/index.ts` only, never in tests.
@@ -995,11 +1034,44 @@ export function startScheduler(deps: Deps, opts: { fetch: typeof fetch }): () =>
   dailyPerRunner('matching', MATCHING_SLOT, planUsers, (userIds, days) =>
     runMatchingJob(deps, { userIds, days }, log),
   )
+  // One retry at most is pending: a failed weekly re-plan (a stale-write 409, a busy database, a
+  // checklist 422) may clear with time, and no event announces it. Armed only by a failure, so a
+  // week with nothing owed has no timer (ADR 0026). The route hooks (restore, goal date) do not
+  // arm it: their failure shows on Today and the next start or Monday makes the update.
+  let weeklyRetry: NodeJS.Timeout | null = null
+  const armWeeklyRetry = (): void => {
+    if (stopped || weeklyRetry !== null) return
+    const timer = setTimeout(() => {
+      weeklyRetry = null
+      timers.delete(timer)
+      if (!stopped) void weeklyCatchUp()
+    }, WEEKLY_RETRY_MS)
+    timer.unref()
+    weeklyRetry = timer
+    timers.add(timer)
+  }
+  /** Runs a weekly re-plan job and arms the retry when a runner failed or the job rejected. */
+  const armOnFailure = async (
+    name: string,
+    run: () => Promise<{ failed: string[] }>,
+  ): Promise<void> => {
+    try {
+      const { failed } = await run()
+      if (failed.length > 0) armWeeklyRetry()
+    } catch (error) {
+      // Rejected before the per-user catch (listing the plans or the days): nothing was recorded.
+      log.error({ err: error, job: name }, 'scheduled job failed')
+      armWeeklyRetry()
+    }
+  }
+  const weeklyCatchUp = (): Promise<void> =>
+    armOnFailure('replan-catchup', () => runReplanJob(deps, { catchUp: true }, log))
   dailyPerRunner('replan', REPLAN_SLOT, planUsers, (userIds, days) =>
-    runReplanJob(deps, { userIds, days }, log),
+    armOnFailure('replan', () => runReplanJob(deps, { userIds, days }, log)),
   )
-  // The daily slot is seeded at start, so a restart after 03:00 on Monday would skip the week.
-  every('replan-catchup', CATCHUP_INTERVAL_MS, () => runReplanJob(deps, { catchUp: true }, log))
+  // The slot is seeded at start, so a restart after 03:00 on Monday would skip the week: one
+  // catch-up after the first-run delay, off the start-up path.
+  once('replan-catchup', weeklyCatchUp)
   every('predictions', PREDICTION_INTERVAL_MS, () => runPredictionJob(deps, {}, log))
   every('publish', PUBLISH_INTERVAL_MS, () => runPublishJob(deps, opts, log))
   dailyPerRunner(
