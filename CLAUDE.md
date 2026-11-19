@@ -160,7 +160,7 @@ protection reads. The Docker image must still build (`docker build .`) after a c
   start pass 30 s after each start (`backfillTerrainBins`, `server/services/terrainBackfill.ts`) fills
   runs imported before the column and recomputes bins of another shape (`terrainShapePrefix`: version,
   window, edges, `c9.walkingFloorMps`), 20 per transaction, idempotent, recording a `terrain` job run
-  (trigger `catchup`; `partial` when a stored stream is unreadable) only when it did something. No timer.
+  (trigger `catchup`; `partial` when a stored stream is unreadable) only when it did something, or on a user's first run or after a non-ok one. No timer.
   Null means not computed; a run with nothing to read (no altitude,
   or under 2 m of it) stores all-zero bins. The list read omits the column.
 - Strength pairing: an app-logged strength session (`isAppLoggedStrength`, `shared/domain/duplicates.ts`:

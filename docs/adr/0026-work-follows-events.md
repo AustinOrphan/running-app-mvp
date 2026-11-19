@@ -64,9 +64,8 @@ null`, and `STALE` for hr-quality compared only `th`; a change to `TERRAIN_BINS_
   drops runs with a stale shape.
 - **Fact (SP2, #796, 2026-11-18).** `pairLoggedStrengthAtStart` showed that a pass at start with the
   event hooks already in place replaces a poll without losing a case.
-- **Rule (CLAUDE.md, Providers and Conventions, and the project memory note
-  `feedback-events-over-polling`).** A scheduler job is checked against the events that already run
-  its logic before it is added.
+- **Rule (CLAUDE.md, Providers, "Work follows events", added with this decision).** A scheduler job
+  is checked against the events that already run its logic before it is added.
 - **Opinion.** A one-time need on a timer wastes work (about 288 ticks a day per job to find nothing)
   and hides the real trigger path, which is where a future writer of the column must hook in.
 - **Opinion.** The start pass runs in the same process 30 s after start rather than as a migration
@@ -95,7 +94,8 @@ null`, and `STALE` for hr-quality compared only `th`; a change to `TERRAIN_BINS_
   hr-quality batch decodes up to 20 FIT originals synchronously, as one tick did. While the pass runs,
   the grade curve thins.
 - **The data version rises about N/20 times** during a large pass (every `$transaction` raises it).
-- **The job log changes.** `terrain` and `hr-quality` runs appear once per start and after edits; their
-  age is not a liveness signal. Nothing on screen reads them.
+- **The job log changes.** `terrain` and `hr-quality` runs come from the start pass only (an edit records
+  no run). An idle pass stores nothing after an ok run, and does store one on a user's first run or
+  after a non-ok run; the age of the last run is not a liveness signal. Nothing on screen reads them.
 - **Not verified:** the live copy's terrain bins and quality summaries (the live database was not
   read), so whether the first start recomputes anything is unknown.
