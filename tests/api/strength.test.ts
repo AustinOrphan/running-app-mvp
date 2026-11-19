@@ -1366,6 +1366,17 @@ describe('a strength session entered by hand and imported too', () => {
     })
   })
 
+  test('a log saved first and an export of another length imported second are a possible duplicate', async () => {
+    const user = await newUser()
+    const saved = await putLog(user, uuid(135), logBody({ durationMin: 40 }))
+    const copyId = resultOf(saved).activity.id
+    const originalId = await importStrength(user, { elapsedSec: 2754 }, 'intervals')
+    expect(await reloadActivity(copyId)).toMatchObject({
+      duplicateStatus: 'possible',
+      duplicateOfId: originalId,
+    })
+  })
+
   test('editing a hand-typed strength activity on the same day keeps it paired', async () => {
     const user = await newUser()
     const originalId = await importStrength(user, { elapsedSec: 2700 })

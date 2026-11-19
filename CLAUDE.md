@@ -155,12 +155,13 @@ protection reads. The Docker image must still build (`docker build .`) after a c
 - Strength pairing: an app-logged strength session (`isAppLoggedStrength`, `shared/domain/duplicates.ts`:
   `manual`, no start instant) holds the plan's minutes, so `matchStrength` pairs it with a device session
   on the same date whatever the durations, and an edit of its duration neither resets nor rematches. The
-  `strength-pair` job (`runStrengthPairJob`, every 5 minutes, `pairLoggedStrength` in
-  `server/services/duplicates.ts`) runs `markDuplicates` over manual strength activities with no start that
-  hold a strength log and have status `none`; it never selects a `possible`, `confirmed` or `dismissed` row
-  or a run. It records a `strength-pair` job run (`accepted` the rows flagged) through
-  `recordSyncRunUnlessIdle`, so an idle tick stores a run only when the newest is not `ok`; a failure
-  is an `error` run.
+  pairing itself runs on save (`createManualActivity`), on import (`storeParsed`, the file import route)
+  and on edit (`rematchDuplicates`), whichever copy arrives second. There is no job: one start pass
+  (`pairLoggedStrengthAtStart` in `server/index.ts`, over `pairLoggedStrength` in
+  `server/services/duplicates.ts`) offers the pairing to app logs saved before the rule, running
+  `markDuplicates` over manual strength activities with no start that hold a strength log and have status
+  `none`; it never selects a `possible`, `confirmed` or `dismissed` row or a run. It records no job run,
+  logs one line with the count when it flags something, and a failure logs a warning and never blocks start.
 - Trail and road (M1d): the runner's one OpenStreetMap download. `POST /api/map-area`
   (`server/routes/mapArea.ts`, `server/services/mapArea.ts`) sends Overpass (`ctx`-style, through
   `Deps.fetch`) only the box from `mapAreaBox` (`shared/domain/mapArea.ts`: the stored tracks' centres, the
