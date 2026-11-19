@@ -1366,6 +1366,46 @@ describe('a strength session entered by hand and imported too', () => {
     })
   })
 
+  test('a log saved first and an export of another length imported second are a possible duplicate', async () => {
+    const user = await newUser()
+    const saved = await putLog(user, uuid(135), logBody({ durationMin: 40 }))
+    const copyId = resultOf(saved).activity.id
+    const originalId = await importStrength(user, { elapsedSec: 2754 }, 'intervals')
+    expect(await reloadActivity(copyId)).toMatchObject({
+      duplicateStatus: 'possible',
+      duplicateOfId: originalId,
+    })
+  })
+
+  test('deleting the device original re-pairs the app log with the remaining device copy at once', async () => {
+    const user = await newUser()
+    const saved = await putLog(user, uuid(136), logBody({ durationMin: 40 }))
+    const logId = resultOf(saved).activity.id
+    const d1 = await importStrength(user, { elapsedSec: 2754 }, 'intervals')
+    const d2 = await importStrength(user, { elapsedSec: 2760 }, 'file')
+    // The second import may take the pairing; the case is a log whose original is the first.
+    await ctx.prisma.activity.update({
+      where: { id: logId },
+      data: { duplicateStatus: 'possible', duplicateOfId: d1 },
+    })
+    expect((await client(ctx, user).delete(`/api/activities/${d1}`)).status).toBe(204)
+    expect(await reloadActivity(logId)).toMatchObject({
+      duplicateStatus: 'possible',
+      duplicateOfId: d2,
+    })
+  })
+
+  test('deleting the original leaves a dismissed log dismissed', async () => {
+    const user = await newUser()
+    const saved = await putLog(user, uuid(137), logBody({ durationMin: 40 }))
+    const logId = resultOf(saved).activity.id
+    const d1 = await importStrength(user, { elapsedSec: 2754 }, 'intervals')
+    await importStrength(user, { elapsedSec: 2760 }, 'file')
+    expect((await confirm(user, logId, 'dismissed')).status).toBe(200)
+    expect((await client(ctx, user).delete(`/api/activities/${d1}`)).status).toBe(204)
+    expect(await reloadActivity(logId)).toMatchObject({ duplicateStatus: 'dismissed' })
+  })
+
   test('editing a hand-typed strength activity on the same day keeps it paired', async () => {
     const user = await newUser()
     const originalId = await importStrength(user, { elapsedSec: 2700 })

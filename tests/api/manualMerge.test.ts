@@ -416,6 +416,21 @@ describe('separating a merged entry', () => {
     expect(await row(watch.id)).toMatchObject({ duplicateStatus: 'none', duplicateOfId: null })
   })
 
+  test('deleting the record of a hand-merged pair releases the copy and offers it to the rule again', async () => {
+    const app = await seed('strength', 'manual', { durationSec: 2400 })
+    const watch = await seed('strength', 'intervals', { durationSec: 2760 })
+    expect((await merge(app.id, watch.id)).status).toBe(200)
+    expect(await row(app.id)).toMatchObject({ mergedByHand: true, duplicateStatus: 'confirmed' })
+    const other = await seed('strength', 'file', { durationSec: 2700 })
+
+    expect((await client(ctx, user).delete(`/api/activities/${watch.id}`)).status).toBe(204)
+    expect(await row(app.id)).toMatchObject({
+      mergedByHand: false,
+      duplicateStatus: 'possible',
+      duplicateOfId: other.id,
+    })
+  })
+
   test('a log that moved stays on the record: the data model keeps no origin for it', async () => {
     const app = await seed('strength', 'manual')
     const watch = await seed('strength', 'intervals')

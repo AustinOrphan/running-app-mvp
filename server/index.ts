@@ -3,6 +3,7 @@ import { loadConfig, loadEnvFileIfPresent } from './config.ts'
 import { createPrisma, initSqlite } from './db.ts'
 import { startScheduler } from './jobs/scheduler.ts'
 import { createLogger } from './logger.ts'
+import { pairLoggedStrengthAtStart } from './services/duplicates.ts'
 import { installProcessErrorHandlers } from './processErrors.ts'
 import { describeZoneCutover, setUnknownZoneReporter, zoneCutoverReport } from './runnerDay.ts'
 import { logListening } from './version.ts'
@@ -25,6 +26,9 @@ try {
 } catch (error) {
   logger.warn({ err: error }, 'D10 zone report failed')
 }
+
+// SP2: app strength logs saved before the pairing rule met no device session; offered once here.
+await pairLoggedStrengthAtStart(prisma, logger)
 
 const deps = { prisma, config }
 const app = createApp(deps)

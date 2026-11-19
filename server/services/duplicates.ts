@@ -6,6 +6,7 @@ import {
   matchActivities,
   pickDuplicate,
 } from '../../shared/domain/duplicates.ts'
+import { safeMessage } from './syncLog.ts'
 import { compatible } from '../../shared/engine/execution.ts'
 import type { SessionKind } from '../../shared/engine/types.ts'
 import { mergeRefusal } from '../../shared/domain/manualMerge.ts'
@@ -274,8 +275,9 @@ export async function markDuplicates(
  * `markDuplicates`, which pairs it with a device session of its day (`matchStrength`). A row that is
  * `possible`, `confirmed` or `dismissed` is never selected, so a decision of the runner stands, and
  * a run is never selected. Idempotent: a row that finds no partner stays `none` and is read again
- * on the next call, which costs one query per row and writes nothing. Runs from the
- * `strength-pair` job. Returns how many rows were newly flagged.
+ * on the next call, which costs one query per row and writes nothing. Runs once at server start
+ * (`pairLoggedStrengthAtStart`); a log saved after the rule is paired on save, import and edit.
+ * Returns how many rows were newly flagged.
  */
 export async function pairLoggedStrength(
   prisma: Pick<PrismaClient, 'activity' | 'fuelLog' | 'strengthLog' | 'planSession'>,
@@ -301,6 +303,38 @@ export async function pairLoggedStrength(
 }
 
 /**
+ * The one start-up pass over every user (`pairLoggedStrength`): app logs saved before the rule
+ * "an app log's length is the plan's" are offered a pairing once. Nothing is recorded; a pass that
+ * flags rows logs one line with the count, and a failure logs a warning and returns, so it never
+ * blocks start. Returns the rows flagged.
+ */
+export async function pairLoggedStrengthAtStart(
+  prisma: Pick<PrismaClient, 'user' | 'activity' | 'fuelLog' | 'strengthLog' | 'planSession'>,
+  log: { info: (obj: object, msg: string) => void; warn: (obj: object, msg: string) => void },
+): Promise<number> {
+  let flagged = 0
+  let users: { id: string }[]
+  try {
+    users = await prisma.user.findMany({ select: { id: true } })
+  } catch (error) {
+    log.warn({ reason: safeMessage(error) }, 'strength pairing at start failed')
+    return 0
+  }
+  for (const user of users) {
+    try {
+      flagged += await pairLoggedStrength(prisma, user.id)
+    } catch (error) {
+      log.warn(
+        { reason: safeMessage(error), userId: user.id },
+        'strength pairing at start failed for a user',
+      )
+    }
+  }
+  if (flagged > 0) log.info({ flagged }, 'strength sessions flagged as possible duplicates')
+  return flagged
+}
+
+/**
  * Returns the rows flagged with one of `statuses` as duplicates of `activityId` to `none` with no
  * `duplicateOfId`, and gives back their ids.
  */
@@ -322,14 +356,28 @@ export async function releaseDuplicates(
 
 /**
  * Rows flagged `possible` or `confirmed` as duplicates of this activity go back to `none`, so
- * their totals recover when the original is deleted.
+ * their totals recover when the original is deleted. A dismissed row is not selected. Returns the
+ * released ids, which the caller offers to `markDuplicates` once the original is gone
+ * (`repairAfterDelete`).
  */
 export async function releaseDuplicatesOf(
   prisma: PrismaClient,
   userId: string,
   activityId: string,
+): Promise<string[]> {
+  return releaseDuplicates(prisma, userId, activityId, ['possible', 'confirmed'])
+}
+
+/**
+ * Offers the rows released by a delete a new partner (`markDuplicates`), so an app log pairs with
+ * a remaining device copy of its day at once. Call after the original's row is deleted.
+ */
+export async function repairAfterDelete(
+  prisma: Pick<PrismaClient, 'activity' | 'fuelLog' | 'strengthLog' | 'planSession'>,
+  userId: string,
+  releasedIds: string[],
 ): Promise<void> {
-  await releaseDuplicates(prisma, userId, activityId, ['possible', 'confirmed'])
+  if (releasedIds.length > 0) await markDuplicates(prisma, userId, releasedIds)
 }
 
 /**

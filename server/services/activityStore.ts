@@ -4,7 +4,13 @@ import type { Deps } from '../app.ts'
 import type { Activity as ActivityRow, PrismaClient } from '../db.ts'
 import { loadProfile } from '../serialize.ts'
 import { createLogger } from '../logger.ts'
-import { copyEffort, markDuplicates, moveConfirmedLogs, releaseDuplicatesOf } from './duplicates.ts'
+import {
+  copyEffort,
+  markDuplicates,
+  moveConfirmedLogs,
+  releaseDuplicatesOf,
+  repairAfterDelete,
+} from './duplicates.ts'
 import { assessSessionById, runExecutionForActivity, runExecutionQuietly } from './execution.ts'
 import { assertLinkable, linkPlanSession } from './planEngine.ts'
 import { conflict, notFound } from '../errors.ts'
@@ -780,8 +786,9 @@ export async function deleteActivities(
       await moveConfirmedLogs(prisma, userId, survivor.id)
       await carryRunnersData(prisma, userId, id, survivor.id)
     }
-    await releaseDuplicatesOf(prisma, userId, id)
+    const released = await releaseDuplicatesOf(prisma, userId, id)
     await prisma.activity.delete({ where: { id, userId } })
+    await repairAfterDelete(prisma, userId, released)
     removed += 1
   }
   return removed

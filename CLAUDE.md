@@ -155,12 +155,14 @@ protection reads. The Docker image must still build (`docker build .`) after a c
 - Strength pairing: an app-logged strength session (`isAppLoggedStrength`, `shared/domain/duplicates.ts`:
   `manual`, no start instant) holds the plan's minutes, so `matchStrength` pairs it with a device session
   on the same date whatever the durations, and an edit of its duration neither resets nor rematches. The
-  `strength-pair` job (`runStrengthPairJob`, every 5 minutes, `pairLoggedStrength` in
-  `server/services/duplicates.ts`) runs `markDuplicates` over manual strength activities with no start that
-  hold a strength log and have status `none`; it never selects a `possible`, `confirmed` or `dismissed` row
-  or a run. It records a `strength-pair` job run (`accepted` the rows flagged) through
-  `recordSyncRunUnlessIdle`, so an idle tick stores a run only when the newest is not `ok`; a failure
-  is an `error` run.
+  pairing itself runs on save (`createManualActivity`), on import (`storeParsed`, the file import route),
+  on edit (`rematchDuplicates`) and on the delete of an original (`repairAfterDelete`), whichever copy
+  arrives second. There is no job: one start pass
+  (`pairLoggedStrengthAtStart` in `server/index.ts`, over `pairLoggedStrength` in
+  `server/services/duplicates.ts`) offers the pairing to app logs saved before the rule, running
+  `markDuplicates` over manual strength activities with no start that hold a strength log and have status
+  `none`; it never selects a `possible`, `confirmed` or `dismissed` row or a run. It records no job run,
+  logs one line with the count when it flags something, and a failure logs a warning and never blocks start.
 - Manual merge (MM1): "Same session as…" on the activity page, `POST /api/activities/:id/merge` with
   `{ withId }` (`mergeActivities`, `server/services/manualMerge.ts`; candidates from
   `GET /:id/merge-candidates`). The pair is a run or race with a run or race, or a strength session with a
@@ -171,7 +173,9 @@ protection reads. The Docker image must still build (`docker build .`) after a c
   never matched: `releaseStaleConfirmed` skips it, and an edit of the copy keeps it unless the kind or the
   one-day window breaks (`handMergeSurvivesEdit`). Every write of another verdict clears the flag, and
   Separate is `POST /:id/duplicate` with `dismissed`, which the pass then leaves alone. Logs that moved are
-  not moved back: nothing records where a log came from.
+  not moved back: nothing records where a log came from. Deleting the original releases every copy,
+  hand-made ones too (`releaseDuplicatesOf`), and `repairAfterDelete` then offers each released copy to
+  the rule as an ordinary row.
 - Trail and road (M1d): the runner's one OpenStreetMap download. `POST /api/map-area`
   (`server/routes/mapArea.ts`, `server/services/mapArea.ts`) sends Overpass (`ctx`-style, through
   `Deps.fetch`) only the box from `mapAreaBox` (`shared/domain/mapArea.ts`: the stored tracks' centres, the
