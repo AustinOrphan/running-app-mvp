@@ -1,4 +1,4 @@
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test, vi } from 'vitest'
 import { parseActivityFile } from '../../shared/importers/files/index.ts'
 import { COURSE, courseFit } from '../fixtures/fit/terrainCourse.ts'
 import {
@@ -10,6 +10,29 @@ import {
   type TestCtx,
   type TestUser,
 } from './helpers.ts'
+
+// Passthrough wrappers that record the order of the two calls the edit route makes.
+const callOrder: string[] = []
+vi.mock('../../server/services/derivedColumns.ts', async (importOriginal) => {
+  const real = await importOriginal<typeof import('../../server/services/derivedColumns.ts')>()
+  return {
+    ...real,
+    refreshDerivedAfterEdit: (...args: Parameters<typeof real.refreshDerivedAfterEdit>) => {
+      callOrder.push('derived')
+      return real.refreshDerivedAfterEdit(...args)
+    },
+  }
+})
+vi.mock('../../server/services/execution.ts', async (importOriginal) => {
+  const real = await importOriginal<typeof import('../../server/services/execution.ts')>()
+  return {
+    ...real,
+    runExecutionQuietly: (...args: Parameters<typeof real.runExecutionQuietly>) => {
+      callOrder.push('execution')
+      return real.runExecutionQuietly(...args)
+    },
+  }
+})
 
 let ctx: TestCtx
 let user: TestUser
@@ -68,6 +91,13 @@ describe('PUT /api/activities/:id fills the columns derived from the stream', ()
     const after = await columns(id)
     expect(after.terrainBins).not.toBeNull()
     expect(after.hrQuality).not.toBeNull()
+  })
+
+  test('the columns are filled before the execution pass, which reads the quality summary', async () => {
+    const id = await storeAsCross()
+    callOrder.length = 0
+    expect((await edit(id, 'run')).status).toBe(200)
+    expect(callOrder).toEqual(['derived', 'execution'])
   })
 
   test('an edit that keeps the type writes nothing new', async () => {

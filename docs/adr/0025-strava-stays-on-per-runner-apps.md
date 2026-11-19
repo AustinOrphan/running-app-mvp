@@ -6,7 +6,7 @@ Supersedes the shared-registration decision of 2026-11-14 (`docs/STATUS.md`, ans
 the same file reopened on 2026-11-18. Builds on ADR 0006 (a pull provider takes its credentials from
 the runner's own `Integration` row). The number 0021 is taken by the proposed Apple Watch companion
 ADR (see ADR 0022); 0025 is the number the Strava design planned. The design that compared a shared
-application with the per-runner card is `sv1-strava-shared.md` (job tmp, 2026-11-18); its section 2
+application with the per-runner card is a design study, kept outside the repository (2026-11-18); its section on Strava's terms
 is the source of the Strava facts below, and every Strava page was fetched on 2026-11-18.
 
 ## Context

@@ -253,7 +253,7 @@ export async function runWeatherJob(
  * (M1d), one small batch per user per tick (`backfillSurfaceBins`). A user with no area costs one
  * read. A tick that fills something (or meets an unreadable track) records a `surface` run,
  * `accepted` the runs filled and `failed` the unreadable tracks (a `partial` run when there are any);
- * an idle tick is not stored. Idempotent and resumable like the terrain job. Never uses the network.
+ * an idle tick is not stored. Idempotent and resumable: filled runs are never selected again. Never uses the network.
  */
 export async function runSurfaceJob(deps: Deps, log?: Log): Promise<void> {
   const users = await deps.prisma.user.findMany({ select: { id: true } })
