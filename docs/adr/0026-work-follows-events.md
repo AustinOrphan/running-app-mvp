@@ -43,7 +43,8 @@ of another `HR_QUALITY_VERSION`, kept their stale shape while `gradeCurve.ts` dr
   - `sync`, hourly: the one poll of intervals.icu, which cannot notify the app.
   - `publish`, a 30-minute check of intervals.icu (`PUBLISH_BACKSTOP_MS`) and the forced 04:45 run:
     the remote calendar can lose an event, show a push error or change its sport settings without a
-    message to the app. The 2-minute tick that wakes the publisher is converted later.
+    message to the app. The 2-minute tick that woke the publisher is converted to events and wakes
+    (ADR 0008, addendum 2026-11-18).
   - `folder` (5 minutes), `weather` (10 minutes) and the daily slots (backup, matching, Monday
     re-plan, Strava check, publish-morning): an outside system, or a clock. The plan did not analyse
     `folder`, because file-system events are a different tool; it stays until it has its own analysis.
@@ -56,9 +57,10 @@ of another `HR_QUALITY_VERSION`, kept their stale shape while `gradeCurve.ts` dr
   for a restart after Monday 03:00, plus one retry armed only by a failure (`WEEKLY_RETRY_MS`, 6 h;
   a failed re-plan clears with time and sends no event). A weekday slot is due for the whole week,
   and a plan restore or a goal-date change runs the catch-up for that runner.
+- **`publish` is converted** (events and wakes after every run, ADR 0008 addendum 2026-11-18).
 - **Still to convert, in later changes:** the intervals.icu stream part of `track` (still the 5-minute
-  `track` job, streams only), `watch-rating` and `publish`'s 2-minute tick. Each appends its own pass
-  to the chain and removes its own interval.
+  `track` job, streams only) and `watch-rating`. Each appends its own pass to the chain and removes its
+  own interval.
 
 ## Reasons
 

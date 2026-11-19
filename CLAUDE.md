@@ -96,7 +96,11 @@ protection reads. The Docker image must still build (`docker build .`) after a c
   `buildDeliverables` (`server/services/workouts.ts`) is the one builder of what goes out: the
   intervals.icu events, the FIT files and the calendar feed render the same `WorkoutPlan`. The
   calendar feed is not a provider (a route behind a hashed token on `DeliveryChannel`, no registry
-  entry). How a session stands on its way to the watch is read only through `readWristItems`
+  entry). The publisher is event-driven (ADR 0008, addendum 2026-11-18): `startScheduler` alone
+  subscribes it to `onDataVersionChange`, `onForecastStored` and `wantPublish()` (a reconnect), runs
+  5 s after the last event (at most 2 minutes after the first of a burst) and arms one wake after every
+  run, whoever started it (`onPublisherRan`; `nextPublishWake`: pause end, retry, the 30-minute backstop for what intervals.icu cannot
+  announce, local midnight). A script's write is seen only at the backstop. How a session stands on its way to the watch is read only through `readWristItems`
   (`server/services/wristItems.ts`), for the Plan page, the settings, Today's `watch` slot and the
   health note about tomorrow's run alike; `WRIST_CHANNEL` there is the one place the channel name
   is written.
