@@ -38,7 +38,8 @@ import type {
   StrengthWorkout,
   WorkoutLift,
 } from '../types.ts'
-import { afterBreak, breakRestart, weekEvidence } from './adapt.ts'
+import { breakRestart, planStateOf, weekEvidence } from './adapt.ts'
+import { breakHeldBy, disruptionPlan } from './disruption.ts'
 import { bmiOf, csEffortsOf, durabilityRuns, efficiencySamples, hrAnchors } from './athlete.ts'
 import type { HrModel } from './execution.ts'
 import { feasibility, meanWeeklyKm, peakLongRunMin, trainingPace } from './goal.ts'
@@ -1465,9 +1466,16 @@ function breakFacts(scope: Scope): InputFact[] {
   if (lastRun === null) return [gap('J7', 'explain.j7-gap', {})]
   const facts = [lastRun]
   if (ctx.state.layoffDays >= P.j7.tier1Days.value) {
+    // While a hold of a reported window explains the break, its own restart is the one the plan
+    // applied (J9), not a second one read from the days since the last run.
+    const held = breakHeldBy(
+      disruptionPlan(ctx.input.disruptions ?? []),
+      ctx.state.lastRunDate,
+      ctx.asOf,
+    )
     facts.push(
       make('J7', 'restart', 'explain.j7-restart', {
-        share: share(breakRestart(ctx.state.layoffDays, 0).fraction),
+        share: share(held?.fraction ?? breakRestart(ctx.state.layoffDays, 0).fraction),
       }),
     )
   }
@@ -2402,7 +2410,8 @@ function floorFacts(scope: Scope): InputFact[] {
  * of the taper are read from the restart volume, as the generator reads them. The snapshot keeps
  * the runner's own typical week; `afterBreak` is pure and changes nothing else.
  */
-const planState = (ctx: ExplainContext): AthleteState => afterBreak(ctx.state)
+const planState = (ctx: ExplainContext): AthleteState =>
+  planStateOf(ctx.state, ctx.input.disruptions, ctx.asOf)
 
 const FEASIBILITY_WORDS: Readonly<Record<Feasibility['label'], string>> = {
   comfortable: 'comfortable',

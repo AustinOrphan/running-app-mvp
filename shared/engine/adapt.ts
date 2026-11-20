@@ -9,7 +9,13 @@ import { BREAK_SIGNAL, BREAK_SIGNAL_DETAIL } from '../copy/breakWeek.ts'
 import { aggregateWeeks } from '../domain/weeks.ts'
 import type { Activity } from '../types.ts'
 import { efficiencyIndex } from './athlete.ts'
-import { dayRulesIn, disruptionPlan, heldDates, restartFraction } from './disruption.ts'
+import {
+  breakHeldBy,
+  dayRulesIn,
+  disruptionPlan,
+  heldDates,
+  restartFraction,
+} from './disruption.ts'
 import { hasSubjectivePart } from './execution.ts'
 import { nextWeekCap } from './guards.ts'
 import { plannedMinOf, wholeMinutes, type RebuildZone } from './limits.ts'
@@ -30,6 +36,7 @@ import { firstHotDays, lastLoadingMin } from './heat.ts'
 import { isProgrammeWeek } from './startWeeks.ts'
 import type {
   AthleteState,
+  DisruptionWindow,
   EngineInput,
   ExecutionFindings,
   SessionKind,
@@ -817,6 +824,22 @@ export function afterBreak(state: AthleteState): AthleteState {
     typicalWeekMin: Math.min(state.typicalWeekMin, restart.restartMin),
     recentWeekMin: Math.min(state.recentWeekMin, restart.restartMin),
   }
+}
+
+/**
+ * The state a plan is drawn from: `afterBreak`, except while a hold of a reported window explains
+ * the days since the last run (`breakHeldBy`). J9 applies the J7 step-back once, as the restart of
+ * the hold, so the typical week is not cut for the same days again. The one place that decides it,
+ * read by `generate`, the checklist, Explain and the first action [rules J7, J9].
+ */
+export function planStateOf(
+  state: AthleteState,
+  disruptions: readonly DisruptionWindow[] | undefined,
+  today: string,
+): AthleteState {
+  return breakHeldBy(disruptionPlan(disruptions ?? []), state.lastRunDate, today) === undefined
+    ? afterBreak(state)
+    : state
 }
 
 /**
