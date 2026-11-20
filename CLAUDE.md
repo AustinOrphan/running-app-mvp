@@ -334,7 +334,10 @@ and CodeQL's `analyze` (not strict, no force push, not enforced for admins). The
   after it at the J7 share of the planned week, and `computeReplan` hands it to the engine as
   `EngineInput.breakWeek`: `planWeeks` draws that week as a loading week (flag `break-repeat`), `replanAnchor`
   starts from the planned figure, and `keepCadenceAcrossReplan` counts the loading weeks from it, so later
-  re-plans read the flag in the stored plan. Nothing else reads the predicate or sets the flag.
+  re-plans read the flag in the stored plan. `breakPartWeeks` (same file) is the one reader of the
+  stored flag: it lists the short week (the input's, and the week before each stored `break-repeat`
+  week) as a part week for the ramp contexts, the guards and the checklist. Nothing else reads the
+  predicate or sets the flag.
 - My paces (ADR 0020, rule C9) is derived on read and stored nowhere: `myPaces` and `eventRow`
   (`shared/engine/myPaces.ts`) over the snapshot and `hrModelOf`, the memo `paces.view` behind
   `GET /api/paces`, and the zones shown through `ZoneSummary`, the one rendering the Profile shares. A

@@ -9,6 +9,7 @@ import { HOLD_TRIM_RULE, isHoldTrim, isToRun, isTrimmed } from '../domain/sessio
 import type { AthleteProfile, PlanSessionStatus, Weekday } from '../types.ts'
 import { afterBreak, trimQuality } from './adapt.ts'
 import { estimateState } from './athlete.ts'
+import { breakPartWeeks } from './breakWeek.ts'
 import { runChecklist } from './checklist.ts'
 import {
   dayRuleOn,
@@ -695,11 +696,7 @@ function generate(
     skip,
     // the week that counts as the recovery week is a part week too: the repeat is measured against
     // the last loading week run before it [rule G-6]
-    partial: new Set(
-      input.breakWeek !== undefined && input.breakWeek.weekStart < currentMonday
-        ? [...windowed, input.breakWeek.weekStart]
-        : windowed,
-    ),
+    partial: new Set([...windowed, ...breakPartWeeks(input, currentMonday)]),
     floor:
       floorWeek === undefined
         ? null
@@ -722,9 +719,7 @@ function generate(
     volumes: freeVolumes,
     partial: new Set([
       ...windowed.filter((weekStart) => !shortTouched(weekStart)),
-      ...(input.breakWeek !== undefined && input.breakWeek.weekStart < currentMonday
-        ? [input.breakWeek.weekStart]
-        : []),
+      ...breakPartWeeks(input, currentMonday),
     ]),
   }
   const doneRow = state.weeks.find((w) => w.weekStart === currentMonday)
@@ -1516,7 +1511,7 @@ function generate(
     ultraRaceDurationSec: goal.isUltra ? goal.expectedDurationSec : null,
     neverOverride: true,
     lowWeeks: structureLow.filter((weekStart) => !restartKept.has(weekStart)),
-    partialWeeks: windowed,
+    partialWeeks: rampCtx.partial ?? [],
     exemptWeeks: afterRaceWeeks,
     startPath:
       rampCtx.floor === null || floorWeek === undefined
