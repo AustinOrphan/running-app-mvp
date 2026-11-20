@@ -603,6 +603,17 @@ function planRuns(
         ? P.fplace.minRunDayMin.value
         : P.fplace.easyRunMinMin.value
   const usableMin = startWeekPlan || floorWeek ? shortest : minRun
+  // A day held under the session minimum by its G-1 limit alone (the runner's availability and any
+  // window leave it the minimum) still takes a run, down to the run day minimum [rules F5, g-1].
+  const usableMinOn = (day: number): number => {
+    const slot = slots[day]!
+    const g1Only =
+      !(startWeekPlan || floorWeek) &&
+      slot.availMin >= minRun &&
+      slot.windowCap !== true &&
+      slot.step === undefined
+    return g1Only ? Math.min(minRun, P.fplace.minRunDayMin.value) : usableMin
+  }
 
   const hardGapDays = Math.ceil(P.f1.hitSpacingHours.value / 24)
   const offsetOf = (date: string) => daysBetween(week.weekStart, date)
@@ -626,7 +637,7 @@ function planRuns(
         Math.abs(offsetOf(s.date) - day) < startGap,
     )
   const usable = (day: number) =>
-    slots[day]!.open && slots[day]!.capMin >= usableMin && !(spacedFromKept && nearKept(day))
+    slots[day]!.open && slots[day]!.capMin >= usableMinOn(day) && !(spacedFromKept && nearKept(day))
   // A taper, race or recovery week may hold a single run; any other week at least two [F5]. A week
   // a rest window lowered is a ceiling too: what the window leaves is never filled out to two runs
   // [rule J9].
@@ -636,7 +647,16 @@ function planRuns(
     week.phase === 'taper' ||
     week.phase === 'race' ||
     ctx.ceiling === true
-  const fewest = light ? 1 : P.fplace.minRunsPerWeek.value
+  // A week whose minutes cannot fit the minimum number of runs at the run minimum holds one run of
+  // them, up to the limit of its day, and grows from there until two runs at the minimum fit; the
+  // plan never places more than the week's own figure to reach the count [rule F5]. A post-race week
+  // keeps the count of its step [rule H12].
+  const tiny =
+    !light &&
+    !floorWeek &&
+    !week.flags.includes('post-race') &&
+    week.targetRunMin < P.fplace.minRunsPerWeek.value * minRun
+  const fewest = light || tiny ? 1 : P.fplace.minRunsPerWeek.value
   if (startWeekPlan) return planStartRuns()
   // A taper, race or recovery week with fewer minutes than the shortest run holds one run of those
   // minutes, from the run day minimum up, and none under it: its target is a ceiling [rules F5, K2].
@@ -712,8 +732,8 @@ function planRuns(
       fixedMin = room
     }
   }
-  // A week outside taper, race and recovery keeps two runs even when its minutes do not fit them
-  // at the minimum; the guards cut such a week back if its limit is lower.
+  // A week outside taper, race and recovery keeps two runs when its minutes fit them at the minimum
+  // (`tiny` above); the guards cut such a week back if its limit is lower.
   const forced = Math.min(Math.max(fewest, longDays.length), order.length)
   while (others.length > 0 && count > forced && (target - fixedMin) / others.length < minRun) {
     count -= 1
@@ -727,8 +747,14 @@ function planRuns(
     fixed[0]!.minutes = raised
     fixedMin = raised
   }
+  if (tiny && fixed.length === 1 && others.length === 0) {
+    // the one run takes the week's minutes, up to the limit of its day
+    const raised = Math.min(Math.max(fixed[0]!.minutes, target), longCap(fixed[0]!.day))
+    fixed[0]!.minutes = raised
+    fixedMin = raised
+  }
   const cap0 = fixed[0]?.minutes ?? Infinity
-  const toPlace = Math.max(0, target - fixedMin, small ? 0 : others.length * minRun)
+  const toPlace = Math.max(0, target - fixedMin, small || tiny ? 0 : others.length * minRun)
   const minutes = distribute(
     toPlace,
     others.map((d) => Math.min(slots[d]!.runMaxMin ?? slots[d]!.capMin, cap0)),
