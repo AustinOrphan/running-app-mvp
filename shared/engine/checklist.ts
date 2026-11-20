@@ -643,18 +643,18 @@ function breakRestartItem(
   const reference = hold === undefined ? 0 : holdReference(hold, (weekStart) => ran.get(weekStart))
   // The fraction of the hold counts the days it holds; the layoff counts the days since the last run,
   // which are more when the runner stopped before the window (J7 reads the whole break), so the
-  // lesser of the two stands. Where the hold explains the break (`breakHeldBy`) the days counted are
-  // the days without running before the first allowed day, which is how the generator reads it: the
+  // lesser of the two stands. Where the hold explains the break (`breakHeldBy`) the hold's own
+  // restart is the only step-back, as the generator sizes it, and its days are the ones counted: the
   // days since the last run count today as well, so a hold of 14 days started the day after a run
   // would read as 15 days and the next tier [rule J9, J7 applied once].
   const windowed = hold !== undefined && reference > 0
-  const heldFrom = windowed ? breakHeldBy(dplan, state.lastRunDate, input.today)?.from : undefined
-  const daysOff =
-    windowed && state.lastRunDate !== null && heldFrom === hold.from
-      ? daysBetween(state.lastRunDate, hold.runFrom) - 1
-      : state.layoffDays
+  const heldBy = windowed ? breakHeldBy(dplan, state.lastRunDate, input.today) : undefined
+  const holdsBreak = windowed && heldBy?.from === hold.from
+  const daysOff = holdsBreak ? hold.layoffDays : state.layoffDays
   const fraction = windowed
-    ? Math.min(hold.fraction, restartFraction(daysOff))
+    ? holdsBreak
+      ? hold.fraction
+      : Math.min(hold.fraction, restartFraction(state.layoffDays))
     : restartFraction(state.layoffDays)
   const restartMin = windowed
     ? Math.floor(reference * fraction + 1e-9)
