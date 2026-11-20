@@ -370,7 +370,7 @@ export function applyEnteredRaces(args: EnteredRacesArgs): EnteredRacesResult {
   // The share of the time above zone 1 is read as the check reads it: over every running session of
   // the week, the kept and the past ones included. A race that took easy volume out can push a week
   // over it: the hardest session the plan placed there is made easy first, and when none is left
-  // the easy runs are lengthened, never past the minutes the week held without the races and never
+  // the easy runs are lengthened, the day before a race last and within its shake-out, never past the minutes the week held without the races and never
   // past the longest run it held, so the week carries no more running than the plan without them.
   /** Running minutes of a week as it stood without the races: the runs before today, the sessions kept and the sessions placed. */
   function weekMinutes(weekStart: string): number {
@@ -393,6 +393,11 @@ export function applyEnteredRaces(args: EnteredRacesArgs): EnteredRacesResult {
     return week === undefined ? minutes : Math.min(minutes, week.targetRunMin)
   }
   const maxShare = P.f2.z2z3ShareMax.value
+  /** The shake-out of an entered race: the most the day before it holds [K6], or null on any other day. */
+  const shakeOutCap = (date: string): number | null => {
+    const before = races.find((r) => addDays(r.goal.date, -1) === date)
+    return before === undefined ? null : easing(before.priority).maxMin
+  }
   const WEEKDAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const
   // an open day of the week with nothing placed, after today, not a race day and not a day the
   // runner closed (the day before a race takes its shake-out at most): the easy run of `minutes` it can hold
@@ -409,8 +414,7 @@ export function applyEnteredRaces(args: EnteredRacesArgs): EnteredRacesResult {
       if (date < today || used.has(date) || raceDays.has(date) || !open.available) continue
       if (date >= input.goal.date) continue
       // the day before a race holds at most its shake-out
-      const before = races.find((r) => addDays(r.goal.date, -1) === date)
-      const shake = before === undefined ? Infinity : easing(before.priority).maxMin
+      const shake = shakeOutCap(date) ?? Infinity
       // the minutes wanted, or the largest run the room and the day's cap allow when they are fewer
       const minutes = Math.min(minimum, room, open.maxMin ?? Infinity, shake)
       if (minutes >= P.fplace.minRunDayMin.value) return { date, minutes }
@@ -446,41 +450,47 @@ export function applyEnteredRaces(args: EnteredRacesArgs): EnteredRacesResult {
         easeIf((s) => s === worst)
         continue
       }
-      // lengthen an easy run that is not part of an easing or a window, by what is needed
+      // lengthen an easy run, by what is needed: one off the day before a race first, then a free
+      // open day, then the shake-out up to its cap
       const needed = Math.ceil((hard * 100) / maxShare - total)
       const room = Math.min(needed, held - total)
-      const target = mine
+      const longestFor = (s: SessionSpec) =>
+        Math.min(longest, dayCap(s.date), shakeOutCap(s.date) ?? Infinity)
+      const lengthenable = mine
         .filter(
           (s) =>
             s.date >= today &&
             (s.kind === 'easy' || s.kind === 'recovery') &&
             !s.flags.includes('post-race') &&
-            // the day before a race holds the shake-out and is not lengthened
-            !races.some((r) => addDays(r.goal.date, -1) === s.date) &&
-            s.durationMin < Math.min(longest, dayCap(s.date)),
+            s.durationMin < longestFor(s),
         )
-        .sort((a, b) => a.durationMin - b.durationMin)[0]
+        .sort((a, b) => a.durationMin - b.durationMin)
+      const target = lengthenable.find((s) => shakeOutCap(s.date) === null)
       if (room <= 0) break
       if (target === undefined) {
         // no easy run to lengthen: an easy run on a free open day, of the minutes needed
         const day = freeDay(week, inWeek, Math.max(minRun, needed), held - total)
-        if (day === null) break
-        const run = prescribe('easy', day.minutes, zones, week)
-        out = [
-          ...out,
-          {
-            ...run,
-            date: day.date,
-            order: 0,
-            title: 'Easy run',
-            rules: [...run.rules, 'F2'],
-          },
-        ]
-        continue
+        if (day !== null) {
+          const run = prescribe('easy', day.minutes, zones, week)
+          out = [
+            ...out,
+            {
+              ...run,
+              date: day.date,
+              order: 0,
+              title: 'Easy run',
+              rules: [...run.rules, 'F2'],
+            },
+          ]
+          continue
+        }
       }
-      const minutes = Math.min(target.durationMin + room, longest, dayCap(target.date))
+      // the day before a race holds its shake-out: the last place for minutes, to its own cap [K6, F2]
+      const grown = target ?? lengthenable[0]
+      if (grown === undefined) break
+      const minutes = Math.min(grown.durationMin + room, longestFor(grown))
       out = out.map((s) =>
-        s === target
+        s === grown
           ? {
               ...easyRun(s, minutes, zones, weekOf(s.date) ?? macro[0]!, {
                 title: s.title,
