@@ -71,7 +71,7 @@ Each item names the default that holds until the owner answers.
 
 ## Where things stand
 
-- `main` is at 7f653392 (#801), 2026-11-19. `PARAMS_VERSION` is `2026-11-18.2`
+- `main` is at bd04bd92 (#803), 2026-11-20. `PARAMS_VERSION` is `2026-11-18.2`
   (`shared/engine/params/index.ts:24`). The research corpus holds 469 records in
   `research/papers`.
 - The app version is 2.0.0-beta.1 (`package.json:3`, #793). The latest release tag is `v1.0.0`,
@@ -296,3 +296,7 @@ Ranked by weight for the first 100-mile build toward the goal race, then for bet
 - Dependency policy: a security advisory on a runtime dependency is merged within 48 hours of its
   Dependabot PR going green, other grouped updates weekly, and a major version only by a deliberate
   decision; a red `npm audit` step in CI blocks until the advisory is addressed.
+- `package.json` `overrides`: `minimatch` `^11.0.1` (#620) and `effect` `^3.22.1` (#803,
+  GHSA-7589-6fvf-x4pw, a ReDoS in `Schema.TemplateLiteral`; `@prisma/config` pins `effect` at
+  3.20.0 and `npm audit fix` offers only a downgrade to prisma 6.12.0). Drop the `effect` override
+  once `@prisma/config` pins 3.22.1 or newer.
