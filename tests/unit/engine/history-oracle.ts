@@ -164,11 +164,12 @@
 // its window, and the stored window weeks of its chains carry the downhill flag from the window start.
 //
 // Regenerated 2026-11-20 (rules g-1, D7, follow-up 8): the macro measures the long run's distance
-// limit as the micro places it (at the prescribed pace, rounded to 100 m), so a long run held by
-// the limit is drawn and placed at the same minutes and the week's target is placed. 51 of the 142
-// digests move (the plans of a runner whose limit binds the long run, `chain first-100-mile x1.5` 1
-// and 2 among them; the other 91 are as before);
-// the owner validation is the same output as before.
+// limit as the micro places it (a probe at the prescribed pace, rounded to 100 m), so a long run
+// held by the limit is drawn and placed at the same minutes. The row is re-measured in both
+// directions (it rises where the probe rounds down; the placement already used this measure), and
+// a lower G-1 record lowers the later bands. 51 of the 142 digests move (the plans of a runner whose
+// limit binds the long run, `chain first-100-mile x1.5` 1 and 2 among them; the other 91 are as
+// before); the owner validation is the same output as before.
 //
 // The close of the load-progression plan (task L7) may remove this file with its test: from there
 // the owner validation is the oracle.
