@@ -605,8 +605,8 @@ function planRuns(
         ? P.fplace.minRunDayMin.value
         : P.fplace.easyRunMinMin.value
   const usableMin = startWeekPlan || floorWeek ? shortest : minRun
-  // A day held under the session minimum by its G-1 limit alone (the runner's availability and any
-  // window leave it the minimum) still takes a run, down to the run day minimum [rules F5, g-1].
+  // A day held under the session minimum by its G-1 limit alone still takes a run, down to the run
+  // day minimum (`runFloorOn`) [rules F5, g-1]; a start week keeps its own floor.
   const usableMinOn = (day: number): number =>
     startWeekPlan || floorWeek ? usableMin : runFloorOn(slots[day]!, minRun)
 
