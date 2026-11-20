@@ -438,6 +438,21 @@ const BREAK_COMPATIBLE_HOLDS: ReadonlySet<string> = new Set([
   'pain-mild',
 ])
 
+/**
+ * The holds whose cap steps from the minutes run when the reviewed week was run above its plan
+ * [rules G-6, owner decision 2026-11-20]: the short week, a short night, a sleep or efficiency signal
+ * and the first hot days, which keep their own clamp. A pain, the energy-availability screen, a
+ * readiness flag and a decline in the check-ins hold progression whatever was run, as E7 never
+ * raises a week over them [rules J5, n-4, E7, G6].
+ */
+const STEP_FROM_RUN_HOLDS: ReadonlySet<string> = new Set([
+  'completion-low',
+  'sleep-warning',
+  'sleep-efficiency-drop',
+  'efficiency-decline',
+  'heat',
+])
+
 /** Progress, hold or reduce from execution, check-ins, efficiency, sleep and HRV [rules J5, G-6]. */
 export function weeklyDecision(
   input: EngineInput,
@@ -655,7 +670,8 @@ export function weeklyDecision(
 
   // G-6: the target never exceeds last week's actual x (1 + ramp); missed minutes are not repeated.
   // The response to weeks run above plan [rules g-8] has no part in it: a hold or reduce caps the
-  // week it covers by the planned week and the step from the week run, and the week a progress
+  // week it covers by the planned week and the step from the week run (a hold after a week run above
+  // its plan steps from the minutes run, up to the next planned week), and the week a progress
   // decision names is the one the re-plan keeps, so the mean of the weeks run lifts the weeks the
   // plan draws after them (`responseBaseline`) and not these figures.
   const plannedThis = plannedFull ?? actual
@@ -675,7 +691,21 @@ export function weeklyDecision(
   } else {
     // G-6 steps from the minutes run. A week with none leaves no step to take, and a cap of 0
     // would hold the next week empty too: the break rules size the restart [rules J7, E6].
-    const stepped = nextWeekCap(plannedThis, actual, ramp, rebuild)
+    // A hold whose reviewed week was run above its plan steps from the minutes run, up to the larger
+    // of the reviewed week's planned figure and the plan's figure for the week it covers (a recovery
+    // or taper week next leaves the reviewed week's figure as the floor); without the lift a week
+    // planned at 0 caps the next at 0 however much was run, and it still does when no next week is
+    // stored [rules G-6, owner decision 2026-11-20]. A reduce keeps the planned figure (G6).
+    const stepped = nextWeekCap(
+      decision === 'hold' &&
+        actual > plannedThis &&
+        [...standing, ...independent].every((s) => STEP_FROM_RUN_HOLDS.has(s.code))
+        ? Math.max(plannedThis, nextPlanned)
+        : plannedThis,
+      actual,
+      ramp,
+      rebuild,
+    )
     // After a week that counts as the recovery week the cap is the J7 share of the week it repeats,
     // not the step from the minutes run [rules E3, G-6, J7].
     const cap =
