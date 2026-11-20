@@ -601,7 +601,9 @@ export function windowWeeks(
           addDays(firstDay, -1),
         ),
       ).min
-      if (band < P.fplace.easyRunMinMin.value) {
+      // A band under the session minimum still takes a run, down to the run day minimum: the same
+      // rule as an ordinary day held by G-1 alone [rules F5, g-1].
+      if (band < P.fplace.minRunDayMin.value) {
         runMax = 0
         longMax = 0
       } else if (Number.isFinite(band)) {
