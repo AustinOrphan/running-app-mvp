@@ -12,6 +12,7 @@ import { estimateState } from './athlete.ts'
 import { breakPartWeeks } from './breakWeek.ts'
 import { runChecklist } from './checklist.ts'
 import {
+  breakHeldBy,
   dayRuleOn,
   dayRulesIn,
   disruptionPlan,
@@ -544,7 +545,16 @@ function generate(
 ): PlanDraft {
   const { today, goal } = input
   const kept = keep.sessions
-  const state = afterBreak(estimateState(input))
+  // The rest windows the runner reported [rule J9]: a held day closes to running and strength, caps
+  // and quiet days pass to the week placement, and a week the windows touch holds what they leave.
+  const dplan = disruptionPlan(input.disruptions ?? [])
+  // J9 applies the J7 step-back once: while a hold of a window explains the days since the last run,
+  // its restart is that step-back and the typical week is not cut for the layoff as well.
+  const rawState = estimateState(input)
+  const state =
+    breakHeldBy(dplan, rawState.lastRunDate, input.today) === undefined
+      ? afterBreak(rawState)
+      : rawState
   const zones = buildZones(input.profile, state, today)
   const downhillHold = {
     raceDate: goal.date,
@@ -592,9 +602,6 @@ function generate(
   )
   const method = resolveMethod(input, state, [...pastWeeks, ...macroWeeks]).effective
   const limits = method === 'default' ? null : defaultWeeks(input, keep, weekOffset)
-  // The rest windows the runner reported [rule J9]: a held day closes to running and strength, caps
-  // and quiet days pass to the week placement, and a week the windows touch holds what they leave.
-  const dplan = disruptionPlan(input.disruptions ?? [])
   // A week a window took days from is a part week, and part of a week is not a week: it counts as a
   // baseline beside another week and never alone, so the weeks after it are measured against the
   // last week run before it, the return of J7, and not against the minutes the window left. The

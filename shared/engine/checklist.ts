@@ -12,6 +12,7 @@ import { estimateState } from './athlete.ts'
 import { BREAK_REPEAT_FLAG, breakPartWeeks } from './breakWeek.ts'
 import { plannedRaces, raceCutMinutes } from './enteredRaces.ts'
 import {
+  breakHeldBy,
   dayRuleOn,
   disruptionPlan,
   disruptionWeekCap,
@@ -632,7 +633,8 @@ function breakRestartItem(
   // reference week of the hold (`holdReference`, the median of the weeks before the window), where the
   // typical week is pulled down by the part week the window left. The week the item reads is the
   // return week or the first full week of the hold; a break with no window is read as before.
-  const hold = disruptionPlan(input.disruptions ?? []).holds.find(
+  const dplan = disruptionPlan(input.disruptions ?? [])
+  const hold = dplan.holds.find(
     (h) =>
       h.fraction < 1 &&
       (h.returnWeekStart === mondayOf(input.today) || h.fullWeekStart === mondayOf(input.today)),
@@ -641,10 +643,18 @@ function breakRestartItem(
   const reference = hold === undefined ? 0 : holdReference(hold, (weekStart) => ran.get(weekStart))
   // The fraction of the hold counts the days it holds; the layoff counts the days since the last run,
   // which are more when the runner stopped before the window (J7 reads the whole break), so the
-  // lesser of the two stands.
+  // lesser of the two stands. Where the hold explains the break (`breakHeldBy`) the days counted are
+  // the days without running before the first allowed day, which is how the generator reads it: the
+  // days since the last run count today as well, so a hold of 14 days started the day after a run
+  // would read as 15 days and the next tier [rule J9, J7 applied once].
   const windowed = hold !== undefined && reference > 0
+  const heldFrom = windowed ? breakHeldBy(dplan, state.lastRunDate, input.today)?.from : undefined
+  const daysOff =
+    windowed && state.lastRunDate !== null && heldFrom === hold.from
+      ? daysBetween(state.lastRunDate, hold.runFrom) - 1
+      : state.layoffDays
   const fraction = windowed
-    ? Math.min(hold.fraction, restartFraction(state.layoffDays))
+    ? Math.min(hold.fraction, restartFraction(daysOff))
     : restartFraction(state.layoffDays)
   const restartMin = windowed
     ? Math.floor(reference * fraction + 1e-9)
@@ -664,8 +674,8 @@ function breakRestartItem(
     'break-restart',
     planned <= limit,
     planned <= limit
-      ? `After ${state.layoffDays} days off the first week holds ${Math.round(planned)} min, from a restart at ${Math.round(fraction * 100)}% of ${typical} min.`
-      : `After ${state.layoffDays} days off the first week holds ${Math.round(planned)} min, above ${Math.round(limit)} min (${Math.round(fraction * 100)}% of ${typical} min, plus one step).`,
+      ? `After ${daysOff} days off the first week holds ${Math.round(planned)} min, from a restart at ${Math.round(fraction * 100)}% of ${typical} min.`
+      : `After ${daysOff} days off the first week holds ${Math.round(planned)} min, above ${Math.round(limit)} min (${Math.round(fraction * 100)}% of ${typical} min, plus one step).`,
     rules,
   )
 }
@@ -907,7 +917,17 @@ function heldProgression(draft: PlanDraft, input: EngineInput, state: AthleteSta
   if (first !== undefined) {
     const floored = (x: number, step = 1) => Math.floor((x + 1e-9) / step) * step
     const held = {
-      min: Math.max(first.targetRunMin, startLevelMin(afterBreak(state))),
+      // The generator cuts the typical week for a layoff once (J7), as the restart of a hold it
+      // makes for a window, so the item does not cut it again where a hold explains the break.
+      min: Math.max(
+        first.targetRunMin,
+        startLevelMin(
+          breakHeldBy(disruptionPlan(input.disruptions ?? []), state.lastRunDate, input.today) ===
+            undefined
+            ? afterBreak(state)
+            : state,
+        ),
+      ),
       long: Math.max(first.longRunMin, floored(state.longest30d.durationSec / 60)),
       gain: Math.max(
         first.gainTargetM ?? 0,

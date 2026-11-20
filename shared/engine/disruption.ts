@@ -107,6 +107,31 @@ export function restartFraction(layoffDays: number): number {
   return P.j7.restartOver28.value
 }
 
+/**
+ * The hold of a reported window that explains the days since the last run, or undefined [rules J7,
+ * J9]. J9 applies the J7 step-back once to a break, as the restart of the hold, and the generator
+ * must not cut the typical week for the same days as well. A hold explains the break when it eases
+ * the load (a fraction under 1), starts after the last run and within `j7.tier1Days` days of it (the
+ * runner stopped because of it, or a few days before), and its first allowed day is less than
+ * `j7.tier1Days` days behind `today`, so that the weeks after it are not carried by it for ever.
+ * No new number.
+ */
+export function breakHeldBy(
+  plan: DisruptionPlan,
+  lastRunDate: string | null,
+  today: string,
+): HoldRun | undefined {
+  if (lastRunDate === null) return undefined
+  const tier = P.j7.tier1Days.value
+  return plan.holds.find(
+    (h) =>
+      h.fraction < 1 &&
+      lastRunDate < h.from &&
+      h.from <= addDays(lastRunDate, tier) &&
+      today < addDays(h.runFrom, tier),
+  )
+}
+
 // ---------------------------------------------------------------------------------------------
 // The plan of a set of windows
 // ---------------------------------------------------------------------------------------------

@@ -16,6 +16,7 @@ import { breakRestart, runsReaching, weekEvidence } from './adapt.ts'
 import { bmiOf } from './athlete.ts'
 import { BREAK_REPEAT_FLAG, breakPartWeeks } from './breakWeek.ts'
 import {
+  breakHeldBy,
   disruptionPlan,
   holdRestartWeeks,
   isDisruptedWeek,
@@ -412,7 +413,17 @@ function replanAnchor(
   raiseTo = 0,
 ): { minutes: number; paused: boolean } | null {
   const weeks = input.existing?.weeks
-  if (weeks === undefined || state.layoffDays >= P.j7.tier1Days.value) return null
+  if (weeks === undefined) return null
+  // A layoff of J7's first tier restarts the plan from the typical week, except where a hold of a
+  // window explains it: its restart is the one step-back [rule J9] and the plan carries on from the
+  // plan being replaced, as it does after a break the J7 table does not reach.
+  if (
+    state.layoffDays >= P.j7.tier1Days.value &&
+    breakHeldBy(disruptionPlan(input.disruptions ?? []), state.lastRunDate, input.today) ===
+      undefined
+  ) {
+    return null
+  }
   const current = weeks.find((w) => w.weekStart === firstMonday)
   if (current === undefined || current.isTaper || current.phase === 'race') return null
   // The week before counts as the recovery week: this week repeats the loading week it was planned
