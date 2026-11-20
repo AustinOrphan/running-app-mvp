@@ -62,8 +62,8 @@ then `npm run check:static`), `unit` (`npm run test:unit` in two shards, `--shar
 chromium and its system packages; `npm run build`, `npm run test:e2e`, and the Playwright report uploaded
 on failure; the image tag in `ci.yml` must equal the installed Playwright, and a step fails when a bump
 leaves it behind) and `docker` (`docker build .` through buildx with the GitHub Actions layer cache, no
-push, no path filter). A sixth job, `ci`, fails unless the five succeeded; it is the one check that branch
-protection reads. The Docker image must still build (`docker build .`) after a change to dependencies, the
+push, no path filter). A sixth job, `ci`, fails unless the five succeeded; branch protection on `main` requires it
+and CodeQL's `analyze` (not strict, no force push, not enforced for admins). The Docker image must still build (`docker build .`) after a change to dependencies, the
 `Dockerfile`, a migration or how the web build is emitted (`web/sw/buildSw.ts`); its build runs
 `prisma migrate deploy` as a smoke test, and the `docker` job now enforces the rule in CI.
 
