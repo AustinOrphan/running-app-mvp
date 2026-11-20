@@ -338,22 +338,7 @@ describe('a break week before an entered race', () => {
               const draft = weekly(today, existing, offset < 0 ? [entered] : [])
               const known = reference(today)
               if (known.broke) withBreak += 1
-              // Known, and not the break week's: in the race week of the capped athlete the K6 cut
-              // leaves two threshold sessions in about 80 min, 28% above zone 1 (limit 25%). The
-              // plan without the race failed the same item there until the short week stayed a part
-              // week (G-6), which lifted that week's figure, so the item no longer counts as known.
-              // Exactly three cells: capped half, marathon, priority C, re-plans -3 to -1 days. The
-              // K6 race-week intensity follow-up removes this exception.
-              const knownTid =
-                id === 'half-capped' &&
-                weeksBefore === 3 &&
-                cls === 'marathon' &&
-                priority === 'C' &&
-                offset >= -3 &&
-                offset < 0
-              const fresh = failing(draft.checklist).filter(
-                (item) => !known.failed.includes(item) && !(item === 'tid' && knownTid),
-              )
+              const fresh = failing(draft.checklist).filter((item) => !known.failed.includes(item))
               const label = `${cls} ${priority} race ${date} (${String(weeksBefore)} wk after the break), re-plan ${today}`
               if (fresh.length > 0) problems.push(`${label}: ${fresh.join()}`)
               for (const [weekStart, minutes] of offset < 0 ? weekMinutes(draft.sessions) : []) {
