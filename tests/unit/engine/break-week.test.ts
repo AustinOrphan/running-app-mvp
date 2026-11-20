@@ -462,12 +462,12 @@ describe('the week after a repeat, over the weekly chain', () => {
    * caps the new week and a repeat travels as `breakWeek`. The week before step `shortAt` is run at
    * 30% of its plan, every other week as planned.
    */
-  function chain(shortAt: number, steps: number) {
-    let draft = buildPlan(mile.input)
-    let activities = mile.input.activities
+  function chain(shortAt: number, steps: number, start: EngineInput = mile.input) {
+    let draft = buildPlan(start)
+    let activities = start.activities
     const out: { monday: string; draft: PlanDraft }[] = []
     for (let k = 1; k <= steps; k++) {
-      const monday = addDays(mondayOf(mile.input.today), 7 * k)
+      const monday = addDays(mondayOf(start.today), 7 * k)
       const factor = k === shortAt ? 0.3 : 1
       const ran = draft.sessions
         .filter((s) => s.date >= addDays(monday, -7) && s.date < monday)
@@ -481,7 +481,7 @@ describe('the week after a repeat, over the weekly chain', () => {
         )
       activities = [...activities, ...ran]
       const input: EngineInput = {
-        ...mile.input,
+        ...start,
         today: monday,
         activities,
         existing: {
@@ -557,5 +557,45 @@ describe('the week after a repeat, over the weekly chain', () => {
       const was = stepBefore.draft.weeks.find((x) => x.weekStart === w.weekStart)!
       expect(w.targetRunMin, w.weekStart).toBeGreaterThanOrEqual(0.8 * was.targetRunMin)
     }
+  })
+
+  /** The next four loading weeks of a step 6 draft, placed against their own targets. */
+  const placedShort = (step: { monday: string; draft: PlanDraft }) =>
+    step.draft.weeks
+      .filter(
+        (w) => w.weekStart >= step.monday && !w.isRecovery && !w.isTaper && w.phase !== 'race',
+      )
+      .slice(0, 4)
+      .filter((w) => placedMin(step.draft, w) < 0.8 * w.targetRunMin)
+      .map(
+        (w) => `${w.weekStart}: ${String(placedMin(step.draft, w))} of ${String(w.targetRunMin)}`,
+      )
+
+  // `input.breakWeek` is unset from here on: the short week is known from the stored flag alone.
+  it('places the next four loading weeks at 80% or more of their targets at the next Monday', () => {
+    expect(placedShort(nextStep)).toEqual([])
+  })
+
+  it('passes the progression check and the ramp warnings at the next Monday', () => {
+    expect(nextStep.draft.checklist.find((c) => c.id === 'progression')?.ok).toBe(true)
+    const ramp = nextStep.draft.warnings.filter((w) => w.code.startsWith('ramp'))
+    expect(ramp).toEqual([])
+  })
+
+  it('places them at 80% or more with a rest window further on, which bounds the weeks again', () => {
+    const base = mile.input
+    const from = addDays(mondayOf(base.today), 7 * 8 + 1)
+    const window: DisruptionWindow = {
+      id: 'w1',
+      reason: 'travel',
+      mode: 'limited',
+      startDate: from,
+      endDate: addDays(from, 2),
+      maxRunMin: 20,
+      pain: null,
+      gaitChange: false,
+    }
+    const windowed = chain(SHORT_AT, SHORT_AT + 1, { ...base, disruptions: [window] })
+    expect(placedShort(windowed[SHORT_AT]!)).toEqual([])
   })
 })
