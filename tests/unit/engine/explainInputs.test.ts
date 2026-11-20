@@ -111,6 +111,7 @@ import {
   STEADY_HRV,
   wellnessDay,
 } from './e8-fixtures.ts'
+import { windowOf } from './disruption-fixtures.ts'
 import { steadyHistogram } from './fixtures.ts'
 import {
   ALL_KINDS,
@@ -2236,6 +2237,34 @@ describe('J2 to J5 and J7: readiness, the decision and breaks', () => {
     expect(factsOf('J7')).toHaveLength(1)
     const [gap] = factsOf('J7', contextOf(emptyInput()))
     expect(gap).toMatchObject({ state: 'insufficient', template: 'explain.j7-gap' })
+  })
+
+  test('J7 states the restart the plan applied after a window: the hold of 14 days, 90%, not 75%', () => {
+    // 14 days held from the day after the last run, re-planned on the 15th day: the days since the
+    // run read the 75% tier, the hold's own 14 days the 90% one, and J9 applies one of them (once)
+    const half = athletes().find((a) => a.id === 'half')!
+    const cut = addDays(TODAY, -20)
+    const window = windowOf({
+      id: 'w',
+      reason: 'niggle',
+      startDate: addDays(cut, 1),
+      endDate: addDays(cut, 14),
+      pain: 0,
+    })
+    const input: EngineInput = {
+      ...half.input,
+      today: addDays(cut, 15),
+      activities: half.input.activities.filter((a) => a.date <= cut),
+      disruptions: [window],
+    }
+    const ctx = contextOf(input)
+    expect(ctx.state.layoffDays).toBeGreaterThan(14)
+    expect(breakRestart(ctx.state.layoffDays, 0).fraction).toBe(P.j7.restart15to28.value)
+    const facts = factsOf('J7', ctx)
+    expect(slot(facts[1]!, 'share', 'share').fraction).toBe(P.j7.restart7to14.value)
+    // the plan applied the same restart: the typical week was not cut for the days since the run
+    const plan = buildPlan(input)
+    expect(plan.checklist.filter((c) => !c.ok)).toEqual([])
   })
 })
 

@@ -128,3 +128,12 @@ Alternatives:
   change as this ADR's acceptance.
 - A change to the 14-day horizon is a change to `macroDesign.keepOwnerEditsDays` through
   `research-update`, and amends the Decision above.
+
+## Addendum 2026-11-20
+
+A re-plan after a reported window applies the J7 step-back once (owner decision 2026-11-20, "Cut once,
+per the rules"): while a hold of the window explains the days since the last run (`breakHeldBy`), the
+generator does not cut the typical week for the layoff (`afterBreak`) and `replanAnchor` carries on from
+the plan being replaced. Rule J9 says the restart is "never applied twice to one break"; the weeks after
+a hold had been cut by the hold and by the layoff, and moved at each Monday as the anchor switched
+between the two.
