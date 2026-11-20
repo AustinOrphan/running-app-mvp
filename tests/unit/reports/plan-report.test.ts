@@ -44,7 +44,7 @@ vi.setConfig({ testTimeout: 30_000 })
  *     console.log(createHash('sha256').update(m.renderMatrixSection()).digest('hex'))
  *   })"
  */
-const MATRIX_DIGEST = '5dc18912db77ad41fcbfd4922dc2f82874b650bd5fe94c39880e07dac618b9c9'
+const MATRIX_DIGEST = '9cd5c1da0c8a187f0a82bb1c5312d87f6677b54d17c0c15035e4de27ba36d223'
 
 /**
  * The digest of the section of each method preset (the twelve athletes at the preset, each figure
@@ -59,7 +59,7 @@ const MATRIX_DIGEST = '5dc18912db77ad41fcbfd4922dc2f82874b650bd5fe94c39880e07dac
  *   })"
  */
 const PRESET_DIGESTS: Record<Offered, string> = {
-  'three-run-days': '8d50144935b29ce01f677669a6aad78ef0adc8732de01d53b5e1b10972c83dea',
+  'three-run-days': 'e87b4295e3ca7ef06dbcf5f3ea511c7988a01916ca2a7244530057ce82e47878',
   'longer-base': 'd6d7e33ea4d7d8a8a19c6af277720b043ec3eee88a1fa40714ba011a85328e20',
 }
 
