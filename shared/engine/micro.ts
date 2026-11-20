@@ -137,8 +137,6 @@ interface Slot {
   runMaxMin?: number
   /** The post-race step the day is in, when it is in one. */
   step?: number
-  /** The step's own cap on an ordinary run of the day, apart from G-1 and availability [H12]. */
-  stepRunCap?: number
   /** A window caps the day's longest run [rule J9]. */
   windowCap?: boolean
   /** A window keeps quality sessions off the day [rule J9]. */
@@ -742,8 +740,10 @@ function planRuns(
     fixed[0]!.minutes = raised
     fixedMin = raised
   }
-  if (tiny && fixed.length === 1 && others.length === 0) {
-    // the one run takes the week's minutes, up to the limit of its day
+  const onePlaceableDay = slots.filter((s) => usable(s.day)).length === 1
+  if ((tiny || onePlaceableDay) && fixed.length === 1 && others.length === 0) {
+    // the one run of the week takes its minutes, up to the limit of its day: a week with one placeable
+    // day places no less at 40 minutes than at 39 [rule F5]
     const raised = Math.min(Math.max(fixed[0]!.minutes, target), longCap(fixed[0]!.day))
     fixed[0]!.minutes = raised
     fixedMin = raised
@@ -1143,12 +1143,11 @@ function slotsOf(week: WeekDraft, profile: AthleteProfile, caps: RunCaps[]): Slo
 
 /**
  * The shortest run a day takes: the session minimum, or the run day minimum when the day's G-1 limit
- * alone lies under the session minimum (the runner's availability, a window's cap and a post-race
- * step's own cap all leave it the minimum) [rules F5, g-1, H12].
+ * alone lies under the session minimum (the runner's availability and a window's cap leave it the
+ * minimum; a post-race step's own cap is never under it) [rules F5, g-1, H12].
  */
 function runFloorOn(slot: Slot, minRun: number): number {
-  const g1Only =
-    slot.availMin >= minRun && slot.windowCap !== true && (slot.stepRunCap ?? Infinity) >= minRun
+  const g1Only = slot.availMin >= minRun && slot.windowCap !== true
   return g1Only ? Math.min(minRun, P.fplace.minRunDayMin.value) : minRun
 }
 
@@ -1179,7 +1178,6 @@ function applyWindowLimits(
     slot.capMin = Math.min(slot.capMin, limit.longRunMaxMin)
     slot.runMaxMin = Math.min(slot.capMin, limit.runMaxMin)
     slot.step = limit.step
-    slot.stepRunCap = limit.runMaxMin
   }
   // The first return step holds at most `maxRuns` runs on non-consecutive days, counted across
   // the weeks it spans: the days are taken from the start of the step, as the trial ran them
