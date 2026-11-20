@@ -12,6 +12,29 @@ import type { BreakWeek, EngineInput } from './types.ts'
 export const BREAK_REPEAT_FLAG = 'break-repeat'
 
 /**
+ * The short weeks that stay part weeks at the re-plan of `monday`: the week the input names as the
+ * recovery week, and the week before every stored break-repeat week, since the flag is set only on
+ * the week after the short week. Without the stored flag the short week would read as a plain
+ * baseline from the second Monday after it on, and the weeks after the repeat would be held to a
+ * ramp from its minutes [rule G-6]. Reads the flag and never decides: `breakWeekOf` stays the one
+ * predicate. Sorted and without duplicates.
+ */
+export function breakPartWeeks(
+  input: Pick<EngineInput, 'breakWeek' | 'existing'>,
+  monday: string,
+): string[] {
+  const weeks = new Set<string>()
+  if (input.breakWeek !== undefined && input.breakWeek.weekStart < monday) {
+    weeks.add(input.breakWeek.weekStart)
+  }
+  for (const w of input.existing?.weeks ?? []) {
+    if (w.flags.includes(BREAK_REPEAT_FLAG) && w.weekStart <= monday)
+      weeks.add(addDays(w.weekStart, -7))
+  }
+  return [...weeks].sort()
+}
+
+/**
  * Whether the week of `weekStart` counts as the cycle's recovery week, and what its repeat may hold.
  * The week is a loading week of the stored plan (never a recovery, taper, race, post-race or
  * start-programme week, and none a window touched), it was run (a week with no running is sized by

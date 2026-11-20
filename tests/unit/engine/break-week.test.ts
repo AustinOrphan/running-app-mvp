@@ -1,14 +1,17 @@
 // A loading week run far under its target counts as the cycle's recovery week; the week after it
 // repeats the loading week and the cycle shifts [rules E3, G-6, J7; owner decision 2026-11-15].
+import { readdirSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { lintText } from '../../../shared/copy/lint.ts'
 import { BREAK_REPEAT_FOCUS, BREAK_SIGNAL_DETAIL } from '../../../shared/copy/breakWeek.ts'
 import { breakRepeatSummary } from '../../../shared/copy/revision.ts'
 import { addDays, mondayOf } from '../../../shared/dates.ts'
-import { isHeatOnlyHold, weeklyDecision } from '../../../shared/engine/adapt.ts'
+import { hasHeatHold, isHeatOnlyHold, weeklyDecision } from '../../../shared/engine/adapt.ts'
 import { estimateState } from '../../../shared/engine/athlete.ts'
-import { BREAK_REPEAT_FLAG, breakWeekOf } from '../../../shared/engine/breakWeek.ts'
+import { BREAK_REPEAT_FLAG, breakPartWeeks, breakWeekOf } from '../../../shared/engine/breakWeek.ts'
 import { buildPlan, replan, weeklyRamp } from '../../../shared/engine/index.ts'
+import { runningMinutes } from '../../../shared/engine/limits.ts'
 import { rebuildZone } from '../../../shared/engine/loadSetting.ts'
 import { P } from '../../../shared/engine/params/index.ts'
 import type {
@@ -390,5 +393,169 @@ describe('a week at 85% of its target re-plans as before', () => {
     expect(withDecision.d.breakRepeat).toBeUndefined()
     expect(weekOf(withDecision.draft, MONDAY).flags).not.toContain(BREAK_REPEAT_FLAG)
     expect(weekOf(withDecision.draft, MONDAY).isRecovery).toBe(true)
+  })
+})
+
+describe('breakPartWeeks', () => {
+  const short = '2026-03-02'
+  const repeat = addDays(short, 7)
+  const week = (weekStart: string, flags: string[]): WeekDraft => ({
+    ...lastWeek,
+    weekStart,
+    flags,
+  })
+  const stored = (...weeks: WeekDraft[]): Pick<EngineInput, 'breakWeek' | 'existing'> => ({
+    existing: { weeks, sessions: [] },
+  })
+  const breakWeek = { weekStart: short, plannedMin: 400, ranMin: 100, capMin: 400 }
+
+  it('holds the short week the input names while it lies before the Monday', () => {
+    expect(breakPartWeeks({ breakWeek, existing: null }, repeat)).toEqual([short])
+    expect(breakPartWeeks({ breakWeek, existing: null }, short)).toEqual([])
+  })
+
+  it('holds the week before a stored break-repeat week, whatever the input says', () => {
+    const input = stored(week(short, []), week(repeat, [BREAK_REPEAT_FLAG]))
+    expect(breakPartWeeks(input, addDays(repeat, 7))).toEqual([short])
+    expect(breakPartWeeks(input, repeat)).toEqual([short])
+  })
+
+  it('lists the short week once when the input and the stored flag agree', () => {
+    const input = { breakWeek, ...stored(week(repeat, [BREAK_REPEAT_FLAG])) }
+    expect(breakPartWeeks(input, addDays(repeat, 7))).toEqual([short])
+  })
+
+  it('leaves out a flagged week after the Monday', () => {
+    expect(breakPartWeeks(stored(week(repeat, [BREAK_REPEAT_FLAG])), short)).toEqual([])
+  })
+
+  it('is empty with no flag and no break week', () => {
+    expect(breakPartWeeks(stored(week(short, []), week(repeat, [])), repeat)).toEqual([])
+    expect(breakPartWeeks({ existing: null }, repeat)).toEqual([])
+  })
+})
+
+describe('the engine sets the break-repeat flag in one place', () => {
+  it('has one flag(..., BREAK_REPEAT_FLAG) call, the one breakPartWeeks relies on', () => {
+    const dir = join(process.cwd(), 'shared/engine')
+    const calls = readdirSync(dir, { recursive: true, encoding: 'utf8' })
+      .filter((f) => f.endsWith('.ts'))
+      .map((f) => [
+        f,
+        readFileSync(join(dir, f), 'utf8').match(/\bflag\([^)]*BREAK_REPEAT_FLAG\)/g),
+      ])
+      .filter(([, m]) => m !== null)
+      .map(([f, m]) => [f, (m as string[]).length])
+    expect(calls).toEqual([['macro.ts', 1]])
+  })
+})
+
+describe('the week after a repeat, over the weekly chain', () => {
+  const mile = athletes().find((a) => a.id === 'first-100-mile')!
+  const placedMin = (draft: PlanDraft, w: WeekDraft) =>
+    runningMinutes(
+      draft.sessions.filter((s) => s.date >= w.weekStart && s.date < addDays(w.weekStart, 7)),
+    )
+
+  /**
+   * Weekly re-plans as the service runs them: each Monday the week just run is decided, its figure
+   * caps the new week and a repeat travels as `breakWeek`. The week before step `shortAt` is run at
+   * 30% of its plan, every other week as planned.
+   */
+  function chain(shortAt: number, steps: number) {
+    let draft = buildPlan(mile.input)
+    let activities = mile.input.activities
+    const out: { monday: string; draft: PlanDraft }[] = []
+    for (let k = 1; k <= steps; k++) {
+      const monday = addDays(mondayOf(mile.input.today), 7 * k)
+      const factor = k === shortAt ? 0.3 : 1
+      const ran = draft.sessions
+        .filter((s) => s.date >= addDays(monday, -7) && s.date < monday)
+        .filter((s) => !NOT_RUNS.has(s.kind))
+        .map((s) =>
+          activity(s.date, {
+            id: `done-${s.date}-${String(s.order)}`,
+            durationSec: Math.round(s.durationMin * factor) * 60,
+            distanceM: Math.round((s.distanceM ?? s.durationMin * 170) * factor),
+          }),
+        )
+      activities = [...activities, ...ran]
+      const input: EngineInput = {
+        ...mile.input,
+        today: monday,
+        activities,
+        existing: {
+          weeks: draft.weeks,
+          sessions: draft.sessions.map((s, i) => ({
+            ...s,
+            id: `s${String(i)}`,
+            status: s.date < monday ? 'completed' : 'planned',
+            activityId: null,
+          })),
+        },
+      }
+      const state = estimateState(input)
+      const decision = weeklyDecision(input, addDays(monday, -7), {
+        executions: [],
+        redsFlags: input.screeningFlags,
+        ramp: weeklyRamp(state),
+        rebuild: rebuildZone(input, state),
+      })
+      const decided = decision.decision !== 'progress'
+      const caps =
+        decided || decision.breakRepeat !== undefined
+          ? { [monday]: decision.nextWeekTargetMin }
+          : {}
+      draft = replan(
+        {
+          ...input,
+          weekCaps: caps,
+          ...(decision.breakRepeat === undefined ? {} : { breakWeek: decision.breakRepeat }),
+        },
+        {
+          decisions: decided ? { [monday]: decision.decision } : {},
+          heatHeld: decided && hasHeatHold(decision) ? [monday] : [],
+          heatAlone: decided && isHeatOnlyHold(decision) ? [monday] : [],
+        },
+      ).draft
+      out.push({ monday, draft })
+    }
+    return out
+  }
+
+  const SHORT_AT = 5
+  const steps = chain(SHORT_AT, 6)
+  const stepBefore = steps[SHORT_AT - 2]!
+  const repeatStep = steps[SHORT_AT - 1]!
+  const nextStep = steps[SHORT_AT]!
+
+  it('draws the repeat at the Monday after the short week', () => {
+    expect(weekOf(repeatStep.draft, repeatStep.monday).flags).toContain(BREAK_REPEAT_FLAG)
+  })
+
+  it('places the week after the repeat at 80% or more of its target', () => {
+    const after = weekOf(repeatStep.draft, addDays(repeatStep.monday, 7))
+    expect(after.targetRunMin).toBeGreaterThan(0)
+    expect(placedMin(repeatStep.draft, after)).toBeGreaterThanOrEqual(0.8 * after.targetRunMin)
+  })
+
+  it('raises no ramp-ceiling warning on the week after the repeat', () => {
+    const after = addDays(repeatStep.monday, 7)
+    const ceilings = repeatStep.draft.warnings.filter(
+      (w) => w.code === 'ramp-ceiling' && w.message.includes(`week of ${after}`),
+    )
+    expect(ceilings).toEqual([])
+  })
+
+  it('keeps the next four loading weeks at 80% or more of the earlier plan at the next Monday', () => {
+    const weeks = nextStep.draft.weeks
+      .filter((w) => w.weekStart >= nextStep.monday && !w.isRecovery && !w.isTaper)
+      .filter((w) => w.phase !== 'race')
+      .slice(0, 4)
+    expect(weeks).toHaveLength(4)
+    for (const w of weeks) {
+      const was = stepBefore.draft.weeks.find((x) => x.weekStart === w.weekStart)!
+      expect(w.targetRunMin, w.weekStart).toBeGreaterThanOrEqual(0.8 * was.targetRunMin)
+    }
   })
 })

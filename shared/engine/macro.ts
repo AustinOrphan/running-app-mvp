@@ -14,7 +14,7 @@ import { addDays, daysBetween, mondayOf } from '../dates.ts'
 import type { Activity } from '../types.ts'
 import { breakRestart, runsReaching, weekEvidence } from './adapt.ts'
 import { bmiOf } from './athlete.ts'
-import { BREAK_REPEAT_FLAG } from './breakWeek.ts'
+import { BREAK_REPEAT_FLAG, breakPartWeeks } from './breakWeek.ts'
 import {
   disruptionPlan,
   holdRestartWeeks,
@@ -1047,7 +1047,7 @@ function planWeeks(
       ...windowedWeeks(disruptionPlan(input.disruptions ?? [])).filter((w) => w < firstMonday),
       // the week that counts as the recovery week is a baseline beside another week and never
       // alone: the repeat is measured against the last loading week run before it [rule G-6]
-      ...(breaking ? [input.breakWeek!.weekStart] : []),
+      ...breakPartWeeks(input, firstMonday),
     ]),
     // a restart floor week of the plan being replaced stays the baseline of the weeks after it
     floor: pastFloor(input, firstMonday),

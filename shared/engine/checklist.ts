@@ -9,7 +9,7 @@ import { addDays, daysBetween, mondayOf } from '../dates.ts'
 import type { Weekday } from '../types.ts'
 import { afterBreak, breakRestart } from './adapt.ts'
 import { estimateState } from './athlete.ts'
-import { BREAK_REPEAT_FLAG } from './breakWeek.ts'
+import { BREAK_REPEAT_FLAG, breakPartWeeks } from './breakWeek.ts'
 import { plannedRaces, raceCutMinutes } from './enteredRaces.ts'
 import {
   dayRuleOn,
@@ -179,11 +179,7 @@ export function draftRamp(
     volumes: volume,
     skip,
     // a week a window took days from is a part week, a baseline beside another week and never alone
-    partial: new Set(
-      input.breakWeek === undefined
-        ? windowedWeeks(windows)
-        : [...windowedWeeks(windows), input.breakWeek.weekStart],
-    ),
+    partial: new Set([...windowedWeeks(windows), ...breakPartWeeks(input, currentMonday)]),
     floor:
       floorWeek === undefined
         ? null
