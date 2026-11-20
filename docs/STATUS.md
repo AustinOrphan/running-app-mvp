@@ -2278,6 +2278,14 @@ things stand" gives counts and percentages without a weekly total or a date.
     high) to 0; `npm run check`, the build, the e2e suite and `docker build .` passed. Not
     verified: a real zstd-compressed request against the running app.
 
+    GHSA-7589-6fvf-x4pw (2026-11-19, a ReDoS in `Schema.TemplateLiteral`, `effect` 3.22.0 and
+    older, patched in 3.22.1) turned the `static` job's `npm audit --omit=dev --audit-level=high`
+    red. The path is `prisma` 7.10.1, `@prisma/config`, `effect`, which `@prisma/config` pins at
+    exactly 3.20.0 (its newest release too), and `npm audit fix` offers only `--force`, a downgrade
+    to prisma 6.12.0. `package.json` gained `"effect": "^3.22.1"` under `overrides`, and the
+    lockfile resolves `effect@3.22.5`. The override goes once `@prisma/config` pins `effect` at
+    3.22.1 or newer.
+
     Still open, and who owns it:
 
     - RU2, the plateau research update (decision 10: whether the class `peakWeeklyMin` or the
