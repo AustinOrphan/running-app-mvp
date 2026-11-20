@@ -524,6 +524,52 @@ function ladderPurpose(blueprint: readonly number[], week: WeekDraft): string {
   return `${where}: ${describeBlueprint(blueprint)}, at an easy, talking pace. Walk ${String(frame)} minutes before and after; those walks are not counted in the session or the week.`
 }
 
+/** Minutes per metre are measured on a run of this length, so rounding barely moves them. */
+const PROBE_MIN = 100
+
+/**
+ * The most minutes a run of `kind` may hold and carry no more than `metres` [rules g-1]: the
+ * distance it is prescribed (at the zone paces, rounded to 100 m) measured per minute on a probe
+ * run, and the 50 m a prescribed distance may sit above the minutes' own. Null without zone paces.
+ */
+export function minutesWithin(
+  kind: SessionKind,
+  metres: number,
+  zones: ZoneSet,
+  week: WeekDraft,
+): number | null {
+  const probe = prescribe(kind, PROBE_MIN, zones, week).distanceM
+  if (probe === null) return null
+  if (probe <= 0) return Infinity
+  return Math.floor((metres - 50) / (probe / PROBE_MIN) + 1e-9)
+}
+
+const PLAIN_WEEK: WeekDraft = {
+  weekStart: '',
+  index: 0,
+  phase: 'base',
+  focus: '',
+  targetRunMin: 0,
+  longRunMin: 0,
+  longRunM: null,
+  gainTargetM: null,
+  runDays: 0,
+  qualitySessions: 0,
+  strengthSessions: 0,
+  tid: { z1: 1, z2: 0, z3: 0 },
+  flags: [],
+  isRecovery: false,
+  isTaper: false,
+}
+
+/**
+ * The minutes a plain long run may hold within `metres` [rules g-1, D7], measured as the micro
+ * places it; null without zone paces.
+ */
+export function longRunMinWithin(metres: number, zones: ZoneSet): number | null {
+  return minutesWithin('long', metres, zones, PLAIN_WEEK)
+}
+
 /** A session for a week, not yet dated: structure, targets, purpose and rules. */
 export function prescribe(
   kind: SessionKind,

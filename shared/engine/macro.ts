@@ -59,6 +59,7 @@ import {
   type PostRaceWindow,
 } from './postRace.ts'
 import { checkinOn, focalBoneActive } from './readiness.ts'
+import { longRunMinWithin } from './sessions.ts'
 import {
   injuryLevel,
   isLadderSession,
@@ -1100,7 +1101,8 @@ function planWeeks(
 
   // A plain long run is prescribed at the middle of the zone 1 pace band when the zones carry pace
   // (sessions.ts), and otherwise takes the week's long-run distance at the training pace.
-  const z1 = buildZones(input.profile, state, input.today).pace?.z1 ?? null
+  const zoneSet = buildZones(input.profile, state, input.today)
+  const z1 = zoneSet.pace?.z1 ?? null
   const runPace = z1 === null ? pace : (z1[0] + z1[1]) / 2
   // The D7 distance cap of a 5 km or 10 km long run is measured at the pace the run is carried at,
   // so a runner whose zone 1 is faster than the logged runs gets the minutes of 16 km at that pace.
@@ -1315,7 +1317,12 @@ function planWeeks(
     const distanceCapMin = Number.isFinite(caps.distanceM)
       ? floorEps(((caps.distanceM - 50) * runPace) / 60_000)
       : Infinity
-    const longCap = Math.min(peakLong, caps.min, distanceCapMin)
+    // The long run's own limit is measured as the micro places it, at the pace the run is carried
+    // at and rounded to 100 m [rules g-1, D7], so the row holds what is placed.
+    const longDistCapMin = Number.isFinite(caps.distanceM)
+      ? (longRunMinWithin(caps.distanceM, zoneSet) ?? distanceCapMin)
+      : Infinity
+    const longCap = Math.min(peakLong, caps.min, longDistCapMin)
     const rawLong = floorEps(start * share)
     // A week of a start path is its programme, every session held to the 30-day limit of G-1 as a
     // hard bound [rules E6, g-1]; the first week is the baseline the ramp measures from.
