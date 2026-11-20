@@ -691,9 +691,11 @@ export function weeklyDecision(
   } else {
     // G-6 steps from the minutes run. A week with none leaves no step to take, and a cap of 0
     // would hold the next week empty too: the break rules size the restart [rules J7, E6].
-    // A hold whose reviewed week was run above its plan steps from the minutes run, up to the plan's
-    // own figure for the week it covers; without it a week planned at 0 caps the next at 0 however
-    // much was run [rules G-6, owner decision 2026-11-20]. A reduce keeps the planned figure (G6).
+    // A hold whose reviewed week was run above its plan steps from the minutes run, up to the larger
+    // of the reviewed week's planned figure and the plan's figure for the week it covers (a recovery
+    // or taper week next leaves the reviewed week's figure as the floor); without the lift a week
+    // planned at 0 caps the next at 0 however much was run, and it still does when no next week is
+    // stored [rules G-6, owner decision 2026-11-20]. A reduce keeps the planned figure (G6).
     const stepped = nextWeekCap(
       decision === 'hold' &&
         actual > plannedThis &&
