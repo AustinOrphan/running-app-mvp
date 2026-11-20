@@ -191,7 +191,7 @@ describe('the hold that explains the days since the last run [rules J7, J9]', ()
     expect(breakHeldBy(held(6), LAST, '2026-11-10')).toBeUndefined()
   })
 
-  it('names nothing for a hold that starts 7 or more days after the last run', () => {
+  it('names nothing for a hold that starts more than 7 days after the last run', () => {
     expect(breakHeldBy(held(14, '2026-11-13'), LAST, '2026-11-20')?.from).toBe('2026-11-13')
     expect(breakHeldBy(held(14, '2026-11-14'), LAST, '2026-11-20')).toBeUndefined()
   })

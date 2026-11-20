@@ -7,7 +7,7 @@ import { agree, ordinal, plural } from '../copy/quantity.ts'
 import { windowCheckLine } from '../copy/revision.ts'
 import { addDays, daysBetween, mondayOf } from '../dates.ts'
 import type { Weekday } from '../types.ts'
-import { afterBreak, breakRestart } from './adapt.ts'
+import { breakRestart, planStateOf } from './adapt.ts'
 import { estimateState } from './athlete.ts'
 import { BREAK_REPEAT_FLAG, breakPartWeeks } from './breakWeek.ts'
 import { plannedRaces, raceCutMinutes } from './enteredRaces.ts'
@@ -917,16 +917,9 @@ function heldProgression(draft: PlanDraft, input: EngineInput, state: AthleteSta
   if (first !== undefined) {
     const floored = (x: number, step = 1) => Math.floor((x + 1e-9) / step) * step
     const held = {
-      // The generator cuts the typical week for a layoff once (J7), as the restart of a hold it
-      // makes for a window, so the item does not cut it again where a hold explains the break.
       min: Math.max(
         first.targetRunMin,
-        startLevelMin(
-          breakHeldBy(disruptionPlan(input.disruptions ?? []), state.lastRunDate, input.today) ===
-            undefined
-            ? afterBreak(state)
-            : state,
-        ),
+        startLevelMin(planStateOf(state, input.disruptions, input.today)),
       ),
       long: Math.max(first.longRunMin, floored(state.longest30d.durationSec / 60)),
       gain: Math.max(

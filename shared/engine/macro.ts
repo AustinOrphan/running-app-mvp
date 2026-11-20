@@ -1259,6 +1259,31 @@ function planWeeks(
     startWeeks,
     breaking && restart === null,
   )
+  // A plan carried on after a hold keeps the weeks of the hold's restart, its return week and first
+  // full week, as the plan being replaced drew them [rule J9]: a loading week stays one. The weeks
+  // the hold leaves empty would otherwise count as loading weeks in the recount, which moves the
+  // recovery week onto the restart week; a plan carried on from there would read a recovery week
+  // where the restart is, draw the weeks after it from the weeks run (none) and collapse. The
+  // recovery week the count gave the restart falls on the week after instead. A restart week the
+  // plan being replaced had not drawn as a loading week of the hold stays as the cadence has it.
+  const storedRestart = new Set(
+    (input.existing?.weeks ?? [])
+      .filter((w) => !w.isRecovery && w.flags.includes('disruption-return'))
+      .map((w) => w.weekStart),
+  )
+  for (const explained of dplan.holds.filter((h) => h.fraction < 1)) {
+    for (const monday of [explained.returnWeekStart, explained.fullWeekStart]) {
+      if (!storedRestart.has(monday)) continue
+      const at = Math.round(daysBetween(firstMonday, monday) / 7)
+      const week = phases[at]
+      if (at < 0 || at >= preCount - 1 || week === undefined || !week.isRecovery) continue
+      const next = phases[at + 1]
+      week.isRecovery = false
+      if (next !== undefined && at + 1 < preCount - 1 && !phases[at + 2]?.isRecovery) {
+        next.isRecovery = true
+      }
+    }
+  }
   const anchored = restart === null ? continued : null
   const start =
     restart !== null

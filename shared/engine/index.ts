@@ -7,12 +7,11 @@ import { agree, plural } from '../copy/quantity.ts'
 import { addDays, mondayOf } from '../dates.ts'
 import { HOLD_TRIM_RULE, isHoldTrim, isToRun, isTrimmed } from '../domain/sessionStatus.ts'
 import type { AthleteProfile, PlanSessionStatus, Weekday } from '../types.ts'
-import { afterBreak, trimQuality } from './adapt.ts'
+import { planStateOf, trimQuality } from './adapt.ts'
 import { estimateState } from './athlete.ts'
 import { breakPartWeeks } from './breakWeek.ts'
 import { runChecklist } from './checklist.ts'
 import {
-  breakHeldBy,
   dayRuleOn,
   dayRulesIn,
   disruptionPlan,
@@ -550,11 +549,7 @@ function generate(
   const dplan = disruptionPlan(input.disruptions ?? [])
   // J9 applies the J7 step-back once: while a hold of a window explains the days since the last run,
   // its restart is that step-back and the typical week is not cut for the layoff as well.
-  const rawState = estimateState(input)
-  const state =
-    breakHeldBy(dplan, rawState.lastRunDate, input.today) === undefined
-      ? afterBreak(rawState)
-      : rawState
+  const state = planStateOf(estimateState(input), input.disruptions, input.today)
   const zones = buildZones(input.profile, state, today)
   const downhillHold = {
     raceDate: goal.date,

@@ -2013,6 +2013,52 @@ describe('a break a reported window holds is cut once, by the J9 restart [rules 
     expect(failed(chain)).toEqual([])
   }, 240_000)
 
+  it.each([
+    ['hot-race', 'niggle of 28 days', 28, 4, -2, ['2026-12-21', '2026-12-28'], '2026-12-14'],
+    ['marathon', 'niggle of 21 days', 21, 6, -2, ['2026-12-28', '2027-01-04'], '2026-12-21'],
+  ] as const)(
+    'carries the weeks after a window on from the return Monday to the Monday after it ends, no collapse (%s, %s)',
+    (id, _label, days, weeksOn, offset, weeks, firstFullMonday) => {
+      // The hold's return week and first full week stay loading weeks in the carried-on plan, so the
+      // re-plan of the first Monday back reads a stored week that is the restart, not a recovery
+      // week with the weeks run (none) as its baseline: hot-race drew 189 then 47, 51 there.
+      const start = addDays(addDays(mondayOf(TODAY), 7 * weeksOn), offset)
+      const window = windowOf({
+        id: 'w',
+        reason: 'niggle',
+        startDate: start,
+        endDate: addDays(start, days - 1),
+        pain: 0,
+      })
+      const hold = disruptionPlan([window]).holds[0]!
+      expect(hold.fullWeekStart).toBe(firstFullMonday)
+      const chain = replanChain(byId(id).input, { windows: [window], maxSteps: 20 })
+      const at = (today: string) => chain.find((s) => s.input.today === today)!
+      const mondays = chain
+        .map((s) => s.input.today)
+        .filter((d) => d >= hold.returnWeekStart && d <= hold.fullWeekStart)
+      expect(mondays.length).toBeGreaterThanOrEqual(2)
+      for (const week of weeks) {
+        const figures = mondays.map((d) => weekTarget(at(d).draft, week))
+        const lowest = Math.min(...figures)
+        const highest = Math.max(...figures)
+        expect(
+          lowest,
+          `${week} across the re-plans ${mondays.join(', ')}: ${figures.join(', ')}`,
+        ).toBeGreaterThanOrEqual(0.6 * highest)
+      }
+      // the weeks that follow the first full week, read on the Monday after the window ends against
+      // the re-plan before it
+      const before = at(addDays(hold.fullWeekStart, -7)).draft
+      const after = at(hold.fullWeekStart).draft
+      for (const week of [addDays(hold.fullWeekStart, 14), addDays(hold.fullWeekStart, 21)]) {
+        expect(weekTarget(after, week), week).toBeGreaterThanOrEqual(0.6 * weekTarget(before, week))
+      }
+      expect(failed(chain)).toEqual([])
+    },
+    240_000,
+  )
+
   it('draws the weeks after an illness of 14 days from the plan before it (half)', () => {
     const window = windowOf({
       id: 'w',
