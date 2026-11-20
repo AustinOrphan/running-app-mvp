@@ -342,7 +342,15 @@ describe('a break week before an entered race', () => {
               // leaves two threshold sessions in about 80 min, 28% above zone 1 (limit 25%). The
               // plan without the race failed the same item there until the short week stayed a part
               // week (G-6), which lifted that week's figure, so the item no longer counts as known.
-              const knownTid = id === 'half-capped' && weeksBefore === 3 && offset >= -3
+              // Exactly three cells: capped half, marathon, priority C, re-plans -3 to -1 days. The
+              // K6 race-week intensity follow-up removes this exception.
+              const knownTid =
+                id === 'half-capped' &&
+                weeksBefore === 3 &&
+                cls === 'marathon' &&
+                priority === 'C' &&
+                offset >= -3 &&
+                offset < 0
               const fresh = failing(draft.checklist).filter(
                 (item) => !known.failed.includes(item) && !(item === 'tid' && knownTid),
               )
