@@ -22,19 +22,23 @@ Each item names the default that holds until the owner answers.
    (Q6). Also check the fuel-cue test on the wrist (kit sent outside the repository), the minus
    key and the colon in the number fields on the iPhone (#792), and one strength session logged in
    a gym online and offline. Default: delivery to the watch stays an inference.
-4. **Tag the first beta.** In the live checkout: move `prisma/dev.db` and `prisma/prisma` to
-   `~/running-log-old-dbs/`, `git pull`, run `npm run release -- 2.0.0-beta.1`, then run the two
-   git commands printed in `release-notes/v2.0.0-beta.1.md`. Default: untagged; `v1.0.0` is the
+4. **Tag the first beta.** In the live checkout: move `prisma/dev.db` and `prisma/prisma` out
+   of the checkout (the release script refuses a dirty tree, `scripts/release.ts:173`), run
+   `git pull`, run `npm run release -- 2.0.0-beta.1`, run `docker build .` and
+   `npm run -s plan:report`, edit the draft note `release-notes/v2.0.0-beta.1.md`, then run the
+   two git commands the script prints. Default: untagged; `v1.0.0` is the
    latest release tag.
 5. **Beta gate (D2).** Invite testers only after the move, with the off-site backups on, the data
    notice shown and the network change applied. Default: no invitations.
-6. **Enable branch protection.** Require the `ci` and `analyze` checks on main (the API answers
-   404, not protected, on 2026-11-19). Default: unprotected, although `CLAUDE.md` says the `ci`
-   job is the one check that branch protection reads.
+6. **Enable branch protection.** Main has no branch protection and no rulesets:
+   `gh api repos/AustinOrphan/running-app-mvp/branches/main/protection` answers 404 "Branch not
+   protected" and the rulesets list is empty, although `CLAUDE.md` (Gates) says the `ci` check is
+   the one branch protection reads. Enabling it means requiring the `ci` (`ci.yml`) and `analyze`
+   (`codeql.yml`) checks. Default: unprotected.
 7. **Strava policy choices.** Decide whether to drop the stored coarse start point
    (`server/providers/strava.ts:361,375-376`, Policy 5.7) or keep it for non-Strava use only, and
-   settle the 7-day cache (6.2) and the no-AI-read rule (5.3). Default: the start point is stored
-   (coarsened), and live-database reads skip Strava rows.
+   settle the 7-day cache (6.2) and the no-AI-read rule (5.3). Default: the coarse start point is
+   stored.
 8. **Accept the proposed ADRs.** ADR 0024 (place search), 0025 (Strava per-runner apps) and 0026
    (work follows events) are built and merged but still read Proposed. Default: they stay Proposed.
 9. **Engine values awaiting a call.** Pending: RU2, whether the ADR 0013 rebuild ceiling or weeks
@@ -49,15 +53,21 @@ Each item names the default that holds until the owner answers.
     Daniels 4th, Run Less Run Faster 3rd, Lydiard and Gilmour 1997, Pfitzinger 4th. Collect the
     papers with no legal full text (Warden 2014, Doherty 2020, Keogh 2016, Mountjoy 2023 with its
     correction, Bourdon 2017, Ely 2007, the Tyler 2016 erratum). Read the Higdon advanced 5K page.
-    Default: the rules keep their grades, and the 4 records stay in `PREDATES_RUBRIC`.
+    Default: the rules keep their grades; the Higdon and Daniels records stay in
+    `PREDATES_RUBRIC` (`scripts/research-check.ts:141`), and the book records stay unwritten
+    until the pages are photographed.
 11. **Strength setup and bar.** Enter the equipment, lifting level and weight unit, then judge the
     spec 1.4 bar after a month of use. A rest timer and a plate calculator are built only if the
     bar fails. Default: generic setup, nothing built.
 12. **Small optional decisions.** Folder scan: a file watch once the sftp drop exists (default:
     5-minute scan, `shared/limits.ts:27`). Restore in a week with no weekly update (default: as
-    is, #799). Owner replay figures into spec 5.6 (recommendation: no; the public repository holds
-    none). VoiceOver pass (default: axe scan only). Apple Watch companion spike Task 1 in Xcode
+    is, #799). Owner replay figures into spec 5.6 (default: the figures stay outside the repository;
+    recommendation: close as no). Compact banner buttons at 26 px (default: as built; every
+    action previews first). VoiceOver pass (default: axe scan only). Apple Watch companion spike Task 1 in Xcode
     (default: nothing built).
+13. **Stale remote branches.** Review the six stale remote branches: `ci/e2e-ubuntu-2404`,
+    `feat/coach-phase3`, `feat/il2-illustrations-in-use`, `task/M1-methods-research`,
+    `task/RU1-rir-research` and `task/S4-revet-practice`. Default: kept.
 
 ## Where things stand
 
@@ -70,26 +80,11 @@ Each item names the default that holds until the owner answers.
   0026 read Proposed.
 - The live copy runs on the laptop over http `.local`. The home-server move and the beta
   invitations are not done. Branch protection on main is off.
-- Recent rounds, by PR range (the PRs and `git log` hold the detail):
-  - #740 to #754 (2026-11-16): per-runner days (D10, ADR 0022) and the road race plan (D11,
-    ADR 0023).
-  - #755 to #769 (2026-11-17): zone fixes, place search for the home and race place (ADR 0024),
-    Race and Plan wording and links, dismissible update cards, the easy ceiling on My paces, a
-    rest offer after pain on a long day, what held each week, long-run climb by the course, the
-    session cookie renewed up to 120 days, feel and pain asked on watch-rated runs.
-  - #770 to #780 (2026-11-18): temporary-password reset and API gate (PW1), RU2 rule texts, hike
-    practice cue, one prediction format, the true data notice (DN1), error references, release
-    identity and script, the HR-quality line, race heat unknown, which source to use, Today's
-    first action with no plan.
-  - #781 to #791 (2026-11-18): cooling and gut papers, night start-by time, pre-restore prune,
-    the race card's "When it gets hard", own answers on What the plan can see, the brief's first
-    back-to-back, night or downhill session, cooling line, gut referral, rehearse script and
-    restore drill, downhill lead (DL1), Strava deletion (SC1, ADR 0025).
-  - #792 to #796 (2026-11-19): minus and colon keyboards, the 2.0.0-beta.1 version, strength
-    pairing by date and once at start, manual merge of two entries.
-  - #797 to #801 (2026-11-19): polls to events (ADR 0026). Terrain, HR quality, track and surface
-    run as start passes and on edit; watch ratings and track streams follow the hourly sync; the
-    weekly catch-up runs at start; publish runs on change.
+- #740 to #801 merged 2026-11-16 to 2026-11-19: per-runner days (ADR 0022), the road race plan
+  (ADR 0023), place search (ADR 0024), beta preparation, Strava deletion (ADR 0025) and polls to
+  events (ADR 0026: terrain, HR quality, track and surface run as start passes and on edit, watch
+  ratings and track streams follow the hourly sync, publish runs on change). The PRs hold the
+  detail.
 - Timers left in the scheduler: sync hourly, folder every 5 minutes, weather every 10 minutes,
   predictions every 6 hours, plus the daily slots (`server/jobs/scheduler.ts:1119-1229`).
 - Off-host backup bound in code: 29 snapshots (`server/services/backup.ts:57`). The restic job is
@@ -98,16 +93,12 @@ Each item names the default that holds until the owner answers.
 
 ## Open follow-ups (none blocks a merge)
 
-Ranked by weight for the first 100-mile build (race 2027-06-12), then for beta readiness.
+Ranked by weight for the first 100-mile build toward the goal race, then for beta readiness.
 
 1. **Live copy on the laptop.** The hourly sync, the Monday re-plan, the calendar publish and the
-   02:00 backup stop whenever the laptop sleeps. The cutover steps are in the private homelab
-   runbook: stop and back up, deploy and set the secret, copy the backup in, restore, verify,
-   re-add the phone clients, retire the laptop copy. Beta invitations wait for it (D2).
+   02:00 backup stop whenever the laptop sleeps. See owner item 1; beta invitations wait for the move (D2).
 2. **Off-host backups.** Only the app's own daily copies exist, on the same disk as the database.
-   The app side is done (`OFF_HOST_SNAPSHOT_DAYS = 29`). Still open: the sftp machine is named at
-   the move, and the homelab restic job goes from 30 to 29 daily snapshots and reads only the
-   newest `app-*.db`.
+   The app side is done (`OFF_HOST_SNAPSHOT_DAYS = 29`); the rest is owner item 1.
 3. **Workout delivery on the real watch is unconfirmed.** Unchecked: the three FIT files on the
    watch (manufacturer 255, repeat steps, string caps, hike sent as running); one live
    intervals.icu publish (sport-settings field names, percent-pace steps, the 40 bpm floor,
@@ -115,8 +106,9 @@ Ranked by weight for the first 100-mile build (race 2027-06-12), then for beta r
    the help text names (Q6). Until then "On your watch" is an inference.
 4. **Race simulation opt-in (H2) is not built.** The opt-in 8 h simulation, no later than 3 weeks
    before race day, is design intent. `h2.raceSimulationMaxHours`
-   (`shared/engine/params/h-ultra.ts:81`) has no reader; only `h2.longestRunCapHours` is read
-   (`shared/engine/goal.ts:367`). It must exist before about 2027-05-22 to be used.
+   (`shared/engine/params/h-ultra.ts:81`) has no reader; only the longest-run caps of H2 are read
+   (`shared/engine/goal.ts:367-368`). It must exist at least 3 weeks before the goal race to be
+   used.
 5. **Race fuel rate has no duration floor.** `raceFuelFor` (`shared/engine/fuel.ts:546`) takes the
    tolerated rung of the ladder whatever the length of the runs that showed it, so a 2 h run
    counts like a 6 h run. A floor that can only lower the rate was proposed on 2026-11-12 and left
@@ -145,26 +137,35 @@ Ranked by weight for the first 100-mile build (race 2027-06-12), then for beta r
     minutes check of a re-plan is narrowed. The Plan page with an entered race was not checked in
     a browser, and an A-priority goal other than the plan's own is not read (#731). The
     12-athlete probe found no failure; no e2e spec covers an entered race on the Plan page.
+    Medium weight, because owner item 2 enters a spring race: when a completed race of marathon
+    distance or longer lies before the goal race (`windowLeadIn`, `shared/engine/macro.ts:1789-1797`;
+    `shared/engine/postRace.ts:414-417`), the plan drawn after its post-race window passes
+    `existing: null` (`macro.ts:1892`), so `pastStrengthBlock` finds no block and starts a fresh
+    strength block during the build. Strength stays at 0 through the window
+    (`postRace.ts:660`). The first-finish modifier applies to a runner with no race history. The
+    new-plan trigger uses the D1 class while G-1 uses the literal 42,195 m.
 12. **Strength logging is not checked on a phone in a gym.** No real strength session has been
-    logged on the owner's phone, online or offline. `17-offline.spec.ts` cuts the connection in a
+    logged on the owner's phone, online or offline. `tests/e2e/17-offline.spec.ts` cuts the connection in a
     desktop browser only.
-13. **Beta tag.** `package.json:3` is `2.0.0-beta.1` but the latest release tag is `v1.0.0`; the
-    steps are owner item 4. Later betas count up with each tester-facing update. Testers' release
-    identity (#776) reads the tag.
+13. **Beta tag.** `package.json:3` is `2.0.0-beta.1` but the latest release tag is `v1.0.0`; see
+    owner item 4. The app shows the `package.json` version (`server/version.ts`,
+    `web/versionDefine.ts`); the tag marks the release notes and the rollback point. Later betas
+    count up with each tester-facing update.
 14. **Strava start point and policy questions.** `server/providers/strava.ts:361,375-376` reads
     `start_latlng` and stores it coarsened (`coarse()`) as `startLat` and `startLng`; Policy 5.7
-    restricts storing location. The precision stored should be stated when this is decided. The
-    7-day cache (6.2) and the no-AI-read rule (5.3) are separate and undecided. ADR 0025 is
-    Proposed 2026-11-18.
+    restricts storing location; see owner item 7 for the choices.
 15. **Branch protection is off on main.** `gh api` answers 404 "Branch not protected" and the
-    rulesets list is empty (2026-11-19). The fix is to require `ci` (`ci.yml`) and `analyze`
-    (`codeql.yml`); `CLAUDE.md` then reads true.
+    rulesets list is empty (2026-11-19). See owner item 6.
 16. **Invited-account flow not tried on a phone over HTTPS.** Create-user, the temporary password
     and the PW1 gate `auth.password-change-required` (`server/auth/middleware.ts:62`) were tried
-    in Chromium only (`tests/e2e/38-invited-account.spec.ts`), with no phone, HTTPS or proxy.
+    in Chromium only (`tests/e2e/38-invited-account.spec.ts`), with no phone, HTTPS or proxy. Anyone who knows an email can lock that account out of sign-in
+    for 15 minutes (10 failures), and behind a proxy the per-address budgets are shared by every
+    runner (`server/auth/rateLimit.ts`); open, and relevant to beta readiness.
 17. **delete-user leaves data in backups, free pages and published events.** The user's rows stay
     in the daily copies until pruned (`server/services/backup.ts`), and pre-migrate and
-    pre-restore copies stay after 29 days except the newest 3 of each kind. They also stay in the
+    pre-restore copies are removed after 29 days, except the newest 3 of each kind, which stay
+    whatever their age (`KEEP_PRE_MIGRATE_DAYS`, `KEEP_PRE_MIGRATE_MIN`, `backup.ts:49-50`), so
+    those 3 can hold a deleted account's rows indefinitely. They also stay in the
     live file's free pages until VACUUM, and in intervals.icu calendar events the publisher wrote
     (#711). The README data notice states the bound.
 18. **The access log writes the OAuth callback code and state.** Only the calendar feed token is
@@ -185,9 +186,10 @@ Ranked by weight for the first 100-mile build (race 2027-06-12), then for beta r
 22. **The Apple Health push skips the import's range checks.** `server/providers/appleHealth.ts:34`
     checks only that a number is finite, while the parsed import applies range checks. Not compared
     field by field; check whether a later write validates before fixing.
-23. **Watch rating is not refreshed after the first ask.** A run is asked for its intervals.icu
-    rating once after the sync that imported it and again at the next hourly sync
-    (`runWatchRatingPass`, `server/jobs/scheduler.ts:320-330`), then never, so a later change in
+23. **Watch rating is not refreshed after the first ask.** A run's intervals.icu rating
+    is read at import and asked once more at the next hourly sync (`runWatchRatingPass`,
+    `server/jobs/scheduler.ts:315-325`; `createdBefore` is the start of the sync before the tail),
+    then never, so a later change in
     intervals.icu is not picked up. A stored standout and the execution assessments are not
     recomputed when the spread check first passes. The three spread thresholds are defaults.
 24. **The track-record memo reads non-state `PredictionLog`.** `server/services/trackRecord.ts:31,41`
@@ -208,45 +210,44 @@ Ranked by weight for the first 100-mile build (race 2027-06-12), then for beta r
 28. **Simulator fixed point and pinned preset cases.** Pinned as `test.fails`: a re-plan with
     nothing new is not a fixed point in the first week of a start path or in a held week a window
     touches (`tests/unit/engine/sim-athlete.test.ts:1035`). Under longer-base, a window-touched
-    week stays at 252 against the default's 243 (`preset-chains.test.ts:530`, `holdWeek` at
+    week stays at 252 against the default's 243 (`tests/unit/engine/preset-chains.test.ts:530`, `holdWeek` at
     `shared/engine/index.ts:441`). Three half-marathon cases with a 21-day hold sit at 91-92% of
-    bound (`disruption-integration.test.ts:1227-1231`). In the ragged chains a first-100-mile
-    runner collapsed to 0-30 min a week fails the taper item at 4 of 29 steps. `plan-metrics.ts`
+    bound (`tests/unit/engine/disruption-integration.test.ts:1227-1231`). In the ragged chains a first-100-mile
+    runner collapsed to 0-30 min a week fails the taper item at 4 of 29 steps. `tests/unit/engine/plan-metrics.ts`
     reads a window's part week as the G-2 baseline, so some sweep minima are report artefacts.
-29. **Post-race plan restarts the strength block, with other post-race edges.** The plan drawn
-    after a post-race window passes `existing: null` (`shared/engine/macro.ts:1892`), so
-    `pastStrengthBlock` finds no block and starts a fresh one. Strength stays at 0 through the
-    window (`shared/engine/postRace.ts:660`). The first-finish modifier applies to a runner with
-    no race history. The new-plan trigger uses the D1 class while G-1 uses the literal 42,195 m.
-30. **Compact banner, fold and 125% text layout.** The compact disruption banner's buttons are
-    26 px tall, below common touch-target guidance, and every action previews first. The
+29. **Compact banner, fold and 125% text layout.** The compact disruption banner's buttons are
+    26 px tall, below common touch-target guidance, and every action previews first (owner item
+    12). The
     rest-window offer may be read twice in browse mode. Today may scroll sideways at 125% text
     from the hidden chart table. With three readiness signals, Done falls past the 788 px fold at
     390x844 and behind the tab bar at 360x740, and the fold assertions do not subtract the tab
     bar. None of this is verified in a browser on main.
-31. **The Today preview payload arms no rollover timer.** `useServerToday`
+30. **The Today preview payload arms no rollover timer.** `useServerToday`
     (`web/api/today.ts:78-102`) arms none for a preview payload, so a preview that becomes today's
     copy waits for the next focus or reconnect. Explain offline still waits out its retries. The
     sync-paused and weekly-update health notes in kept Today copy may be stale.
-32. **Revision and fuel form gaps.** State-driven updates show no per-session Why in
+31. **Revision and fuel form gaps.** State-driven updates show no per-session Why in
     `RevisionDiff`. The undo-reason copy differs from the examples in spec 8.6. The fuel "opens
     after" hint can understate what the server allows, and focus drops to the page after a fuel
     settings save. A fuel-log item whose product was edited loses its product link on the next
     edit. An undo after a `PARAMS_VERSION` bump shows "Drawn under updated plan rules"
     (`shared/copy/revision.ts:629`) although its rows are the restored ones.
-33. **Climb note and eased easy runs.** The climb note fires on every run of a climbing week,
-    because the planner spreads gain over every run kind. An eased easy run keeps its original
-    `gainM`, and `easedSession` gives one cause for every easy downgrade. Not rechecked on main.
-34. **An engine trim of a future session may write a plan row outside any revision,** so a later
-    undo can read it as an edit and refuse (the refusal names the row). The trimmed session is
-    stored without its untrimmed version (`PlanSession.trimmed` is a flag only). Not rechecked in
-    code.
-35. **`RUN_CAP_MAX_MIN` and the trim predicates.** `RUN_CAP_MAX_MIN = 240`
+32. **Climb note and eased easy runs.** `climbNote` (`shared/engine/targets.ts:132`) fires on any
+    session whose planned gain per hour reaches `h4.climbNoteGainPerHourM`, so it shows on every
+    run of a climbing week. `easedSession` (`shared/engine/readiness.ts:791`) spreads the original
+    session, so an eased easy run keeps its `gainM`, and it gives one purpose text (readiness
+    signals lower than usual) for every easy downgrade. Checked on HEAD 2026-11-20; both hold.
+33. **An engine trim of a future session writes a plan row outside any revision.**
+    `trimNextQuality` (`server/services/execution.ts:75-139`) updates the `PlanSession` row
+    directly, with no `recordPlanWrite`, so a later undo can read the row as an edit and refuse
+    (the refusal names the row; the refusal path itself was not traced). The row does keep the
+    untrimmed session in `original`. Checked on HEAD 2026-11-20.
+34. **`RUN_CAP_MAX_MIN` and the trim predicates.** `RUN_CAP_MAX_MIN = 240`
     (`shared/engine/disruption.ts:31`) is documented as an input bound of the form, not a rule;
     whether the every-number-is-a-Param rule covers it is a judgement call.
     `shared/engine/index.ts:296-305` keeps its own `isTrim` and `isHoldTrimRow` beside
     `isTrimmed()`.
-36. **Small engine gaps for other runners.** Not offered or not built: a declared longest run
+35. **Small engine gaps for other runners.** Not offered or not built: a declared longest run
     (A3; no profile field); n1 walk-jog stages after a bone stress injury (only `n1.bsiReturnDays`
     exists); widening the prediction range during a rest window; moves across weeks
     (`shared/engine/adjust.ts:9`); open-ended windows (`j9.maxWindowDays`); an automatic follow of
@@ -255,42 +256,43 @@ Ranked by weight for the first 100-mile build (race 2027-06-12), then for beta r
     reads "not reachable" although the plan still builds. Contrived re-plans with completions that
     have no activity can collapse to zero-minute weeks (19 of 2,310 fuzzed); no real path
     produces that input.
-37. **Low-weight follow-ups.** `useWellness` (`web/api/wellness.ts`) has no consumer. Stats charts
-    stop at 12 weeks (`StatsPage.tsx:21`). The Warning signs page has no offline test, and the
+36. **Low-weight follow-ups.** `useWellness` (`web/api/wellness.ts`) has no consumer. Stats charts
+    stop at 12 weeks (`web/pages/StatsPage.tsx:21`). The Warning signs page has no offline test, and the
     feedback clipboard fallback is untried in iOS Safari. The downhill cue shows on the session
-    sheet only (`SessionSheet.tsx:75`), and "heavy" has no metre dose. The own easy ceiling reads
+    sheet only (`web/components/SessionSheet.tsx:75`), and "heavy" has no metre dose. The own easy ceiling reads
     nested refits and has no e2e spec. The first-hot-days hold can answer 409 stale-preview after
     a forecast refresh, by design. Time in bed was tried on synthetic fixtures only. The axe scan
     covers seeded states only and keeps one known 3.24:1 violation
-    (`42-axe-scan.spec.ts:68-70`). The survivors of the 2026-11-01 audit are unchecked: E18
+    (`tests/e2e/42-axe-scan.spec.ts:68-70`). The survivors of the 2026-11-01 audit are unchecked: E18
     reminders, CI time, nine over-graded Params, Steps on Today, the after-run verdict, the
     sensitivity probe. More providers are unbuilt (Polar, WHOOP, Oura, Google Health).
-38. **Code health and test strength.** `shared/engine/explainInputs.ts` is 4,023 lines. `median`
+37. **Code health and test strength.** `shared/engine/explainInputs.ts` is 4,023 lines. `median`
     is duplicated in at least five engine files. `planEngine.ts` and `replan.ts` import each other
     (uses are inside function bodies). The legacy `PUT /api/plan/sessions/:id` is still mounted
     (`server/routes/plan.ts:420`). `DISRUPTION_COLUMNS` is a hand-kept list defined at
-    `server/services/replan.ts:360`. 46 of 120 `tests/api` files do not call
+    `server/services/replan.ts:360`. 47 of 120 `tests/api` files do not call
     `expectNoRefusedFetches`. The runner-keyed write scan misses OR shapes. A few engine tests
     assert conditionally. `ClimateCache` is never pruned. The predictions job records idle runs. A
-    zstd request body is untried against the app. The Playwright image tag in `ci.yml:86` needs a
+    zstd request body is untried against the app. The Playwright image tag in `.github/workflows/ci.yml:86` needs a
     by-hand bump, which a CI step enforces. Fast finish, the easy part of strides and quality
     warm-ups go out as open steps. A real two-release shell update and iOS cache eviction are
     untried (the owner's http copy blocks the worker anyway). The fuel e2e depends on the plan
-    holding an eligible run. The G5 lint misses inflected forms.
+    holding an eligible run. The G5 lint misses inflected forms. Dark mode and real-device hand
+    checks of the phase 3a pages are not done. The brief reading pass covered one live brief, and
+    the replay into a throwaway database was never run. Revision dates are still cut in the
+    device's day. Readiness and race-decision gates are not yet stored decisions. Research passes R1 to R5 are unchecked. The H2b
+    simulator tuning and the Treff readings are open. A sign-out read in flight can still be kept
+    after `purgeDeviceData()` (recorded in ADR 0012).
+38. **Accepted limits, no action planned.** The non-production API limit; `computeReplan` does
+    not await `ensureClimate`; the `webcal` scheme; `X-WR-TIMEZONE` in the feed; merge-style undo;
+    the 14-day keep of owner edits; the explain weekly-decision query; unbounded lifetime Stats
+    totals. The race plan models no late fade, so no end of the arrival range is ranked (#709); it
+    waits on a pacing cohort, and the two papers it would rest on are not in the corpus.
 
 ## Environment notes
 
-- Bare repository with worktrees. Isolated agent worktrees branch from `origin/main` and have no
-  `node_modules`; agents run `npm ci` first.
-- The Playwright web server listens on 3101 plus a per-checkout offset (0-399, a hash of the
-  checkout's absolute path, `tests/e2e/env.ts`), so worktrees can run `npm run test:e2e` at the
-  same time; it also clears `test-results/`. Print a checkout's port with
-  `node -e "import('./tests/e2e/env.ts').then((m) => console.log(m.E2E_PORT))"`. Two checkouts can
-  still hash to one port; the run then fails on the bind error.
-- The owner's intervals.icu account goes dormant without a login; Garmin's official API is
-  closed to new applicants (October 2026).
-- Personal training data stays in Google Sheets, Smashrun and the owner's own app database; the
-  repository holds synthetic fixtures only.
+- An intervals.icu account goes dormant without a login; Garmin's official API is closed to new
+  applicants (October 2026).
 - Dependency policy: a security advisory on a runtime dependency is merged within 48 hours of its
   Dependabot PR going green, other grouped updates weekly, and a major version only by a deliberate
   decision; a red `npm audit` step in CI blocks until the advisory is addressed.
