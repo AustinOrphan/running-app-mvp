@@ -1570,8 +1570,20 @@ function planWeeks(
   const weekBefore = (input.existing?.weeks ?? []).find(
     (w) => w.weekStart === addDays(firstMonday, -7),
   )
+  // The floor reads a build that was run: the week before must hold executed minutes of at least
+  // `j5.completionHoldShare` of its planned minutes, from the athlete state and never from the
+  // stored rows. After a layoff the week before was not run, and the taper keeps the size the
+  // peak gives it [rules K2, G6].
+  const weekBeforeRun =
+    weekBefore === undefined
+      ? 0
+      : (state.weeks.find((w) => w.weekStart === weekBefore.weekStart)?.runMin ?? 0)
   const peakWeekFloor =
-    preCount === 1 && weekBefore !== undefined && !weekBefore.isRecovery && !weekBefore.isTaper
+    preCount === 1 &&
+    weekBefore !== undefined &&
+    !weekBefore.isRecovery &&
+    !weekBefore.isTaper &&
+    weekBeforeRun >= P.j5.completionHoldShare.value * plannedMinOf(weekBefore)
       ? plannedMinOf(weekBefore)
       : 0
   const reference =
