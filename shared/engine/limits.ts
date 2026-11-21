@@ -11,10 +11,17 @@
 // (`targetLimit`). Pure: no I/O, no clock.
 import { addDays, daysBetween, mondayOf } from '../dates.ts'
 import type { Activity, TargetLimitBound, TargetLimitKind } from '../types.ts'
-import { isDisruptedWeek } from './disruption.ts'
+import { BREAK_REPEAT_FLAG } from './breakWeek.ts'
+import { isDisruptedWeek, windowedWeeks, type DisruptionPlan } from './disruption.ts'
 import { isDuplicate } from './load.ts'
 import { P } from './params/index.ts'
-import { isLadderSession, startKind, startWeek, type StartPath } from './startWeeks.ts'
+import {
+  isLadderSession,
+  isLoadingWeek,
+  startKind,
+  startWeek,
+  type StartPath,
+} from './startWeeks.ts'
 import type { AthleteState, SessionKind, SessionSpec, WeekDraft } from './types.ts'
 
 /** Guards float noise (100 * 1.1 = 110.00000000000001) before rounding down. */
@@ -327,6 +334,46 @@ export function rampSkipWeeks(today: string, lowWeeks: Iterable<string>): Set<st
   return skip
 }
 
+/**
+ * The week in progress, counted as a ramp baseline at the figure of the plan being replaced
+ * (`plannedMinOf`) where `rampSkipWeeks` would leave it out as a part week [rules G-2, MW1]: a
+ * re-plan with nothing new then gives the weeks after it the figures they already have, and an
+ * overshoot never lifts a later week. The week counts when `today` is after its Monday, the plan
+ * being replaced holds it as a loading week no window touches (the stored flags and the windows
+ * reported now), and the runner has run at least `j5.completionHoldShare` of what that plan had due
+ * before today: a week with the runs missed stays a part week and no baseline. Empty otherwise.
+ * `doneMin` is the running minutes already logged in the week. Pure.
+ */
+export function countedWeeks(
+  existing: {
+    weeks: ReadonlyArray<WeekDraft>
+    sessions: ReadonlyArray<Pick<SessionSpec, 'date' | 'kind' | 'durationMin' | 'flags'>>
+  } | null,
+  today: string,
+  windows: DisruptionPlan,
+  doneMin: number,
+): Map<string, number> {
+  const counted = new Map<string, number>()
+  const monday = mondayOf(today)
+  const row = existing?.weeks.find((w) => w.weekStart === monday)
+  if (existing === null || row === undefined || today <= monday) return counted
+  if (!isLoadingWeek(row) || isDisruptedWeek(row.flags)) return counted
+  // the repeat of a short week is held at the J7 share of its planned week, a figure no baseline
+  if (row.flags.includes(BREAK_REPEAT_FLAG)) return counted
+  if (windowedWeeks(windows).includes(monday)) return counted
+  const due = runningMinutes(
+    existing.sessions.filter(
+      (s) =>
+        s.date >= monday &&
+        s.date < today &&
+        !(s.flags ?? []).includes('rest-window') &&
+        s.durationMin > 0,
+    ) as SessionSpec[],
+  )
+  if (doneMin + EPS >= P.j5.completionHoldShare.value * due) counted.set(monday, plannedMinOf(row))
+  return counted
+}
+
 const PLANNED_FLAG = 'planned-'
 
 /**
@@ -429,6 +476,11 @@ export interface RampContext {
    * another week and never alone (`highestBaseline`).
    */
   partial?: ReadonlySet<string>
+  /**
+   * Weeks that count at a figure of the plan being replaced, whether skipped or partial or not
+   * (`countedWeeks`).
+   */
+  counted?: ReadonlyMap<string, number>
   /**
    * The first week of a start path [rules E6]: exempt from G-2 up to its minutes, and a baseline
    * at those minutes for the weeks after it, a part week included.
@@ -581,6 +633,7 @@ export function highestBaseline(
   lag: number,
   floor: RampContext['floor'] = null,
   partial: ReadonlySet<string> | undefined = undefined,
+  counted: ReadonlyMap<string, number> | undefined = undefined,
 ): number | null {
   const count = P.g2.baselineWeeks.value
   const lookback = Math.max(count, P.g2.ceilingLookbackWeeks.value)
@@ -591,7 +644,10 @@ export function highestBaseline(
     if (k >= count && best !== null) break
     const week = addDays(weekStart, -7 * (lag + k))
     let v: number | undefined
-    if (floor !== null && week === floor.weekStart) {
+    const kept = counted?.get(week)
+    if (kept !== undefined) {
+      v = kept
+    } else if (floor !== null && week === floor.weekStart) {
       v = Math.max(values.get(week) ?? 0, floor.minutes)
     } else if (skip.has(week)) {
       continue
@@ -612,14 +668,17 @@ export function highestBaseline(
 const positive = (value: number | null): number | null =>
   value !== null && value > 0 ? value : null
 
-/** The ramp limits of the week of `weekStart`; null when nothing gives a baseline. */
-export function rampLimits(ctx: RampContext, weekStart: string): WeekRampLimits | null {
+function baselines(
+  ctx: RampContext,
+  weekStart: string,
+  counted: ReadonlyMap<string, number> | undefined,
+): { planned: number; ceilingBase: number } | null {
   const typical = ctx.typicalWeekMin > 0 ? ctx.typicalWeekMin : null
   const planned =
-    positive(highestBaseline(ctx.volumes, ctx.skip, weekStart, 1, ctx.floor, ctx.partial)) ??
-    typical
+    positive(
+      highestBaseline(ctx.volumes, ctx.skip, weekStart, 1, ctx.floor, ctx.partial, counted),
+    ) ?? typical
   if (planned === null) return null
-  const base = responseBaseline(planned, ctx.response, ctx.novice)
   // The floor week is the ceiling baseline of the week right after it too, which would otherwise be
   // held to 130% of the weeks before the floor.
   const window = P.g2.ceilingWindowWeeks.value
@@ -630,10 +689,33 @@ export function rampLimits(ctx: RampContext, weekStart: string): WeekRampLimits 
   const ceilingBase =
     positive(
       Math.max(
-        highestBaseline(ctx.volumes, ctx.skip, weekStart, window, ctx.floor, ctx.partial) ?? 0,
+        highestBaseline(
+          ctx.volumes,
+          ctx.skip,
+          weekStart,
+          window,
+          ctx.floor,
+          ctx.partial,
+          counted,
+        ) ?? 0,
         afterFloor ? Math.max(ctx.volumes.get(ctx.floor!.weekStart) ?? 0, ctx.floor!.minutes) : 0,
       ),
     ) ?? planned
+  return { planned, ceilingBase }
+}
+
+/** The ramp limits of the week of `weekStart`; null when nothing gives a baseline. */
+export function rampLimits(ctx: RampContext, weekStart: string): WeekRampLimits | null {
+  const own = baselines(ctx, weekStart, undefined)
+  // a counted week can lift a baseline, never lower it [MW1]
+  const kept =
+    ctx.counted !== undefined && ctx.counted.size > 0
+      ? baselines(ctx, weekStart, ctx.counted)
+      : null
+  if (own === null && kept === null) return null
+  const planned = Math.max(own?.planned ?? 0, kept?.planned ?? 0)
+  const ceilingBase = Math.max(own?.ceilingBase ?? 0, kept?.ceilingBase ?? 0)
+  const base = responseBaseline(planned, ctx.response, ctx.novice)
   const usualSoft = rampStep(base, P.g2.rampSoft.value, ctx.novice)
   const soft = rebuildStep(base, P.g2.rampSoft.value, ctx.novice, ctx.rebuild)
   const ceiling = rampStep(ceilingBase, P.g2.rampCeilingTwoWeeks.value, ctx.novice)

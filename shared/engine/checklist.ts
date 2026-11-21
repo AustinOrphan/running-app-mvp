@@ -28,6 +28,7 @@ import {
   rampBasis,
   rampLimits,
   rampSkipWeeks,
+  countedWeeks,
   rebuildZoneUsed,
   startLevelMin,
   ultraRunCapMin,
@@ -162,7 +163,6 @@ export function draftRamp(
 ): { ctx: RampContext & { volumes: Map<string, number> }; weeks: DraftWeekTotal[] } {
   const volume = new Map<string, number>()
   for (const row of state.weeks) volume.set(row.weekStart, row.runMin)
-  const currentMonday = mondayOf(input.today)
   const starts = [...new Set(draft.sessions.map((s) => mondayOf(s.date)))].sort()
   const ahead = toRun(draft, input)
   const floorWeek = sortedWeeks(draft)
@@ -176,9 +176,12 @@ export function draftRamp(
       .filter((w) => (w.isRecovery || w.isTaper) && !isRecoveryOnly(w))
       .map((w) => w.weekStart),
   )
+  const currentMonday = mondayOf(input.today)
+  const counted = countedWeeks(input.existing, input.today, windows, volume.get(currentMonday) ?? 0)
   const ctx = {
     volumes: volume,
     skip,
+    counted,
     // a week a window took days from is a part week, a baseline beside another week and never alone
     partial: new Set([...windowedWeeks(windows), ...breakPartWeeks(input, currentMonday)]),
     floor:
@@ -197,7 +200,13 @@ export function draftRamp(
     const total = done + planned
     // a week an entered race cut is a baseline at the minutes it held before the cut [SR1]
     const cut = raceCutMinutes(draft.weeks.find((w) => w.weekStart === weekStart)?.flags ?? [])
-    volume.set(weekStart, cut === null ? total : total + cut)
+    const here = cut === null ? total : total + cut
+    // the week in progress counts at the figure of the plan being replaced, never above the draft's own
+    const countedHere = counted.get(weekStart)
+    if (weekStart === currentMonday && countedHere !== undefined) {
+      counted.set(weekStart, Math.min(countedHere, here))
+    }
+    volume.set(weekStart, here)
     weeks.push({ weekStart, done, planned, total })
   }
   // The restart week after a long hold is a baseline for the weeks after it when the J7 share holds

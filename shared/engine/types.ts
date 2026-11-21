@@ -657,6 +657,11 @@ export interface EngineInput {
     >
   } | null
   options: {
+    /**
+     * Internal: `false` draws the plan with no week counted at a figure of the plan being replaced
+     * (`countedWeeks`). Set only by the pass that bounds the plan that does count them.
+     */
+    countKept?: boolean
     recoveryCycle?: RecoveryCycle
     strengthSessions?: 0 | 1 | 2
     tidModel?: 'pyramidal' | 'polarized'

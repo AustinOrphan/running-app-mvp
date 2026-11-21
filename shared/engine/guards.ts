@@ -58,6 +58,11 @@ export interface GuardOptions {
    */
   partialWeeks?: Iterable<string>
   /**
+   * Weeks that count at the figure given, whatever the skip and part-week rules would make of them
+   * (`RampContext.counted`, `countedWeeks`).
+   */
+  countedWeeks?: ReadonlyMap<string, number>
+  /**
    * Mondays of the post-race return weeks [rules H12]: exempt from the weekly ramp as a return to
    * an established base, like the start path's first week. Every session still obeys G-1.
    */
@@ -200,10 +205,13 @@ export function applyGuards(
   const ultraCapMin = ultraRunCapMin(options.ultraRaceDurationSec)
   const exemptWeeks = new Set(options.exemptWeeks ?? [])
   const floor = options.startPath ?? null
+  // the weeks counted at a figure, which the guards may lower as they cut the week
+  const countedMin = new Map(options.countedWeeks ?? [])
   const rampCtx: RampContext = {
     volumes: volume,
     skip: rampSkipWeeks(asOf, options.lowWeeks ?? []),
     partial: new Set(options.partialWeeks ?? []),
+    counted: countedMin,
     floor,
     exempt: options.exempt,
     ...rampBasis(state, options.rebuild ?? null, options.response ?? null),
@@ -280,6 +288,9 @@ export function applyGuards(
     // [rules g-2, F5].
     const minutes = weekMinutes(weekStart, final)
     if (minutes > 0 || volume.has(weekStart)) volume.set(weekStart, minutes)
+    // a week counted at a figure of the plan being replaced counts at no more than it holds once cut
+    const counted = rampCtx.counted?.get(weekStart)
+    if (counted !== undefined) countedMin.set(weekStart, Math.min(counted, minutes))
     gainVolume.set(weekStart, weekGain(weekStart, final))
     gainRamp(weekStart)
   }
