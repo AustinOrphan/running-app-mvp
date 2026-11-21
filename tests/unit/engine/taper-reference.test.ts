@@ -78,11 +78,26 @@ function load(): EngineInput {
       startTime,
     }),
   )
-  return { ...raw, activities }
+  // The recorded week before the peak holds 35 of its 99 planned minutes; one more run brings it to
+  // 85, a week that was run (the taper floor reads executed minutes, rule K2).
+  const topUp: Activity = {
+    ...base,
+    id: 'top-up',
+    date: '2027-04-14',
+    type: 'run',
+    durationSec: 50 * 60,
+    distanceM: 9000,
+    source: 'manual',
+    rpe: 3,
+    startTime: null,
+  }
+  return { ...raw, activities: [...activities, topUp] }
 }
 
 const targets = (d: PlanDraft, from: string) =>
   d.weeks.filter((w) => w.weekStart >= from).map((w) => [w.weekStart, w.targetRunMin] as const)
+
+const taper = (d: PlanDraft) => d.weeks.filter((w) => w.isTaper).map((w) => w.targetRunMin)
 
 describe('the taper of a peak that was a recovery week', () => {
   it('is the taper the plan stored, with nothing new', () => {
@@ -90,5 +105,30 @@ describe('the taper of a peak that was a recovery week', () => {
     const stored = replanMonday(settled).draft
     const again = replanMonday(withStoredPlan({ settled, draft: stored })).draft
     expect(targets(again, settled.today)).toEqual(targets(stored, settled.today))
+  })
+  it('keeps the stored taper of 64 and 39 minutes', () => {
+    const settled = load()
+    const stored = replanMonday(settled).draft
+    const again = replanMonday(withStoredPlan({ settled, draft: stored })).draft
+    expect(taper(again)).toEqual([64, 39])
+  })
+})
+
+// The floor needs a build that was run: after a layoff the week before the peak was not, and the
+// taper keeps the size the peak gives it (rules K2, G6). The ceilings are the figures the plan drew
+// before the floor existed.
+describe('the taper after a layoff before it', () => {
+  it.each([
+    ['2027-03-29', [39, 24]],
+    ['2027-03-22', [40, 24]],
+    ['2027-04-05', [48, 30]],
+  ] as const)('a layoff from %s draws no taper above %j', (from, ceiling) => {
+    const settled = load()
+    const stored = replanMonday(settled).draft
+    const st = withStoredPlan({ settled, draft: stored })
+    const inp = { ...st, activities: st.activities.filter((a) => a.date < from) }
+    const drawn = taper(replanMonday(inp).draft)
+    expect(drawn).toHaveLength(ceiling.length)
+    drawn.forEach((m, i) => expect(m).toBeLessThanOrEqual(ceiling[i] as number))
   })
 })
