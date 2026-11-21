@@ -9,6 +9,7 @@ import { addDays, mondayOf } from '../../../shared/dates.ts'
 import { disruptionPlan } from '../../../shared/engine/disruption.ts'
 import { replan } from '../../../shared/engine/index.ts'
 import { countedWeeks } from '../../../shared/engine/limits.ts'
+import { isQualityKind } from '../../../shared/engine/readiness.ts'
 import type {
   DisruptionWindow,
   EngineInput,
@@ -16,7 +17,7 @@ import type {
   SessionSpec,
   WeekDraft,
 } from '../../../shared/engine/types.ts'
-import { planMinutes } from './disruption-fixtures.ts'
+import { planMinutes, windowOf } from './disruption-fixtures.ts'
 import { activity } from './e8-fixtures.ts'
 import { athletes } from './matrix-fixtures.ts'
 import { replanChain } from './replan-steps.ts'
@@ -188,8 +189,7 @@ describe('a re-plan with a signal or a flag the count must not undo', () => {
     const wed = addDays('2026-11-02', 2)
     const ran = ranFrom(step.draft, '2026-11-02', wed, null)
     const acts = [...step.input.activities, ...ran]
-    const done = ran.reduce((t, a) => t + a.durationSec / 60, 0)
-    return { step, base, wed, acts, done }
+    return { step, base, wed, acts }
   }
 
   it('keeps the hot-race weeks of the Monday plan when it is re-planned on the Wednesday to Friday', () => {
@@ -205,7 +205,7 @@ describe('a re-plan with a signal or a flag the count must not undo', () => {
   })
 
   it('draws no later week above the plan drawn with nothing counted when a hold lowers the week in progress', () => {
-    const { step, base, wed, acts, done } = wednesday()
+    const { step, base, wed, acts } = wednesday()
     const decisions = { '2026-11-02': 'reduce' as const }
     const input = inputAt(base, step.draft, wed, acts, [])
     const kept = replan(input, { decisions }).draft
@@ -215,7 +215,7 @@ describe('a re-plan with a signal or a flag the count must not undo', () => {
     const stored = step.draft.weeks.find((w) => w.weekStart === '2026-11-02')!
     const held = kept.weeks.find((w) => w.weekStart === '2026-11-02')!
     // the gate passes and the hold takes the week in progress below the figure it had
-    expect(countedWeeks(input.existing, wed, disruptionPlan([]), done).size).toBe(1)
+    expect(countedWeeks(input.existing, wed, disruptionPlan([]), acts).size).toBe(1)
     expect(held.targetRunMin).toBeLessThan(stored.targetRunMin)
     for (const week of kept.weeks) {
       if (week.weekStart <= '2026-11-02') continue
@@ -224,8 +224,62 @@ describe('a re-plan with a signal or a flag the count must not undo', () => {
     }
   })
 
+  it('holds no later week below the uncounted draw when a window is known ahead of a counted week', () => {
+    const athlete = athletes().find((a) => a.id === 'half')!
+    const step = replanChain(athlete.input).find((s) => s.input.today === '2026-11-02')!
+    const monday = '2026-11-02'
+    const wed = addDays(monday, 2)
+    const travel = windowOf({
+      reason: 'travel',
+      mode: 'rest',
+      startDate: '2026-11-17',
+      endDate: '2026-11-19',
+    })
+    // the Monday plan is drawn knowing the window
+    const stored = replan({ ...step.input, disruptions: [travel], existing: null }).draft
+    const acts = [...step.input.activities, ...ranFrom(stored, monday, wed, null)]
+    const base = { ...step.input, existing: null } as EngineInput
+    const input = inputAt(base, stored, wed, acts, [travel])
+    expect(countedWeeks(input.existing, wed, disruptionPlan([travel]), acts).size).toBe(1)
+    const kept = replan(input).draft
+    const legacy = replan(inputAt(base, stored, wed, acts, [travel], { countKept: false })).draft
+    for (const week of kept.weeks) {
+      if (week.weekStart <= monday) continue
+      const own = legacy.weeks.find((w) => w.weekStart === week.weekStart)?.targetRunMin ?? 0
+      expect(week.targetRunMin, week.weekStart).toBeGreaterThanOrEqual(own)
+    }
+    // and none above the greater of the two plans
+    for (const week of kept.weeks) {
+      if (week.weekStart <= monday) continue
+      const limit = Math.max(
+        legacy.weeks.find((w) => w.weekStart === week.weekStart)?.targetRunMin ?? 0,
+        stored.weeks.find((w) => w.weekStart === week.weekStart)?.targetRunMin ?? 0,
+      )
+      expect(week.targetRunMin, week.weekStart).toBeLessThanOrEqual(limit)
+    }
+  })
+
+  it('keeps no quality session the uncounted draw dropped when a screening is reported mid-week', () => {
+    const athlete = athletes().find((a) => a.id === 'masters')!
+    const step = replanChain(athlete.input).find((s) => s.input.today === '2026-12-14')!
+    const monday = '2026-12-14'
+    const wed = addDays(monday, 2)
+    const acts = [...step.input.activities, ...ranFrom(step.draft, monday, wed, null)]
+    const base = { ...step.input, existing: null, screeningFlags: 3 } as EngineInput
+    const kept = replan(inputAt(base, step.draft, wed, acts, [])).draft
+    const legacy = replan(inputAt(base, step.draft, wed, acts, [], { countKept: false })).draft
+    const failing = (draft: PlanDraft) => draft.checklist.filter((c) => !c.ok).map((c) => c.id)
+    expect(failing(legacy)).not.toContain('tid')
+    expect(failing(kept)).toEqual(failing(legacy))
+    const quality = (draft: PlanDraft) =>
+      draft.sessions.filter(
+        (s) => s.date >= wed && s.date < addDays(monday, 7) && isQualityKind(s.kind),
+      ).length
+    expect(quality(kept)).toBeLessThanOrEqual(quality(legacy))
+  })
+
   it('does not count a week that carries break-repeat', () => {
-    const { step, base, wed, acts, done } = wednesday()
+    const { step, base, wed, acts } = wednesday()
     const flagged = {
       ...step.draft,
       weeks: step.draft.weeks.map((w) =>
@@ -233,7 +287,7 @@ describe('a re-plan with a signal or a flag the count must not undo', () => {
       ),
     }
     const input = inputAt(base, flagged, wed, acts, [])
-    expect(countedWeeks(input.existing, wed, disruptionPlan([]), done).size).toBe(0)
+    expect(countedWeeks(input.existing, wed, disruptionPlan([]), acts).size).toBe(0)
     const kept = replan(input).draft
     const legacy = replan(inputAt(base, flagged, wed, acts, [], { countKept: false })).draft
     expect(weekTargets(kept, '2026-11-09', 6)).toEqual(weekTargets(legacy, '2026-11-09', 6))
@@ -261,25 +315,37 @@ describe('countedWeeks', () => {
     ({ date, kind: 'easy', durationMin, flags: [] }) as unknown as SessionSpec
   const existing = (weeks: WeekDraft[], sessions: SessionSpec[] = []) => ({ weeks, sessions })
   const none = disruptionPlan([])
+  const ran = (date: string, minutes: number) => [activity(date, { durationSec: minutes * 60 })]
 
   it('counts the week in progress at its planned minutes when the runner is on track', () => {
     const e = existing(
       [week({ weekStart: '2026-11-02', targetRunMin: 120 })],
       [session('2026-11-02', 40), session('2026-11-03', 40)],
     )
-    expect(countedWeeks(e, '2026-11-04', none, 80).get('2026-11-02')).toBe(120)
-    expect(countedWeeks(e, '2026-11-04', none, 64).get('2026-11-02')).toBe(120)
-    expect(countedWeeks(e, '2026-11-04', none, 63).size).toBe(0)
+    expect(countedWeeks(e, '2026-11-04', none, ran('2026-11-02', 80)).get('2026-11-02')).toBe(120)
+    expect(countedWeeks(e, '2026-11-04', none, ran('2026-11-02', 64)).get('2026-11-02')).toBe(120)
+    expect(countedWeeks(e, '2026-11-04', none, ran('2026-11-02', 63)).size).toBe(0)
+  })
+
+  it('counts the runs dated before today only: one run today does not pay for the days missed', () => {
+    const e = existing(
+      [week({ weekStart: '2026-11-02', targetRunMin: 120 })],
+      [session('2026-11-02', 40), session('2026-11-03', 40)],
+    )
+    expect(countedWeeks(e, '2026-11-04', none, []).size).toBe(0)
+    expect(countedWeeks(e, '2026-11-04', none, ran('2026-11-04', 80)).size).toBe(0)
+    expect(countedWeeks(e, '2026-11-04', none, ran('2026-11-03', 80)).size).toBe(1)
   })
 
   it('counts nothing on the Monday itself, for a recovery or taper week and for a week a window touched', () => {
     const base = [session('2026-11-02', 40)]
     expect(
-      countedWeeks(existing([week({ weekStart: '2026-11-02' })], base), '2026-11-02', none, 0).size,
+      countedWeeks(existing([week({ weekStart: '2026-11-02' })], base), '2026-11-02', none, [])
+        .size,
     ).toBe(0)
     for (const over of [{ isRecovery: true }, { isTaper: true }, { flags: ['disrupted'] }]) {
       const e = existing([week({ weekStart: '2026-11-02', ...over })], base)
-      expect(countedWeeks(e, '2026-11-04', none, 40).size).toBe(0)
+      expect(countedWeeks(e, '2026-11-04', none, ran('2026-11-02', 40)).size).toBe(0)
     }
   })
 })

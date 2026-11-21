@@ -1066,12 +1066,7 @@ function planWeeks(
     counted:
       input.options.countKept === false
         ? new Map<string, number>()
-        : countedWeeks(
-            input.existing,
-            input.today,
-            dplan,
-            state.weeks.find((w) => w.weekStart === mondayOf(input.today))?.runMin ?? 0,
-          ),
+        : countedWeeks(input.existing, input.today, dplan, input.activities),
     // a restart floor week of the plan being replaced stays the baseline of the weeks after it
     floor: pastFloor(input, firstMonday),
     exempt,

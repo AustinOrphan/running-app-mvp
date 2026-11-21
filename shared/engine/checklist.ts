@@ -177,7 +177,7 @@ export function draftRamp(
       .map((w) => w.weekStart),
   )
   const currentMonday = mondayOf(input.today)
-  const counted = countedWeeks(input.existing, input.today, windows, volume.get(currentMonday) ?? 0)
+  const counted = countedWeeks(input.existing, input.today, windows, input.activities)
   const ctx = {
     volumes: volume,
     skip,

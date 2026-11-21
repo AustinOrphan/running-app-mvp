@@ -69,8 +69,11 @@ export function replanChain(first: EngineInput, options: ReplanChainOptions = {}
     steps.length <= maxSteps;
   ) {
     const factor = typeof scale === 'number' ? scale : scale(steps.length)
+    // the first re-plan finds every day of the first plan since its own today run, a re-plan made later
+    // in the week than the Monday included; the later ones the week before them
+    const from = steps.length === 1 ? first.today : addDays(monday, -7)
     const ran = draft.sessions
-      .filter((s) => s.date >= addDays(monday, -7) && s.date < monday)
+      .filter((s) => s.date >= from && s.date < monday)
       .filter((s) => !['strength', 'race', 'mobility', 'rest'].includes(s.kind))
       .flatMap((s) => {
         const window = windows.find((w) => w.startDate <= s.date && s.date <= w.endDate)

@@ -342,7 +342,8 @@ export function rampSkipWeeks(today: string, lowWeeks: Iterable<string>): Set<st
  * being replaced holds it as a loading week no window touches (the stored flags and the windows
  * reported now), and the runner has run at least `j5.completionHoldShare` of what that plan had due
  * before today: a week with the runs missed stays a part week and no baseline. Empty otherwise.
- * `doneMin` is the running minutes already logged in the week. Pure.
+ * The runs counted against the minutes due are those dated before today, so a run logged today does
+ * not pay for the days before it. Pure.
  */
 export function countedWeeks(
   existing: {
@@ -351,7 +352,7 @@ export function countedWeeks(
   } | null,
   today: string,
   windows: DisruptionPlan,
-  doneMin: number,
+  activities: ReadonlyArray<Pick<Activity, 'date' | 'type' | 'durationSec' | 'duplicateStatus'>>,
 ): Map<string, number> {
   const counted = new Map<string, number>()
   const monday = mondayOf(today)
@@ -370,6 +371,18 @@ export function countedWeeks(
         s.durationMin > 0,
     ) as SessionSpec[],
   )
+  // the week's run minutes as the week rows count them (`aggregateWeeks`): runs only, no duplicate copy
+  const doneSec = activities
+    .filter(
+      (a) =>
+        a.type === 'run' &&
+        a.date >= monday &&
+        a.date < today &&
+        a.duplicateStatus !== 'possible' &&
+        a.duplicateStatus !== 'confirmed',
+    )
+    .reduce((t, a) => t + a.durationSec, 0)
+  const doneMin = Math.round(doneSec / 60)
   if (doneMin + EPS >= P.j5.completionHoldShare.value * due) counted.set(monday, plannedMinOf(row))
   return counted
 }

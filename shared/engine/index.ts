@@ -719,17 +719,12 @@ function generate(
   const counted =
     input.options.countKept === false
       ? new Map<string, number>()
-      : countedWeeks(
-          input.existing,
-          today,
-          dplan,
-          state.weeks.find((w) => w.weekStart === currentMonday)?.runMin ?? 0,
-        )
+      : countedWeeks(input.existing, today, dplan, input.activities)
   // Counting weeks at the figures of the plan being replaced never plans a later week above that
   // plan or above the plan drawn without the count: each week is held to the greater of the two
   // (`keptLimits`), as a preset is held to the default [rules G6, K6].
-  const limits =
-    counted.size > 0 ? lowerLimits(presetLimits, keptLimits(input, keep, weekOffset)) : presetLimits
+  const keptBound = counted.size > 0 ? keptLimits(input, keep, weekOffset) : null
+  const limits = keptBound === null ? presetLimits : lowerLimits(presetLimits, keptBound.limits)
   const rampCtx: RampContext = {
     volumes,
     skip,
@@ -952,8 +947,16 @@ function generate(
             (date) => date >= week.weekStart && date <= weekEnd && !keptRunDates.has(date),
           ).length
         : 0
-      // a week counted at the figure of the plan being replaced (nothing new) keeps every day it has due
-      const keepDays = isCurrent && counted.has(week.weekStart)
+      // a week counted at the figure of the plan being replaced (nothing new) keeps every day it has due,
+      // unless the plan drawn with no week counted dropped a quality session the replaced plan still
+      // has ahead: a signal reported since (a screening, a window) took it, and the kept days would
+      // bring it back
+      const keepDays =
+        isCurrent &&
+        counted.has(week.weekStart) &&
+        keptBound !== null &&
+        keptBound.qualityAhead >=
+          qualityAheadOf(input.existing?.sessions ?? [], today, week.weekStart)
       const figure = keep.figure.get(week.weekStart)
       // The plan's own figure for a week it has not started is a target; the minutes its sessions place
       // are net of the shake-out, and the week is placed at the target that places them [rule K6]. The
@@ -1712,7 +1715,20 @@ function lowerLimits(
         : {
             target: Math.min(limit.target, other.target),
             placed: Math.min(limit.placed, other.placed),
-            ...(other.free === undefined ? {} : { free: other.free }),
+            ...(other.free === undefined && limit.free === undefined
+              ? {}
+              : {
+                  free: {
+                    target: Math.min(
+                      limit.free?.target ?? other.free!.target,
+                      other.free?.target ?? limit.free!.target,
+                    ),
+                    placed: Math.min(
+                      limit.free?.placed ?? other.free!.placed,
+                      other.free?.placed ?? limit.free!.placed,
+                    ),
+                  },
+                }),
           },
     )
   }
@@ -1724,16 +1740,23 @@ function lowerLimits(
  * plan drawn with no week counted at a figure of the plan being replaced (`countedWeeks`): what
  * counting gives back of the ground a part week took, and not a minute beyond what the plan had
  * [rules G-2, G6, K6]. Both the target and the placed minutes are held, each to the greater of the two
- * plans.
+ * plans. `qualityAhead` is the quality sessions the uncounted draw has in the week in progress from
+ * today on.
  */
 function keptLimits(
   input: EngineInput,
   keep: Keep,
   weekOffset: number,
-): ReadonlyMap<string, WeekLimit> {
+): { limits: ReadonlyMap<string, WeekLimit>; qualityAhead: number } {
   const legacy = new Map<string, WeekLimit>()
-  generate({ ...input, options: { ...input.options, countKept: false } }, keep, weekOffset, legacy)
+  const drawn = generate(
+    { ...input, options: { ...input.options, countKept: false } },
+    keep,
+    weekOffset,
+    legacy,
+  )
   const monday = mondayOf(input.today)
+  const qualityAhead = qualityAheadOf(drawn.sessions, input.today, monday)
   const out = new Map<string, WeekLimit>()
   for (const row of input.existing?.weeks ?? []) {
     const own = legacy.get(row.weekStart)
@@ -1744,9 +1767,30 @@ function keptLimits(
     out.set(row.weekStart, {
       target: Math.max(own.target, plannedMinOf(row)),
       placed: Math.max(own.placed, storedPlaced),
+      // the window-free bound of a week a window took days from is the uncounted draw's own: the week
+      // that puts back what the window took, and the ramp of the weeks after it, step from it
+      ...(own.free === undefined ? {} : { free: own.free }),
     })
   }
-  return out
+  return { limits: out, qualityAhead }
+}
+
+/**
+ * The quality sessions of the week of `monday` dated today or later, the long run aside (a long run
+ * with a quality finish is the long run, which the week always keeps).
+ */
+function qualityAheadOf(
+  sessions: ReadonlyArray<Pick<SessionSpec, 'date' | 'kind'>>,
+  today: string,
+  monday: string,
+): number {
+  return sessions.filter(
+    (s) =>
+      s.date >= today &&
+      mondayOf(s.date) === monday &&
+      isQualityKind(s.kind) &&
+      !s.kind.startsWith('long'),
+  ).length
 }
 
 function raceSession(input: EngineInput, zones: ZoneSet, week: WeekDraft): SessionSpec {
