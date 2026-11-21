@@ -163,6 +163,13 @@
 // stand and passes, so none moved (the file was not regenerated). No plan of the oracle opens inside
 // its window, and the stored window weeks of its chains carry the downhill flag from the window start.
 //
+// Regenerated 2026-11-20 (rule F5, H12, owner decision 2026-11-20, "One run, growing ~10%/wk"): the
+// post-race weeks of `windowWeeks` keep a run in a G-1 band of 15 to 19 minutes (down to the run day
+// minimum) and hold none when their computed target is under it. 18 of the 142 digests move, all
+// through those post-race weeks (a week of 0 minutes in place of a run, or a run in place of 0). The
+// one-run week of `planRuns` moves no oracle plan: no plan of the oracle holds a tiny week. The other
+// 124 digests are as before. The owner validation was not rerun.
+//
 // The close of the load-progression plan (task L7) may remove this file with its test: from there
 // the owner validation is the oracle.
 import { createHash } from 'node:crypto'

@@ -540,7 +540,7 @@ export function stageLabel(window: PostRaceWindow, date: string): string {
  * week by week as planWeeks does: no run of a week passes 1.10x the longest run of the 30 days
  * before the week's last day, read over the completed runs and the weeks drawn before it. A week
  * with no run in that window has no reference, so its runs are of one length (the first sets the
- * reference for the rest); a band under the shortest run leaves the week without a run.
+ * reference for the rest); a band under the run day minimum leaves the week without a run.
  */
 export function windowWeeks(
   window: PostRaceWindow,
@@ -601,7 +601,9 @@ export function windowWeeks(
           addDays(firstDay, -1),
         ),
       ).min
-      if (band < P.fplace.easyRunMinMin.value) {
+      // A band under the session minimum still takes a run, down to the run day minimum: the same
+      // rule as an ordinary day held by G-1 alone [rules F5, g-1].
+      if (band < P.fplace.minRunDayMin.value) {
         runMax = 0
         longMax = 0
       } else if (Number.isFinite(band)) {
@@ -635,6 +637,8 @@ export function windowWeeks(
       target = Math.min(Math.floor(minutes + EPS), capacity)
       if (runDays === 1 || target >= runDays * P.fplace.easyRunMinMin.value) break
     }
+    // under the run day minimum the week holds no run, as the placement leaves it [rule F5]
+    if (target < P.fplace.minRunDayMin.value) target = 0
     const rest = target === 0
     // from the third step one run of the week may reach the long cap: about a third of the week
     const longRun =
