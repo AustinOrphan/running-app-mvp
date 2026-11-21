@@ -1562,9 +1562,21 @@ function planWeeks(
     }
     return was
   }
+  // The week in progress is the peak and sits below the loading week before it: a recovery week of
+  // the plan being replaced that the peak rule turned into the work week keeps its minutes, so the
+  // peak stands short of the sequence it closes. The taper falls from that sequence, as the first
+  // draw of the week did; stored without its recovery flag the week would otherwise read as the
+  // peak of the sequence and the taper would fall from it a second time [rules K1, K2, E3].
+  const weekBefore = (input.existing?.weeks ?? []).find(
+    (w) => w.weekStart === addDays(firstMonday, -7),
+  )
+  const peakWeekFloor =
+    preCount === 1 && weekBefore !== undefined && !weekBefore.isRecovery && !weekBefore.isTaper
+      ? plannedMinOf(weekBefore)
+      : 0
   const reference =
     preCount > 0
-      ? Math.max(...target)
+      ? Math.max(...target, peakWeekFloor)
       : Math.max(start, untouchedLevel === undefined ? 0 : plannedMinOf(untouchedLevel))
   const refDays = preCount > 0 ? prevDays : daysFor(start)
   const refLong = prevLong
