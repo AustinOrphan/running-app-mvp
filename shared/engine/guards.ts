@@ -275,7 +275,11 @@ export function applyGuards(
     }
 
     const final = indicesOf(weekStart).map((i) => items[i]!)
-    volume.set(weekStart, weekMinutes(weekStart, final))
+    // A week left with no running is no baseline, as the checklist reads the drawn plan (it counts
+    // the weeks that hold a session): a zero would send the weeks after it to the typical week
+    // [rules g-2, F5].
+    const minutes = weekMinutes(weekStart, final)
+    if (minutes > 0 || volume.has(weekStart)) volume.set(weekStart, minutes)
     gainVolume.set(weekStart, weekGain(weekStart, final))
     gainRamp(weekStart)
   }
