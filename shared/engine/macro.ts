@@ -1568,9 +1568,33 @@ function planWeeks(
     }
     return was
   }
+  // The week in progress is the peak and sits below the loading week before it: a recovery week of
+  // the plan being replaced that the peak rule turned into the work week keeps its minutes, so the
+  // peak stands short of the sequence it closes. The taper falls from that sequence, as the first
+  // draw of the week did; stored without its recovery flag the week would otherwise read as the
+  // peak of the sequence and the taper would fall from it a second time [rules K1, K2, E3].
+  const weekBefore = (input.existing?.weeks ?? []).find(
+    (w) => w.weekStart === addDays(firstMonday, -7),
+  )
+  // The floor reads a build that was run: the week before must hold executed minutes of at least
+  // `j5.completionHoldShare` of its planned minutes, from the athlete state and never from the
+  // stored rows. After a layoff the week before was not run, and the taper keeps the size the
+  // peak gives it [rules K2, G6].
+  const weekBeforeRun =
+    weekBefore === undefined
+      ? 0
+      : (state.weeks.find((w) => w.weekStart === weekBefore.weekStart)?.runMin ?? 0)
+  const peakWeekFloor =
+    preCount === 1 &&
+    weekBefore !== undefined &&
+    !weekBefore.isRecovery &&
+    !weekBefore.isTaper &&
+    weekBeforeRun >= P.j5.completionHoldShare.value * plannedMinOf(weekBefore)
+      ? plannedMinOf(weekBefore)
+      : 0
   const reference =
     preCount > 0
-      ? Math.max(...target)
+      ? Math.max(...target, peakWeekFloor)
       : Math.max(start, untouchedLevel === undefined ? 0 : plannedMinOf(untouchedLevel))
   const refDays = preCount > 0 ? prevDays : daysFor(start)
   const refLong = prevLong
