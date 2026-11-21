@@ -81,24 +81,26 @@ describe('the long run where the probe rounds down', () => {
 
 // The G-1 band of a week is read from the runs of the plan before it, so a long run drawn above what
 // is placed (the old measure) raised every later band. The peak week of the whole plan is the
-// figure that moved: 489 minutes before, 429 now (the peak long run 149 to 130, the total of the
-// weekly targets 6694 to 5691), because the bands no longer count a long run that was never placed.
+// figure that moved: 489 minutes before, 429 now (the peak long run 149 to 130), because the bands
+// no longer count a long run that was never placed.
 describe('the plan to the race of a runner with a short reference', () => {
   it('draws its peak week from the runs that were placed', () => {
     const { weeks } = planOf(22)
     expect(Math.max(...weeks.map((w) => w.targetRunMin))).toBe(429)
     expect(Math.max(...weeks.map((w) => w.longRunMin))).toBe(130)
+    expect(weeks.reduce((n, w) => n + w.targetRunMin, 0)).toBe(5979)
   })
 
-  // Known interaction, not fixed here: the first run after the race falls from 17 to 15 minutes, the
-  // G-1 band floor(15 + 3) = 18 is under `fplace.easyRunMinMin` (20), and `windowWeeks`
-  // (postRace.ts) then draws the three weeks after the race with no session (0, 0, 0 minutes where
-  // the plan drew 60, 138 and 156). It is the tiny-plan case (a G-1 band under the run minimum) of
-  // its own follow-up. When that is fixed this test passes: remove `.fails`.
-  it.fails('keeps the weeks after the race when the G-1 band is under the run minimum', () => {
+  // The first run after the race falls from 17 to 15 minutes, so the G-1 band floor(15 + 3) = 18 is
+  // under `fplace.easyRunMinMin` (20). The post-race weeks keep a run in a band of 15 to 19 minutes
+  // (`windowWeeks`, postRace.ts) and rest only when their target is under the run day minimum.
+  it('keeps the weeks after the race when the G-1 band is under the run minimum', () => {
     const { weeks, sessions } = planOf(22)
-    for (const start of ['2027-06-14', '2027-06-21', '2027-06-28']) {
-      expect(weeks.find((w) => w.weekStart === start)!.targetRunMin, start).toBeGreaterThan(0)
+    const after = ['2027-06-14', '2027-06-21', '2027-06-28']
+    expect(after.map((start) => weeks.find((w) => w.weekStart === start)!.targetRunMin)).toEqual([
+      18, 126, 144,
+    ])
+    for (const start of after) {
       expect(
         sessions.some((s) => mondayOf(s.date) === start),
         start,
