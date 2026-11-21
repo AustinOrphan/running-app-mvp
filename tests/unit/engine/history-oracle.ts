@@ -169,7 +169,16 @@
 // directions (it rises where the probe rounds down; the placement already used this measure), and
 // a lower G-1 record lowers the later bands. 51 of the 142 digests move (the plans of a runner whose
 // limit binds the long run, `chain first-100-mile x1.5` 1 and 2 among them; the other 91 are as
-// before); the owner validation is the same output as before.
+// before); the owner validation is the same output as before. After the merge of the tiny-plan
+// change below, the file was regenerated from the merged tree (both changes move the digests of the
+// same plans); 51 digests differ from the tiny-plan version.
+//
+// Regenerated 2026-11-20 (rule F5, H12, owner decision 2026-11-20, "One run, growing ~10%/wk"): the
+// post-race weeks of `windowWeeks` keep a run in a G-1 band of 15 to 19 minutes (down to the run day
+// minimum) and hold none when their computed target is under it. 18 of the 142 digests move, all
+// through those post-race weeks (a week of 0 minutes in place of a run, or a run in place of 0). The
+// one-run week of `planRuns` moves no oracle plan: no plan of the oracle holds a tiny week. The other
+// 124 digests are as before. The owner validation was not rerun.
 //
 // The close of the load-progression plan (task L7) may remove this file with its test: from there
 // the owner validation is the oracle.

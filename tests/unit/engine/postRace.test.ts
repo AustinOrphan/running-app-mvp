@@ -791,6 +791,28 @@ describe('window weeks held to the normal band of G-1', () => {
     expect(windowRuns(hundred, [week!])).toEqual([])
   })
 
+  it('keeps a run when the band lies under the shortest run, down to the run day minimum', () => {
+    const runs = [runOn(8, P.fplace.minRunDayMin.value)]
+    const band = runCaps(referenceBetween(runs, addDays(weekStart, -24), day(14))).min
+    expect(band).toBeLessThan(P.fplace.easyRunMinMin.value)
+    expect(band).toBeGreaterThanOrEqual(P.fplace.minRunDayMin.value)
+    const [week] = draw(runs)
+    expect(week!.runDays).toBeGreaterThan(0)
+    expect(week!.targetRunMin).toBeGreaterThan(0)
+    expect(longestOf(week!)).toBeLessThanOrEqual(band)
+  })
+
+  it('draws a week with no run when its minutes are under the run day minimum', () => {
+    const [week] = windowWeeks(hundred, {
+      weekStarts: [weekStart],
+      firstIndex: 0,
+      reference: 5,
+      referenceRunDays: 3,
+    })
+    expect(week).toMatchObject({ targetRunMin: 0, runDays: 0, longRunMin: 0 })
+    expect(week!.focus).toBe('After the race: rest')
+  })
+
   it('records the run a week of few minutes holds: one run of its own minutes, as placed', () => {
     const [week] = windowWeeks(hundred, {
       weekStarts: [weekStart],

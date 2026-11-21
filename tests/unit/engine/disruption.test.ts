@@ -17,6 +17,7 @@ import { renderFact, TEMPLATES } from '../../../shared/copy/templates.ts'
 import { addDays } from '../../../shared/dates.ts'
 import { breakRestart } from '../../../shared/engine/adapt.ts'
 import {
+  breakHeldBy,
   dayRuleOn,
   disruptionPlan,
   disruptionWeekCap,
@@ -166,6 +167,39 @@ describe('the module', () => {
       win({ id: 'ok' }),
     )
     expect(p.windows.map((w) => w.id)).toEqual(['ok'])
+  })
+})
+
+describe('the hold that explains the days since the last run [rules J7, J9]', () => {
+  // The last run is Friday 2026-11-06; a 14-day hold from the Saturday after it runs to 11-20, the
+  // first allowed day is 11-21 and the hold stays the explanation through 11-27.
+  const LAST = '2026-11-06'
+  const held = (days: number, from = '2026-11-07') => plan(rest(from, days, { reason: 'niggle' }))
+
+  it('names a 14-day hold that starts the day after the last run', () => {
+    const hold = breakHeldBy(held(14), LAST, '2026-11-16')
+    expect(hold?.from).toBe('2026-11-07')
+    expect(hold?.runFrom).toBe('2026-11-21')
+  })
+
+  it('names nothing with no window or no last run', () => {
+    expect(breakHeldBy(plan(), LAST, '2026-11-16')).toBeUndefined()
+    expect(breakHeldBy(held(14), null, '2026-11-16')).toBeUndefined()
+  })
+
+  it('names nothing for a hold under 7 days', () => {
+    expect(breakHeldBy(held(6), LAST, '2026-11-10')).toBeUndefined()
+  })
+
+  it('names nothing for a hold that starts more than 7 days after the last run', () => {
+    expect(breakHeldBy(held(14, '2026-11-13'), LAST, '2026-11-20')?.from).toBe('2026-11-13')
+    expect(breakHeldBy(held(14, '2026-11-14'), LAST, '2026-11-20')).toBeUndefined()
+  })
+
+  it('names nothing once a week has passed since the first allowed day', () => {
+    const p = held(14)
+    expect(breakHeldBy(p, LAST, '2026-11-27')).toBeDefined()
+    expect(breakHeldBy(p, LAST, '2026-11-28')).toBeUndefined()
   })
 })
 

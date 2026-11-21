@@ -9,6 +9,7 @@ import {
   strengthOffDay,
   targetForNet,
 } from '../../../shared/engine/micro.ts'
+import { runCaps } from '../../../shared/engine/limits.ts'
 import { P } from '../../../shared/engine/params/index.ts'
 import { postRaceWindow, windowWeeks } from '../../../shared/engine/postRace.ts'
 import { WEEKDAYS, ZONES, availability, profile, session, state, week } from './e6-fixtures.ts'
@@ -824,13 +825,136 @@ describe('placeWeek', () => {
     })
 
     it('places at least two runs outside recovery, taper and race weeks, and one inside them', () => {
-      const small = { targetRunMin: 30, longRunMin: 15, runDays: 4, qualitySessions: 0 }
-      const plain = place(week(small))
+      const fits = { targetRunMin: 40, longRunMin: 15, runDays: 4, qualitySessions: 0 }
+      const plain = place(week(fits))
       expect(runs(plain)).toHaveLength(2)
       for (const s of runs(plain)) expect(s.durationMin).toBeGreaterThanOrEqual(MIN)
+      expect(runMinutes(plain)).toBe(40)
+      const small = { ...fits, targetRunMin: 30 }
       for (const over of [{ isRecovery: true }, { isTaper: true }]) {
         expect(runs(place(week({ ...small, ...over })))).toHaveLength(1)
       }
+    })
+
+    // Owner decision 2026-11-20 (tiny plans under repeated holds): one run of the week's minutes until
+    // two runs at the minimum fit. The week never places more than its own figure to reach two runs.
+    describe('a week too small for two runs at the minimum [owner decision 2026-11-20]', () => {
+      const tiny = (targetRunMin: number, over: Partial<WeekDraft> = {}) =>
+        place(week({ targetRunMin, longRunMin: 8, runDays: 4, qualitySessions: 0, ...over }))
+
+      it('holds one run of its minutes, never more than the figure of the week', () => {
+        for (let target = MIN; target < 2 * MIN; target++) {
+          const sessions = tiny(target)
+          expect(runs(sessions), `target ${String(target)}`).toHaveLength(1)
+          expect(runMinutes(sessions), `target ${String(target)}`).toBe(target)
+        }
+      })
+
+      it('turns into two runs at the minimum when two fit, with no jump in minutes', () => {
+        let before = runMinutes(tiny(MIN - 1))
+        for (let target = MIN; target <= 3 * MIN; target++) {
+          const total = runMinutes(tiny(target))
+          expect(total, `target ${String(target)}`).toBe(target)
+          expect(total - before, `target ${String(target)}`).toBeLessThanOrEqual(1)
+          before = total
+        }
+        expect(runs(tiny(2 * MIN))).toHaveLength(2)
+        expect(runs(tiny(3 * MIN))).toHaveLength(3)
+      })
+
+      it('holds a run under the minimum when the target is, down to the run day minimum', () => {
+        const sessions = tiny(P.fplace.minRunDayMin.value)
+        expect(runs(sessions)).toHaveLength(1)
+        expect(runMinutes(sessions)).toBe(P.fplace.minRunDayMin.value)
+      })
+
+      it('places a week with no long run at its own minutes', () => {
+        for (let target = P.fplace.minRunDayMin.value; target < 2 * MIN; target++) {
+          expect(runMinutes(tiny(target, { longRunMin: 0 })), `target ${String(target)}`).toBe(
+            target,
+          )
+        }
+      })
+
+      it('keeps an ordinary week off a day the runner gives under the session minimum', () => {
+        for (const maxMin of [P.fplace.minRunDayMin.value, MIN - 1]) {
+          const sessions = place(week({ targetRunMin: 120, longRunMin: 40, runDays: 5 }), {
+            profile: profile({ availability: availability({ tue: { available: true, maxMin } }) }),
+          })
+          expect(runs(sessions).filter((s) => s.durationMin < MIN)).toEqual([])
+        }
+      })
+
+      // The minutes placed never fall as the target rises across the boundary of two runs at the
+      // minimum, on a week with one placeable day and on one whose days a G-1 limit binds.
+      const onlyOn = (days: string[]) =>
+        availability(
+          Object.fromEntries(
+            WEEKDAYS.map((d) => [d, { available: days.includes(d), maxMin: null }]),
+          ),
+        )
+      const placedFor = (target: number, days: string[], min?: number) =>
+        runMinutes(
+          placeWeek(week({ targetRunMin: target, longRunMin: 8, runDays: 4, qualitySessions: 0 }), {
+            profile: profile({ availability: onlyOn(days) }),
+            zones: ZONES,
+            state: state(),
+            prevSessions: [],
+            ...(min === undefined
+              ? {}
+              : {
+                  limits: {
+                    runs: [{ date: '2026-10-20', min, distanceM: null, gainM: null, lossM: null }],
+                    virtualTwoDay: [],
+                  },
+                }),
+          }),
+        )
+
+      it('places no fewer minutes as the target rises, on a week with one placeable day', () => {
+        let before = 0
+        for (let target = P.fplace.minRunDayMin.value; target <= 80; target++) {
+          const total = placedFor(target, ['sat'])
+          expect(total, `target ${String(target)}`).toBeGreaterThanOrEqual(before)
+          before = total
+        }
+      })
+
+      it('places no fewer minutes as the target rises, on a G-1-bound week of two placeable days', () => {
+        let before = 0
+        for (let target = P.fplace.minRunDayMin.value; target <= 80; target++) {
+          const total = placedFor(target, ['tue', 'sat'], 16)
+          expect(total, `target ${String(target)}`).toBeGreaterThanOrEqual(before)
+          before = total
+        }
+      })
+
+      it('keeps the two runs of a post-race week [rule H12]', () => {
+        expect(runs(tiny(30, { flags: ['post-race'] })).length).toBeGreaterThanOrEqual(2)
+      })
+
+      it('lets a day whose G-1 limit lies under the minimum take a run, down to the run day minimum', () => {
+        const limited = (target: number, min: number) =>
+          placeWeek(week({ targetRunMin: target, longRunMin: 8, runDays: 4 }), {
+            profile: profile(),
+            zones: ZONES,
+            state: state(),
+            prevSessions: [],
+            limits: {
+              runs: [{ date: '2026-10-20', min, distanceM: null, gainM: null, lossM: null }],
+              virtualTwoDay: [],
+            },
+          })
+        const limit = runCaps({ min: 16, distanceM: null, gainM: null, lossM: null }).min
+        expect(limit).toBeLessThan(MIN)
+        const sessions = limited(30, 16)
+        expect(runs(sessions)).toHaveLength(1)
+        expect(runMinutes(sessions)).toBe(limit)
+        // under the run day minimum the week holds none
+        const none = runCaps({ min: 8, distanceM: null, gainM: null, lossM: null }).min
+        expect(none).toBeLessThan(P.fplace.minRunDayMin.value)
+        expect(runs(limited(30, 8))).toHaveLength(0)
+      })
     })
 
     it('keeps the long run at the minimum and the longest run of the week', () => {
@@ -1008,6 +1132,25 @@ describe('placeWeek', () => {
         expect(s.rules).toContain('H12')
         expect(s.title).toBe(`After the race: easy ${s.durationMin} min`)
       }
+    })
+
+    it('counts step 1 days whose G-1 band lies under the session minimum toward its three runs', () => {
+      const limit = runCaps({ min: 16, distanceM: null, gainM: null, lossM: null }).min
+      expect(limit).toBeLessThan(P.fplace.easyRunMinMin.value)
+      expect(limit).toBeGreaterThanOrEqual(P.fplace.minRunDayMin.value)
+      const sessions = placeWeek(afterRace('2026-11-02'), {
+        profile: profile(),
+        zones: ZONES,
+        state: state({ age: 30 }),
+        prevSessions: [],
+        postRace: [window],
+        limits: {
+          runs: [{ date: '2026-10-20', min: 16, distanceM: null, gainM: null, lossM: null }],
+          virtualTwoDay: [],
+        },
+      })
+      expect(sessions.map((s) => s.date)).toEqual(['2026-11-03', '2026-11-05', '2026-11-07'])
+      for (const s of sessions) expect(s.durationMin).toBeLessThanOrEqual(limit)
     })
 
     it('counts the first step across the weeks it spans: no fourth run, none next to the third', () => {

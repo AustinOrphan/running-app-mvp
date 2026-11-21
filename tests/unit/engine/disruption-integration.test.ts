@@ -1208,27 +1208,13 @@ describe('the restart week of a hold is cut from a week the window left [rules E
   // half of the lesser of the plan before and the reference week.
   //
   // STILL PINNED (RF4), found by the second review of RF2: three re-plans of the half-marathon athlete
-  // after a hold of 21 days leave a loading week a few percent under the least it may be (the
-  // restart week as placed, and half of the lesser of the plan before and the reference week). The
-  // weeks, with their least in brackets:
-  // - 2026-11-30, a hold from 2026-11-14: 2026-12-21 at 92 (101) and 2026-12-28 at 99 (107.5);
-  // - 2026-12-07, a hold from 2026-11-21: 2026-12-21 at 99 (101) and 2026-12-28 at 105 (113);
-  // - 2026-12-21, a hold from 2026-12-05: 2027-01-11 at 115 (124).
-  // The J7 return week of such a hold is prorated by its open days and plans a couple of runs of about
-  // 28 and 20 minutes; they are the only runs in the 30-day reference of G-1 when the restart week is
-  // placed, so its runs stay under 1.1 times the longest of them (three runs of 30 minutes: 84, 90 and
-  // 105 placed against targets of 158, 169 and 147), and the weeks after it grow from the minutes
-  // placed. It is the prorated return week taken with G-1, and in part not the window code: with the
-  // window not reported the same activities place 50 and 20 minutes in the restart week of the first
-  // two cases, lower still; the third re-plan comes after the hold and places the same 105 with or
-  // without it. Each case is listed by its re-plan with the least share of its bound that its
-  // weakest week may have (the share now, to two places, rounded down): a case that fails and is not
-  // listed fails the test, a listed one that passes does too, and one that gets worse fails.
-  const STILL_PINNED: Record<string, number> = {
-    'half, 21 days from 2026-11-14, re-plan of 2026-11-30': 0.91,
-    'half, 21 days from 2026-11-21, re-plan of 2026-12-07': 0.92,
-    'half, 21 days from 2026-12-05, re-plan of 2026-12-21': 0.92,
-  }
+  // after a hold of 21 days left a loading week a few percent under the least it may be (the
+  // restart week as placed, and half of the lesser of the plan before and the reference week). Since
+  // the break a window holds is cut once (2026-11-20, J9) none is under it, and the list is empty. A
+  // case that fails and is not listed fails the test, a listed one that passes does too, and one that
+  // gets worse fails: each would be listed by its re-plan with the least share of its bound that its
+  // weakest week may have (the share, to two places, rounded down).
+  const STILL_PINNED: Record<string, number> = {}
   const REPORT_MONDAYS = [4, 5, 6, 7].map((n) => addDays(mondayOf(TODAY), 7 * n))
   const CUT = 1 - P.e3.recoveryWeekCutPct.value / 100
   const target = (plan: PlanDraft, weekStart: string) =>
@@ -1940,7 +1926,9 @@ describe('a goal date moved during a taper under way [rules K2, H12, J9]', () =>
     expect(race!.phase).toBe('race')
     // the race week stands above the old plan's post-race row of the same Monday (30 minutes)
     expect(race!.targetRunMin).toBe(74)
-    expect(post.map((w) => w.targetRunMin)).toEqual([60, 99, 108])
+    // 58, 96 and 105 since the break a window holds is cut once (2026-11-20; were 60, 99 and 108): the
+    // week after the hold is placed at 46 minutes, not 47, and the weeks run feed the post-race rows
+    expect(post.map((w) => w.targetRunMin)).toEqual([58, 96, 105])
     expect(step.draft.checklist.filter((c) => !c.ok)).toEqual([])
   })
 
@@ -1953,7 +1941,139 @@ describe('a goal date moved during a taper under way [rules K2, H12, J9]', () =>
     const [race, ...post] = weeksOf(step.draft, at, 4)
     expect(race!.phase).toBe('race')
     // the weeks after the new race stand above the old plan's post-race rows of the same Mondays
-    expect(post.map((w) => w.targetRunMin)).toEqual([60, 99, 108])
+    expect(post.map((w) => w.targetRunMin)).toEqual([58, 96, 105])
     expect(step.draft.checklist.filter((c) => !c.ok)).toEqual([])
   })
+})
+
+describe('a break a reported window holds is cut once, by the J9 restart [rules J7, J9, owner decision 2026-11-20]', () => {
+  // Rule J9 says the J7 step-back is "never applied twice". After a reported window the generator cut
+  // the typical week for the layoff (`afterBreak`) as well as the hold's own restart, and the first
+  // re-plan after it drew from the cut week while the one after drew from the movement, so a week far
+  // ahead moved at every Monday. While the hold explains the days since the last run the typical week
+  // is not cut again and a re-plan carries on from the plan being replaced. All figures are synthetic
+  // athletes of the matrix; the base measured 248, 248, 207, 207, 207 for the first case.
+  const mondayN = (n: number) => addDays(mondayOf(TODAY), 7 * n)
+  const weekTarget = (plan: PlanDraft, weekStart: string) =>
+    plan.weeks.find((w) => w.weekStart === weekStart)!.targetRunMin
+  const failed = (chain: ReturnType<typeof replanChain>) =>
+    chain.flatMap((s) =>
+      s.draft.checklist.filter((c) => !c.ok).map((c) => `${s.input.today}: ${c.id}: ${c.detail}`),
+    )
+
+  it('holds the week after a niggle window of 14 days at one figure at every re-plan (hot-race)', () => {
+    const window = windowOf({
+      id: 'w',
+      reason: 'niggle',
+      startDate: mondayN(4),
+      endDate: addDays(mondayN(4), 13),
+      pain: 0,
+    })
+    expect(window.startDate).toBe('2026-11-16')
+    const chain = replanChain(byId('hot-race').input, { windows: [window], maxSteps: 12 })
+    const seen = chain
+      .filter((s) => s.input.today >= '2026-11-16' && s.input.today <= '2026-12-14')
+      .map((s) => weekTarget(s.draft, '2026-12-14'))
+    expect(seen).toEqual([248, 248, 248, 248, 248])
+    expect(failed(chain)).toEqual([])
+  }, 240_000)
+
+  it('reads 90% for 14 held days that start the day after a run, not 75% for 15 days off (hot-race)', () => {
+    // the last run is 2026-11-15 and the hold is 11-16 to 11-29: 14 days without running before the
+    // first allowed day, though 15 days have passed on the return Monday, which counts today
+    const window = windowOf({
+      id: 'w',
+      reason: 'niggle',
+      startDate: mondayN(4),
+      endDate: addDays(mondayN(4), 13),
+      pain: 0,
+    })
+    const chain = replanChain(byId('hot-race').input, { windows: [window], maxSteps: 8 })
+    const step = chain.find((s) => s.input.today === '2026-11-30')!
+    expect(estimateState(step.input).layoffDays).toBe(15)
+    const item = step.draft.checklist.find((c) => c.id === 'break-restart')!
+    expect(item.ok, item.detail).toBe(true)
+    expect(item.detail).toMatch(/After 14 days off .* a restart at 90% of/)
+  }, 240_000)
+
+  it('holds the week after a window of 21 days at one figure at every re-plan (hot-race)', () => {
+    const window = windowOf({
+      id: 'w',
+      reason: 'niggle',
+      startDate: mondayN(4),
+      endDate: addDays(mondayN(4), 20),
+      pain: 0,
+    })
+    expect(window.endDate).toBe('2026-12-06')
+    const chain = replanChain(byId('hot-race').input, { windows: [window], maxSteps: 12 })
+    const seen = chain
+      .filter((s) => s.input.today >= '2026-11-16' && s.input.today <= '2026-12-14')
+      .map((s) => weekTarget(s.draft, '2026-12-21'))
+    expect(new Set(seen).size, `figures ${seen.join(', ')}`).toBe(1)
+    expect(failed(chain)).toEqual([])
+  }, 240_000)
+
+  it.each([
+    ['hot-race', 'niggle of 28 days', 28, 4, -2, ['2026-12-21', '2026-12-28'], '2026-12-14'],
+    ['marathon', 'niggle of 21 days', 21, 6, -2, ['2026-12-28', '2027-01-04'], '2026-12-21'],
+  ] as const)(
+    'carries the weeks after a window on from the return Monday to the Monday after it ends, no collapse (%s, %s)',
+    (id, _label, days, weeksOn, offset, weeks, firstFullMonday) => {
+      // The hold's return week and first full week stay loading weeks in the carried-on plan, so the
+      // re-plan of the first Monday back reads a stored week that is the restart, not a recovery
+      // week with the weeks run (none) as its baseline: hot-race drew 189 then 47, 51 there.
+      const start = addDays(addDays(mondayOf(TODAY), 7 * weeksOn), offset)
+      const window = windowOf({
+        id: 'w',
+        reason: 'niggle',
+        startDate: start,
+        endDate: addDays(start, days - 1),
+        pain: 0,
+      })
+      const hold = disruptionPlan([window]).holds[0]!
+      expect(hold.fullWeekStart).toBe(firstFullMonday)
+      const chain = replanChain(byId(id).input, { windows: [window], maxSteps: 20 })
+      const at = (today: string) => chain.find((s) => s.input.today === today)!
+      const mondays = chain
+        .map((s) => s.input.today)
+        .filter((d) => d >= hold.returnWeekStart && d <= hold.fullWeekStart)
+      expect(mondays.length).toBeGreaterThanOrEqual(2)
+      for (const week of weeks) {
+        const figures = mondays.map((d) => weekTarget(at(d).draft, week))
+        const lowest = Math.min(...figures)
+        const highest = Math.max(...figures)
+        expect(
+          lowest,
+          `${week} across the re-plans ${mondays.join(', ')}: ${figures.join(', ')}`,
+        ).toBeGreaterThanOrEqual(0.6 * highest)
+      }
+      // the weeks that follow the first full week, read on the Monday after the window ends against
+      // the re-plan before it
+      const before = at(addDays(hold.fullWeekStart, -7)).draft
+      const after = at(hold.fullWeekStart).draft
+      for (const week of [addDays(hold.fullWeekStart, 14), addDays(hold.fullWeekStart, 21)]) {
+        expect(weekTarget(after, week), week).toBeGreaterThanOrEqual(0.6 * weekTarget(before, week))
+      }
+      expect(failed(chain)).toEqual([])
+    },
+    240_000,
+  )
+
+  it('draws the weeks after an illness of 14 days from the plan before it (half)', () => {
+    const window = windowOf({
+      id: 'w',
+      reason: 'illness-above-neck',
+      startDate: addDays(mondayN(3), -2),
+      endDate: addDays(mondayN(3), 11),
+      pain: null,
+    })
+    expect(window.startDate).toBe('2026-11-07')
+    const chain = replanChain(byId('half').input, { windows: [window], maxSteps: 10 })
+    const at = (today: string) => chain.find((s) => s.input.today === today)!
+    const weeks = ['2026-11-30', '2026-12-07', '2026-12-14']
+    expect(weeks.map((w) => weekTarget(at('2026-11-16').draft, w))).toEqual(
+      weeks.map((w) => weekTarget(at('2026-11-09').draft, w)),
+    )
+    expect(failed(chain)).toEqual([])
+  }, 240_000)
 })

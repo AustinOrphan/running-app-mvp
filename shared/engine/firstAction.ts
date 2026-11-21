@@ -3,7 +3,7 @@
 // step is to bring runs in; with runs on file it is a goal, and a start level under the 3 x 20
 // minute floor (the plan then starts with a short programme) is a fact beside it. Nothing here is a
 // Param: the level and the floor are read from the state and from `P.restartFloor`.
-import { afterBreak } from './adapt.ts'
+import { planStateOf } from './adapt.ts'
 import { startLevelMin } from './limits.ts'
 import { freshStartFor } from './macro.ts'
 import { P } from './params/index.ts'
@@ -31,7 +31,7 @@ export interface FirstAction {
 
 /** Which first step applies, from the same state and input that `generate` reads. */
 export function firstActionFor(input: EngineInput, state: AthleteState): FirstAction {
-  const planState = afterBreak(state)
+  const planState = planStateOf(state, input.disruptions, input.today)
   // The start `generate` would draw: none under a progression hold for a runner with a typical week.
   const path = freshStartFor(input, planState)
   const injuryReturn = path?.kind === 'injury-return'

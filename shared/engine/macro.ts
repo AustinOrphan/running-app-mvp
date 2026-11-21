@@ -16,6 +16,7 @@ import { breakRestart, runsReaching, weekEvidence } from './adapt.ts'
 import { bmiOf } from './athlete.ts'
 import { BREAK_REPEAT_FLAG, breakPartWeeks } from './breakWeek.ts'
 import {
+  breakHeldBy,
   disruptionPlan,
   holdRestartWeeks,
   isDisruptedWeek,
@@ -413,7 +414,17 @@ function replanAnchor(
   raiseTo = 0,
 ): { minutes: number; paused: boolean } | null {
   const weeks = input.existing?.weeks
-  if (weeks === undefined || state.layoffDays >= P.j7.tier1Days.value) return null
+  if (weeks === undefined) return null
+  // A layoff of J7's first tier restarts the plan from the typical week, except where a hold of a
+  // window explains it: its restart is the one step-back [rule J9] and the plan carries on from the
+  // plan being replaced, as it does after a break the J7 table does not reach.
+  if (
+    state.layoffDays >= P.j7.tier1Days.value &&
+    breakHeldBy(disruptionPlan(input.disruptions ?? []), state.lastRunDate, input.today) ===
+      undefined
+  ) {
+    return null
+  }
   const current = weeks.find((w) => w.weekStart === firstMonday)
   if (current === undefined || current.isTaper || current.phase === 'race') return null
   // The week before counts as the recovery week: this week repeats the loading week it was planned
@@ -1250,6 +1261,31 @@ function planWeeks(
     startWeeks,
     breaking && restart === null,
   )
+  // A plan carried on after a hold keeps the weeks of the hold's restart, its return week and first
+  // full week, as the plan being replaced drew them [rule J9]: a loading week stays one. The weeks
+  // the hold leaves empty would otherwise count as loading weeks in the recount, which moves the
+  // recovery week onto the restart week; a plan carried on from there would read a recovery week
+  // where the restart is, draw the weeks after it from the weeks run (none) and collapse. The
+  // recovery week the count gave the restart falls on the week after instead. A restart week the
+  // plan being replaced had not drawn as a loading week of the hold stays as the cadence has it.
+  const storedRestart = new Set(
+    (input.existing?.weeks ?? [])
+      .filter((w) => !w.isRecovery && w.flags.includes('disruption-return'))
+      .map((w) => w.weekStart),
+  )
+  for (const explained of dplan.holds.filter((h) => h.fraction < 1)) {
+    for (const monday of [explained.returnWeekStart, explained.fullWeekStart]) {
+      if (!storedRestart.has(monday)) continue
+      const at = Math.round(daysBetween(firstMonday, monday) / 7)
+      const week = phases[at]
+      if (at < 0 || at >= preCount - 1 || week === undefined || !week.isRecovery) continue
+      const next = phases[at + 1]
+      week.isRecovery = false
+      if (next !== undefined && at + 1 < preCount - 1 && !phases[at + 2]?.isRecovery) {
+        next.isRecovery = true
+      }
+    }
+  }
   const anchored = restart === null ? continued : null
   const start =
     restart !== null

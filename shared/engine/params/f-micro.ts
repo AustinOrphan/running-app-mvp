@@ -366,7 +366,7 @@ export const fMicro = {
     ),
     minRunsPerWeek: param('fplace.minRunsPerWeek', 2, 'D', 'F5', [], {
       unit: 'runs per week',
-      note: 'Default: outside taper, race and recovery weeks a week holds at least this many runs; when its minutes cannot fit the planned run days at the minimum, fewer runs are placed rather than shorter ones.',
+      note: 'Default: outside taper, race and recovery weeks a week holds at least this many runs; when its minutes cannot fit the planned run days at the minimum, fewer runs are placed rather than shorter ones. A week too small for this many runs at the session minimum holds one run of its minutes and grows from there (owner decision, rule F5).',
     }),
     minRunDayMin: param('fplace.minRunDayMin', 15, 'D', 'F5', [], {
       unit: 'min',

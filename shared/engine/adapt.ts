@@ -9,7 +9,13 @@ import { BREAK_SIGNAL, BREAK_SIGNAL_DETAIL } from '../copy/breakWeek.ts'
 import { aggregateWeeks } from '../domain/weeks.ts'
 import type { Activity } from '../types.ts'
 import { efficiencyIndex } from './athlete.ts'
-import { dayRulesIn, disruptionPlan, heldDates, restartFraction } from './disruption.ts'
+import {
+  breakHeldBy,
+  dayRulesIn,
+  disruptionPlan,
+  heldDates,
+  restartFraction,
+} from './disruption.ts'
 import { hasSubjectivePart } from './execution.ts'
 import { nextWeekCap } from './guards.ts'
 import { plannedMinOf, wholeMinutes, type RebuildZone } from './limits.ts'
@@ -30,6 +36,7 @@ import { firstHotDays, lastLoadingMin } from './heat.ts'
 import { isProgrammeWeek } from './startWeeks.ts'
 import type {
   AthleteState,
+  DisruptionWindow,
   EngineInput,
   ExecutionFindings,
   SessionKind,
@@ -438,6 +445,21 @@ const BREAK_COMPATIBLE_HOLDS: ReadonlySet<string> = new Set([
   'pain-mild',
 ])
 
+/**
+ * The holds whose cap steps from the minutes run when the reviewed week was run above its plan
+ * [rules G-6, owner decision 2026-11-20]: the short week, a short night, a sleep or efficiency signal
+ * and the first hot days, which keep their own clamp. A pain, the energy-availability screen, a
+ * readiness flag and a decline in the check-ins hold progression whatever was run, as E7 never
+ * raises a week over them [rules J5, n-4, E7, G6].
+ */
+const STEP_FROM_RUN_HOLDS: ReadonlySet<string> = new Set([
+  'completion-low',
+  'sleep-warning',
+  'sleep-efficiency-drop',
+  'efficiency-decline',
+  'heat',
+])
+
 /** Progress, hold or reduce from execution, check-ins, efficiency, sleep and HRV [rules J5, G-6]. */
 export function weeklyDecision(
   input: EngineInput,
@@ -655,7 +677,8 @@ export function weeklyDecision(
 
   // G-6: the target never exceeds last week's actual x (1 + ramp); missed minutes are not repeated.
   // The response to weeks run above plan [rules g-8] has no part in it: a hold or reduce caps the
-  // week it covers by the planned week and the step from the week run, and the week a progress
+  // week it covers by the planned week and the step from the week run (a hold after a week run above
+  // its plan steps from the minutes run, up to the next planned week), and the week a progress
   // decision names is the one the re-plan keeps, so the mean of the weeks run lifts the weeks the
   // plan draws after them (`responseBaseline`) and not these figures.
   const plannedThis = plannedFull ?? actual
@@ -675,7 +698,21 @@ export function weeklyDecision(
   } else {
     // G-6 steps from the minutes run. A week with none leaves no step to take, and a cap of 0
     // would hold the next week empty too: the break rules size the restart [rules J7, E6].
-    const stepped = nextWeekCap(plannedThis, actual, ramp, rebuild)
+    // A hold whose reviewed week was run above its plan steps from the minutes run, up to the larger
+    // of the reviewed week's planned figure and the plan's figure for the week it covers (a recovery
+    // or taper week next leaves the reviewed week's figure as the floor); without the lift a week
+    // planned at 0 caps the next at 0 however much was run, and it still does when no next week is
+    // stored [rules G-6, owner decision 2026-11-20]. A reduce keeps the planned figure (G6).
+    const stepped = nextWeekCap(
+      decision === 'hold' &&
+        actual > plannedThis &&
+        [...standing, ...independent].every((s) => STEP_FROM_RUN_HOLDS.has(s.code))
+        ? Math.max(plannedThis, nextPlanned)
+        : plannedThis,
+      actual,
+      ramp,
+      rebuild,
+    )
     // After a week that counts as the recovery week the cap is the J7 share of the week it repeats,
     // not the step from the minutes run [rules E3, G-6, J7].
     const cap =
@@ -787,6 +824,22 @@ export function afterBreak(state: AthleteState): AthleteState {
     typicalWeekMin: Math.min(state.typicalWeekMin, restart.restartMin),
     recentWeekMin: Math.min(state.recentWeekMin, restart.restartMin),
   }
+}
+
+/**
+ * The state a plan is drawn from: `afterBreak`, except while a hold of a reported window explains
+ * the days since the last run (`breakHeldBy`). J9 applies the J7 step-back once, as the restart of
+ * the hold, so the typical week is not cut for the same days again. The one place that decides it,
+ * read by `generate`, the checklist, Explain and the first action [rules J7, J9].
+ */
+export function planStateOf(
+  state: AthleteState,
+  disruptions: readonly DisruptionWindow[] | undefined,
+  today: string,
+): AthleteState {
+  return breakHeldBy(disruptionPlan(disruptions ?? []), state.lastRunDate, today) === undefined
+    ? afterBreak(state)
+    : state
 }
 
 /**

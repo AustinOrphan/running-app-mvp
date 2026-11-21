@@ -106,16 +106,20 @@ for (const viewport of WIDTHS) {
       await expect(now).toHaveAttribute('aria-current', 'date')
       await expect(now).toHaveAccessibleName(/, 0\.\d h run$/)
 
-      // The bars: one outline per week, a solid bar for the week with the run, one flag.
+      // The bars: one outline per week with planned minutes (a rest week draws none), a solid bar for
+      // the week with the run, one flag.
+      const drawn = plan.weeks.flatMap((w, index) => (w.targetRunMin > 0 ? [index] : []))
+      expect(drawn.length).toBeGreaterThan(20)
       const bars = season.locator('[data-compact="true"]')
-      await expect(bars.locator('rect[fill="none"]')).toHaveCount(weeks)
+      await expect(bars.locator('rect[fill="none"]')).toHaveCount(drawn.length)
       await expect(bars.locator('rect[fill="var(--chart-actual)"]')).toHaveCount(1)
       await expect(bars.locator('[data-mark="race"]')).toHaveCount(1)
       await expect(bars.locator('[data-mark="current"]')).toHaveCount(1)
 
       // A button sits over the bar of its week, and the page does not scroll sideways.
-      for (const index of [0, Math.floor(weeks / 2), weeks - 1]) {
-        const bar = await bars.locator('rect[fill="none"]').nth(index).boundingBox()
+      for (const at of [0, Math.floor(drawn.length / 2), drawn.length - 1]) {
+        const index = drawn[at]!
+        const bar = await bars.locator('rect[fill="none"]').nth(at).boundingBox()
         const button = await buttons.nth(index).boundingBox()
         expect(bar, `bar ${String(index)}`).not.toBeNull()
         expect(button, `button ${String(index)}`).not.toBeNull()
