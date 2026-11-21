@@ -10,4 +10,5 @@ docs/superpowers
 web/styles/tokens.css
 generated
 tests/unit/engine/taper-reference-*.json
+tests/unit/engine/planned-minutes-*.json
 tests/unit/engine/fixtures/ceiling-scope-input.json

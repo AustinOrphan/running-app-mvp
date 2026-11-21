@@ -351,6 +351,24 @@ export function plannedMinOf(week: Pick<WeekDraft, 'targetRunMin' | 'flags'>): n
   return week.targetRunMin
 }
 
+/** The flag of a loading week placed short of its plan: `planned-<n>`, with no `overshoot` [rule E6]. */
+export const placedShortFlag = (plannedMin: number): string =>
+  `${PLANNED_FLAG}${String(plannedMin)}`
+/**
+ * The minutes a loading week was planned at before its sessions were placed: the `planned-<n>` flag
+ * of a week placed short of its plan, else `plannedMinOf`. A stored plan without the flag reads its
+ * target, as before [rule E6].
+ */
+export function plannedBeforePlacement(week: Pick<WeekDraft, 'targetRunMin' | 'flags'>): number {
+  if (week.flags.includes('overshoot')) return plannedMinOf(week)
+  for (const flag of week.flags) {
+    if (!flag.startsWith(PLANNED_FLAG)) continue
+    const n = Number(flag.slice(PLANNED_FLAG.length))
+    if (Number.isInteger(n) && n >= 0) return Math.max(n, week.targetRunMin)
+  }
+  return week.targetRunMin
+}
+
 /**
  * The weeks of a start path that follow a fixed programme [rules E6, g-3]: `soft` weeks (the
  * run-walk ladder) are exempt from the soft 10% warning only, never from the 2-week ceiling.
