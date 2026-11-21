@@ -725,6 +725,8 @@ function generate(
   // (`keptLimits`), as a preset is held to the default [rules G6, K6].
   const keptBound = counted.size > 0 ? keptLimits(input, keep, weekOffset) : null
   const limits = keptBound === null ? presetLimits : lowerLimits(presetLimits, keptBound.limits)
+  // whether the week in progress was drawn with the days of the replaced plan kept (`remainingOfWeek`)
+  let daysKept = false
   const rampCtx: RampContext = {
     volumes,
     skip,
@@ -947,16 +949,11 @@ function generate(
             (date) => date >= week.weekStart && date <= weekEnd && !keptRunDates.has(date),
           ).length
         : 0
-      // a week counted at the figure of the plan being replaced (nothing new) keeps every day it has due,
-      // unless the plan drawn with no week counted dropped a quality session the replaced plan still
-      // has ahead: a signal reported since (a screening, a window) took it, and the kept days would
-      // bring it back
-      const keepDays =
-        isCurrent &&
-        counted.has(week.weekStart) &&
-        keptBound !== null &&
-        keptBound.qualityAhead >=
-          qualityAheadOf(input.existing?.sessions ?? [], today, week.weekStart)
+      // a week counted at the figure of the plan being replaced (nothing new) keeps every day it has
+      // due, unless the plan is drawn again without (below: it must not hold a quality session the
+      // plan drawn with no week counted does not)
+      const keepDays = isCurrent && input.options.keepDays !== false && counted.has(week.weekStart)
+      if (keepDays) daysKept = true
       const figure = keep.figure.get(week.weekStart)
       // The plan's own figure for a week it has not started is a target; the minutes its sessions place
       // are net of the shake-out, and the week is placed at the target that places them [rule K6]. The
@@ -1658,6 +1655,22 @@ function generate(
       message: `The goal date ${goal.date} is before ${today}, so there is nothing to plan.`,
       rules: ['E1'],
     })
+  }
+
+  // The kept days of a counted week never bring a quality session the plan drawn with no week counted
+  // did not place (a signal reported since, a screening or a window, or the cycle of the quality days
+  // moving with the day kept): the plan is drawn again with the days of the week as drawn.
+  if (
+    daysKept &&
+    keptBound !== null &&
+    qualityAheadOf(all, today, currentMonday) > keptBound.qualityAhead
+  ) {
+    return generate(
+      { ...input, options: { ...input.options, keepDays: false } },
+      keep,
+      weekOffset,
+      record,
+    )
   }
 
   return {

@@ -278,6 +278,22 @@ describe('a re-plan with a signal or a flag the count must not undo', () => {
     expect(quality(kept)).toBeLessThanOrEqual(quality(legacy))
   })
 
+  it('passes the checklist on every re-plan of a held runner re-planned on Thursdays, a window reported mid-week', () => {
+    const athlete = athletes().find((a) => a.id === 'reds-hold')!
+    const niggle = windowOf({
+      id: 'taper-day',
+      reason: 'niggle',
+      startDate: '2027-01-16',
+      endDate: addDays('2027-01-16', 27),
+      pain: 0,
+    })
+    const chain = replanChain(athlete.input, { windows: [niggle], weekday: 3 })
+    const failing = chain.flatMap((step) =>
+      step.draft.checklist.filter((c) => !c.ok).map((c) => `${step.input.today}: ${c.id}`),
+    )
+    expect(failing).toEqual([])
+  })
+
   it('does not count a week that carries break-repeat', () => {
     const { step, base, wed, acts } = wednesday()
     const flagged = {

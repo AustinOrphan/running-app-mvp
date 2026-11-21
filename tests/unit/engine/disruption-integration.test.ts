@@ -1635,13 +1635,11 @@ describe('a re-plan on any day of the taper keeps to the plan before [rules K2, 
   // version of `replanChain` left the first plan's first days unrun when the re-plans fall after the
   // Monday, which lowered every later week of the held athlete and hid this failure). With those days
   // run, main refuses the 2027-01-11 week at 31% on the Saturday chain (measured 2026-11-20 on
-  // 7606c31d), and the mid-week change (MW1) adds the Thursday chain: the week of 2027-01-18, 38% of it
-  // above zone 1 on the re-plans from 2027-01-21 to 2027-03-04, listed as a follow-up.
-  const KNOWN_TID: Record<string, number> = {
-    'reds-hold Tuesday': 7,
-    'reds-hold Thursday': 7,
-    'reds-hold Saturday': 8,
-  }
+  // 7606c31d). The Thursday chain passes: the mid-week change (MW1) first failed it (the week of
+  // 2027-01-18 at 38%), because the kept days of a counted week moved a threshold run into that week;
+  // the kept days are now drawn again without when they bring a quality session the uncounted plan
+  // does not have (`midweek-replan.test.ts`).
+  const KNOWN_TID: Record<string, number> = { 'reds-hold Tuesday': 7, 'reds-hold Saturday': 8 }
   const DAYS: Array<[string, number]> = [
     ['Tuesday', 1],
     ['Thursday', 3],

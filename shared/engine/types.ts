@@ -662,6 +662,12 @@ export interface EngineInput {
      * (`countedWeeks`). Set only by the pass that bounds the plan that does count them.
      */
     countKept?: boolean
+    /**
+     * Internal: `false` draws the week in progress with the run days of the week as drawn, not the days
+     * the plan being replaced still has (`remainingOfWeek`). Set only by the redraw that follows a
+     * counted week's kept days bringing a quality session the uncounted plan has not.
+     */
+    keepDays?: boolean
     recoveryCycle?: RecoveryCycle
     strengthSessions?: 0 | 1 | 2
     tidModel?: 'pyramidal' | 'polarized'
