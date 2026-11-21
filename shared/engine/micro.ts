@@ -27,7 +27,7 @@ import {
   windowDay,
   type PostRaceWindow,
 } from './postRace.ts'
-import { prescribe, type PrescribeContext } from './sessions.ts'
+import { minutesWithin, prescribe, type PrescribeContext } from './sessions.ts'
 import {
   clipBlueprint,
   fitBlueprints,
@@ -1271,9 +1271,6 @@ export function holdSessions(
   return out
 }
 
-/** Minutes per metre are measured on a run of this length, so rounding barely moves them. */
-const PROBE_MIN = 100
-
 /**
  * The most minutes a run of `kind` may hold and carry no more than `metres`: its distance as
  * prescribed (at the zone paces, rounded to 100 m), or, for a long run without zone paces, the
@@ -1286,13 +1283,10 @@ function distanceCapMin(
   week: WeekDraft,
 ): number {
   if (!Number.isFinite(metres)) return Infinity
-  const probe = prescribe(kind, PROBE_MIN, zones, week).distanceM
+  const within = minutesWithin(kind, metres, zones, week)
+  if (within !== null) return within
   const perMin =
-    probe !== null
-      ? probe / PROBE_MIN
-      : week.longRunM !== null && week.longRunMin > 0
-        ? week.longRunM / week.longRunMin
-        : null
+    week.longRunM !== null && week.longRunMin > 0 ? week.longRunM / week.longRunMin : null
   if (perMin === null || perMin <= 0) return Infinity
   // a prescribed distance rounds to 100 m, so it may sit 50 m above the minutes' own
   return Math.floor((metres - 50) / perMin + 1e-9)

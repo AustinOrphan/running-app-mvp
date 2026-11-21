@@ -163,6 +163,16 @@
 // stand and passes, so none moved (the file was not regenerated). No plan of the oracle opens inside
 // its window, and the stored window weeks of its chains carry the downhill flag from the window start.
 //
+// Regenerated 2026-11-20 (rules g-1, D7, follow-up 8): the macro measures the long run's distance
+// limit as the micro places it (a probe at the prescribed pace, rounded to 100 m), so a long run
+// held by the limit is drawn and placed at the same minutes. The row is re-measured in both
+// directions (it rises where the probe rounds down; the placement already used this measure), and
+// a lower G-1 record lowers the later bands. 51 of the 142 digests move (the plans of a runner whose
+// limit binds the long run, `chain first-100-mile x1.5` 1 and 2 among them; the other 91 are as
+// before); the owner validation is the same output as before. After the merge of the tiny-plan
+// change below, the file was regenerated from the merged tree (both changes move the digests of the
+// same plans); 51 digests differ from the tiny-plan version.
+//
 // Regenerated 2026-11-20 (rule F5, H12, owner decision 2026-11-20, "One run, growing ~10%/wk"): the
 // post-race weeks of `windowWeeks` keep a run in a G-1 band of 15 to 19 minutes (down to the run day
 // minimum) and hold none when their computed target is under it. 18 of the 142 digests move, all
