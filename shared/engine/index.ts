@@ -616,6 +616,14 @@ function generate(
   // last week run before it, the return of J7, and not against the minutes the window left. The
   // cut of a recovery week is sized from a loading week that is not a part week [rules J9, J7, g-2, E3].
   const windowed = windowedWeeks(dplan)
+  // The weeks a window may hold under their drawn target: the weeks it touches, the J7 return weeks and
+  // the g2.ceilingLookbackWeeks weeks after the full week of a hold sent back at a fraction under 1.
+  // A week after those is drawn and placed as the plan without the window [rules J9, J7, g-2].
+  const ceilingWeeks = new Set<string>([...windowed, ...returnWeeks(dplan)])
+  for (const hold of dplan.holds.filter((h) => h.fraction < 1)) {
+    for (let k = 1; k <= P.g2.ceilingLookbackWeeks.value; k += 1)
+      ceilingWeeks.add(addDays(hold.fullWeekStart, 7 * k))
+  }
   const unwindowed = new Map<string, number>()
   for (const w of macroWeeks) {
     const cap = input.weekCaps?.[w.weekStart]
@@ -844,7 +852,7 @@ function generate(
     // a week a window (or the ramp back from one) holds under its drawn target is a ceiling
     const ceilingOf = (w: WeekDraft) =>
       dplan.days.length > 0 &&
-      week.weekStart >= mondayOf(dplan.days[0]!.date) &&
+      ceilingWeeks.has(week.weekStart) &&
       w.targetRunMin < week.targetRunMin
     // The shake-out cuts the day before a long race from its share of the week [rule K6]. A bound that
     // comes from minutes placed is net of that cut, and a target set to `net` minutes is spread over

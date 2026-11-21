@@ -9,3 +9,4 @@ prisma/migrations
 docs/superpowers
 web/styles/tokens.css
 generated
+tests/unit/engine/fixtures/ceiling-scope-input.json

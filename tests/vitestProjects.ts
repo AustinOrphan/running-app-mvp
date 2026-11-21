@@ -26,6 +26,8 @@ export const SWEEP_FILES: readonly string[] = [
   'tests/unit/engine/preset-fidelity.test.ts', // 12
   'tests/unit/engine/entered-races-sweep.test.ts', // SR1
   'tests/unit/engine/g1-week-cap-sweep.test.ts', // 10
+  'tests/unit/engine/window-ceiling-scope.test.ts', // WC1
+  'tests/unit/engine/tiny-plan-replan-sweep.test.ts', // 6, over the unit timeout under CI load
   // By hand (skipped in `npm run test` without the variable named in each file's header), where
   // each runs for minutes:
   'tests/unit/engine/window-grids.test.ts', // WINDOW_GRIDS_FULL
