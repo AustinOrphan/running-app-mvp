@@ -14,9 +14,8 @@ import type {
   PlanDraft,
   WeekDraft,
 } from '../../../shared/engine/types.ts'
-import { planMinutes, windowOf } from './disruption-fixtures.ts'
+import { planMinutes } from './disruption-fixtures.ts'
 import { athletes } from './matrix-fixtures.ts'
-import { replanChain } from './replan-steps.ts'
 
 const MIN = P.fplace.easyRunMinMin.value
 const placed = (draft: PlanDraft, w: WeekDraft): number =>
@@ -125,30 +124,7 @@ describe('a tiny plan after a hold', () => {
   })
 })
 
-// A tiny week the guards leave with no running is no baseline: a zero in the guards' ramp sent the
-// recovery week after it to the typical week (a limit of about 97 minutes), while the checklist, which
-// counts the weeks that hold a session, held it to 1.3 x the last run week (14 minutes).
-describe('a re-plan after a 28-day niggle that leaves weeks empty', () => {
-  it('passes the checklist at the three re-plans of sparse-100-mile that failed its progression item', () => {
-    const athlete = athletes().find((a) => a.id === 'sparse-100-mile')!
-    const failures: string[] = []
-    for (const start of ['2026-11-14', '2026-12-12', '2027-01-02']) {
-      const window = windowOf({
-        id: 'w',
-        reason: 'niggle',
-        startDate: start,
-        endDate: addDays(start, 27),
-        pain: 0,
-      })
-      for (const step of replanChain(athlete.input, { windows: [window] })) {
-        for (const item of step.draft.checklist.filter((c) => !c.ok)) {
-          failures.push(`${start} ${step.input.today}: ${item.id}: ${item.detail}`)
-        }
-      }
-    }
-    expect(failures).toEqual([])
-  })
-})
+// The re-plan chain over a 28-day niggle lives in tiny-plan-replan-sweep.test.ts (sweep project).
 
 // The relation that the first candidate of the redesign broke (sim-athlete: "a closed day never raises
 // a week"), checked where the weeks are tiny: the shape of a week turns on its own target, which a
