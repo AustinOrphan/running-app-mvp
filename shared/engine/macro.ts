@@ -1237,7 +1237,7 @@ function planWeeks(
   // week (`stepCap`) to the floor itself: the continuation then no longer sits below the floor
   // week, and the week would lose its floor flags [rules E6, g-2].
   // A current week stored under the floor is no restart when the sequence is already past it: the
-  // loading week before it (not a floor week itself) was planned at or above the floor, and the week
+  // loading week before it was planned at or above the floor, and the week
   // sits short for another reason than a restart, as a recovery week the peak rule made the peak does
   // [rules E6, J7, K2].
   const pastTheFloor = (floorMin: number): boolean =>
@@ -1245,7 +1245,6 @@ function planWeeks(
     preCount === 1 &&
     heldCap !== undefined &&
     untouchedBase !== undefined &&
-    !untouchedBase.flags.includes('restart-floor') &&
     plannedMinOf(untouchedBase) >= floorMin - EPS
   const restart =
     path !== null &&

@@ -153,6 +153,34 @@ describe('a window under 7 days leaves the later loading weeks unchanged', () =>
     }
   })
 
+  // KNOWN LIMIT (rule J9 addendum): a window of 3 days or more whose days are all past when it is
+  // reported leaves the next weeks below the plan without it, as the engine before the change did
+  // (the same 213, 234 and 175 minutes). The weeks the window took are not days to run on, but the
+  // runs missed inside it stand in the 30-day reference of G-1 and in the run record the weeks after
+  // are drawn against. The case pins the figures so a change to them is seen; it is no claim of rule.
+  it('a 3-day window reported after its days still leaves the next weeks below the plan (known limit)', () => {
+    const week = '2026-11-02'
+    const half = athletes().find((a) => a.id === 'half')!
+    const nextMonday = addDays(week, 7)
+    const window = windowOf({
+      id: 'w5',
+      reason: 'travel',
+      mode: 'rest',
+      startDate: week,
+      endDate: addDays(week, 2),
+      maxRunMin: null,
+      pain: null,
+    })
+    // the chain re-plans on the Thursday of each week, with the window known to it from the start
+    const thursday = addDays(week, 3)
+    const at = (windows: DisruptionWindow[]) =>
+      replanChain(half.input, { weekday: 3, maxSteps: 4, windows }).find(
+        (s) => s.input.today === thursday,
+      )!
+    expect(targets(at([]).draft, nextMonday, 3)).toEqual([259, 270, 202])
+    expect(targets(at([window]).draft, nextMonday, 3)).toEqual([213, 234, 175])
+  })
+
   it('a window of 7 days or more keeps the step back from the last week run', () => {
     const { step, base, nextMonday } = setup()
     const long = windowOf({

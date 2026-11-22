@@ -344,7 +344,9 @@ and CodeQL's `analyze` (not strict, no force push, not enforced for admins). The
   the window (the stored `window-free-<n>` flag, `windowFreeMinutes`, at no more than the minutes run plus the minutes
   the window took), and `generate` enters each short-window week in the ramp's volumes at that figure and writes the
   flag on it (`baselineMin` for the guards, `countedWeeks` for the week in progress). The week's own sessions and target
-  stay the window's cut; no minute is added back. Nothing else reads the flag.
+  stay the window's cut; no minute is added back. Nothing else reads the flag. Known limit: a window of 3 days or
+  more whose days are all past when it is reported still leaves the next weeks below the plan without it
+  (`short-window-later-weeks-sweep.test.ts` pins the figures).
 - A re-plan after the Monday keeps the later weeks (rule G-2, task MW1, owner decision 2026-11-20): `countedWeeks`
   (`shared/engine/limits.ts`) is the one reader of the week in progress as a ramp baseline, at the figure of the plan
   being replaced when the runner is on track and no window touches it (`RampContext.counted`, taken by `rampLimits`

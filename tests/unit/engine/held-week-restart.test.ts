@@ -70,6 +70,28 @@ describe('a held week outside the recovery-turned-peak week is unchanged', () =>
     expect(taperOf(step)).toEqual([74, 49])
   })
 
+  it('a hold in a floor week whose loading week before was under the floor stays a restart (half, 2027-02-08)', () => {
+    const step = stepOf('half', 16, 1000)
+    expect(step.settled.today).toBe('2027-02-08')
+    expect(flagsOf(step, '2027-02-08')).toContain('restart-floor')
+    expect(taperOf(step)).toEqual([39, 36])
+  })
+
+  // KNOWN: a re-plan of this plan with nothing new moves the weeks after the window week by a minute
+  // (96, 72, 105 and 115 become 95, 71, 104 and 114): the week in progress is placed one minute short
+  // at the second pass (an easy run of 25 minutes becomes 24). The drift is in the placement of that
+  // week, not in the window-free figure, which is the same at both passes; it is also there with the
+  // window-free lift off. The test goes red when a change fixes it.
+  it.fails(
+    'a window reported the Monday after, as a past week, is a fixed point (trail-50k)',
+    () => {
+      const step = stepOf('trail-50k', 12)
+      expect(step.settled.today).toBe('2027-01-11')
+      const back = replanMonday(withStoredPlan(step)).draft
+      expect(isDeepStrictEqual(back, step.draft)).toBe(true)
+    },
+  )
+
   it('a floor week with no hold keeps its floor and the weeks after it (masters)', () => {
     const step = stepOf('masters', 13)
     expect(flagsOf(step, step.settled.today)).toContain('restart-floor')
