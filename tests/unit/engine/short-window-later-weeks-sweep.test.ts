@@ -60,10 +60,10 @@ const targets = (draft: PlanDraft, from: string, count: number) =>
     .slice(0, count)
     .map((w) => w.targetRunMin)
 
-function setup() {
-  const athlete = athletes().find((a) => a.id === 'first-100-mile')!
+function setup(id = 'first-100-mile', week = WEEK) {
+  const athlete = athletes().find((a) => a.id === id)!
   const steps = replanChain(athlete.input)
-  const step = steps.find((s) => s.input.today === WEEK)!
+  const step = steps.find((s) => s.input.today === week)!
   const base = { ...step.input, existing: null } as EngineInput
   const wed = addDays(WEEK, 2)
   const window = windowOf({
@@ -105,6 +105,73 @@ describe('a window under 7 days leaves the later loading weeks unchanged', () =>
     const without = replan(inputAt(base, step.draft, WEEK, step.input.activities, [])).draft
     const windowed = replan(inputAt(base, step.draft, WEEK, step.input.activities, [window])).draft
     expect(targets(windowed, nextMonday, 7)).toEqual(targets(without, nextMonday, 7))
+  })
+
+  it('a window reported after its days, on a later day of the week, leaves the weeks after it as the plan has them', () => {
+    // the half-marathon athlete, a one-day window on the Monday of 2026-11-09, reported on a later day
+    const week = '2026-11-09'
+    const { step, base } = setup('half', week)
+    const nextMonday = addDays(week, 7)
+    // the first day of the week the plan has a run on
+    const runDay = step.draft.sessions
+      .filter((s) => s.date >= week && !NOT_RUNS.has(s.kind))
+      .map((s) => s.date)
+      .sort()[0]!
+    const monday = windowOf({
+      id: 'w3',
+      reason: 'travel',
+      mode: 'rest',
+      startDate: runDay,
+      endDate: runDay,
+      maxRunMin: null,
+      pain: null,
+    })
+    for (const day of [3, 4, 5]) {
+      const today = addDays(week, day)
+      const acts = [...step.input.activities, ...ranFrom(step.draft, week, today, monday)]
+      // the plan without the window: the same days, the Monday run done
+      const done = [...step.input.activities, ...ranFrom(step.draft, week, today, null)]
+      const without = replan(inputAt(base, step.draft, today, done, [])).draft
+      const windowed = replan(inputAt(base, step.draft, today, acts, [monday])).draft
+      expect(targets(windowed, nextMonday, 7), `day ${String(day)}`).toEqual(
+        targets(without, nextMonday, 7),
+      )
+      const flagged = windowed.weeks.find((w) => w.weekStart === week)!
+      expect(windowFreeMinutes(flagged.flags), `flag, day ${String(day)}`).not.toBeNull()
+      // the Monday re-plan after it reads the flag: the weeks after the week stay the plan's own
+      const ranAfter = (draft: PlanDraft, window: DisruptionWindow | null) => [
+        ...(window === null ? done : acts),
+        ...ranFrom(draft, today, nextMonday, window),
+      ]
+      const monNone = replan(inputAt(base, without, nextMonday, ranAfter(without, null), [])).draft
+      const monWindow = replan(
+        inputAt(base, windowed, nextMonday, ranAfter(windowed, monday), [monday]),
+      ).draft
+      expect(targets(monWindow, nextMonday, 6), `Monday after, day ${String(day)}`).toEqual(
+        targets(monNone, nextMonday, 6),
+      )
+    }
+  })
+
+  it('a window of 7 days or more keeps the step back from the last week run', () => {
+    const { step, base, nextMonday } = setup()
+    const long = windowOf({
+      id: 'w4',
+      reason: 'illness-below-neck',
+      mode: 'rest',
+      startDate: addDays(WEEK, 1),
+      endDate: addDays(WEEK, 7),
+      maxRunMin: null,
+      pain: null,
+    })
+    const without = replan(inputAt(base, step.draft, WEEK, step.input.activities, [])).draft
+    const windowed = replan(inputAt(base, step.draft, WEEK, step.input.activities, [long])).draft
+    const week = windowed.weeks.find((w) => w.weekStart === WEEK)!
+    expect(windowFreeMinutes(week.flags)).toBeNull()
+    const after = targets(windowed, nextMonday, 4)
+    const plain = targets(without, nextMonday, 4)
+    expect(after.some((m, i) => m < plain[i]!)).toBe(true)
+    expect(after.every((m, i) => m <= plain[i]!)).toBe(true)
   })
 
   it('a window reported ahead in the next loading week leaves the weeks after it as the plan has them', () => {

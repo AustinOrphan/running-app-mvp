@@ -1482,11 +1482,26 @@ function generate(
     // says so, for the re-plans that read it once it is run [rules J9, g-2]. A re-plan of a week the
     // plan being replaced has already cut holds the week at that cut, so the figure that plan stored
     // stands where the week itself no longer shows it.
+    const storedRow = input.existing?.weeks.find((x) => x.weekStart === week.weekStart)
     const storedFree = shortTouched(week.weekStart)
-      ? windowFreeMinutes(
-          input.existing?.weeks.find((x) => x.weekStart === week.weekStart)?.flags ?? [],
-        )
+      ? windowFreeMinutes(storedRow?.flags ?? [])
       : null
+    // A window reported after its days: the plan being replaced stored the runs of those days before
+    // today, which the window took and the sessions dated from today on no longer show
+    const windowDays = new Set(
+      dplan.days.filter((d) => d.held || d.maxRunMin !== null).map((d) => d.date),
+    )
+    const lostBefore = shortTouched(week.weekStart)
+      ? runningMinutes(
+          (input.existing?.sessions ?? []).filter(
+            (s) =>
+              mondayOf(s.date) === week.weekStart &&
+              s.date < today &&
+              windowDays.has(s.date) &&
+              !s.flags.includes('rest-window'),
+          ),
+        )
+      : 0
     const placedFree =
       freeSessions === null
         ? weekMin
@@ -1497,9 +1512,9 @@ function generate(
                 [...freeSessions, ...afterRace, ...keptToRun].filter((s) => s.date >= today),
               ),
           )
-    const freeMin = Math.max(placedFree, storedFree ?? 0)
+    const freeMin = Math.max(placedFree + lostBefore, storedFree ?? 0)
     rampVolumes.set(week.weekStart, freeMin)
-    if (shortTouched(week.weekStart) && freeMin > weekMin) {
+    if (shortTouched(week.weekStart)) {
       baselineLift.set(week.weekStart, freeMin)
       macro[w] = {
         ...macro[w]!,
@@ -1538,22 +1553,11 @@ function generate(
       // week sits under the restart floor, not the short placement [rule E6]. A week the weekly
       // decision caps, a window touches, or a start path draws is not placed short by this.
       const plannedBefore = input.existing?.weeks.find((x) => x.weekStart === week.weekStart)
-      const now = macro[w]!
-      // A recovery week of the plan being replaced that the peak rule made the work week keeps its
-      // recovery minutes and stands short of the loading week before it, the sequence it closes
-      const before = input.existing?.weeks.find((x) => x.weekStart === addDays(week.weekStart, -7))
-      const closesSequence =
-        plannedBefore !== undefined &&
-        (plannedBefore.isRecovery ||
-          plannedBeforePlacement(plannedBefore) > plannedBefore.targetRunMin) &&
-        !now.isRecovery &&
-        before !== undefined &&
-        isLoadingWeek(before)
       const intent = Math.max(
         keep.figure.get(week.weekStart) ?? 0,
         plannedBefore === undefined ? 0 : plannedBeforePlacement(plannedBefore),
-        closesSequence ? plannedMinOf(before) : 0,
       )
+      const now = macro[w]!
       if (
         isLoadingWeek(now) &&
         !startDrawn &&
@@ -1561,9 +1565,8 @@ function generate(
         !now.flags.includes('restart-floor') &&
         !isDisruptedWeek(now.flags) &&
         disruptionFlags.length === 0 &&
-        ((keep.decisions[week.weekStart] === undefined &&
-          input.weekCaps?.[week.weekStart] === undefined) ||
-          closesSequence) &&
+        keep.decisions[week.weekStart] === undefined &&
+        input.weekCaps?.[week.weekStart] === undefined &&
         intent > now.targetRunMin
       ) {
         macro[w] = {

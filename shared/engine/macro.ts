@@ -1241,8 +1241,7 @@ function planWeeks(
     lifts &&
     (carried !== null ||
       continued === null ||
-      // a week the weekly decision holds is under the floor by its cap, which is no restart
-      ((continued.intentMin ?? continued.minutes) < opening.minutes && heldCap === undefined) ||
+      (continued.intentMin ?? continued.minutes) < opening.minutes ||
       (onFloorNow && path.kind === 'floor'))
       ? path
       : null
@@ -1633,10 +1632,12 @@ function planWeeks(
   // re-plan, and not from a figure the plan never held [rules J9, K2, G6].
   const recoveryPeak =
     preCount === 1 &&
-    peakWeekFloor > 0 &&
     windowFree.size > 0 &&
+    weekBefore !== undefined &&
+    !weekBefore.isRecovery &&
+    !weekBefore.isTaper &&
     (input.existing?.weeks ?? []).some((w) => w.weekStart === firstMonday && w.isRecovery)
-  const storedPeak = recoveryPeak ? peakWeekFloor : Infinity
+  const storedPeak = recoveryPeak ? plannedMinOf(weekBefore) : Infinity
   const reference =
     preCount > 0
       ? Math.min(Math.max(...target, peakWeekFloor), storedPeak)
