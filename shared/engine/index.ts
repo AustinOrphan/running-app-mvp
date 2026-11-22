@@ -38,6 +38,8 @@ import {
   gainLimit,
   isProgramme,
   overshootFlags,
+  placedShortFlag,
+  plannedBeforePlacement,
   rampBasis,
   rampLimits,
   plannedMinOf,
@@ -1496,6 +1498,32 @@ function generate(
           ran: taken.targetRunMin,
         })
         macro[w] = taken
+      }
+      // A loading week placed short of the minutes the plan gave it keeps those minutes in
+      // `planned-<n>`, so the re-plan that follows reads the plan's intent when it asks whether the
+      // week sits under the restart floor, not the short placement [rule E6]. A week the weekly
+      // decision caps, a window touches, or a start path draws is not placed short by this.
+      const plannedBefore = input.existing?.weeks.find((x) => x.weekStart === week.weekStart)
+      const intent = Math.max(
+        keep.figure.get(week.weekStart) ?? 0,
+        plannedBefore === undefined ? 0 : plannedBeforePlacement(plannedBefore),
+      )
+      const now = macro[w]!
+      if (
+        isLoadingWeek(now) &&
+        !startDrawn &&
+        !now.flags.includes('overshoot') &&
+        !now.flags.includes('restart-floor') &&
+        !isDisruptedWeek(now.flags) &&
+        disruptionFlags.length === 0 &&
+        keep.decisions[week.weekStart] === undefined &&
+        input.weekCaps?.[week.weekStart] === undefined &&
+        intent > now.targetRunMin
+      ) {
+        macro[w] = {
+          ...now,
+          flags: [...now.flags.filter((f) => !f.startsWith('planned-')), placedShortFlag(intent)],
+        }
       }
       // A week the replaced plan's figure holds below the week the rules draw keeps that figure on
       // record, as a week drawn ahead does, so the next re-plan of the same Monday is held to it

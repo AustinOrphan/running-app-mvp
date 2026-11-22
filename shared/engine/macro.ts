@@ -30,6 +30,7 @@ import {
   gainLimit,
   injuryTight,
   noviceRamp,
+  plannedBeforePlacement,
   plannedMinOf,
   rampBasis,
   rampLimits,
@@ -413,7 +414,7 @@ function replanAnchor(
   stepCap: number,
   heldCap: number | undefined,
   raiseTo = 0,
-): { minutes: number; paused: boolean } | null {
+): { minutes: number; intentMin?: number; paused: boolean } | null {
   const weeks = input.existing?.weeks
   if (weeks === undefined) return null
   // A layoff of J7's first tier restarts the plan from the typical week, except where a hold of a
@@ -462,7 +463,15 @@ function replanAnchor(
   const held = current.isRecovery || heldCap === undefined ? Infinity : heldCap
   // The runner's yes to the offer to raise the plan to match lifts the start to the level a new plan
   // would read, never past the step cap or a hold [rule E7].
-  return { minutes: Math.min(Math.max(worked, raiseTo), stepCap, held), paused: current.isRecovery }
+  // The minutes the week was planned at before its sessions were placed short (`planned-<n>`), inside
+  // the same cap and hold: what the restart floor is compared with, so a week placed under the floor
+  // is not read as a restart. The sequence itself carries on from `minutes` [rule E6].
+  const intent = Math.max(worked, plannedBeforePlacement(work))
+  return {
+    minutes: Math.min(Math.max(worked, raiseTo), stepCap, held),
+    intentMin: Math.min(Math.max(intent, raiseTo), stepCap, held),
+    paused: current.isRecovery,
+  }
 }
 
 /** Quality sessions wanted in a pre-taper week before the run-day cap [rules F2, H1]. */
@@ -1213,7 +1222,7 @@ function planWeeks(
     lifts &&
     (carried !== null ||
       continued === null ||
-      continued.minutes < opening.minutes ||
+      (continued.intentMin ?? continued.minutes) < opening.minutes ||
       (onFloorNow && path.kind === 'floor'))
       ? path
       : null
