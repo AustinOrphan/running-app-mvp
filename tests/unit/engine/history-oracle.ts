@@ -180,6 +180,15 @@
 // one-run week of `planRuns` moves no oracle plan: no plan of the oracle holds a tiny week. The other
 // 124 digests are as before. The owner validation was not rerun.
 //
+// Regenerated 2026-11-21 (rule J9, owner decision 2026-11-20, "Fix both", part b): a window under 7
+// days leaves the loading weeks after it at the figures of the plan without it, so the weeks after
+// the week it touched are no longer one ramp step lower. One of the 142 digests moves, `h13 rest
+// window` (an illness of 5 days from 2026-10-22, 6 days off): the loading weeks after the window plan
+// 72, 79, 86 and 94 minutes in place of 66, 72, 79 and 86, and the recovery week of 2026-11-30 plans
+// 64 in place of 59; the weeks up to the recovery week of 2026-11-02 are the same, and the two weeks
+// the window touched carry the new flag `window-free-<n>`. The other 141 digests are as before. The
+// owner validation was not rerun.
+//
 // The close of the load-progression plan (task L7) may remove this file with its test: from there
 // the owner validation is the oracle.
 import { createHash } from 'node:crypto'

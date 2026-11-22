@@ -21,7 +21,9 @@ import {
   isDisruptedWeek,
   restartFraction,
   returnWeeks,
+  shortWindowWeeks,
   windowedWeeks,
+  windowFreeMinutes,
 } from './disruption.ts'
 import {
   injuryTight,
@@ -29,6 +31,7 @@ import {
   rampLimits,
   rampSkipWeeks,
   countedWeeks,
+  windowFreeWeeks,
   rebuildZoneUsed,
   startLevelMin,
   ultraRunCapMin,
@@ -178,12 +181,25 @@ export function draftRamp(
   )
   const currentMonday = mondayOf(input.today)
   const counted = countedWeeks(input.existing, input.today, windows, input.activities)
+  // a week a window under 7 days took days from is a baseline at the minutes it holds without the
+  // window, a week already run by the flag its plan stored, a week of the draft by its own [rules J9, g-2]
+  const windowFree = windowFreeWeeks(windows, input.existing, input.activities, currentMonday)
+  const shortWeeks = new Set(shortWindowWeeks(windows))
+  for (const [weekStart, minutes] of windowFree) {
+    volume.set(weekStart, Math.max(volume.get(weekStart) ?? 0, minutes))
+  }
   const ctx = {
     volumes: volume,
     skip,
     counted,
     // a week a window took days from is a part week, a baseline beside another week and never alone
-    partial: new Set([...windowedWeeks(windows), ...breakPartWeeks(input, currentMonday)]),
+    partial: new Set([
+      ...windowedWeeks(windows).filter(
+        (weekStart) =>
+          !windowFree.has(weekStart) && !(weekStart >= currentMonday && shortWeeks.has(weekStart)),
+      ),
+      ...breakPartWeeks(input, currentMonday),
+    ]),
     floor:
       floorWeek === undefined
         ? null
@@ -199,8 +215,10 @@ export function draftRamp(
     const planned = weekMinutes(ahead, weekStart, input.today)
     const total = done + planned
     // a week an entered race cut is a baseline at the minutes it held before the cut [SR1]
-    const cut = raceCutMinutes(draft.weeks.find((w) => w.weekStart === weekStart)?.flags ?? [])
-    const here = cut === null ? total : total + cut
+    const flags = draft.weeks.find((w) => w.weekStart === weekStart)?.flags ?? []
+    const cut = raceCutMinutes(flags)
+    const free = shortWeeks.has(weekStart) ? windowFreeMinutes(flags) : null
+    const here = Math.max(cut === null ? total : total + cut, free ?? 0)
     // the week in progress counts at the figure of the plan being replaced, never above the draft's own
     const countedHere = counted.get(weekStart)
     if (weekStart === currentMonday && countedHere !== undefined) {

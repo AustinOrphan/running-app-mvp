@@ -20,11 +20,14 @@ import {
   holdReference,
   holdRestartWeeks,
   isDisruptedWeek,
-  longHoldWeeks,
   restartShares,
   restSessions,
   returnWeeks,
+  shortWindowWeeks,
+  WINDOW_FREE_FLAG,
   windowedWeeks,
+  windowFreeFlag,
+  windowFreeMinutes,
   type DayRule,
   type DisruptionPlan,
 } from './disruption.ts'
@@ -35,6 +38,7 @@ import { applyGuards } from './guards.ts'
 import { HEAT_HOLD_FLAG, heatWarning } from './heat.ts'
 import {
   completedReference,
+  windowFreeWeeks,
   gainLimit,
   isProgramme,
   overshootFlags,
@@ -626,6 +630,10 @@ function generate(
     for (let k = 1; k <= P.g2.ceilingLookbackWeeks.value; k += 1)
       ceilingWeeks.add(addDays(hold.fullWeekStart, 7 * k))
   }
+  // the weeks a window under 7 days took days from: those already run stand at the minutes they held
+  // without it [rules J9, g-2]
+  const shortWeeks = new Set(shortWindowWeeks(dplan))
+  const windowFree = windowFreeWeeks(dplan, input.existing, input.activities, currentMonday)
   const unwindowed = new Map<string, number>()
   for (const w of macroWeeks) {
     const cap = input.weekCaps?.[w.weekStart]
@@ -666,8 +674,11 @@ function generate(
       !week.isTaper &&
       !week.flags.includes('post-race')
     ) {
-      const base = cutBase(pastWeeks, (x) =>
-        windowed.includes(x.weekStart) || isDisruptedWeek(x.flags) ? Infinity : null,
+      const base = cutBase(
+        pastWeeks,
+        (x) =>
+          windowFree.get(x.weekStart) ??
+          (windowed.includes(x.weekStart) || isDisruptedWeek(x.flags) ? Infinity : null),
       )
       if (base !== undefined) {
         week = capWeek(week, Math.floor(base * (1 - P.e3.recoveryWeekCutPct.value / 100) + 1e-9))
@@ -729,13 +740,27 @@ function generate(
   const limits = keptBound === null ? presetLimits : lowerLimits(presetLimits, keptBound.limits)
   // whether the week in progress was drawn with the days of the replaced plan kept (`remainingOfWeek`)
   let daysKept = false
+  // A week a window under 7 days took days from is a baseline at the minutes it holds without the
+  // window, so the weeks after it are not stepped down for it [rules J9, g-2]. The minutes of a week
+  // already run come from the plan that stored it; those of a week still ahead are set below as it
+  // is placed. The ramp reads these, and every other reader of the weeks keeps the minutes run.
+  const rampVolumes = new Map(volumes)
+  for (const [weekStart, minutes] of windowFree) {
+    rampVolumes.set(weekStart, Math.max(rampVolumes.get(weekStart) ?? 0, minutes))
+  }
   const rampCtx: RampContext = {
-    volumes,
+    volumes: rampVolumes,
     skip,
     counted,
     // the week that counts as the recovery week is a part week too: the repeat is measured against
-    // the last loading week run before it [rule G-6]
-    partial: new Set([...windowed, ...breakPartWeeks(input, currentMonday)]),
+    // the last loading week run before it [rule G-6]. A short window's week is a part week no more
+    partial: new Set([
+      ...windowed.filter(
+        (weekStart) =>
+          !windowFree.has(weekStart) && !(weekStart >= currentMonday && shortWeeks.has(weekStart)),
+      ),
+      ...breakPartWeeks(input, currentMonday),
+    ]),
     floor:
       floorWeek === undefined
         ? null
@@ -743,24 +768,15 @@ function generate(
     exempt: startExemptions([...pastWeeks, ...macro], returnWeeks(dplan)),
     ...rampBasis(state, rebuildZone(input, state), responseBasis(input, state)),
   }
-  // A window never raises a week [rule G-6, relation 5.3]. Where a part week is no baseline alone, the
-  // look back can reach a week higher than the plan has without the window, and the weeks after
-  // would rise with it. The same ramp with each week from today on that a short window took days
-  // from put back at the minutes it holds without the window bounds them; the weeks of a long hold
-  // stay out of it, as the restart share is theirs (J9), and so do the weeks before today, which
-  // are facts.
-  const longHold = longHoldWeeks(dplan)
+  // A window never raises a week [rule G-6, relation 5.3], and never lowers the weeks after it for the
+  // days it took [rule J9]: each week from today on that a short window took days from enters
+  // `rampVolumes` at the minutes it holds without the window, so the ramp is the plan's own ramp.
+  // The weeks of a long hold stay out of it, as the restart share is theirs (J9), and so do the weeks
+  // before today, which are facts (their minutes come from `windowFree`).
   const shortTouched = (weekStart: string) =>
-    weekStart >= currentMonday && windowed.includes(weekStart) && !longHold.includes(weekStart)
-  const freeVolumes = new Map(volumes)
-  const freeCtx: RampContext = {
-    ...rampCtx,
-    volumes: freeVolumes,
-    partial: new Set([
-      ...windowed.filter((weekStart) => !shortTouched(weekStart)),
-      ...breakPartWeeks(input, currentMonday),
-    ]),
-  }
+    weekStart >= currentMonday && windowed.includes(weekStart) && shortWeeks.has(weekStart)
+  // what each week enters the guards' baselines at where that is more than the minutes it holds
+  const baselineLift = new Map(windowFree)
   const doneRow = state.weeks.find((w) => w.weekStart === currentMonday)
   const doneGain = gains.get(currentMonday) ?? 0
   const isRun = (s: SessionSpec) => s.durationMin > 0 && !NOT_RUNS.has(s.kind)
@@ -1061,7 +1077,7 @@ function generate(
         )
       const partFigure = (x: WeekDraft) => {
         if (!part(x)) return null
-        if (x.weekStart < currentMonday) return Infinity
+        if (x.weekStart < currentMonday) return windowFree.get(x.weekStart) ?? Infinity
         // the week in progress, stored as cut by a window of the plan it replaces, draws its
         // sequence from the last week the window left when that is higher
         if (x.weekStart === currentMonday && storedCut(x.weekStart)) {
@@ -1101,12 +1117,7 @@ function generate(
     const ramp = afterRaceWeeks.includes(week.weekStart)
       ? null
       : rampLimits(rampCtx, week.weekStart)
-    const rampPlan =
-      ramp === null
-        ? null
-        : windowed.length === 0
-          ? ramp.plan
-          : Math.min(ramp.plan, rampLimits(freeCtx, week.weekStart)?.plan ?? Infinity)
+    const rampPlan = ramp === null ? null : ramp.plan
     if (rampPlan !== null && planWeek.targetRunMin > 0) {
       planWeek = capWeek(planWeek, Math.max(0, rampPlan - done.minutes - keptMin))
     }
@@ -1467,9 +1478,16 @@ function generate(
     const ahead = [...inside, ...afterRace, ...keptToRun].filter((s) => s.date >= today)
     const weekMin = done.minutes + runningMinutes(ahead)
     volumes.set(week.weekStart, weekMin)
-    // a short window's week enters the bounding ramp at the minutes it holds without the window
-    freeVolumes.set(
-      week.weekStart,
+    // A short window's week enters the ramp at the minutes it holds without the window, and the week
+    // says so, for the re-plans that read it once it is run [rules J9, g-2]. A re-plan of a week the
+    // plan being replaced has already cut holds the week at that cut, so the figure that plan stored
+    // stands where the week itself no longer shows it.
+    const storedFree = shortTouched(week.weekStart)
+      ? windowFreeMinutes(
+          input.existing?.weeks.find((x) => x.weekStart === week.weekStart)?.flags ?? [],
+        )
+      : null
+    const placedFree =
       freeSessions === null
         ? weekMin
         : Math.max(
@@ -1478,13 +1496,29 @@ function generate(
               runningMinutes(
                 [...freeSessions, ...afterRace, ...keptToRun].filter((s) => s.date >= today),
               ),
-          ),
-    )
+          )
+    const freeMin = Math.max(placedFree, storedFree ?? 0)
+    rampVolumes.set(week.weekStart, freeMin)
+    if (shortTouched(week.weekStart) && freeMin > weekMin) {
+      baselineLift.set(week.weekStart, freeMin)
+      macro[w] = {
+        ...macro[w]!,
+        flags: [
+          ...macro[w]!.flags.filter((f) => !f.startsWith(WINDOW_FREE_FLAG)),
+          windowFreeFlag(freeMin),
+        ],
+      }
+    }
     // the week in progress counts at the figure of the plan being replaced, and never above what this
-    // plan holds it at: a hold or a cut of this re-plan is not undone for the weeks after it [rule G6]
+    // plan holds it at: a hold or a cut of this re-plan is not undone for the weeks after it [rule G6].
+    // A week a window under 7 days took days from is held at the minutes it holds without the window
+    // [rule J9].
     const countedHere = counted.get(week.weekStart)
     if (isCurrent && countedHere !== undefined) {
-      counted.set(week.weekStart, Math.min(countedHere, weekMin))
+      counted.set(
+        week.weekStart,
+        Math.min(countedHere, shortTouched(week.weekStart) ? freeMin : weekMin),
+      )
     }
     gains.set(week.weekStart, done.gain + runningGain(ahead))
     // The current week's logged minutes are taken as they are, after the weeks that follow were
@@ -1504,11 +1538,22 @@ function generate(
       // week sits under the restart floor, not the short placement [rule E6]. A week the weekly
       // decision caps, a window touches, or a start path draws is not placed short by this.
       const plannedBefore = input.existing?.weeks.find((x) => x.weekStart === week.weekStart)
+      const now = macro[w]!
+      // A recovery week of the plan being replaced that the peak rule made the work week keeps its
+      // recovery minutes and stands short of the loading week before it, the sequence it closes
+      const before = input.existing?.weeks.find((x) => x.weekStart === addDays(week.weekStart, -7))
+      const closesSequence =
+        plannedBefore !== undefined &&
+        (plannedBefore.isRecovery ||
+          plannedBeforePlacement(plannedBefore) > plannedBefore.targetRunMin) &&
+        !now.isRecovery &&
+        before !== undefined &&
+        isLoadingWeek(before)
       const intent = Math.max(
         keep.figure.get(week.weekStart) ?? 0,
         plannedBefore === undefined ? 0 : plannedBeforePlacement(plannedBefore),
+        closesSequence ? plannedMinOf(before) : 0,
       )
-      const now = macro[w]!
       if (
         isLoadingWeek(now) &&
         !startDrawn &&
@@ -1516,8 +1561,9 @@ function generate(
         !now.flags.includes('restart-floor') &&
         !isDisruptedWeek(now.flags) &&
         disruptionFlags.length === 0 &&
-        keep.decisions[week.weekStart] === undefined &&
-        input.weekCaps?.[week.weekStart] === undefined &&
+        ((keep.decisions[week.weekStart] === undefined &&
+          input.weekCaps?.[week.weekStart] === undefined) ||
+          closesSequence) &&
         intent > now.targetRunMin
       ) {
         macro[w] = {
@@ -1596,6 +1642,7 @@ function generate(
     lowWeeks: structureLow.filter((weekStart) => !restartKept.has(weekStart)),
     partialWeeks: rampCtx.partial ?? [],
     countedWeeks: counted,
+    baselineMin: baselineLift,
     exemptWeeks: afterRaceWeeks,
     startPath:
       rampCtx.floor === null || floorWeek === undefined

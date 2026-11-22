@@ -36,6 +36,7 @@ import {
   rampLimits,
   rampSkipWeeks,
   countedWeeks,
+  windowFreeWeeks,
   rebuildStep,
   referenceBetween,
   responseBaseline,
@@ -375,8 +376,9 @@ function carriedPhases(
  * reach, or one the plan stored as cut by an earlier window (its flags). Its figure is the minutes
  * the window left, and no base for the weeks after it [rule J9].
  */
-const partWeekOf = (touched: readonly string[]) => (w: WeekDraft) =>
-  touched.includes(w.weekStart) || isDisruptedWeek(w.flags)
+const partWeekOf =
+  (touched: readonly string[], free: ReadonlyMap<string, number>) => (w: WeekDraft) =>
+    !free.has(w.weekStart) && (touched.includes(w.weekStart) || isDisruptedWeek(w.flags))
 
 /**
  * The last loading week of the plan being replaced that lies before `firstMonday` and that no
@@ -387,10 +389,16 @@ function lastUntouchedLoading(
   weeks: readonly WeekDraft[],
   firstMonday: string,
   isPart: (week: WeekDraft) => boolean,
+  free: ReadonlyMap<string, number>,
 ): WeekDraft | undefined {
-  return [...weeks]
+  const week = [...weeks]
     .filter((w) => w.weekStart < firstMonday && !w.isRecovery && !w.isTaper && !isPart(w))
     .sort((a, b) => (a.weekStart < b.weekStart ? 1 : -1))[0]
+  // a week a window under 7 days took days from stands at the minutes it held without the window
+  const minutes = week === undefined ? undefined : free.get(week.weekStart)
+  return week === undefined || minutes === undefined
+    ? week
+    : { ...week, targetRunMin: Math.max(week.targetRunMin, minutes) }
 }
 
 /**
@@ -442,8 +450,10 @@ function replanAnchor(
   // A week a window took days from is a part week, stored at the minutes the window left: it is no
   // week to carry the sequence on from. The work week is the last loading week it did not touch, and
   // a part week that is the current one carries on from the higher of the two [rules J9, J7, g-2].
-  const touched = windowedWeeks(disruptionPlan(input.disruptions ?? []))
-  const lastUntouched = lastUntouchedLoading(weeks, firstMonday, partWeekOf(touched))
+  const windows = disruptionPlan(input.disruptions ?? [])
+  const touched = windowedWeeks(windows)
+  const free = windowFreeWeeks(windows, input.existing, input.activities, firstMonday)
+  const lastUntouched = lastUntouchedLoading(weeks, firstMonday, partWeekOf(touched, free), free)
   const work = current.isRecovery ? lastUntouched : current
   const worked =
     work === undefined
@@ -1045,10 +1055,14 @@ function planWeeks(
   // sequence drawn here restarts from the typical week, which the window has pulled down, and a cut
   // from it would stack the E3 cut on a step back that is already taken [rules E3, J7, J9].
   const restartShare = restartShares(dplan, (weekStart) => volumes.get(weekStart))
+  // a week a window under 7 days took days from stands at the minutes it held without the window
+  // [rules J9, g-2]: a baseline of the ramp below and a base of the cuts
+  const windowFree = windowFreeWeeks(dplan, input.existing, input.activities, firstMonday)
   const untouchedBase = lastUntouchedLoading(
     input.existing?.weeks ?? [],
     firstMonday,
-    partWeekOf(windowedWeeks(dplan)),
+    partWeekOf(windowedWeeks(dplan), windowFree),
+    windowFree,
   )
   const pastLow = (input.existing?.weeks ?? [])
     .filter(
@@ -1059,6 +1073,11 @@ function planWeeks(
     .map((w) => w.weekStart)
   const skip = rampSkipWeeks(input.today, pastLow)
   const exempt = new Map<string, RampExemption>()
+  // Only the weeks run are such: the weeks drawn here are drawn without the windows, which
+  // `generate` applies.
+  for (const [weekStart, minutes] of windowFree) {
+    volumes.set(weekStart, Math.max(volumes.get(weekStart) ?? 0, minutes))
+  }
   const rampCtx: RampContext = {
     volumes,
     skip,
@@ -1066,7 +1085,7 @@ function planWeeks(
     // alone. Only the weeks run are such: the weeks drawn here are drawn without the windows, which
     // `generate` applies [rules J9, g-2].
     partial: new Set([
-      ...windowedWeeks(disruptionPlan(input.disruptions ?? [])).filter((w) => w < firstMonday),
+      ...windowedWeeks(dplan).filter((w) => w < firstMonday && !windowFree.has(w)),
       // the week that counts as the recovery week is a baseline beside another week and never
       // alone: the repeat is measured against the last loading week run before it [rule G-6]
       ...breakPartWeeks(input, firstMonday),
@@ -1222,7 +1241,8 @@ function planWeeks(
     lifts &&
     (carried !== null ||
       continued === null ||
-      (continued.intentMin ?? continued.minutes) < opening.minutes ||
+      // a week the weekly decision holds is under the floor by its cap, which is no restart
+      ((continued.intentMin ?? continued.minutes) < opening.minutes && heldCap === undefined) ||
       (onFloorNow && path.kind === 'floor'))
       ? path
       : null
@@ -1515,7 +1535,12 @@ function planWeeks(
     .slice(-P.a5.typicalWeekCount.value)
   const untouchedLevel =
     preCount === 0 && levelWeeks.some((w) => partStart(w.weekStart))
-      ? lastUntouchedLoading(input.existing?.weeks ?? [], firstMonday, partWeekOf(touchedWeeks))
+      ? lastUntouchedLoading(
+          input.existing?.weeks ?? [],
+          firstMonday,
+          partWeekOf(touchedWeeks, windowFree),
+          windowFree,
+        )
       : undefined
   // The ceiling holds for the same race only, as the phases carried across a re-plan do
   // (`carriedPhases`): when the goal date has moved, the plan being replaced has its race, taper and
@@ -1601,9 +1626,20 @@ function planWeeks(
     weekBeforeRun >= P.j5.completionHoldShare.value * plannedMinOf(weekBefore)
       ? plannedMinOf(weekBefore)
       : 0
+  // A week a window under 7 days took days from stands at its window-free minutes in the ramp, which
+  // can step the sequence drawn here above the loading week before the peak. When the week in progress
+  // is a recovery week of the plan being replaced that the peak rule makes the peak, the taper falls
+  // from that loading week, as the stored peak (no longer a recovery week) reads it at the next
+  // re-plan, and not from a figure the plan never held [rules J9, K2, G6].
+  const recoveryPeak =
+    preCount === 1 &&
+    peakWeekFloor > 0 &&
+    windowFree.size > 0 &&
+    (input.existing?.weeks ?? []).some((w) => w.weekStart === firstMonday && w.isRecovery)
+  const storedPeak = recoveryPeak ? peakWeekFloor : Infinity
   const reference =
     preCount > 0
-      ? Math.max(...target, peakWeekFloor)
+      ? Math.min(Math.max(...target, peakWeekFloor), storedPeak)
       : Math.max(start, untouchedLevel === undefined ? 0 : plannedMinOf(untouchedLevel))
   const refDays = preCount > 0 ? prevDays : daysFor(start)
   const refLong = prevLong

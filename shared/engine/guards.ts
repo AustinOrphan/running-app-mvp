@@ -63,6 +63,11 @@ export interface GuardOptions {
    */
   countedWeeks?: ReadonlyMap<string, number>
   /**
+   * Weeks that enter the ramp's baselines at no fewer minutes than they hold [rules J9, g-2]: a week
+   * a window under 7 days took days from, at the minutes it holds without the window.
+   */
+  baselineMin?: ReadonlyMap<string, number>
+  /**
    * Mondays of the post-race return weeks [rules H12]: exempt from the weekly ramp as a return to
    * an established base, like the start path's first week. Every session still obeys G-1.
    */
@@ -194,6 +199,12 @@ export function applyGuards(
   // final plan; the current week holds what was run plus what is still planned.
   const volume = new Map<string, number>()
   for (const row of state.weeks) volume.set(row.weekStart, row.runMin)
+  const lifted = (weekStart: string, minutes: number) =>
+    Math.max(minutes, options.baselineMin?.get(weekStart) ?? 0)
+  for (const weekStart of options.baselineMin?.keys() ?? []) {
+    if (weekStart < mondayOf(state.asOf))
+      volume.set(weekStart, lifted(weekStart, volume.get(weekStart) ?? 0))
+  }
   const gainVolume = weeklyGain(history)
   const firstWeek = mondayOf(asOf)
   const weekStarts = [
@@ -287,10 +298,12 @@ export function applyGuards(
     // the weeks that hold a session): a zero would send the weeks after it to the typical week
     // [rules g-2, F5].
     const minutes = weekMinutes(weekStart, final)
-    if (minutes > 0 || volume.has(weekStart)) volume.set(weekStart, minutes)
+    if (minutes > 0 || volume.has(weekStart)) volume.set(weekStart, lifted(weekStart, minutes))
     // a week counted at a figure of the plan being replaced counts at no more than it holds once cut
+    // (a week a window under 7 days took days from holds its window-free minutes)
     const counted = rampCtx.counted?.get(weekStart)
-    if (counted !== undefined) countedMin.set(weekStart, Math.min(counted, minutes))
+    if (counted !== undefined)
+      countedMin.set(weekStart, Math.min(counted, lifted(weekStart, minutes)))
     gainVolume.set(weekStart, weekGain(weekStart, final))
     gainRamp(weekStart)
   }

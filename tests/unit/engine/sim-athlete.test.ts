@@ -28,6 +28,7 @@ import {
   disruptionPlan,
   isDisruptedWeek,
   validateDisruption,
+  windowFreeMinutes,
 } from '../../../shared/engine/disruption.ts'
 import { loadPosition, responseBasis } from '../../../shared/engine/loadSetting.ts'
 import { P } from '../../../shared/engine/params/index.ts'
@@ -1150,10 +1151,12 @@ describe('metamorphic relations on the real re-plan [Segura 2016]', () => {
     // the weeks after it went from 106, 116 and 127 minutes to 223, 245 and 269: a week with nothing
     // placed was no baseline, and the ramp started from the typical week, above the plan with the day
     // open. The plan with the day open took the 97 minutes placed in the week as its baseline, which is
-    // the other fault: the weeks after a window planned from what the window left. Both now ramp from
-    // the last week run before the window (253 minutes, 2026-11-16), the J7 step-back, which is a
-    // Preference recorded in J9: 278, 305 and 330 minutes, the same with the day open and closed.
-    it('holds when the day empties the week: the weeks after it ramp from the last week run (hot-race, 2026-11-30)', () => {
+    // the other fault: the weeks after a window planned from what the window left. RF2 had both ramp
+    // from the last week run before the window (253 minutes, 2026-11-16): 278, 305 and 330 minutes.
+    // Since the owner decision 2026-11-20 ("Fix both", J9 addendum) a window under 7 days does not step
+    // the weeks after it down: the week the day empties enters the ramp at its figure without the day,
+    // and the weeks after it are the plan's own (324, 330 and 330 minutes), the same open and closed.
+    it('holds when the day empties the week: the weeks after it keep the plan without the window (hot-race, 2026-11-30)', () => {
       expect(raggedRaises().emptied).toBeGreaterThan(0)
       const index = all.findIndex((a) => a.id === 'hot-race')
       const step = chainOf('ragged', index).steps.find((s) => s.settled.today === '2026-11-30')!
@@ -1170,16 +1173,24 @@ describe('metamorphic relations on the real re-plan [Segura 2016]', () => {
       const lastRun = estimateState(step.settled).weeks.find((w) => w.weekStart === '2026-11-16')!
       const target = (draft: PlanDraft, week: string) =>
         draft.weeks.find((w) => w.weekStart === week)!.targetRunMin
+      // a window under 7 days (owner decision 2026-11-20) leaves the loading weeks after it as the plan
+      // with the day open has them: the week it empties enters the ramp at its figure without the day
+      // (`window-free-<n>`), and no week after it is stepped down for it
+      const weekOf = (draft: PlanDraft, week: string) =>
+        draft.weeks.find((w) => w.weekStart === week)!
+      expect(windowFreeMinutes(weekOf(variant, '2026-11-30').flags) ?? 0).toBeGreaterThanOrEqual(
+        target(step.draft, '2026-11-30'),
+      )
       for (const week of ['2026-12-14', '2026-12-21', '2026-12-28']) {
-        expect(target(variant, week), week).toBeLessThanOrEqual(target(step.draft, week))
-        expect(closed.get(week)!, week).toBeLessThanOrEqual(open.get(week)!)
-        // never from the typical week (229 minutes: 223 to 269 before RF2), never from the 97 minutes
-        // the window left in the week (106 to 127): the climb starts at the last week run
+        expect(target(variant, week), week).toBe(target(step.draft, week))
+        expect(closed.get(week)!, week).toBe(open.get(week)!)
+        // never from the typical week (229 minutes), never from the minutes the window left
         expect(target(variant, week), week).toBeGreaterThanOrEqual(lastRun.runMin)
       }
-      expect(target(variant, '2026-12-14')).toBeLessThanOrEqual(
-        Math.floor(lastRun.runMin * (1 + P.g2.rampSoft.value) + 1e-9),
-      )
+      // a closed day never raises a week
+      for (const [week, minutes] of closed) {
+        expect(minutes, week).toBeLessThanOrEqual(open.get(week) ?? Infinity)
+      }
     })
   })
 })
