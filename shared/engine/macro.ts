@@ -35,6 +35,7 @@ import {
   rampBasis,
   rampLimits,
   rampSkipWeeks,
+  countedWeeks,
   rebuildStep,
   referenceBetween,
   responseBaseline,
@@ -1070,6 +1071,11 @@ function planWeeks(
       // alone: the repeat is measured against the last loading week run before it [rule G-6]
       ...breakPartWeeks(input, firstMonday),
     ]),
+    // the weeks of the plan being replaced that keep their figure as a baseline [rules G-2, J9]
+    counted:
+      input.options.countKept === false
+        ? new Map<string, number>()
+        : countedWeeks(input.existing, input.today, dplan, input.activities),
     // a restart floor week of the plan being replaced stays the baseline of the weeks after it
     floor: pastFloor(input, firstMonday),
     exempt,

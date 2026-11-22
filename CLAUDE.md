@@ -338,6 +338,17 @@ and CodeQL's `analyze` (not strict, no force push, not enforced for admins). The
   stored flag: it lists the short week (the input's, and the week before each stored `break-repeat`
   week) as a part week for the ramp contexts, the guards and the checklist. Nothing else reads the
   predicate or sets the flag.
+- A re-plan after the Monday keeps the later weeks (rule G-2, task MW1, owner decision 2026-11-20): `countedWeeks`
+  (`shared/engine/limits.ts`) is the one reader of the week in progress as a ramp baseline, at the figure of the plan
+  being replaced when the runner is on track and no window touches it (`RampContext.counted`, taken by `rampLimits`
+  as the greater of the baseline with and without it, so it only lifts one; read by the macrocycle, the placement,
+  the guards and the checklist's `draftRamp`). `generate` holds every later week to the greater of the plan being
+  replaced and the plan drawn with `options.countKept` false (`keptLimits`: both the target and the placed minutes), so
+  counting gives back lost ground and never raises a week. `countKept` is set by that pass alone. `remainingOfWeek`
+  keeps the due days of a counted week (`keepDays`); a week that does not count keeps them only when it is drawn with
+  no day left. A counted week keeps the replaced plan's days unless that places a non-long quality session the
+  uncounted draw does not, in which case `generate` draws again with `options.keepDays` false, set by that redraw
+  alone; and a counted draw that places any later week below the uncounted draw is drawn again with `countKept` false.
 - My paces (ADR 0020, rule C9) is derived on read and stored nowhere: `myPaces` and `eventRow`
   (`shared/engine/myPaces.ts`) over the snapshot and `hrModelOf`, the memo `paces.view` behind
   `GET /api/paces`, and the zones shown through `ZoneSummary`, the one rendering the Profile shares. A

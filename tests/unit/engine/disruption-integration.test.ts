@@ -1629,8 +1629,17 @@ describe('a re-plan on any day of the taper keeps to the plan before [rules K2, 
   // week at most at the same week of the plan before, and passes the load items of the checklist.
   // The `tid` item of reds-hold fails on the Tuesday chains from 2027-01-19 on (the week of 01-18 is
   // 20 minutes, half of them above zone 1) with or without this fix: found by the same review and
-  // listed for RF4.
-  const KNOWN_TID = 'reds-hold Tuesday'
+  // listed for RF4. It fails on the Saturday chain from 2027-01-16 on too (the week of 01-11, a third
+  // of it above zone 1): the niggle starts on the Saturday and takes the long run of a week whose
+  // quality runs are done. The chain runs every day of the first plan from its own today (an earlier
+  // version of `replanChain` left the first plan's first days unrun when the re-plans fall after the
+  // Monday, which lowered every later week of the held athlete and hid this failure). With those days
+  // run, main refuses the 2027-01-11 week at 31% on the Saturday chain (measured 2026-11-20 on
+  // 7606c31d). The Thursday chain passes: the mid-week change (MW1) first failed it (the week of
+  // 2027-01-18 at 38%), because the kept days of a counted week moved a threshold run into that week;
+  // the kept days are now drawn again without when they bring a quality session the uncounted plan
+  // does not have (`midweek-replan.test.ts`).
+  const KNOWN_TID: Record<string, number> = { 'reds-hold Tuesday': 7, 'reds-hold Saturday': 8 }
   const DAYS: Array<[string, number]> = [
     ['Tuesday', 1],
     ['Thursday', 3],
@@ -1654,7 +1663,7 @@ describe('a re-plan on any day of the taper keeps to the plan before [rules K2, 
           .filter((c) => !c.ok)
           .map((c) => `${step.input.today}: ${c.id}: ${c.detail}`),
       )
-      const expected = `${id} ${day}` === KNOWN_TID ? 7 : 0
+      const expected = KNOWN_TID[`${id} ${day}`] ?? 0
       expect(
         failing.filter((f) => !f.includes(': tid: ')),
         failing.join('; '),
