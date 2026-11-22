@@ -259,6 +259,42 @@ describe('a re-plan with a signal or a flag the count must not undo', () => {
     }
   })
 
+  it('places no week, a windowed one included, below the uncounted draw when a window is reported after the Monday plan', () => {
+    for (const id of ['trail-50k', 'hot-race', 'half', 'masters', 'first-100-mile']) {
+      const athlete = athletes().find((a) => a.id === id)!
+      const steps = replanChain(athlete.input)
+      for (const [k, step] of steps.entries()) {
+        if (k < 1 || k > 3) continue
+        const monday = mondayOf(step.input.today)
+        for (const [day, from, length] of [
+          [2, 7, 5],
+          [4, 2, 4],
+          [1, 9, 3],
+        ] as const) {
+          const today = addDays(monday, day)
+          const travel = windowOf({
+            reason: 'travel',
+            mode: 'rest',
+            startDate: addDays(monday, from),
+            endDate: addDays(monday, from + length),
+          })
+          const acts = [...step.input.activities, ...ranFrom(step.draft, monday, today, null)]
+          const base = { ...step.input, existing: null } as EngineInput
+          const kept = planMinutes(replan(inputAt(base, step.draft, today, acts, [travel])).draft)
+          const legacy = planMinutes(
+            replan(inputAt(base, step.draft, today, acts, [travel], { countKept: false })).draft,
+          )
+          for (const [week, minutes] of legacy) {
+            if (week <= monday) continue
+            expect(kept.get(week) ?? 0, `${id} ${today} week ${week}`).toBeGreaterThanOrEqual(
+              minutes,
+            )
+          }
+        }
+      }
+    }
+  })
+
   it('keeps no quality session the uncounted draw dropped when a screening is reported mid-week', () => {
     const athlete = athletes().find((a) => a.id === 'masters')!
     const step = replanChain(athlete.input).find((s) => s.input.today === '2026-12-14')!

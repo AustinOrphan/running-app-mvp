@@ -1701,6 +1701,22 @@ function generate(
     )
   }
 
+  // No week of a counted re-plan is placed below the plan drawn with no week counted (a window known
+  // since the plan being replaced, or reported after it, can take more from a week drawn at a lifted
+  // target than from the lower one): the plan is then drawn with none counted, as before MW1.
+  if (keptBound !== null) {
+    for (const [week, minutes] of keptBound.uncounted) {
+      if (runningMinutes(all.filter((s) => mondayOf(s.date) === week)) < minutes) {
+        return generate(
+          { ...input, options: { ...input.options, countKept: false } },
+          keep,
+          weekOffset,
+          record,
+        )
+      }
+    }
+  }
+
   return {
     weeks: entered.weeks,
     sessions: all,
@@ -1788,7 +1804,12 @@ function keptLimits(
   input: EngineInput,
   keep: Keep,
   weekOffset: number,
-): { limits: ReadonlyMap<string, WeekLimit>; qualityAhead: number } {
+): {
+  limits: ReadonlyMap<string, WeekLimit>
+  qualityAhead: number
+  /** The running minutes the uncounted draw places in each later week of the plan being replaced. */
+  uncounted: ReadonlyMap<string, number>
+} {
   const legacy = new Map<string, WeekLimit>()
   const drawn = generate(
     { ...input, options: { ...input.options, countKept: false } },
@@ -1798,6 +1819,7 @@ function keptLimits(
   )
   const monday = mondayOf(input.today)
   const qualityAhead = qualityAheadOf(drawn.sessions, input.today, monday)
+  const uncounted = new Map<string, number>()
   const out = new Map<string, WeekLimit>()
   for (const row of input.existing?.weeks ?? []) {
     const own = legacy.get(row.weekStart)
@@ -1805,6 +1827,7 @@ function keptLimits(
     const storedPlaced = runningMinutes(
       (input.existing?.sessions ?? []).filter((s) => mondayOf(s.date) === row.weekStart),
     )
+    uncounted.set(row.weekStart, own.placed)
     out.set(row.weekStart, {
       target: Math.max(own.target, plannedMinOf(row)),
       placed: Math.max(own.placed, storedPlaced),
@@ -1813,7 +1836,7 @@ function keptLimits(
       ...(own.free === undefined ? {} : { free: own.free }),
     })
   }
-  return { limits: out, qualityAhead }
+  return { limits: out, qualityAhead, uncounted }
 }
 
 /**
