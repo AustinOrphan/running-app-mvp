@@ -37,6 +37,7 @@ import {
   rampSkipWeeks,
   countedWeeks,
   windowFreeWeeks,
+  windowTookWeeks,
   rebuildStep,
   referenceBetween,
   responseBaseline,
@@ -1235,13 +1236,25 @@ function planWeeks(
   // A re-plan keeps its floor week when the minutes run in it have lifted the cap of the opening
   // week (`stepCap`) to the floor itself: the continuation then no longer sits below the floor
   // week, and the week would lose its floor flags [rules E6, g-2].
+  // A current week stored under the floor is no restart when the sequence is already past it: the
+  // loading week before it (not a floor week itself) was planned at or above the floor, and the week
+  // sits short for another reason than a restart, as a recovery week the peak rule made the peak does
+  // [rules E6, J7, K2].
+  const pastTheFloor = (floorMin: number): boolean =>
+    path?.kind === 'floor' &&
+    preCount === 1 &&
+    heldCap !== undefined &&
+    untouchedBase !== undefined &&
+    !untouchedBase.flags.includes('restart-floor') &&
+    plannedMinOf(untouchedBase) >= floorMin - EPS
   const restart =
     path !== null &&
     opening !== null &&
     lifts &&
     (carried !== null ||
       continued === null ||
-      (continued.intentMin ?? continued.minutes) < opening.minutes ||
+      ((continued.intentMin ?? continued.minutes) < opening.minutes &&
+        !pastTheFloor(opening.minutes)) ||
       (onFloorNow && path.kind === 'floor'))
       ? path
       : null
@@ -1320,7 +1333,19 @@ function planWeeks(
       }
     }
   }
-  const anchored = restart === null ? continued : null
+  // The stored recovery week that the peak rule makes the work week (the cadence draws it as the peak,
+  // the last week before the taper) is drawn from the hold's cap, as a held loading week is, so the
+  // week stored at the cap and drawn again is the week drawn the first time [rules J5, K1, G-6].
+  const anchored =
+    restart !== null
+      ? null
+      : continued !== null &&
+          continued.paused &&
+          preCount === 1 &&
+          heldCap !== undefined &&
+          phases[0]?.isRecovery !== true
+        ? { minutes: Math.min(continued.minutes, heldCap), paused: false }
+        : continued
   const start =
     restart !== null
       ? opening!.minutes
@@ -1613,34 +1638,28 @@ function planWeeks(
   // `j5.completionHoldShare` of its planned minutes, from the athlete state and never from the
   // stored rows. After a layoff the week before was not run, and the taper keeps the size the
   // peak gives it [rules K2, G6].
+  // A week a window under 7 days cut counts as run when the runner ran that share of what the window
+  // left: of the planned minutes less the minutes the window took [rules K2, J9].
   const weekBeforeRun =
     weekBefore === undefined
       ? 0
       : (state.weeks.find((w) => w.weekStart === weekBefore.weekStart)?.runMin ?? 0)
+  const weekBeforeTook =
+    weekBefore === undefined
+      ? 0
+      : (windowTookWeeks(dplan, input.existing, firstMonday).get(weekBefore.weekStart)?.took ?? 0)
   const peakWeekFloor =
     preCount === 1 &&
     weekBefore !== undefined &&
     !weekBefore.isRecovery &&
     !weekBefore.isTaper &&
-    weekBeforeRun >= P.j5.completionHoldShare.value * plannedMinOf(weekBefore)
+    weekBeforeRun >=
+      P.j5.completionHoldShare.value * Math.max(0, plannedMinOf(weekBefore) - weekBeforeTook)
       ? plannedMinOf(weekBefore)
       : 0
-  // A week a window under 7 days took days from stands at its window-free minutes in the ramp, which
-  // can step the sequence drawn here above the loading week before the peak. When the week in progress
-  // is a recovery week of the plan being replaced that the peak rule makes the peak, the taper falls
-  // from that loading week, as the stored peak (no longer a recovery week) reads it at the next
-  // re-plan, and not from a figure the plan never held [rules J9, K2, G6].
-  const recoveryPeak =
-    preCount === 1 &&
-    windowFree.size > 0 &&
-    weekBefore !== undefined &&
-    !weekBefore.isRecovery &&
-    !weekBefore.isTaper &&
-    (input.existing?.weeks ?? []).some((w) => w.weekStart === firstMonday && w.isRecovery)
-  const storedPeak = recoveryPeak ? plannedMinOf(weekBefore) : Infinity
   const reference =
     preCount > 0
-      ? Math.min(Math.max(...target, peakWeekFloor), storedPeak)
+      ? Math.max(...target, peakWeekFloor)
       : Math.max(start, untouchedLevel === undefined ? 0 : plannedMinOf(untouchedLevel))
   const refDays = preCount > 0 ? prevDays : daysFor(start)
   const refLong = prevLong

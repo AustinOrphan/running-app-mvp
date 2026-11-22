@@ -405,27 +405,22 @@ export function countedWeeks(
   return counted
 }
 
+type StoredPlan = {
+  weeks: ReadonlyArray<WeekDraft>
+  sessions: ReadonlyArray<Pick<SessionSpec, 'date' | 'kind' | 'durationMin' | 'flags'>>
+}
+
 /**
- * The minutes a week before `before` enters the ramp's baselines at, by Monday, where a window under
- * 7 days took days from it: the minutes it held without the window, so that the weeks after it are
- * stepped from the plan's own figure and not one ramp step lower for the rest of the build [rules
- * J9, g-2; owner decision 2026-11-20]. A stored week carries them in its `window-free-<n>` flag; a
- * week the plan stored before it knew of the window (no `disrupted` flag) is read at the minutes it
- * was planned at. A week is counted at no more than the minutes run plus the minutes the window
- * took: the figure less the minutes the plan stored for the days outside the window, so a run
- * skipped outside the window still counts against the weeks after it. A week a hold of
- * `j7.tier1Days` or more touches is none of these: its return is the J7 share's. Pure.
+ * The weeks before `before` that a window under 7 days took days from, by Monday, with the minutes
+ * they held without the window (`figure`) and the minutes the window took (`took`: the figure less
+ * the minutes the plan stored for the days outside the window) [rules J9, K2]. Pure.
  */
-export function windowFreeWeeks(
+export function windowTookWeeks(
   windows: DisruptionPlan,
-  existing: {
-    weeks: ReadonlyArray<WeekDraft>
-    sessions: ReadonlyArray<Pick<SessionSpec, 'date' | 'kind' | 'durationMin' | 'flags'>>
-  } | null,
-  activities: ReadonlyArray<Pick<Activity, 'date' | 'type' | 'durationSec' | 'duplicateStatus'>>,
+  existing: StoredPlan | null,
   before: string,
-): Map<string, number> {
-  const found = new Map<string, number>()
+): Map<string, { figure: number; took: number }> {
+  const found = new Map<string, { figure: number; took: number }>()
   if (existing === null) return found
   const short = new Set(shortWindowWeeks(windows))
   if (short.size === 0) return found
@@ -450,6 +445,31 @@ export function windowFreeWeeks(
           !(s.flags ?? []).includes('rest-window'),
       ) as SessionSpec[],
     )
+    found.set(weekStart, { figure, took: Math.max(0, figure - stored) })
+  }
+  return found
+}
+
+/**
+ * The minutes a week before `before` enters the ramp's baselines at, by Monday, where a window under
+ * 7 days took days from it: the minutes it held without the window, so that the weeks after it are
+ * stepped from the plan's own figure and not one ramp step lower for the rest of the build [rules
+ * J9, g-2; owner decision 2026-11-20]. A stored week carries them in its `window-free-<n>` flag; a
+ * week the plan stored before it knew of the window (no `disrupted` flag) is read at the minutes it
+ * was planned at. A week is counted at no more than the minutes run plus the minutes the window
+ * took (`windowTookWeeks`), so a run skipped outside the window still counts against the weeks
+ * after it. A week a hold of `j7.tier1Days` or more touches is none of these: its return is the J7
+ * share's. Pure.
+ */
+export function windowFreeWeeks(
+  windows: DisruptionPlan,
+  existing: StoredPlan | null,
+  activities: ReadonlyArray<Pick<Activity, 'date' | 'type' | 'durationSec' | 'duplicateStatus'>>,
+  before: string,
+): Map<string, number> {
+  const found = new Map<string, number>()
+  for (const [weekStart, { figure, took }] of windowTookWeeks(windows, existing, before)) {
+    const end = addDays(weekStart, 7)
     const ranSec = activities
       .filter(
         (a) =>
@@ -460,7 +480,6 @@ export function windowFreeWeeks(
           a.duplicateStatus !== 'confirmed',
       )
       .reduce((t, a) => t + a.durationSec, 0)
-    const took = Math.max(0, figure - stored)
     found.set(weekStart, Math.min(figure, Math.round(ranSec / 60) + took))
   }
   return found

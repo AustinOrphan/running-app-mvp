@@ -8,14 +8,19 @@ import { describe, expect, it } from 'vitest'
 import { athletes } from './matrix-fixtures.ts'
 import { SimAthlete, replanMonday, simulateChain, withStoredPlan } from './sim-athlete.ts'
 
-const SEED = 20_261_031 + 2000
+const SEED = 20_261_031
 
-function stepOf(id: string, step: number) {
+function stepOf(id: string, step: number, offset = 2000) {
   const all = athletes()
   const index = all.findIndex((a) => a.id === id)
-  const chain = simulateChain(new SimAthlete(SEED + index, 'ragged'), all[index]!.input)
+  const chain = simulateChain(new SimAthlete(SEED + offset + index, 'ragged'), all[index]!.input)
   return chain.steps[step]!
 }
+
+const flagsOf = (step: ReturnType<typeof stepOf>, weekStart: string) =>
+  step.draft.weeks.find((w) => w.weekStart === weekStart)!.flags
+const taperOf = (step: ReturnType<typeof stepOf>) =>
+  step.draft.weeks.filter((w) => w.isTaper).map((w) => w.targetRunMin)
 
 const weeksFrom = (
   draft: { weeks: Array<{ weekStart: string; targetRunMin: number }> },
@@ -44,5 +49,38 @@ describe('a held week under the floor is a restart', () => {
     ])
     const back = replanMonday(withStoredPlan(step)).draft
     expect(isDeepStrictEqual(back, step.draft)).toBe(true)
+  })
+})
+
+// The peak a hold caps (rules E6, J5, K1, K2): the changes that make a recovery week turned peak a
+// fixed point must leave these plans as they were.
+describe('a held week outside the recovery-turned-peak week is unchanged', () => {
+  it('a stored recovery week the cadence keeps as one is drawn as before (marathon, hold)', () => {
+    const step = stepOf('marathon', 18, 0)
+    const week = step.draft.weeks.find((w) => w.weekStart === '2027-02-22')!
+    expect(week.isRecovery).toBe(true)
+    expect(week.targetRunMin).toBe(62)
+    expect(taperOf(step)).toEqual([40, 24])
+  })
+
+  it('a hold before the peak week keeps the floor week and its taper (half, hold)', () => {
+    const step = stepOf('half', 8)
+    expect(flagsOf(step, step.settled.today)).toContain('restart-floor')
+    expect(step.draft.weeks.find((w) => w.weekStart === step.settled.today)!.targetRunMin).toBe(45)
+    expect(taperOf(step)).toEqual([74, 49])
+  })
+
+  it('a floor week with no hold keeps its floor and the weeks after it (masters)', () => {
+    const step = stepOf('masters', 13)
+    expect(flagsOf(step, step.settled.today)).toContain('restart-floor')
+    expect(weeksFrom(step.draft, step.settled.today, 3).map((w) => w.targetRunMin)).toEqual([
+      60, 66, 72,
+    ])
+  })
+
+  it('a taper after a week a window cut and the runner ran as it left it falls from that week (returning)', () => {
+    const step = stepOf('returning', 17, 1000)
+    expect(step.draft.weeks.some((w) => w.isRecovery && w.targetRunMin === 63)).toBe(true)
+    expect(taperOf(step)).toEqual([56, 34])
   })
 })

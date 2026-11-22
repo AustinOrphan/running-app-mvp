@@ -1486,22 +1486,6 @@ function generate(
     const storedFree = shortTouched(week.weekStart)
       ? windowFreeMinutes(storedRow?.flags ?? [])
       : null
-    // A window reported after its days: the plan being replaced stored the runs of those days before
-    // today, which the window took and the sessions dated from today on no longer show
-    const windowDays = new Set(
-      dplan.days.filter((d) => d.held || d.maxRunMin !== null).map((d) => d.date),
-    )
-    const lostBefore = shortTouched(week.weekStart)
-      ? runningMinutes(
-          (input.existing?.sessions ?? []).filter(
-            (s) =>
-              mondayOf(s.date) === week.weekStart &&
-              s.date < today &&
-              windowDays.has(s.date) &&
-              !s.flags.includes('rest-window'),
-          ),
-        )
-      : 0
     const placedFree =
       freeSessions === null
         ? weekMin
@@ -1512,7 +1496,7 @@ function generate(
                 [...freeSessions, ...afterRace, ...keptToRun].filter((s) => s.date >= today),
               ),
           )
-    const freeMin = Math.max(placedFree + lostBefore, storedFree ?? 0)
+    const freeMin = Math.max(placedFree, storedFree ?? 0)
     rampVolumes.set(week.weekStart, freeMin)
     if (shortTouched(week.weekStart)) {
       baselineLift.set(week.weekStart, freeMin)
