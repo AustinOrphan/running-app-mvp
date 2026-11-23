@@ -338,6 +338,15 @@ and CodeQL's `analyze` (not strict, no force push, not enforced for admins). The
   stored flag: it lists the short week (the input's, and the week before each stored `break-repeat`
   week) as a part week for the ramp contexts, the guards and the checklist. Nothing else reads the
   predicate or sets the flag.
+- A window under 7 days does not step the weeks after it down (rule J9, owner decision 2026-11-20): `shortWindowWeeks`
+  (`shared/engine/disruption.ts`) lists the weeks a window took days from that no hold of `j7.tier1Days` or more
+  reaches, `windowFreeWeeks` (`shared/engine/limits.ts`) gives the weeks already run at the minutes they held without
+  the window (the stored `window-free-<n>` flag, `windowFreeMinutes`, at no more than the minutes run plus the minutes
+  the window took), and `generate` enters each short-window week in the ramp's volumes at that figure and writes the
+  flag on it (`baselineMin` for the guards, `countedWeeks` for the week in progress). The week's own sessions and target
+  stay the window's cut; no minute is added back. Nothing else reads the flag. Known limit: a window of 3 days or
+  more whose days are all past when it is reported still leaves the next weeks below the plan without it
+  (`short-window-later-weeks-sweep.test.ts` pins the figures).
 - A re-plan after the Monday keeps the later weeks (rule G-2, task MW1, owner decision 2026-11-20): `countedWeeks`
   (`shared/engine/limits.ts`) is the one reader of the week in progress as a ramp baseline, at the figure of the plan
   being replaced when the runner is on track and no window touches it (`RampContext.counted`, taken by `rampLimits`

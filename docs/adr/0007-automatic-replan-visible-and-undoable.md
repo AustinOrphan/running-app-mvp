@@ -137,3 +137,14 @@ generator does not cut the typical week for the layoff (`afterBreak`) and `repla
 the plan being replaced. Rule J9 says the restart is "never applied twice to one break"; the weeks after
 a hold had been cut by the hold and by the layoff, and moved at each Monday as the anchor switched
 between the two.
+
+## Addendum 2026-11-21
+
+A week a window under 7 days took days from carries the flag `window-free-<n>`, the running minutes it
+holds without the window (owner decision 2026-11-20, "Fix both", part b). The plan stores no other record
+of a week already run, so the next re-plan reads the flag to enter that week in the ramp at its own figure
+and not at the minutes the window left; a stored week of the plan without a flag is read at the minutes it
+was planned at, at no more than the minutes run plus the minutes the window took. The weeks after the window
+are then the weeks of the plan without it. This reverses, for windows under 7 days only, the choice of
+2026-10-31 (RF2, rule J9) that the weeks after a window step from the last week run; a hold of 7 days or
+more keeps the J7 share. The minutes inside the window are not added back to any day or week.
