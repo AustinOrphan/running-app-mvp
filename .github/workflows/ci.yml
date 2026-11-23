@@ -83,7 +83,7 @@ jobs:
     # a runner twice hung on the browser download until the 20 minutes ran out. The tag must equal the
     # installed Playwright; the first step below fails with both versions when a bump leaves it behind.
     container:
-      image: mcr.microsoft.com/playwright:v1.65.0-noble
+      image: mcr.microsoft.com/playwright:v1.65.1-noble
       options: --ipc=host
     steps:
       - uses: actions/checkout@v7
@@ -95,7 +95,7 @@ jobs:
       - name: Check the image matches the installed Playwright
         run: |
           installed="$(node -p "require('playwright/package.json').version")"
-          test "$installed" = "1.65.0" || { echo "Playwright $installed is installed but the e2e image is v1.65.0: update container.image in ci.yml"; exit 1; }
+          test "$installed" = "1.65.1" || { echo "Playwright $installed is installed but the e2e image is v1.65.1: update container.image in ci.yml"; exit 1; }
       - run: npm run build
       - run: npm run test:e2e
       - uses: actions/upload-artifact@v7
