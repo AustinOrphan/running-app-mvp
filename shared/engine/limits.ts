@@ -12,7 +12,13 @@
 import { addDays, daysBetween, mondayOf } from '../dates.ts'
 import type { Activity, TargetLimitBound, TargetLimitKind } from '../types.ts'
 import { BREAK_REPEAT_FLAG } from './breakWeek.ts'
-import { isDisruptedWeek, windowedWeeks, type DisruptionPlan } from './disruption.ts'
+import {
+  isDisruptedWeek,
+  shortWindowWeeks,
+  windowedWeeks,
+  windowFreeMinutes,
+  type DisruptionPlan,
+} from './disruption.ts'
 import { isDuplicate } from './load.ts'
 import { P } from './params/index.ts'
 import {
@@ -358,15 +364,25 @@ export function countedWeeks(
   const monday = mondayOf(today)
   const row = existing?.weeks.find((w) => w.weekStart === monday)
   if (existing === null || row === undefined || today <= monday) return counted
-  if (!isLoadingWeek(row) || isDisruptedWeek(row.flags)) return counted
+  if (!isLoadingWeek(row)) return counted
+  // a week a window under 7 days took days from counts at the minutes it holds without the window
+  // (`windowFreeMinutes`; a week reported ahead holds them as its figure) [rule J9]
+  const short = shortWindowWeeks(windows).includes(monday)
+  const free = short ? windowFreeMinutes(row.flags) : null
+  if (isDisruptedWeek(row.flags) && free === null) return counted
   // the repeat of a short week is held at the J7 share of its planned week, a figure no baseline
   if (row.flags.includes(BREAK_REPEAT_FLAG)) return counted
-  if (windowedWeeks(windows).includes(monday)) return counted
+  if (windowedWeeks(windows).includes(monday) && !short) return counted
+  // the days of a window under 7 days are days nothing was due on
+  const windowDays = new Set(
+    short ? windows.days.filter((d) => d.held || d.maxRunMin !== null).map((d) => d.date) : [],
+  )
   const due = runningMinutes(
     existing.sessions.filter(
       (s) =>
         s.date >= monday &&
         s.date < today &&
+        !windowDays.has(s.date) &&
         !(s.flags ?? []).includes('rest-window') &&
         s.durationMin > 0,
     ) as SessionSpec[],
@@ -383,8 +399,90 @@ export function countedWeeks(
     )
     .reduce((t, a) => t + a.durationSec, 0)
   const doneMin = Math.round(doneSec / 60)
-  if (doneMin + EPS >= P.j5.completionHoldShare.value * due) counted.set(monday, plannedMinOf(row))
+  if (doneMin + EPS >= P.j5.completionHoldShare.value * due) {
+    counted.set(monday, Math.max(plannedMinOf(row), free ?? 0))
+  }
   return counted
+}
+
+type StoredPlan = {
+  weeks: ReadonlyArray<WeekDraft>
+  sessions: ReadonlyArray<Pick<SessionSpec, 'date' | 'kind' | 'durationMin' | 'flags'>>
+}
+
+/**
+ * The weeks before `before` that a window under 7 days took days from, by Monday, with the minutes
+ * they held without the window (`figure`) and the minutes the window took (`took`: the figure less
+ * the minutes the plan stored for the days outside the window) [rules J9, K2]. Pure.
+ */
+export function windowTookWeeks(
+  windows: DisruptionPlan,
+  existing: StoredPlan | null,
+  before: string,
+): Map<string, { figure: number; took: number }> {
+  const found = new Map<string, { figure: number; took: number }>()
+  if (existing === null) return found
+  const short = new Set(shortWindowWeeks(windows))
+  if (short.size === 0) return found
+  const windowDays = new Set(
+    windows.days.filter((d) => d.held || d.maxRunMin !== null).map((d) => d.date),
+  )
+  // only the weeks the ramp's look back can reach are read
+  const oldest = addDays(before, -7 * P.g2.ceilingLookbackWeeks.value)
+  for (const week of existing.weeks) {
+    const weekStart = week.weekStart
+    if (weekStart >= before || weekStart < oldest || !short.has(weekStart)) continue
+    const flagged = windowFreeMinutes(week.flags)
+    if (flagged === null && isDisruptedWeek(week.flags)) continue
+    const figure = flagged ?? plannedMinOf(week)
+    const end = addDays(weekStart, 7)
+    const stored = runningMinutes(
+      existing.sessions.filter(
+        (s) =>
+          s.date >= weekStart &&
+          s.date < end &&
+          !windowDays.has(s.date) &&
+          !(s.flags ?? []).includes('rest-window'),
+      ) as SessionSpec[],
+    )
+    found.set(weekStart, { figure, took: Math.max(0, figure - stored) })
+  }
+  return found
+}
+
+/**
+ * The minutes a week before `before` enters the ramp's baselines at, by Monday, where a window under
+ * 7 days took days from it: the minutes it held without the window, so that the weeks after it are
+ * stepped from the plan's own figure and not one ramp step lower for the rest of the build [rules
+ * J9, g-2; owner decision 2026-11-20]. A stored week carries them in its `window-free-<n>` flag; a
+ * week the plan stored before it knew of the window (no `disrupted` flag) is read at the minutes it
+ * was planned at. A week is counted at no more than the minutes run plus the minutes the window
+ * took (`windowTookWeeks`), so a run skipped outside the window still counts against the weeks
+ * after it. A week a hold of `j7.tier1Days` or more touches is none of these: its return is the J7
+ * share's. Pure.
+ */
+export function windowFreeWeeks(
+  windows: DisruptionPlan,
+  existing: StoredPlan | null,
+  activities: ReadonlyArray<Pick<Activity, 'date' | 'type' | 'durationSec' | 'duplicateStatus'>>,
+  before: string,
+): Map<string, number> {
+  const found = new Map<string, number>()
+  for (const [weekStart, { figure, took }] of windowTookWeeks(windows, existing, before)) {
+    const end = addDays(weekStart, 7)
+    const ranSec = activities
+      .filter(
+        (a) =>
+          a.type === 'run' &&
+          a.date >= weekStart &&
+          a.date < end &&
+          a.duplicateStatus !== 'possible' &&
+          a.duplicateStatus !== 'confirmed',
+      )
+      .reduce((t, a) => t + a.durationSec, 0)
+    found.set(weekStart, Math.min(figure, Math.round(ranSec / 60) + took))
+  }
+  return found
 }
 
 const PLANNED_FLAG = 'planned-'

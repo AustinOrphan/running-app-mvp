@@ -539,6 +539,32 @@ export function longHoldWeeks(plan: DisruptionPlan): string[] {
   return [...new Set(weeks)].sort()
 }
 
+/**
+ * The Mondays of the weeks that lost days to windows none of which is a hold of `j7.tier1Days` or
+ * more, ascending: the weeks a window under 7 days took days from. Their lost minutes are not added
+ * back, and the weeks after them are not stepped down for them [rule J9, owner decision 2026-11-20].
+ */
+export function shortWindowWeeks(plan: DisruptionPlan): string[] {
+  const long = new Set(longHoldWeeks(plan))
+  return windowedWeeks(plan).filter((weekStart) => !long.has(weekStart))
+}
+
+/** The flag of a week a short window took days from: the running minutes it holds without them. */
+export const WINDOW_FREE_FLAG = 'window-free-'
+
+export const windowFreeFlag = (minutes: number): string =>
+  `${WINDOW_FREE_FLAG}${String(Math.round(minutes))}`
+
+/** The minutes a week held without its short windows, from its flag; null for any other week. */
+export function windowFreeMinutes(flags: readonly string[]): number | null {
+  for (const flag of flags) {
+    if (!flag.startsWith(WINDOW_FREE_FLAG)) continue
+    const n = Number(flag.slice(WINDOW_FREE_FLAG.length))
+    if (Number.isInteger(n) && n >= 0) return n
+  }
+  return null
+}
+
 /** The rules of the dates in `range`, ascending; the days of a week to place. */
 export function dayRulesIn(plan: DisruptionPlan, range: DateRange = {}): DayRule[] {
   return plan.days.filter((rule) => inRange(rule.date, range))

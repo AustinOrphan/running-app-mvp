@@ -61,7 +61,7 @@ const base = {
   updatedAt: '2026-10-21T00:00:00Z',
 } as const
 
-function load(): EngineInput {
+function load(withTopUp = true): EngineInput {
   const raw = JSON.parse(
     readFileSync(join(import.meta.dirname, 'taper-reference-26.json'), 'utf8'),
   ) as Stored
@@ -91,7 +91,7 @@ function load(): EngineInput {
     rpe: 3,
     startTime: null,
   }
-  return { ...raw, activities: [...activities, topUp] }
+  return { ...raw, activities: withTopUp ? [...activities, topUp] : activities }
 }
 
 const targets = (d: PlanDraft, from: string) =>
@@ -105,6 +105,13 @@ describe('the taper of a peak that was a recovery week', () => {
     const stored = replanMonday(settled).draft
     const again = replanMonday(withStoredPlan({ settled, draft: stored })).draft
     expect(targets(again, settled.today)).toEqual(targets(stored, settled.today))
+  })
+  it('falls from the loading week before when that week was not run, never from a figure above it', () => {
+    // no top-up run: the week before the peak holds 35 of its 99 planned minutes. A short window in it
+    // lifts the ramp (rule J9), which must not size the taper above what the engine drew before it.
+    const settled = load(false)
+    const stored = replanMonday(settled).draft
+    expect(taper(stored).every((m, i) => m <= [64, 39][i]!)).toBe(true)
   })
   it('keeps the stored taper of 64 and 39 minutes', () => {
     const settled = load()
