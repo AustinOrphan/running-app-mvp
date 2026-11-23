@@ -138,7 +138,7 @@ Ranked by weight for the first 100-mile build toward the goal race, then for bet
 9. **A strength-only week counts as 0 in the checklist and is skipped in the guards.**
    `draftRamp` lists every week that holds any session, strength included
    (`shared/engine/checklist.ts:169`), and a week with no run totals 0 there, while `rampWeek`
-   returns at a total of 0 and leaves the week out (`shared/engine/guards.ts:327-333`). A week of
+   returns at a total of 0 and leaves the week out (`shared/engine/guards.ts:329-334`). A week of
    only a strength session is a zero baseline for the checklist and no baseline for the guards.
    Not reproduced by a committed test.
 10. **The first week back shows the J9 figure, then G-1 cuts it once the return runs exist.** After a
@@ -156,19 +156,21 @@ Ranked by weight for the first 100-mile build toward the goal race, then for bet
     stay legal (D7). Seen on a real history before #807; no committed case beyond 11 weeks.
 12. **The rebuild after a long hold at a fraction under 1 is slow.** The weeks after the full week
     of such a hold are bound by the ramp (the ceiling weeks, `shared/engine/index.ts:626-632`; the
-    G-2 rebuild zone, `shared/engine/limits.ts:541-546`), and the plan reaches the pre-hold figure
+    g-8 rebuild zone, `shared/engine/limits.ts:540-546`), and the plan reaches the pre-hold figure
     late. No committed case and not traced to one of the two.
-13. **A window of 3 days or more whose days are past, re-planned on the Saturday, still leaves the
+13. **A window of 3 days or more whose days are past, re-planned on the Thursday, still leaves the
     next weeks below the no-window plan.** #817's known limit: the half-marathon chain re-planned on
     the Thursday after a Monday to Wednesday window draws 213, 234 and 175 minutes against 259, 270
     and 202, the figures main drew before. The runs missed inside the window stand in the G-1
     reference and the run record. Pinned in
-    `tests/unit/engine/short-window-later-weeks-sweep.test.ts:156-170`; no claim of rule.
+    `tests/unit/engine/short-window-later-weeks-sweep.test.ts:155-182`; no claim of rule.
 14. **A week where a window holds or caps a day, under a hold, can still take the trim twice.** #818
     makes a window a bound on a week only when it holds or caps a day (`windowTakesMinutes`,
     `shared/engine/index.ts:2055`). Where it does, the bound is the minutes placed and the hold trim
-    (`holdTrimmed`) takes its minutes from that bound again at the next re-plan: 18 such steps in the
-    2,133-step differential, none breaking the week target. They are the drifts in item 33.
+    (`holdTrimmed`) takes its minutes from that bound again at the next re-plan. In the 2,133-step
+    differential, 18 steps have such a week (3 of them with sessions placed below the figure) and
+    none breaks the week-target fixed point. The count is from #818's review, not rerun in the
+    repository.
 15. **A replay of a real history, from before #817, raised many later weeks above the Monday plan on
     a mid-week re-plan.** #812 found later weeks above the Monday plan on main and on its branch
     alike (a path that predates it, F-a1 to F-a3). #817 changes that path (window-free weeks) and the
@@ -257,7 +259,8 @@ Ranked by weight for the first 100-mile build toward the goal race, then for bet
     #579, no longer holds the load setting. The other options of the proposal stay open.
 33. **Simulator fixed point and pinned preset cases.** A re-plan with nothing new returns the stored
     plan at the week-target level in all 2,133 steps of the sim-athlete differential (seed offsets
-    0, 1000 and 2000, three levels, 11 athletes; 0 breaks as of #818). A stricter deep-equal check
+    0, 1000 and 2000, three levels, twelve athletes, from the run for #818, outside the committed
+    tests; 0 breaks as of #818). A stricter deep-equal check
     leaves six drifts: 0/reds-hold/14, 0/post-marathon-short-run/1, 2000/marathon/19,
     2000/reds-hold/18, and 2000/post-marathon-short-run/1 and /5. They belong to the first week of
     a start path and to the long-run figure of a recovery week inside a rest window (KNOWN LIMITS,
