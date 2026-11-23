@@ -1029,10 +1029,15 @@ describe('metamorphic relations on the real re-plan [Segura 2016]', () => {
     // KNOWN LIMITS, observed by RF1 (2026-10-31) and not fixed. The relation does not hold (1) in the
     // first week of a start path: the ladder and the 3 x N floor weeks are sized by their programme,
     // and a stored plan that flips into one mid-season, or opens a hold at a cap under the floor, is
-    // held to the minutes its short sessions placed; (2) in a held week a window touches: the bound of
-    // such a week is the minutes placed, which the window's cap charges the held days against, and the
-    // trim of the hold takes its minutes from that bound again. The case list is the failure message;
-    // this passes when the first of them is fixed.
+    // held to the minutes its short sessions placed; (2) in a held week a window holds or caps a day
+    // of: the bound of such a week is the minutes placed, which the window's cap charges the held days
+    // against, and the trim of the hold takes its minutes from that bound again (a window that only
+    // keeps quality off a day takes no minutes and is no touch: its weeks give the plan back, and the
+    // week row of a recovery week in the weeks of a rest window still differs in its long-run figure,
+    // as the ragged REDs-hold athlete's step 14 shows). Six deep-equal drifts remain (offset/level/
+    // athlete/step): 0/reds-hold/14, 0/post-marathon-short-run/1, 2000/marathon/19, 2000/reds-hold/18,
+    // 2000/post-marathon-short-run/1 and /5. The case list is the failure message; this passes when
+    // the first of them is fixed.
     test.fails(
       'gives the plan back in the first week of a start path and in a held week a window touches',
       () => {
