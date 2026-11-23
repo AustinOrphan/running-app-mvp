@@ -109,7 +109,8 @@ export function createApp(
       logger,
       // The probes poll all day and say nothing the log needs.
       autoLogging: { ignore: (req) => PROBE_PATHS.has((req.url ?? '').split('?')[0] ?? '') },
-      // The private calendar feed carries its token in the path; the log names the route instead.
+      // The private calendar feed carries its token in the path, the export its one-time token and
+      // the OAuth callback its code and state; the log names the route or a placeholder instead.
       serializers: { req: redactedRequest },
       genReqId: (req, res) => {
         const incoming = req.headers['x-request-id']

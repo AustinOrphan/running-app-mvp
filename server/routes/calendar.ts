@@ -19,13 +19,21 @@ const FEED_URL = /(\/api\/calendar\/+)[^/?#]+/gi
 
 /**
  * `/api/calendar/<token>/plan.ics` as `/api/calendar/:token/plan.ics`, also behind a scheme and
- * host or an extra slash; other URLs are unchanged.
+ * host or an extra slash; the export token and the `code` and `state` of an OAuth callback are
+ * replaced the same way; other URLs are unchanged.
  */
 export function redactFeedToken(url: string): string {
-  return url
+  const redacted = url
     .replace(FEED_URL, `$1${TOKEN_PLACEHOLDER}`)
     .replace(EXPORT_TOKEN, `$1${TOKEN_PLACEHOLDER}`)
+  return CALLBACK_URL.test(redacted) ? redacted.replace(CALLBACK_PARAMS, '$1:redacted') : redacted
 }
+
+/** An OAuth callback target (`routes/integrations.ts`), in any case and behind a scheme and host. */
+const CALLBACK_URL = /\/api\/integrations\/+[^/?#]+\/callback\/?(?:[?#]|$)/i
+
+/** The `code` and `state` of the OAuth callback: a bearer credential and a signed value. */
+const CALLBACK_PARAMS = /([?&](?:code|state)=)[^&#]*/gi
 
 /** The one-time download token in `GET /api/export?token=...` (`routes/export.ts`). */
 const EXPORT_TOKEN = /([?&]token=)[^&#]*/gi
@@ -41,6 +49,13 @@ export function redactedRequest(req: SerializedRequest): SerializedRequest {
   const params = req.params as Record<string, unknown> | undefined
   if (typeof params === 'object' && params !== null && 'token' in params) {
     req.params = { ...params, token: TOKEN_PLACEHOLDER }
+  }
+  // The parsed query goes into the line too, once Express has filled it in.
+  const query = req.query as Record<string, string> | undefined
+  if (typeof query === 'object' && query !== null && CALLBACK_URL.test(req.url)) {
+    const kept: Record<string, string> = { ...query }
+    for (const name of ['code', 'state']) if (name in kept) kept[name] = ':redacted'
+    req.query = kept
   }
   return req
 }

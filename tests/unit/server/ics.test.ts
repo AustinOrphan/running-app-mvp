@@ -316,6 +316,16 @@ describe('icsOutline', () => {
 })
 
 describe('redactFeedToken', () => {
+  it('keeps the names of the OAuth callback parameters and drops their values', () => {
+    expect(redactFeedToken('/api/integrations/strava/callback?code=abc&state=x.y&scope=read')).toBe(
+      '/api/integrations/strava/callback?code=:redacted&state=:redacted&scope=read',
+    )
+    expect(redactFeedToken('/api/integrations/strava/callback?error=access_denied')).toBe(
+      '/api/integrations/strava/callback?error=access_denied',
+    )
+    expect(redactFeedToken('/api/plan?code=1')).toBe('/api/plan?code=1')
+  })
+
   const route = '/api/calendar/:token/plan.ics'
 
   it('names the route in place of the token, whatever the case and the query', () => {
