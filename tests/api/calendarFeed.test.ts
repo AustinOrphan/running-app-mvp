@@ -12,7 +12,9 @@ import type { PlanSessionStatus, PlanWithSessions, WristStatus } from '../../sha
 import { PUBLIC_TITLES } from '../../shared/workouts/labels.ts'
 import { dataVersionKey } from '../../server/dataVersion.ts'
 import { serverTimeZone } from '../../server/runnerDay.ts'
+import { signState } from '../../server/providers/oauthState.ts'
 import { buildDeliverables } from '../../server/services/workouts.ts'
+import { fakeFetch } from '../fakeFetch.ts'
 import { weekFixture, zoneSetFixture } from '../unit/engine/fixtures.ts'
 import {
   client,
@@ -596,6 +598,36 @@ describe('the access log', () => {
     const u = await seedUser(ctx)
     await client(ctx, u).get('/api/plan?x=1')
     expect(logged.lines.join('')).toContain('/api/plan?x=1')
+  })
+
+  test('names the OAuth callback route and holds neither its code nor its state', async () => {
+    const u = await seedUser(ctx)
+    await client(ctx, u)
+      .put('/api/integrations/strava')
+      .send({ clientId: '12345', clientSecret: 'secret-xyz' })
+    // a refused state and an exchange that fails: the two paths that log or redirect
+    await client(ctx, u).get(
+      '/api/integrations/strava/callback?code=CODE-SPENT-1&state=STATE-BAD-1',
+    )
+    ctx.fetch = fakeFetch({
+      'POST https://www.strava.com/oauth/token': () => new Response('{}', { status: 400 }),
+    })
+    const state = signState(u.id, ctx.config.sessionSecret, new Date())
+    await client(ctx, u).get(
+      `/api/integrations/strava/callback?code=CODE-SPENT-2&state=${encodeURIComponent(state)}`,
+    )
+
+    const log = logged.lines.join('')
+    for (const secret of ['CODE-SPENT-1', 'STATE-BAD-1', 'CODE-SPENT-2', state]) {
+      expect(log).not.toContain(secret)
+    }
+    const urls = logged.lines
+      .map((line) => (JSON.parse(line) as { req?: { url?: string } }).req?.url ?? '')
+      .filter((url) => url.includes('/callback'))
+    expect(urls).toEqual([
+      '/api/integrations/strava/callback?code=:redacted&state=:redacted',
+      '/api/integrations/strava/callback?code=:redacted&state=:redacted',
+    ])
   })
 
   test('does not log the token it hands out', async () => {
