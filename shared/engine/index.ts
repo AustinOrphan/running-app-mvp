@@ -2051,6 +2051,11 @@ export function replan(
   const figure = new Map<string, number>()
   const notStarted = new Map<string, number>()
   const windowPlan = disruptionPlan(input.disruptions ?? [])
+  // A window takes minutes from a week only when it holds or caps a day of it.
+  const windowTakesMinutes = (weekStart: string) =>
+    dayRulesIn(windowPlan, { from: weekStart, to: addDays(weekStart, 6) }).some(
+      (r) => r.held || r.maxRunMin !== null,
+    )
   for (const weekStart of settled) {
     const oldWeek = oldWeeks.find((w) => w.weekStart === weekStart)
     if (oldWeek === undefined) continue
@@ -2064,15 +2069,18 @@ export function replan(
     // minutes its sessions placed: those fall short of the figure by what the placement cannot use
     // (a trimmed session, rounding), and held to them each
     // re-plan of the same Monday would take the shortfall again [rule G-6]. The sessions stay the
-    // bound where a window touches the week, as its cap charges the held days against them, but
-    // never above the figure: a closed day must not hold a week to more than it was without it.
+    // bound where a window holds or caps a day of the week, as its cap charges the held days against
+    // them, but never above the figure: a closed day must not hold a week to more than it was without
+    // it. A window that only keeps quality off a day takes no minutes, so it is no touch: the hold
+    // trims the week's quality session at every re-plan, and the stored week, read at its trimmed
+    // minutes, would be trimmed again each time.
     if (unstartedWeek(oldWeek, oldSessions, input)) {
       figure.set(weekStart, oldWeek.targetRunMin)
-      const touched =
-        dayRulesIn(windowPlan, { from: weekStart, to: addDays(weekStart, 6) }).length > 0
       stillPlanned.set(
         weekStart,
-        touched ? Math.min(planned, oldWeek.targetRunMin) : oldWeek.targetRunMin,
+        windowTakesMinutes(weekStart)
+          ? Math.min(planned, oldWeek.targetRunMin)
+          : oldWeek.targetRunMin,
       )
     } else {
       stillPlanned.set(weekStart, planned)
@@ -2082,9 +2090,9 @@ export function replan(
   // G-6, J7]: the figure of the plan being replaced (a recovery week's, where it had one) is no bound
   // on a week that is drawn again as a loading week, so the repeat's own figure is the bound.
   const broke = input.breakWeek
-  // A week a rest window touches keeps the bound of its sessions, which charge the held days (J9).
-  const untouched =
-    dayRulesIn(windowPlan, { from: currentMonday, to: addDays(currentMonday, 6) }).length === 0
+  // A week in which a window holds or caps a day keeps the bound of its sessions, which charge the
+  // held days (J9); a window that only keeps quality off a day takes no minutes from it.
+  const untouched = !windowTakesMinutes(currentMonday)
   if (broke !== undefined && broke.weekStart === addDays(currentMonday, -7) && untouched) {
     const repeat = Math.min(broke.plannedMin, broke.capMin)
     const still = stillPlanned.get(currentMonday)

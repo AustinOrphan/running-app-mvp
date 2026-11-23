@@ -77,20 +77,34 @@ describe('a held week outside the recovery-turned-peak week is unchanged', () =>
     expect(taperOf(step)).toEqual([39, 36])
   })
 
-  // KNOWN: a re-plan of this plan with nothing new moves the weeks after the window week by a minute
-  // (96, 72, 105 and 115 become 95, 71, 104 and 114): the week in progress is placed one minute short
-  // at the second pass (an easy run of 25 minutes becomes 24). The drift is in the placement of that
-  // week, not in the window-free figure, which is the same at both passes; it is also there with the
-  // window-free lift off. The test goes red when a change fixes it.
-  it.fails(
-    'a window reported the Monday after, as a past week, is a fixed point (trail-50k)',
-    () => {
-      const step = stepOf('trail-50k', 12)
-      expect(step.settled.today).toBe('2027-01-11')
-      const back = replanMonday(withStoredPlan(step)).draft
-      expect(isDeepStrictEqual(back, step.draft)).toBe(true)
-    },
-  )
+  // A re-plan of this plan with nothing new returns it. The week in progress is touched by a window
+  // that only keeps quality sessions off its first days, and the hold trims its quality session: the
+  // trimmed minutes of the stored plan must not bound the week a second time (96, 72, 105 and 115
+  // were 95, 71, 104 and 114 at the second pass).
+  it('a window reported the Monday after, as a past week, is a fixed point (trail-50k)', () => {
+    const step = stepOf('trail-50k', 12)
+    expect(step.settled.today).toBe('2027-01-11')
+    const back = replanMonday(withStoredPlan(step)).draft
+    expect(isDeepStrictEqual(back, step.draft)).toBe(true)
+  })
+
+  // The one plan this rule changes among the chains: the injury-return week of the half chain (a
+  // window that only keeps quality off a day) is held to its figure of 33 minutes, and no longer to
+  // the 20 its trimmed sessions placed. Its easy runs on 2026-12-21 and 2026-12-26 are 16 and 17
+  // minutes (10 and 10 before), never above the week's target, and a re-plan with nothing new
+  // returns the plan.
+  it('a window that only keeps quality off a day holds the week to its figure (half, 2026-12-21)', () => {
+    const step = stepOf('half', 9)
+    expect(step.settled.today).toBe('2026-12-21')
+    const week = step.draft.weeks.find((w) => w.weekStart === '2026-12-21')!
+    expect(week.targetRunMin).toBe(33)
+    const easy = (date: string) =>
+      step.draft.sessions.filter((s) => s.date === date).map((s) => s.durationMin)
+    expect(easy('2026-12-21')).toEqual([16])
+    expect(easy('2026-12-26')).toEqual([17])
+    const back = replanMonday(withStoredPlan(step)).draft
+    expect(isDeepStrictEqual(back, step.draft)).toBe(true)
+  })
 
   it('a floor week with no hold keeps its floor and the weeks after it (masters)', () => {
     const step = stepOf('masters', 13)
