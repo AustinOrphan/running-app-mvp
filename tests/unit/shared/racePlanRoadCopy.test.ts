@@ -47,18 +47,18 @@ function goal(overrides: Partial<GoalModel> = {}): GoalModel {
 const HALF = { distanceM: 21_097.5, distanceClass: 'half', targetTimeSec: 105 * MIN } as const
 const TEN_K = { distanceM: 10_000, distanceClass: '10k', targetTimeSec: 50 * MIN } as const
 
-function run(n: number): FuelRunInput {
+function run(n: number, hours = 3): FuelRunInput {
   const base = { name: 'Gel', sodiumMg: null, kcal: null, servings: 1 }
   return {
     activityId: `a${String(n)}`,
     date: addDays('2026-03-02', n * 7),
     startTime: null,
-    elapsedSec: 3 * HOUR,
+    elapsedSec: hours * HOUR,
     weather: { tempC: 12, humidityPct: 60, windKph: 5 },
     sessionFlags: null,
     log: {
       skipped: false,
-      items: [{ ...base, carbsG: 375, multiCarb: true }],
+      items: [{ ...base, carbsG: 125 * hours, multiCarb: true }],
       gut: 0,
       nausea: null,
       hotOverride: null,
@@ -130,6 +130,17 @@ const PLANS: Array<[string, RoadRacePlan]> = [
     roadRacePlanFor(input({ ladder: ladderOf([run(0)], { ...OPEN, giDisease: true }) })),
   ],
   ['marathon, floor only', roadRacePlanFor(input({ ladder: ladderOf([]) }))],
+  [
+    'marathon, duration floor, a slow race and runs of 2 h',
+    roadRacePlanFor(
+      input({
+        goal: goal({ expectedDurationSec: 330 * MIN }),
+        prediction: pred(330 * MIN),
+        coolPredictedSec: 330 * MIN,
+        ladder: ladderOf([run(0, 2), run(1, 2)]),
+      }),
+    ),
+  ],
   ['marathon, self-supported', roadRacePlanFor(input({ supportLevel: 'self' }))],
   [
     'half over 2 h',
@@ -477,6 +488,21 @@ describe('fuel, fluid and the race week', () => {
     expect(allText(fuel).join(' ')).not.toContain('few hours')
   })
 
+  it('says what the duration floor held back, in the road words and with no ultra label', () => {
+    const fuel = text('marathon, duration floor, a slow race and runs of 2 h').fuel!
+    expect(fuel.rate).toBe('Carbohydrate: 30 to 50 g/h.')
+    expect(fuel.basis).toBe(
+      'No rate above the floor was tolerated on a run of 2 h 45 min or longer, so the floor is the rate.',
+    )
+    expect(fuel.durationNote).toBe(
+      'A higher rate, 60 g/h, was tolerated on runs up to 2 h. The race rate counts a rate tolerated on a run of 2 h 45 min or longer.',
+    )
+    expect(fuel.labLink).toBe('Open the fuel lab')
+    expect(fuel.fewHours).toBeNull()
+    expect(fuel.certainty).toBeNull()
+    expect(text('marathon, cool, tolerated rung').fuel!.durationNote).toBeNull()
+  })
+
   it('carries the H8 fluid wording and the EAH card wherever fuel appears', () => {
     const fuel = text('marathon, cool, tolerated rung').fuel!
     expect(fuel.fluid).toContain('Drink to thirst')
@@ -520,9 +546,9 @@ describe('fuel, fluid and the race week', () => {
     for (const [label] of PLANS) {
       expect(textOf(label), label).not.toMatch(/held on runs up to|longest run|back-to-back/i)
     }
-    expect(text('marathon, cool, tolerated rung').notIn.items.join(' ')).toContain(
-      'The fuel lab shows that.',
-    )
+    const items = text('marathon, cool, tolerated rung').notIn.items.join(' ')
+    expect(items).toContain('How long the highest tolerated rate has held on training runs.')
+    expect(items).toContain('The fuel lab shows that.')
   })
 
   it('words the Sherman line for a half with 20.9 km and never "a half marathon"', () => {

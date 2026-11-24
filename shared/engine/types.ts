@@ -1001,6 +1001,13 @@ export type RungState =
 
 export interface FuelRungView extends FuelRung {
   state: RungState
+  /**
+   * The elapsed seconds of the longest run that counts at this rung (`countReason`, whatever the
+   * target was) and is scored below `h7.gutStopScore` on a day that was not hot; null when there was
+   * none, and null above the tolerated rung. The race rate reads it (`raceFuelFor`, the duration
+   * floor of rule H7); nothing else does.
+   */
+  toleratedSec: number | null
 }
 
 /** Why a logged run did or did not count toward the ladder. */

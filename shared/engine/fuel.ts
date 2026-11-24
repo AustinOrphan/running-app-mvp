@@ -14,6 +14,7 @@ import {
   multiCarbShare,
   ratePerHour,
   SECONDS_PER_HOUR,
+  SECONDS_PER_MINUTE,
 } from '../domain/fuel.ts'
 import { isToRun } from '../domain/sessionStatus.ts'
 import { eahText, fuelWatchText } from './fuelCopy.ts'
@@ -93,7 +94,7 @@ export function fuelRungs(): FuelRung[] {
   return rungs
 }
 
-function rungAt(rungs: readonly FuelRung[], index: number): FuelRung {
+function rungAt<T extends FuelRung>(rungs: readonly T[], index: number): T {
   const rung = rungs[index]
   if (rung === undefined) throw new RangeError(`There is no fuel rung ${String(index)}.`)
   return rung
@@ -215,9 +216,15 @@ function compareRuns(a: FuelRunInput, b: FuelRunInput): number {
 function rungStates(
   rungs: readonly FuelRung[],
   settings: FuelSettingsInput,
-  position: { target: number; tolerated: number; held: boolean; ceiling: number },
+  position: {
+    target: number
+    tolerated: number
+    held: boolean
+    ceiling: number
+    toleratedSec: readonly (number | null)[]
+  },
 ): FuelRungView[] {
-  const { target, tolerated, held, ceiling } = position
+  const { target, tolerated, held, ceiling, toleratedSec } = position
   const tier2Index = rungs.findLastIndex((rung) => rung.gPerH <= P.h7.carbTier2GPerH.value)
   return rungs.map((rung): FuelRungView => {
     let state: RungState
@@ -228,7 +235,7 @@ function rungStates(
     else if (rung.index <= ceiling) state = 'later'
     else if (rung.index <= tier2Index) state = 'opt-in'
     else state = tolerated >= tier2Index ? 'opt-in' : 'opens-after-second-tier'
-    return { ...rung, state }
+    return { ...rung, state, toleratedSec: toleratedSec[rung.index] ?? null }
   })
 }
 
@@ -247,6 +254,33 @@ function countReason(run: FuelRunInput, rung: FuelRung, block: boolean): CountRe
     return 'too-little-multi-carb'
   }
   return 'counted'
+}
+
+/**
+ * Per rung, the elapsed seconds of the longest run that counts at that rung (`countReason`, the
+ * ladder's own test, whatever the target was) and is scored below `h7.gutStopScore` on a day that
+ * was not hot; null when there was none, and null above the tolerated rung, so a rung that was never
+ * tolerated carries no duration. A run at a higher rate counts for every rung it reaches at
+ * `h7.rungReachFraction`. The race rate reads it (rule H7, the duration floor); nothing else does.
+ * It is a maximum over the runs, so it does not depend on their order.
+ */
+function toleratedDurations(
+  input: LadderInput,
+  rungs: readonly FuelRung[],
+  tolerated: number,
+): (number | null)[] {
+  const longest: (number | null)[] = rungs.map(() => null)
+  for (const run of input.runs) {
+    if (runScore(run.log) >= P.h7.gutStopScore.value) continue
+    if (runIsHot(run.weather, run.log.hotOverride)) continue
+    const block = isBlockRun(run, input.gutTrainingWeeks)
+    for (const rung of rungs) {
+      if (rung.index > tolerated) break
+      if (countReason(run, rung, block) !== 'counted') continue
+      longest[rung.index] = Math.max(longest[rung.index] ?? 0, run.elapsedSec)
+    }
+  }
+  return longest
 }
 
 /**
@@ -360,6 +394,8 @@ export function replayLadder(input: LadderInput): LadderResult {
     })
   }
 
+  const toleratedSec = toleratedDurations(input, rungs, tolerated)
+
   let basis: LadderBasis
   if (settings.giDisease) basis = 'locked'
   else if (held) basis = 'repeat'
@@ -367,7 +403,7 @@ export function replayLadder(input: LadderInput): LadderResult {
   else basis = fellBack ? 'fell-back' : 'at-ceiling'
 
   return {
-    rungs: rungStates(rungs, settings, { target, tolerated, held, ceiling }),
+    rungs: rungStates(rungs, settings, { target, tolerated, held, ceiling, toleratedSec }),
     currentIndex: target,
     toleratedIndex: tolerated,
     held,
@@ -531,29 +567,86 @@ export interface RaceFuel extends RungRate {
   hours: number
   /** The carbohydrate over `hours`, low to high, in grams; the two ends are equal for a single rate. */
   totalG: [number, number]
+  /**
+   * Set when the duration floor lowered the rate (rule H7): a higher rung was tolerated, but not on
+   * a run as long as this race asks. Null when the floor did not bind, and absent in a plan kept
+   * on the device before the floor existed (ADR 0012), which the words read as null.
+   */
+  durationFloor?: RaceFuelFloor | null
+}
+
+/** What the duration floor held back: the rung that was tolerated and the runs it was tolerated on. */
+export interface RaceFuelFloor {
+  /** The run length a rung had to be tolerated on to carry this race, in seconds. */
+  requiredSec: number
+  /** The highest tolerated rung, which the race rate does not reach. */
+  toleratedRung: RungRate
+  /** The longest tolerated run at that rung, in seconds. */
+  longestSec: number
 }
 
 /**
- * The carbohydrate rate of a race: the highest rung the runner's runs tolerated, the floor when
- * none was, and the floor with a diagnosed gut condition. It is never the rung in trial and never
- * above a tolerated rung (rule G6): a race of a day or more is far from what a run of a few hours
- * showed, so the plan offers no higher rate. `FUEL_KINDS.race` stays false, so the fuel slot, the
- * watch line and the calendar text of the race session are unchanged. The totals run over the
- * expected elapsed time, since eating happens at stops (rule H7). `hot` only labels the rate: the
- * ladder counts a tolerated run on a day that was not hot only, so a hot race is outside what any
- * rung showed.
+ * The run length a rung must have been tolerated on to carry a race of `expectedSec` (rule H7, the
+ * duration floor): `h7.raceRateRunShare` of the expected time, at least the length the ladder
+ * counts (`h7.logMinDurationMin`) and at most `h7.raceRateRunCapMin`, so a race of a day or more
+ * is held to a run the plan can place and a race of about two hours to the ladder's own length.
+ */
+export function raceRateRunSec(expectedSec: number): number {
+  const shareMin = (P.h7.raceRateRunShare.value * Math.max(0, expectedSec)) / SECONDS_PER_MINUTE
+  const min = Math.min(
+    P.h7.raceRateRunCapMin.value,
+    Math.max(P.h7.logMinDurationMin.value, shareMin),
+  )
+  return min * SECONDS_PER_MINUTE
+}
+
+/**
+ * The carbohydrate rate of a race: the highest rung that the runner's runs tolerated on a run at
+ * least `raceRateRunSec` long, the floor when none was, and the floor with a diagnosed gut
+ * condition. It is never the rung in trial and never above a tolerated rung (rule G6): a race of a
+ * day or more is far from what a run of a few hours showed, so the plan offers no higher rate. The
+ * duration floor only lowers the rate: it walks down from the highest tolerated rung to the first
+ * one with a tolerated run (a run that counts at that rung, scored below `h7.gutStopScore`, on a
+ * day that was not hot, `FuelRungView.toleratedSec`) of the length the race asks, and
+ * `durationFloor` says what it held back. When it does not bind, the result is what the rate was
+ * before the floor existed. `FUEL_KINDS.race` stays false, so the fuel slot, the watch line and
+ * the calendar text of the race session are unchanged. The totals run over the expected elapsed
+ * time, since eating happens at stops (rule H7). `hot` only labels the rate: the ladder counts a
+ * tolerated run on a day that was not hot only, so a hot race is outside what any rung showed.
  */
 export function raceFuelFor(
   ladder: LadderResult,
   options: { hot: boolean; expectedSec: number },
 ): RaceFuel {
-  const rung = rungAt(ladder.rungs, ladder.locked ? 0 : Math.max(ladder.toleratedIndex, 0))
+  const tolerated = ladder.locked ? 0 : Math.max(ladder.toleratedIndex, 0)
+  const requiredSec = raceRateRunSec(options.expectedSec)
+  let index = tolerated
+  while (index > 0 && (rungAt(ladder.rungs, index).toleratedSec ?? 0) < requiredSec) index -= 1
+  const rung = rungAt(ladder.rungs, index)
+  const held = rungAt(ladder.rungs, tolerated)
+  const durationFloor: RaceFuelFloor | null =
+    index === tolerated
+      ? null
+      : {
+          requiredSec,
+          toleratedRung: rateOf(held),
+          longestSec: held.toleratedSec ?? 0,
+        }
   const hours = Math.max(0, options.expectedSec) / SECONDS_PER_HOUR
   const [low, high] = rung.range ?? [rung.gPerH, rung.gPerH]
   return {
     ...rateOf(rung),
     rungIndex: rung.index,
-    basis: ladder.locked ? 'locked' : ladder.toleratedIndex >= 0 ? 'tolerated' : 'floor',
+    basis: ladder.locked
+      ? 'locked'
+      : durationFloor === null
+        ? ladder.toleratedIndex >= 0
+          ? 'tolerated'
+          : 'floor'
+        : index > 0
+          ? 'tolerated'
+          : 'floor',
+    durationFloor,
     lowCertainty: rung.lowCertainty,
     multiCarbRequired: rung.multiCarbRequired,
     hot: options.hot,

@@ -22,6 +22,8 @@ import {
   fuelWatchLine,
   isBlockRun,
   isHotForFuel,
+  raceFuelFor,
+  raceRateRunSec,
   replayLadder,
   runIsHot,
   runScore,
@@ -1585,6 +1587,380 @@ describe('gutReferralLines (GR1)', () => {
 // ---------------------------------------------------------------------------------------------
 // The module itself
 // ---------------------------------------------------------------------------------------------
+
+// The duration floor on the race rate (rule H7, added 2026-11-23): the replay keeps the longest
+// tolerated run per rung and `raceFuelFor` steps down to the highest rung tolerated on a run as long
+// as the race asks. Synthetic logs only.
+describe('the duration floor on the race rate', () => {
+  const HOUR_SEC = 3600
+  const cap = P.h7.raceRateRunCapMin.value * 60
+  const logMin = P.h7.logMinDurationMin.value * 60
+  const raceOf = (list: readonly FuelRunInput[], expectedH: number, settings = OPEN) =>
+    raceFuelFor(replay(list, settings), { hot: false, expectedSec: expectedH * HOUR_SEC })
+
+  describe('toleratedSec: what the replay keeps', () => {
+    it('is the longest run that counts at the rung and is scored under the stop score, up to the tolerated rung', () => {
+      // 36, 66 and 76 g/h tolerate the floor, 60 and 70 g/h; a longer run counts for every rung it reaches
+      const ladder = replay(
+        runs({ hours: 2.5, gPerH: 36 }, { hours: 4, gPerH: 62 }, { hours: 3, gPerH: 76 }),
+      )
+      expect(ladder.toleratedIndex).toBe(2)
+      expect(ladder.rungs.slice(0, 4).map((r) => r.toleratedSec)).toEqual([
+        4 * HOUR_SEC,
+        4 * HOUR_SEC,
+        3 * HOUR_SEC,
+        null,
+      ])
+      expect(replay([]).rungs.every((r) => r.toleratedSec === null)).toBe(true)
+    })
+
+    it('is null above the tolerated rung, whatever a run ate', () => {
+      // one tolerated run at the floor: the target is now 60 g/h and a 5 h run at 125 g/h is held
+      const ladder = replay(runs({ hours: 2, gPerH: 36 }, { hours: 5, gut: 2 }))
+      expect(ladder.toleratedIndex).toBe(0)
+      expect(
+        ladder.rungs
+          .map((r) => r.toleratedSec)
+          .slice(1)
+          .every((s) => s === null),
+      ).toBe(true)
+    })
+
+    it('does not depend on the order of the runs', () => {
+      const list = runs(
+        { hours: 2, gPerH: 36 },
+        { hours: 2, gPerH: 66 },
+        { hours: 4, gPerH: 62 },
+        { hours: 3, gPerH: 76 },
+        { hours: 6, gut: 2 },
+      )
+      const forward = replay(list).rungs.map((r) => r.toleratedSec)
+      expect(replay([...list].reverse()).rungs.map((r) => r.toleratedSec)).toEqual(forward)
+      expect(
+        replay([list[2]!, list[0]!, list[4]!, list[1]!, list[3]!]).rungs.map((r) => r.toleratedSec),
+      ).toEqual(forward)
+    })
+
+    it('credits only the rungs a run reaches at h7.rungReachFraction', () => {
+      const climb = runs({ hours: 2, gPerH: 36 }, { hours: 2, gPerH: 66 }, { hours: 2, gPerH: 76 })
+      const secOf = (gPerH: number) =>
+        replay([...climb, run(3, { hours: 4, gPerH })])
+          .rungs.slice(0, 3)
+          .map((r) => r.toleratedSec)
+      // 62 g/h reaches the floor and 60 g/h (54), not 70 g/h (63)
+      expect(secOf(62)).toEqual([4 * HOUR_SEC, 4 * HOUR_SEC, 2 * HOUR_SEC])
+      expect(secOf(63)).toEqual([4 * HOUR_SEC, 4 * HOUR_SEC, 4 * HOUR_SEC])
+      expect(P.h7.rungReachFraction.value).toBe(0.9)
+    })
+
+    it('credits no rung that needs multiple carbohydrate sources to a run with too little of them', () => {
+      const climb = runs({ hours: 2, gPerH: 36 }, { hours: 2, gPerH: 66 }, { hours: 2, gPerH: 76 })
+      const ladder = replay([...climb, run(3, { hours: 4, gPerH: 76, multiShare: 0.2 })])
+      expect(P.h7.multiCarbMinShare.value).toBeGreaterThan(0.2)
+      expect(ladder.rungs.slice(0, 3).map((r) => r.toleratedSec)).toEqual([
+        4 * HOUR_SEC,
+        4 * HOUR_SEC,
+        2 * HOUR_SEC,
+      ])
+    })
+
+    it('takes the longer of two tolerated runs at one rung (a fall-back lets a rung repeat)', () => {
+      // rung 0 tolerated (2 h), rung 1 held then returned to rung 0 by two bad runs, rung 0 again.
+      const ladder = replay(runs({ hours: 2 }, BAD, BAD, { hours: 5 }))
+      expect(ladder.rungs[0]?.toleratedSec).toBe(5 * HOUR_SEC)
+      expect(ladder.rungs[1]?.toleratedSec).toBeNull()
+    })
+
+    it('ignores a run scored 2 or more, a skipped run and a run too short', () => {
+      const ladder = replay(
+        runs(
+          { hours: 2, gPerH: 36 },
+          { hours: 2, gPerH: 66 },
+          { hours: 7, gut: 2 },
+          { hours: 7, skipped: true },
+          { hours: 1.5 },
+        ),
+      )
+      expect(ladder.toleratedIndex).toBe(1)
+      expect(ladder.rungs.slice(0, 2).map((r) => r.toleratedSec)).toEqual([
+        2 * HOUR_SEC,
+        2 * HOUR_SEC,
+      ])
+    })
+
+    it('credits a long run below the target to the rungs it reaches', () => {
+      const ladder = replay(
+        runs({ hours: 2, gPerH: 36 }, { hours: 2, gPerH: 66 }, { hours: 7, gPerH: 40 }),
+      )
+      expect(ladder.toleratedIndex).toBe(1)
+      expect(ladder.steps[2]?.reason).toBe('below-target')
+      expect(ladder.rungs.slice(0, 2).map((r) => r.toleratedSec)).toEqual([
+        7 * HOUR_SEC,
+        2 * HOUR_SEC,
+      ])
+    })
+
+    it('ignores a tolerated run on a hot day, which the ladder moves nothing on', () => {
+      const ladder = replay(runs({ hours: 2 }, { hours: 6, weather: HOT }))
+      expect(lastStep(ladder).outcome).toBe('warm-tolerated')
+      expect(ladder.rungs[0]?.toleratedSec).toBe(2 * HOUR_SEC)
+    })
+
+    it('holds a shorter run of a gut-training week, as the ladder counts it', () => {
+      const ladder = replay(runs({ hours: 1.5 }), OPEN, [START])
+      expect(ladder.rungs[0]?.toleratedSec).toBe(1.5 * HOUR_SEC)
+    })
+
+    it('does not change the ladder: position, rungs and steps are as before the field existed', () => {
+      const ladder = replay(runs({ hours: 2 }, { hours: 3 }, BAD))
+      expect(ladder.toleratedIndex).toBe(1)
+      expect(ladder.currentIndex).toBe(2)
+      expect(ladder.held).toBe(true)
+    })
+  })
+
+  describe('raceRateRunSec: the length a rung must have been tolerated on', () => {
+    it('is the share of the expected time, between the ladder length and the cap', () => {
+      const minutes = (hours: number) => raceRateRunSec(hours * HOUR_SEC) / 60
+      expect(minutes(34)).toBe(P.h7.raceRateRunCapMin.value)
+      expect(minutes(12)).toBe(P.h7.raceRateRunCapMin.value)
+      expect(minutes(5)).toBe(150)
+      expect(minutes(4)).toBe(P.h7.logMinDurationMin.value)
+      expect(minutes(2)).toBe(P.h7.logMinDurationMin.value)
+      expect(minutes(0)).toBe(P.h7.logMinDurationMin.value)
+    })
+
+    it('never falls under the length the ladder counts or over the cap, and never falls as the race lengthens', () => {
+      let last = 0
+      for (let tenths = 0; tenths <= 600; tenths += 3) {
+        const sec = raceRateRunSec((tenths / 10) * HOUR_SEC)
+        expect(sec).toBeGreaterThanOrEqual(logMin)
+        expect(sec).toBeLessThanOrEqual(cap)
+        expect(sec).toBeGreaterThanOrEqual(last)
+        last = sec
+      }
+    })
+  })
+
+  describe('raceFuelFor', () => {
+    it('leaves the rate alone when the rung was tolerated on a run as long as the race asks', () => {
+      const fuel = raceOf(runs({ hours: 3 }, { hours: 3 }), 30)
+      expect(fuel).toMatchObject({
+        rungIndex: 1,
+        gPerH: 60,
+        basis: 'tolerated',
+        durationFloor: null,
+      })
+    })
+
+    it('steps down to the floor when the only tolerated rung came from runs of 2 h, for a race of a day', () => {
+      const fuel = raceOf(runs({ hours: 2 }, { hours: 2 }), 30)
+      expect(fuel.rungIndex).toBe(0)
+      expect(fuel.basis).toBe('floor')
+      expect(fuel.range).toEqual(P.h7.carbFloorGPerH.value)
+      expect(fuel.totalG).toEqual([
+        P.h7.carbFloorGPerH.value[0] * 30,
+        P.h7.carbFloorGPerH.value[1] * 30,
+      ])
+      expect(fuel.durationFloor).toEqual({
+        requiredSec: cap,
+        toleratedRung: { gPerH: 60, range: null },
+        longestSec: 2 * HOUR_SEC,
+      })
+    })
+
+    it('steps down to the highest rung that has a long enough run, and says what it held back', () => {
+      const fuel = raceOf(
+        runs({ hours: 3, gPerH: 36 }, { hours: 4, gPerH: 62 }, { hours: 2, gPerH: 76 }),
+        30,
+      )
+      expect(fuel).toMatchObject({ rungIndex: 1, gPerH: 60, basis: 'tolerated' })
+      expect(fuel.durationFloor).toMatchObject({
+        toleratedRung: { gPerH: 70, range: null },
+        longestSec: 2 * HOUR_SEC,
+      })
+    })
+
+    const CLIMB: RunSpec[] = [
+      { hours: 2, gPerH: 36 },
+      { hours: 2, gPerH: 66 },
+      { hours: 2, gPerH: 76 },
+    ]
+
+    it('credits a tolerated long run below the target: two 4 h runs at 62 g/h carry 60 g/h', () => {
+      const fuel = raceOf(runs(...CLIMB, { hours: 4, gPerH: 62 }, { hours: 4, gPerH: 62 }), 34.3)
+      expect(fuel).toMatchObject({ rungIndex: 1, gPerH: 60, basis: 'tolerated' })
+      expect(fuel.durationFloor).toEqual({
+        requiredSec: cap,
+        toleratedRung: { gPerH: 70, range: null },
+        longestSec: 2 * HOUR_SEC,
+      })
+    })
+
+    it('holds a fact line to its words: a tolerated run of the required length at the higher rate raises the rate', () => {
+      const fuel = raceOf(runs(...CLIMB, { hours: 3, gPerH: 71 }), 34.3)
+      expect(fuel).toMatchObject({ rungIndex: 2, gPerH: 70, durationFloor: null })
+      // and a 4 h run at 66 g/h reaches the 70 g/h rung (63) too
+      expect(raceOf(runs(...CLIMB, { hours: 4, gPerH: 66 }), 34.3).rungIndex).toBe(2)
+    })
+
+    it('says a floor-only tolerance is tolerated, as before the floor existed', () => {
+      const fuel = raceOf(runs({ hours: 3, gPerH: 36 }), 34.3)
+      expect(fuel).toMatchObject({ rungIndex: 0, basis: 'tolerated', durationFloor: null })
+      // the same rung tolerated on a 2 h run only: the floor binds nothing, since it is the floor
+      expect(raceOf(runs({ hours: 2, gPerH: 36 }), 34.3)).toMatchObject({
+        rungIndex: 0,
+        basis: 'tolerated',
+        durationFloor: null,
+      })
+      expect(raceOf([], 34.3)).toMatchObject({ rungIndex: 0, basis: 'floor', durationFloor: null })
+    })
+
+    it('keeps the higher rung when a long run was tolerated at it', () => {
+      const fuel = raceOf(runs({ hours: 2 }, { hours: 2 }, { hours: 4 }), 30)
+      expect(fuel).toMatchObject({ rungIndex: 2, gPerH: 70, durationFloor: null })
+    })
+
+    it('depends on the length of the race: the same log holds for 3 h, 5 h and not for 8 h or 30 h', () => {
+      const list = runs({ hours: 2 }, { hours: 2.5 })
+      expect(raceOf(list, 3).rungIndex).toBe(1)
+      expect(raceOf(list, 5).rungIndex).toBe(1)
+      expect(raceOf(list, 8).rungIndex).toBe(0)
+      expect(raceOf(list, 30).rungIndex).toBe(0)
+    })
+
+    it('asks no more than the ladder counts of a race of two hours or so', () => {
+      for (const hours of [2, 3, 4]) {
+        expect(raceOf(runs({ hours: 2 }, { hours: 2 }), hours).durationFloor).toBeNull()
+      }
+    })
+
+    it('holds back a rung tolerated only on runs of a gut-training week, for a race of four hours', () => {
+      // the 2 h run eats under the reach of 60 g/h (54), so that rung is shown on the 1.5 h run only
+      const list = runs({ hours: 2, gPerH: 40 }, { hours: 1.5 })
+      const ladder = replay(list, OPEN, [addDays(START, 7)])
+      expect(ladder.toleratedIndex).toBe(1)
+      const fuel = raceFuelFor(ladder, { hot: false, expectedSec: 4 * HOUR_SEC })
+      expect(fuel.rungIndex).toBe(0)
+      expect(fuel.durationFloor?.longestSec).toBe(1.5 * HOUR_SEC)
+    })
+
+    it('counts no run of a hot day, a held run or a skipped run toward a long run', () => {
+      const list = runs(
+        { hours: 2 },
+        { hours: 2 },
+        { hours: 7, weather: HOT },
+        { hours: 7, gut: 2 },
+        { hours: 7, skipped: true },
+      )
+      expect(raceOf(list, 30).rungIndex).toBe(0)
+    })
+
+    it('is the floor with a gut condition, with no floor to report', () => {
+      const fuel = raceOf(runs({ hours: 2 }, { hours: 2 }), 30, GUT_CONDITION)
+      expect(fuel).toMatchObject({ rungIndex: 0, basis: 'locked', durationFloor: null })
+    })
+
+    it('only ever lowers the rate: never above the highest tolerated rung, never above the rate it had', () => {
+      const lengths = [1.5, 2, 3, 4, 6, 8]
+      for (const first of lengths) {
+        for (const second of lengths) {
+          for (const third of lengths) {
+            const ladder = replay(runs({ hours: first }, { hours: second }, { hours: third }))
+            for (const expectedH of [2, 4, 6, 12, 34]) {
+              const fuel = raceFuelFor(ladder, { hot: false, expectedSec: expectedH * HOUR_SEC })
+              const tolerated = Math.max(ladder.toleratedIndex, 0)
+              expect(fuel.rungIndex).toBeLessThanOrEqual(tolerated)
+              const rung = ladder.rungs[fuel.rungIndex]
+              if (fuel.rungIndex > 0) {
+                expect(rung?.toleratedSec ?? 0).toBeGreaterThanOrEqual(
+                  raceRateRunSec(expectedH * HOUR_SEC),
+                )
+              }
+              expect(fuel.durationFloor === null).toBe(fuel.rungIndex === tolerated)
+            }
+          }
+        }
+      }
+    })
+
+    // A copy of `raceFuelFor` as it was before the floor, for the equivalence below.
+    const headRaceFuelFor = (
+      ladder: LadderResult,
+      options: { hot: boolean; expectedSec: number },
+    ) => {
+      const rung = ladder.rungs[ladder.locked ? 0 : Math.max(ladder.toleratedIndex, 0)]!
+      const hours = Math.max(0, options.expectedSec) / HOUR_SEC
+      const [low, high] = rung.range ?? [rung.gPerH, rung.gPerH]
+      return {
+        gPerH: rung.gPerH,
+        range: rung.range,
+        rungIndex: rung.index,
+        basis: ladder.locked ? 'locked' : ladder.toleratedIndex >= 0 ? 'tolerated' : 'floor',
+        lowCertainty: rung.lowCertainty,
+        multiCarbRequired: rung.multiCarbRequired,
+        hot: options.hot,
+        nauseaPlanOpen: options.hot || ladder.nauseaForward,
+        hours,
+        totalG: [low * hours, high * hours],
+      }
+    }
+
+    // Every log of three runs from a pool that covers the floor's inputs (long and short runs,
+    // below-target and under-multi-carbohydrate runs, a hot, a held and a skipped one).
+    const POOL: RunSpec[] = [
+      { hours: 1.5 },
+      { hours: 2 },
+      { hours: 4 },
+      { hours: 4, gPerH: 62 },
+      { hours: 5, gPerH: 40 },
+      { hours: 3, gPerH: 76, multiShare: 0.2 },
+      { hours: 6, weather: HOT },
+      { hours: 3, gut: 2 },
+      { hours: 6, skipped: true },
+    ]
+    const logs = (settings: FuelSettingsInput) => {
+      const out: LadderResult[] = []
+      for (const a of POOL) {
+        for (const b of POOL) {
+          for (const c of POOL) out.push(replay(runs(a, b, c), settings, [START]))
+        }
+      }
+      return out
+    }
+
+    it('equals the rate before the floor wherever the floor does not bind, and only ever lowers it otherwise', () => {
+      let bound = 0
+      let unbound = 0
+      for (const ladder of logs(OPEN)) {
+        for (const expectedH of [1, 3, 6, 12, 34]) {
+          const options = { hot: false, expectedSec: expectedH * HOUR_SEC }
+          const fuel = raceFuelFor(ladder, options)
+          const before = headRaceFuelFor(ladder, options)
+          if (fuel.durationFloor === null) {
+            expect(fuel).toEqual({ ...before, durationFloor: null })
+            unbound += 1
+          } else {
+            expect(fuel.rungIndex).toBeLessThan(before.rungIndex)
+            bound += 1
+          }
+          expect(fuel.rungIndex).toBeLessThanOrEqual(Math.max(ladder.toleratedIndex, 0))
+        }
+      }
+      expect(bound).toBeGreaterThan(0)
+      expect(unbound).toBeGreaterThan(0)
+    })
+
+    it('does not depend on the order of the runs', () => {
+      const list = runs({ hours: 2 }, { hours: 4 }, { hours: 2 })
+      const forward = replay(list)
+      const backward = replay([...list].reverse())
+      expect(raceFuelFor(backward, { hot: false, expectedSec: 30 * HOUR_SEC })).toEqual(
+        raceFuelFor(forward, { hot: false, expectedSec: 30 * HOUR_SEC }),
+      )
+    })
+  })
+})
 
 describe('shared/engine/fuel.ts and fuelCopy.ts', () => {
   const dir = join(import.meta.dirname, '../../../shared/engine')

@@ -46,18 +46,18 @@ const OPEN: FuelSettingsInput = { optIn90: true, optInAdvanced: true, giDisease:
 const LOCKED: FuelSettingsInput = { optIn90: false, optInAdvanced: false, giDisease: true }
 
 /** The nth run: one a week, 3 hours long, eating 125 g/h on a cool day, scored `gut`. */
-function run(n: number, gut = 0): FuelRunInput {
+function run(n: number, gut = 0, hours = 3): FuelRunInput {
   const base = { name: 'Gel', sodiumMg: null, kcal: null, servings: 1 }
   return {
     activityId: `a${String(n).padStart(3, '0')}`,
     date: addDays('2026-03-02', n * 7),
     startTime: null,
-    elapsedSec: 3 * HOUR,
+    elapsedSec: hours * HOUR,
     weather: { tempC: 12, humidityPct: 60, windKph: 5 },
     sessionFlags: null,
     log: {
       skipped: false,
-      items: [{ ...base, carbsG: 125 * 3, multiCarb: true }],
+      items: [{ ...base, carbsG: 125 * hours, multiCarb: true }],
       gut,
       nausea: null,
       hotOverride: null,
@@ -321,6 +321,39 @@ describe('raceFuelFor and the fuel block', () => {
       const fuel = raceFuelFor(result, { hot: false, expectedSec: 20 * HOUR })
       expect(fuel.rungIndex).toBeLessThanOrEqual(Math.max(result.toleratedIndex, 0))
     }
+  })
+
+  it('steps down by the length of the runs that showed the rung (the duration floor of H7)', () => {
+    const short = ladder(OPEN, [run(0, 0, 2), run(1, 0, 2)])
+    expect(short.toleratedIndex).toBe(1)
+    const held = planOf({ ladder: short })
+    expect(held.fuel).toMatchObject({ rungIndex: 0, basis: 'floor' })
+    expect(held.fuel.range).toEqual(P.h7.carbFloorGPerH.value)
+    expect(held.fuel.durationFloor).toMatchObject({
+      requiredSec: P.h7.raceRateRunCapMin.value * 60,
+      toleratedRung: { gPerH: P.h7.carbTier1GPerH.value },
+      longestSec: 2 * HOUR,
+    })
+    // the parts and the totals follow the rate the plan states
+    const [totalLow] = held.fuel.totalG
+    const sum = held.thirds.reduce((s, t) => s + t.fuelG[0], 0)
+    const step = P.r1.arrivalRoundMin.value * 60
+    expect(Math.abs(sum - totalLow)).toBeLessThanOrEqual(
+      (P.h7.carbFloorGPerH.value[0] * step) / HOUR,
+    )
+
+    // the same log, on runs of 3 h, holds the rung; the plan's other blocks do not read the ladder
+    const long = planOf({ ladder: ladder(OPEN, [run(0), run(1)]) })
+    expect(long.fuel).toMatchObject({ rungIndex: 1, gPerH: 60, durationFloor: null })
+    expect({ ...held, fuel: null, thirds: null }).toEqual({ ...long, fuel: null, thirds: null })
+  })
+
+  it('asks a race of 4 h or less for the ladder length only: runs of 2 h hold the rung there and not for 6 h', () => {
+    const short = ladder(OPEN, [run(0, 0, 2), run(1, 0, 2)])
+    const race = (hours: number) =>
+      raceFuelFor(short, { hot: false, expectedSec: hours * HOUR }).rungIndex
+    expect([race(2), race(4)]).toEqual([1, 1])
+    expect([race(6), race(30)]).toEqual([0, 0])
   })
 
   it('stays at the floor with a diagnosed gut condition and says so', () => {

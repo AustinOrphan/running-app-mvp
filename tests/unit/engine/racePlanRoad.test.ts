@@ -1,7 +1,7 @@
 // The race plan of a road goal (rule H15, ADR 0023): the pure function, its blocks and the gates the
 // design holds it to. Synthetic goals and predictions only.
 import { describe, expect, it } from 'vitest'
-import { addDays } from '../../../shared/dates.ts'
+import { addDays, mondayOf } from '../../../shared/dates.ts'
 import { replayLadder } from '../../../shared/engine/fuel.ts'
 import { goalPaceSecPerKm } from '../../../shared/engine/goal.ts'
 import { heatWarning } from '../../../shared/engine/heat.ts'
@@ -444,6 +444,57 @@ describe('roadRacePlanFor: fuel and fluid', () => {
       })
     }
   }
+
+  describe('the duration floor of H7', () => {
+    /** A run of `minutes`, in a gut-training week when `block` (the ladder counts it from 60 min). */
+    const shortRun = (n: number, minutes: number, gPerH = 125) => {
+      const base = run(n)
+      return {
+        ...base,
+        elapsedSec: minutes * MIN,
+        log: {
+          ...base.log,
+          items: base.log.items.map((item) => ({ ...item, carbsG: (gPerH * minutes) / 60 })),
+        },
+      }
+    }
+    const withBlock = (runs: FuelRunInput[], weeks: string[]) =>
+      replayLadder({ settings: OPEN, runs, gutTrainingWeeks: weeks })
+
+    it('holds back a rung tolerated only on runs of a gut-training week, for a marathon of 4 h', () => {
+      // the 150 min run eats under the 60 g/h rung's reach, so that rung is shown on the 90 min run only
+      const runs = [shortRun(0, 150, 40), shortRun(1, 90)]
+      const blockWeek = mondayOf(runs[1]!.date)
+      const blockLadder = withBlock(runs, [blockWeek])
+      expect(blockLadder.toleratedIndex).toBe(1)
+      const plan = race('marathon', 4 * HOUR, { ladder: blockLadder })
+      expect(plan.fuel).toMatchObject({ rungIndex: 0, basis: 'floor' })
+      expect(plan.fuel?.durationFloor).toMatchObject({
+        requiredSec: P.h7.logMinDurationMin.value * MIN,
+        longestSec: 90 * MIN,
+      })
+      expect(plan.fuel?.rules).toEqual(['H7', 'H15'])
+    })
+
+    it('asks a race of 4 h or less for the length the ladder counts and nothing more', () => {
+      const ladderOf2h = ladder(OPEN, [shortRun(0, 120), shortRun(1, 120)])
+      for (const hours of [2, 3, 4]) {
+        expect(race('marathon', hours * HOUR, { ladder: ladderOf2h }).fuel).toMatchObject({
+          rungIndex: 1,
+          durationFloor: null,
+        })
+      }
+    })
+
+    it('asks more of a slower marathon, up to the cap', () => {
+      const ladderOf2h = ladder(OPEN, [shortRun(0, 120), shortRun(1, 120)])
+      const slow = race('marathon', 5 * HOUR + 30 * MIN, { ladder: ladderOf2h })
+      expect(slow.fuel?.rungIndex).toBe(0)
+      expect(slow.fuel?.durationFloor?.requiredSec).toBe(165 * MIN)
+      const longRuns = ladder(OPEN, [shortRun(0, 180), shortRun(1, 180)])
+      expect(race('marathon', 5 * HOUR + 30 * MIN, { ladder: longRuns }).fuel?.rungIndex).toBe(1)
+    })
+  })
 
   it('has no fuel and no nausea plan under the ladder length, and keeps the fluid line', () => {
     const plan = race('half', 100 * MIN)

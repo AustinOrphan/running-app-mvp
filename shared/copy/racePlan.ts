@@ -220,6 +220,19 @@ export const RACE_PLAN_TEMPLATES = {
   'race.plan.fuel.floor': tpl(
     'Training has not tolerated a higher rate, so the floor is the rate.',
   ),
+  // The duration floor (rule H7): a higher rung was tolerated, on shorter runs than this race asks.
+  'race.plan.fuel.tolerated-long': tpl(
+    'This is the highest rate your own runs tolerated on a run of {required} or longer.',
+    { required: 'duration' },
+  ),
+  'race.plan.fuel.short-runs': tpl(
+    'No rate above the floor was tolerated on a run of {required} or longer, so the floor is the rate.',
+    { required: 'duration' },
+  ),
+  'race.plan.fuel.short-higher': tpl(
+    'A higher rate, {rate}, was tolerated on runs up to {longest}. The race rate counts a rate tolerated on a run of {required} or longer.',
+    { rate: 'text', longest: 'duration', required: 'duration' },
+  ),
   'race.plan.fuel.few-hours': tpl(
     'That tolerance came from runs of a few hours. A race is much longer.',
   ),
@@ -949,6 +962,8 @@ export interface RaceFuelText {
   heading: string
   rate: string
   basis: string
+  /** The duration floor held a higher tolerated rate back: what it was tolerated on (rule H7); else null. */
+  durationNote: string | null
   certainty: string | null
   multiCarb: string | null
   fewHours: string | null
@@ -1220,15 +1235,37 @@ export function describeRaceFuel(
   const { fuel } = plan
   const tier = count(P.h7.carbTier1GPerH.value)
   const multi = say(FUEL_TEMPLATES['fuel.multicarb'], { tier }, units)
+  const floor = fuel.durationFloor ?? null
+  const required = floor === null ? null : duration(floor.requiredSec)
   return {
     heading: say(T['race.plan.fuel.heading'], {}, units),
     rate: say(T['race.plan.fuel.rate'], { rate: rateText(fuel) }, units),
     basis:
       fuel.basis === 'locked'
         ? gutConditionLock()
-        : fuel.basis === 'tolerated'
-          ? say(T['race.plan.fuel.tolerated'], {}, units)
-          : say(T['race.plan.fuel.floor'], {}, units),
+        : required !== null
+          ? say(
+              fuel.basis === 'tolerated'
+                ? T['race.plan.fuel.tolerated-long']
+                : T['race.plan.fuel.short-runs'],
+              { required },
+              units,
+            )
+          : fuel.basis === 'tolerated'
+            ? say(T['race.plan.fuel.tolerated'], {}, units)
+            : say(T['race.plan.fuel.floor'], {}, units),
+    durationNote:
+      floor === null || required === null
+        ? null
+        : say(
+            T['race.plan.fuel.short-higher'],
+            {
+              rate: rateText(floor.toleratedRung),
+              longest: duration(floor.longestSec),
+              required,
+            },
+            units,
+          ),
     certainty: fuel.lowCertainty ? lowCertaintyLine() : null,
     multiCarb: fuel.multiCarbRequired ? multi : null,
     fewHours: fuel.basis === 'tolerated' ? say(T['race.plan.fuel.few-hours'], {}, units) : null,
