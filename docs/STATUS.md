@@ -229,31 +229,28 @@ Ranked by weight for the first 100-mile build toward the goal race, then for bet
 25. **The brief says "no key session this week" after the first key session has passed,** even
     when a later one remains (`shared/copy/briefTemplates.ts:248-252`). The line also draws
     nothing offline, and Open the brief can clip in the two-line clamp.
-26. **Goals reads "1:45" as minutes and seconds.** `parseTime`
-    (`web/components/goalFormat.ts:28-32`) reads "m:ss" for two parts, so "1:45" is 105 s. Only
-    h:mm:ss reads as hours.
-27. **The Apple Health push skips the import's range checks.** `server/providers/appleHealth.ts:34`
+26. **The Apple Health push skips the import's range checks.** `server/providers/appleHealth.ts:34`
     checks only that a number is finite, while the parsed import applies range checks. Not compared
     field by field; check whether a later write validates before fixing.
-28. **Watch rating is not refreshed after the first ask.** A run's intervals.icu rating
+27. **Watch rating is not refreshed after the first ask.** A run's intervals.icu rating
     is read at import and asked once more at the next hourly sync (`runWatchRatingPass`,
     `server/jobs/scheduler.ts:315-325`; `createdBefore` is the start of the sync before the tail),
     then never, so a later change in
     intervals.icu is not picked up. A stored standout and the execution assessments are not
     recomputed when the spread check first passes. The three spread thresholds are defaults.
-29. **The track-record memo reads non-state `PredictionLog`.** `server/services/trackRecord.ts:31,41`
+28. **The track-record memo reads non-state `PredictionLog`.** `server/services/trackRecord.ts:31,41`
     reads it (non-state, `server/dataVersion.ts:79`), so the memo is sound only while no
     prediction is logged after a result is recorded. `PredictionLog` moves to `STATE_MODELS` in
     the PR where the engine or the snapshot first reads it.
-30. **A kept raised week target carries no progression warning.** The checklist
+29. **A kept raised week target carries no progression warning.** The checklist
     (`shared/engine/checklist.ts:227`) is built from the engine draft and never sees the kept
     figure (`targetKept`, `server/services/replan.ts:136-178`). The diff and the Plan page do show
     the figure. Applies only when the runner raises a week by hand.
-31. **A5 low-frequency flag at a high start level.** `lowFrequencyOf`
+30. **A5 low-frequency flag at a high start level.** `lowFrequencyOf`
     (`shared/engine/athlete.ts:564`) arms at a start level over 60 min with fewer than two runs a
     week. It keeps the 2:1 cadence and the time step (`shared/engine/limits.ts:322`) and, since
     #579, no longer holds the load setting. The other options of the proposal stay open.
-32. **Simulator fixed point and pinned preset cases.** A re-plan with nothing new returns the stored
+31. **Simulator fixed point and pinned preset cases.** A re-plan with nothing new returns the stored
     plan at the week-target level in all 2,133 steps of the sim-athlete differential (seed offsets
     0, 1000 and 2000, three levels, twelve athletes, from the run for #818, outside the committed
     tests; 0 breaks as of #818). A stricter deep-equal check
@@ -269,39 +266,39 @@ Ranked by weight for the first 100-mile build toward the goal race, then for bet
     week as the G-2 baseline, so some sweep minima are report artefacts. The three half-marathon
     cases with a 21-day hold are closed (#808; `STILL_PINNED` is empty,
     `tests/unit/engine/disruption-integration.test.ts:1217`).
-33. **Compact banner, fold and 125% text layout.** The compact disruption banner's buttons are
+32. **Compact banner, fold and 125% text layout.** The compact disruption banner's buttons are
     26 px tall, below common touch-target guidance, and every action previews first (owner item
     11). The
     rest-window offer may be read twice in browse mode. Today may scroll sideways at 125% text
     from the hidden chart table. With three readiness signals, Done falls past the 788 px fold at
     390x844 and behind the tab bar at 360x740, and the fold assertions do not subtract the tab
     bar. None of this is verified in a browser on main.
-34. **The Today preview payload arms no rollover timer.** `useServerToday`
+33. **The Today preview payload arms no rollover timer.** `useServerToday`
     (`web/api/today.ts:78-102`) arms none for a preview payload, so a preview that becomes today's
     copy waits for the next focus or reconnect. Explain offline still waits out its retries. The
     sync-paused and weekly-update health notes in kept Today copy may be stale.
-35. **Revision and fuel form gaps.** State-driven updates show no per-session Why in
+34. **Revision and fuel form gaps.** State-driven updates show no per-session Why in
     `RevisionDiff`. The undo-reason copy differs from the examples in spec 8.6. The fuel "opens
     after" hint can understate what the server allows, and focus drops to the page after a fuel
     settings save. A fuel-log item whose product was edited loses its product link on the next
     edit. An undo after a `PARAMS_VERSION` bump shows "Drawn under updated plan rules"
     (`shared/copy/revision.ts:629`) although its rows are the restored ones.
-36. **Climb note and eased easy runs.** `climbNote` (`shared/engine/targets.ts:132`) fires on any
+35. **Climb note and eased easy runs.** `climbNote` (`shared/engine/targets.ts:132`) fires on any
     session whose planned gain per hour reaches `h4.climbNoteGainPerHourM`, so it shows on every
     run of a climbing week. `easedSession` (`shared/engine/readiness.ts:791`) spreads the original
     session, so an eased easy run keeps its `gainM`, and it gives one purpose text (readiness
     signals lower than usual) for every easy downgrade. Checked on HEAD 2026-11-20; both hold.
-37. **An engine trim of a future session writes a plan row outside any revision.**
+36. **An engine trim of a future session writes a plan row outside any revision.**
     `trimNextQuality` (`server/services/execution.ts:75-139`) updates the `PlanSession` row
     directly, with no `recordPlanWrite`, so a later undo can read the row as an edit and refuse
     (the refusal names the row; the refusal path itself was not traced). The row does keep the
     untrimmed session in `original`. Checked on HEAD 2026-11-20.
-38. **`RUN_CAP_MAX_MIN` and the trim predicates.** `RUN_CAP_MAX_MIN = 240`
+37. **`RUN_CAP_MAX_MIN` and the trim predicates.** `RUN_CAP_MAX_MIN = 240`
     (`shared/engine/disruption.ts:31`) is documented as an input bound of the form, not a rule;
     whether the every-number-is-a-Param rule covers it is a judgement call.
     `shared/engine/index.ts:289-293` keeps its own `isTrim` and `isHoldTrimRow` beside
     `isTrimmed()`.
-39. **Small engine gaps for other runners.** Not offered or not built: a declared longest run
+38. **Small engine gaps for other runners.** Not offered or not built: a declared longest run
     (A3; no profile field); n1 walk-jog stages after a bone stress injury (only `n1.bsiReturnDays`
     exists); widening the prediction range during a rest window; moves across weeks
     (`shared/engine/adjust.ts:9`); open-ended windows (`j9.maxWindowDays`); an automatic follow of
@@ -310,7 +307,7 @@ Ranked by weight for the first 100-mile build toward the goal race, then for bet
     reads "not reachable" although the plan still builds. Contrived re-plans with completions that
     have no activity can collapse to zero-minute weeks (19 of 2,310 fuzzed); no real path
     produces that input.
-40. **Low-weight follow-ups.** `useWellness` (`web/api/wellness.ts`) has no consumer. Stats charts
+39. **Low-weight follow-ups.** `useWellness` (`web/api/wellness.ts`) has no consumer. Stats charts
     stop at 12 weeks (`web/pages/StatsPage.tsx:21`). The Warning signs page has no offline test, and the
     feedback clipboard fallback is untried in iOS Safari. The downhill cue shows on the session
     sheet only (`web/components/SessionSheet.tsx:75`), and "heavy" has no metre dose. The own easy ceiling reads
@@ -320,7 +317,7 @@ Ranked by weight for the first 100-mile build toward the goal race, then for bet
     (`tests/e2e/42-axe-scan.spec.ts:68-70`). The survivors of the 2026-11-01 audit are unchecked: E18
     reminders, CI time, nine over-graded Params, Steps on Today, the after-run verdict, the
     sensitivity probe. More providers are unbuilt (Polar, WHOOP, Oura, Google Health).
-41. **Code health and test strength.** `shared/engine/explainInputs.ts` is 4,023 lines. `median`
+40. **Code health and test strength.** `shared/engine/explainInputs.ts` is 4,023 lines. `median`
     is duplicated in at least five engine files. `planEngine.ts` and `replan.ts` import each other
     (uses are inside function bodies). The legacy `PUT /api/plan/sessions/:id` is still mounted
     (`server/routes/plan.ts:420`). `DISRUPTION_COLUMNS` is a hand-kept list defined at
@@ -337,7 +334,7 @@ Ranked by weight for the first 100-mile build toward the goal race, then for bet
     device's day. Readiness and race-decision gates are not yet stored decisions. Research passes R1 to R5 are unchecked. The H2b
     simulator tuning and the Treff readings are open. A sign-out read in flight can still be kept
     after `purgeDeviceData()` (recorded in ADR 0012).
-42. **Accepted limits, no action planned.** The non-production API limit; `computeReplan` does
+41. **Accepted limits, no action planned.** The non-production API limit; `computeReplan` does
     not await `ensureClimate`; the `webcal` scheme; `X-WR-TIMEZONE` in the feed; merge-style undo;
     the 14-day keep of owner edits; the explain weekly-decision query; unbounded lifetime Stats
     totals. The race plan models no late fade, so no end of the arrival range is ranked (#709); it
