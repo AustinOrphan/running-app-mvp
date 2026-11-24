@@ -226,9 +226,9 @@ Ranked by weight for the first 100-mile build toward the goal race, then for bet
     (`server/services/weatherCache.ts:544-548`), so every failure drops every memo. Moving those
     columns off the state table needs a schema change. `ForecastCache` is non-state, so its
     failure write is harmless.
-25. **The brief says "no key session this week" after the first key session has passed,** even
-    when a later one remains (`shared/copy/briefTemplates.ts:248-252`). The line also draws
-    nothing offline, and Open the brief can clip in the two-line clamp.
+25. **Today's brief line draws nothing offline, and "Open the brief" can clip in the two-line
+    clamp** (`web/components/BriefLine.module.css`). Neither has been reproduced or fixed; the
+    offline cause is not traced.
 26. **Goals reads "1:45" as minutes and seconds.** `parseTime`
     (`web/components/goalFormat.ts:28-32`) reads "m:ss" for two parts, so "1:45" is 105 s. Only
     h:mm:ss reads as hours.
