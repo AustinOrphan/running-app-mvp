@@ -291,17 +291,12 @@ Ranked by weight for the first 100-mile build toward the goal race, then for bet
     run of a climbing week. `easedSession` (`shared/engine/readiness.ts:791`) spreads the original
     session, so an eased easy run keeps its `gainM`, and it gives one purpose text (readiness
     signals lower than usual) for every easy downgrade. Checked on HEAD 2026-11-20; both hold.
-37. **An engine trim of a future session writes a plan row outside any revision.**
-    `trimNextQuality` (`server/services/execution.ts:75-139`) updates the `PlanSession` row
-    directly, with no `recordPlanWrite`, so a later undo can read the row as an edit and refuse
-    (the refusal names the row; the refusal path itself was not traced). The row does keep the
-    untrimmed session in `original`. Checked on HEAD 2026-11-20.
-38. **`RUN_CAP_MAX_MIN` and the trim predicates.** `RUN_CAP_MAX_MIN = 240`
+37. **`RUN_CAP_MAX_MIN` and the trim predicates.** `RUN_CAP_MAX_MIN = 240`
     (`shared/engine/disruption.ts:31`) is documented as an input bound of the form, not a rule;
     whether the every-number-is-a-Param rule covers it is a judgement call.
     `shared/engine/index.ts:289-293` keeps its own `isTrim` and `isHoldTrimRow` beside
     `isTrimmed()`.
-39. **Small engine gaps for other runners.** Not offered or not built: a declared longest run
+38. **Small engine gaps for other runners.** Not offered or not built: a declared longest run
     (A3; no profile field); n1 walk-jog stages after a bone stress injury (only `n1.bsiReturnDays`
     exists); widening the prediction range during a rest window; moves across weeks
     (`shared/engine/adjust.ts:9`); open-ended windows (`j9.maxWindowDays`); an automatic follow of
@@ -310,7 +305,7 @@ Ranked by weight for the first 100-mile build toward the goal race, then for bet
     reads "not reachable" although the plan still builds. Contrived re-plans with completions that
     have no activity can collapse to zero-minute weeks (19 of 2,310 fuzzed); no real path
     produces that input.
-40. **Low-weight follow-ups.** `useWellness` (`web/api/wellness.ts`) has no consumer. Stats charts
+39. **Low-weight follow-ups.** `useWellness` (`web/api/wellness.ts`) has no consumer. Stats charts
     stop at 12 weeks (`web/pages/StatsPage.tsx:21`). The Warning signs page has no offline test, and the
     feedback clipboard fallback is untried in iOS Safari. The downhill cue shows on the session
     sheet only (`web/components/SessionSheet.tsx:75`), and "heavy" has no metre dose. The own easy ceiling reads
@@ -320,7 +315,7 @@ Ranked by weight for the first 100-mile build toward the goal race, then for bet
     (`tests/e2e/42-axe-scan.spec.ts:68-70`). The survivors of the 2026-11-01 audit are unchecked: E18
     reminders, CI time, nine over-graded Params, Steps on Today, the after-run verdict, the
     sensitivity probe. More providers are unbuilt (Polar, WHOOP, Oura, Google Health).
-41. **Code health and test strength.** `shared/engine/explainInputs.ts` is 4,023 lines. `median`
+40. **Code health and test strength.** `shared/engine/explainInputs.ts` is 4,023 lines. `median`
     is duplicated in at least five engine files. `planEngine.ts` and `replan.ts` import each other
     (uses are inside function bodies). The legacy `PUT /api/plan/sessions/:id` is still mounted
     (`server/routes/plan.ts:420`). `DISRUPTION_COLUMNS` is a hand-kept list defined at
@@ -337,7 +332,7 @@ Ranked by weight for the first 100-mile build toward the goal race, then for bet
     device's day. Readiness and race-decision gates are not yet stored decisions. Research passes R1 to R5 are unchecked. The H2b
     simulator tuning and the Treff readings are open. A sign-out read in flight can still be kept
     after `purgeDeviceData()` (recorded in ADR 0012).
-42. **Accepted limits, no action planned.** The non-production API limit; `computeReplan` does
+41. **Accepted limits, no action planned.** The non-production API limit; `computeReplan` does
     not await `ensureClimate`; the `webcal` scheme; `X-WR-TIMEZONE` in the feed; merge-style undo;
     the 14-day keep of owner edits; the explain weekly-decision query; unbounded lifetime Stats
     totals. The race plan models no late fade, so no end of the arrival range is ranked (#709); it

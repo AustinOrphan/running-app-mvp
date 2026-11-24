@@ -419,6 +419,12 @@ export const REVISION_TEMPLATES = {
     to: 'minutes',
   }),
 
+  // The summary of the engine's trim of the next quality session after a much harder run (design 4.3).
+  'revision.trim.shortened': tpl(
+    'Shortened {title} on {date} from {from} to {to}: the last quality session felt harder than expected.',
+    { title: 'text', date: 'date', from: 'minutes', to: 'minutes' },
+  ),
+
   // The summary of a change to a window (E5): added, changed or removed.
   'revision.window.created': tpl('Added a window ({reason}) from {from} to {to}.', {
     reason: 'text',
@@ -987,6 +993,19 @@ export function shortenedSummary(
 ): string {
   return render(
     REVISION_TEMPLATES['revision.owner.shortened'],
+    {
+      title,
+      date: day(date),
+      from: { kind: 'minutes', min: fromMin },
+      to: { kind: 'minutes', min: toMin },
+    },
+    STORED_UNITS,
+  )
+}
+
+export function trimSummary(title: string, date: string, fromMin: number, toMin: number): string {
+  return render(
+    REVISION_TEMPLATES['revision.trim.shortened'],
     {
       title,
       date: day(date),
