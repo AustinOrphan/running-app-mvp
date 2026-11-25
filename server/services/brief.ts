@@ -513,8 +513,9 @@ export async function briefView(
 /**
  * The slim items of stored rows, in the order of the rows; a row that cannot be read is left out.
  * The revision rows come in one query. A frozen key session is not "next" once its day has passed:
- * `nextKey` is null from the day after it, whichever surface asks, so the brief list and Today's
- * line say the same.
+ * `nextKey` is the first key session of the week from today on (the brief's own and the later ones
+ * stored with it), null from the day after the last, whichever surface asks, so the brief list and
+ * Today's line say the same.
  */
 async function listItems(
   deps: Deps,
@@ -536,7 +537,9 @@ async function listItems(
     if (stored === null) continue
     const facts = presentedFacts(row, stored, today)
     const revision = row.revisionId === null ? null : (byId.get(row.revisionId) ?? null)
-    const key = facts.keySession
+    const next = [facts.keySession, ...(facts.laterKeySessions ?? [])].find(
+      (key) => key != null && key.date >= today,
+    )
     items.push({
       weekStart: row.weekStart,
       provisional: row.provisional && !isStale(row, today),
@@ -547,9 +550,9 @@ async function listItems(
       changeCount: facts.changes?.count ?? 0,
       undone: revision?.undoneAt != null,
       nextKey:
-        key === null || key.date < today
+        next == null
           ? null
-          : { date: key.date, kind: key.kind, distanceEstimate: key.distanceEstimate ?? null },
+          : { date: next.date, kind: next.kind, distanceEstimate: next.distanceEstimate ?? null },
     })
   }
   return items

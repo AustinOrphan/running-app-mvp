@@ -360,6 +360,7 @@ describe('RevisionDiff', () => {
       'method-change': 'Plan shape changed',
       'raise-to-match': 'Raised to match',
       'races-changed': 'Entered races changed',
+      trim: 'Quality session shortened',
     }
     for (const [reason, label] of Object.entries(labels)) {
       const { unmount } = renderWithProviders(

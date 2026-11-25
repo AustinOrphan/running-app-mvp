@@ -500,6 +500,50 @@ describe('Goals page', () => {
     })
   })
 
+  test('a two-part target time on a half marathon reads as hours and minutes, and the field says so', async () => {
+    const user = userEvent.setup()
+    const { calls } = mockApi(
+      routes([], miUser, { 'POST /api/goals': () => ({ status: 201, body: makeGoal() }) }),
+    )
+    renderWithProviders(<GoalsPage />)
+
+    const dialog = await openAddSheet(user)
+    await fillBasics(user, dialog, 'Autumn half')
+    await user.click(within(dialog).getByRole('button', { name: 'Half' }))
+    const target = within(dialog).getByLabelText('Target time (h:mm:ss)')
+    await user.type(target, '1:45')
+    expect(within(dialog).getByText(/Read as 1 h 45 min\./)).toBeInTheDocument()
+    expect(target).toHaveAccessibleDescription(/Read as 1 h 45 min\./)
+    await user.click(within(dialog).getByRole('button', { name: 'Save goal' }))
+    await waitFor(() => {
+      expect(calls.some((c) => c.method === 'POST')).toBe(true)
+    })
+    expect(calls.find((c) => c.method === 'POST')?.body).toMatchObject({
+      goalType: 'time',
+      targetTimeSec: 6300,
+    })
+  })
+
+  test('a two-part target time on a 5K stays minutes and seconds', async () => {
+    const user = userEvent.setup()
+    const { calls } = mockApi(
+      routes([], miUser, { 'POST /api/goals': () => ({ status: 201, body: makeGoal() }) }),
+    )
+    renderWithProviders(<GoalsPage />)
+
+    const dialog = await openAddSheet(user)
+    await fillBasics(user, dialog, 'Spring 5K')
+    await user.click(within(dialog).getByRole('button', { name: '5K' }))
+    await user.click(within(dialog).getByRole('radio', { name: 'Time' }))
+    await user.type(within(dialog).getByLabelText('Target time (h:mm:ss)'), '24:30')
+    expect(within(dialog).getByText(/Read as 24 min 30 s\./)).toBeInTheDocument()
+    await user.click(within(dialog).getByRole('button', { name: 'Save goal' }))
+    await waitFor(() => {
+      expect(calls.some((c) => c.method === 'POST')).toBe(true)
+    })
+    expect(calls.find((c) => c.method === 'POST')?.body).toMatchObject({ targetTimeSec: 1470 })
+  })
+
   test('a time goal the runner chose needs a target; one that only follows the distance posts without a type', async () => {
     const user = userEvent.setup()
     const { calls } = mockApi(

@@ -869,6 +869,13 @@ export interface BriefKeySession {
   target: BriefTarget
 }
 
+/** A key session after the first of the week, as much of it as the line of Today names. */
+export interface BriefLaterKeySession {
+  date: string
+  kind: SessionKind
+  distanceEstimate: DistanceEstimate | null
+}
+
 /** The goal race and how far off it is. */
 export interface BriefCountdown {
   /** The name the runner gave the goal. */
@@ -898,6 +905,11 @@ export interface BriefFacts {
   /** At most `BRIEF_MAX_NOTICED`, safety first, each with the sources it rests on. */
   noticed: InputFact[]
   keySession: BriefKeySession | null
+  /**
+   * The key sessions after `keySession`, in date order, to the end of the look-ahead. Absent in a
+   * brief stored before the field existed.
+   */
+  laterKeySessions?: BriefLaterKeySession[]
   countdown: BriefCountdown | null
   /** Set only when two weekly predictions a week apart exist. */
   prediction: BriefPrediction | null

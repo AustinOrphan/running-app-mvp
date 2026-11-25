@@ -938,6 +938,7 @@ export type PlanRevisionReason =
   | 'method-change'
   | 'raise-to-match'
   | 'races-changed'
+  | 'trim'
 export interface PlanRevision {
   id: string
   planId: string

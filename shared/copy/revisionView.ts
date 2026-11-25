@@ -39,6 +39,7 @@ export const REVISION_VIEW_TEMPLATES = {
   'revision-view.reason.method-change': tpl('Plan shape changed', {}, { shape: 'label' }),
   'revision-view.reason.raise-to-match': tpl('Raised to match', {}, { shape: 'label' }),
   'revision-view.reason.races-changed': tpl('Entered races changed', {}, { shape: 'label' }),
+  'revision-view.reason.trim': tpl('Quality session shortened', {}, { shape: 'label' }),
   /** For a reason a newer server may add. */
   'revision-view.reason.other': tpl('Plan update', {}, { shape: 'label' }),
   /** The one marker of a revision the runner has not opened yet. */
@@ -223,6 +224,7 @@ const REASON_IDS = {
   'method-change': 'revision-view.reason.method-change',
   'raise-to-match': 'revision-view.reason.raise-to-match',
   'races-changed': 'revision-view.reason.races-changed',
+  trim: 'revision-view.reason.trim',
 } as const satisfies Record<PlanRevisionReason, ViewId>
 
 /** "Weekly update", "Your edit": the label of what made a revision. */
