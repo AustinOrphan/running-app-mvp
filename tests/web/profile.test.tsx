@@ -1144,15 +1144,35 @@ describe('ProfilePage', () => {
       expect(explainOf(drawer)).toEqual({ subject: 'rules', rules: ['n-4'] })
     })
 
+    // The due line compares the next date with the clock, so each case fixes the date it is read on.
     test('shows the last screen and when the next is due, 12 weeks on', async () => {
-      setupScreening([makeScreening({ date: '2026-09-01', flags: 1 })])
-      const section = await screen.findByRole('region', { name: 'Energy availability screen' })
-      expect(
-        await within(section).findByText(/Last screened Tue 1 Sep\w* 2026: 1 sign\./),
-      ).toBeInTheDocument()
-      expect(within(section).getByText(/Next screen due Tue 24 Nov 2026/)).toBeInTheDocument()
-      expect(within(section).queryByText(/Two or more signs/)).not.toBeInTheDocument()
-      expect(within(section).getByRole('button', { name: 'Screen again' })).toBeInTheDocument()
+      vi.useFakeTimers({ toFake: ['Date'] })
+      vi.setSystemTime(new Date(2026, 9, 15, 12, 0, 0))
+      try {
+        setupScreening([makeScreening({ date: '2026-09-01', flags: 1 })])
+        const section = await screen.findByRole('region', { name: 'Energy availability screen' })
+        expect(
+          await within(section).findByText(/Last screened Tue 1 Sep\w* 2026: 1 sign\./),
+        ).toBeInTheDocument()
+        expect(within(section).getByText(/Next screen due Tue 24 Nov 2026/)).toBeInTheDocument()
+        expect(within(section).queryByText(/Two or more signs/)).not.toBeInTheDocument()
+        expect(within(section).getByRole('button', { name: 'Screen again' })).toBeInTheDocument()
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    test('says a new screen is due once the 12 weeks have passed', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] })
+      vi.setSystemTime(new Date(2026, 10, 24, 12, 0, 0))
+      try {
+        setupScreening([makeScreening({ date: '2026-09-01', flags: 1 })])
+        const section = await screen.findByRole('region', { name: 'Energy availability screen' })
+        expect(await within(section).findByText(/A new screen is due now\./)).toBeInTheDocument()
+        expect(within(section).queryByText(/Next screen due/)).not.toBeInTheDocument()
+      } finally {
+        vi.useRealTimers()
+      }
     })
 
     test('two or more signs show the clinician prompt and no diagnosis', async () => {
