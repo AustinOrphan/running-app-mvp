@@ -230,8 +230,8 @@ export const RACE_PLAN_TEMPLATES = {
     { required: 'duration' },
   ),
   'race.plan.fuel.short-higher': tpl(
-    'A higher rate, {rate}, was tolerated on runs up to {longest}. The race rate counts a rate tolerated on a run of {required} or longer.',
-    { rate: 'text', longest: 'duration', required: 'duration' },
+    'A higher rate, {rate}, was tolerated, but only on shorter runs. The race rate counts a rate tolerated on a run of {required} or longer.',
+    { rate: 'text', required: 'duration' },
   ),
   'race.plan.fuel.few-hours': tpl(
     'That tolerance came from runs of a few hours. A race is much longer.',
@@ -1261,7 +1261,6 @@ export function describeRaceFuel(
             T['race.plan.fuel.short-higher'],
             {
               rate: rateText(floor.toleratedRung),
-              longest: duration(floor.longestSec),
               required,
             },
             units,

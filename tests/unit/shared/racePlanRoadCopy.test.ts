@@ -495,7 +495,7 @@ describe('fuel, fluid and the race week', () => {
       'No rate above the floor was tolerated on a run of 2 h 45 min or longer, so the floor is the rate.',
     )
     expect(fuel.durationNote).toBe(
-      'A higher rate, 60 g/h, was tolerated on runs up to 2 h. The race rate counts a rate tolerated on a run of 2 h 45 min or longer.',
+      'A higher rate, 60 g/h, was tolerated, but only on shorter runs. The race rate counts a rate tolerated on a run of 2 h 45 min or longer.',
     )
     expect(fuel.labLink).toBe('Open the fuel lab')
     expect(fuel.fewHours).toBeNull()

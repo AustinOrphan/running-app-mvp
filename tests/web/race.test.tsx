@@ -373,7 +373,9 @@ describe('RacePage', () => {
     const text = describeRacePlan(plan, 'km').fuel
     expect(await screen.findByText(text.rate)).toBeInTheDocument()
     expect(screen.getByText(text.basis)).toBeInTheDocument()
-    expect(text.durationNote).toMatch(/^A higher rate, 60 g\/h, was tolerated on runs up to 2 h\./)
+    expect(text.durationNote).toMatch(
+      /^A higher rate, 60 g\/h, was tolerated, but only on shorter runs\./,
+    )
     expect(screen.getByText(text.durationNote as string)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Open the fuel lab' })).toHaveAttribute('href', '/fuel')
     expect(container.textContent).not.toMatch(/has not tolerated a higher rate/)
@@ -411,7 +413,7 @@ describe('RacePage', () => {
     const text = describeRacePlan(plan, 'km').fuel
     expect(text.durationNote).toBeNull()
     expect(await screen.findByText(text.basis)).toBeInTheDocument()
-    expect(screen.queryByText(/was tolerated on runs up to/)).toBeNull()
+    expect(screen.queryByText(/was tolerated, but only on shorter runs/)).toBeNull()
   })
 
   test.each([

@@ -486,7 +486,7 @@ describe('fuel and fluid words', () => {
     )
     expect(fuel.basis).not.toMatch(/has not tolerated/)
     expect(fuel.durationNote).toBe(
-      'A higher rate, 60 g/h, was tolerated on runs up to 2 h. The race rate counts a rate tolerated on a run of 3 h or longer.',
+      'A higher rate, 60 g/h, was tolerated, but only on shorter runs. The race rate counts a rate tolerated on a run of 3 h or longer.',
     )
     // the few-hours label and the certainty label belong to a tolerated rate; this one is the floor
     expect(fuel.fewHours).toBeNull()
@@ -503,7 +503,9 @@ describe('fuel and fluid words', () => {
     expect(fuel.basis).toBe(
       'This is the highest rate your own runs tolerated on a run of 3 h or longer.',
     )
-    expect(fuel.durationNote).toMatch(/^A higher rate, 70 g\/h, was tolerated on runs up to 2 h\./)
+    expect(fuel.durationNote).toMatch(
+      /^A higher rate, 70 g\/h, was tolerated, but only on shorter runs\./,
+    )
     expect(fuel.certainty).toMatch(/Low certainty/)
     expect(fuel.fewHours).toMatch(/few hours/)
   })

@@ -661,12 +661,12 @@ export function raceFuelFor(
 // ---------------------------------------------------------------------------------------------
 
 /**
- * The runs on which the race rate held. "Held" uses the ladder's own words for the rung of the
- * race (`raceFuelFor`: the highest tolerated rung, the floor when none or with a gut condition):
+ * The runs on which the highest tolerated rate held. "Held" uses the ladder's own words for the
+ * highest tolerated rung (before the H7 duration floor; the floor when none or with a gut condition):
  * a run counts at that rung (`countReason`: the same test the replay applies) and scores below
  * `h7.gutStopScore`. A run on a hot day is included and marked, because it happened; the ladder
  * moves nothing on it, and the read-out claims no more than the log shows. Day 2 of a back-to-back
- * is a tolerated run on the local day after another counted run at the race rung (no Param: a
+ * is a tolerated run on the local day after another counted run at that rung (no Param: a
  * calendar fact, not a threshold). A gut-training week counts a shorter run, as in the replay.
  * Pure and independent of the order of `runs`.
  */
