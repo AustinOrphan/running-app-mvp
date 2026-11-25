@@ -273,22 +273,6 @@
     ]
   },
   {
-    "id": "ultra-race-simulation-tuneup",
-    "statement": "Design intent, not implemented: one race simulation of up to 8 h per build, only within G-1, may be an entered tune-up race (50 km to 100 km); most 100-mile finishers raced during the build. It would fall no later than 3 weeks before race day and never in the taper, and after a tune-up of 100 km or more H12 applies. No code path reads h2.raceSimulationMaxHours, so the app must not describe the simulation as available. The value is a convention.",
-    "parameter": "h2.raceSimulationMaxHours",
-    "value": "8 h (not read by any code)",
-    "unit": "h",
-    "appliesTo": "Ultra goals of 100 km and longer (design intent)",
-    "grade": "D",
-    "confidence": "low",
-    "evidence": [
-      "outside-2023-strava-western-states",
-      "outside-2023-strava-utmb",
-      "outside-2015-orton-koop-100-miles",
-      "frandsen-2025-session-spike"
-    ]
-  },
-  {
     "id": "ultra-long-run-share",
     "statement": "For ultras the long run is about 45% of weekly running time (marathon and shorter 35%), always capped by H2 and G-1. The Western States peak week put about 40% of weekly distance in the long run (derived from two medians); because long runs are slower than weekday runs, the time share is higher than the distance share. Convention only.",
     "parameter": "macroDesign.longRunShareOfWeekUltra",
