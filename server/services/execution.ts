@@ -2,7 +2,9 @@
 // each linked session against expectation, and trim the next quality session after a run that was
 // much harder than expected [design 4.1 to 4.3]. The engine decides; this module reads and writes.
 import { addDays, daysBetween } from '../../shared/dates.ts'
+import { trimSummary } from '../../shared/copy/revision.ts'
 import { parseRefusedIds } from '../../shared/domain/refusals.ts'
+import { TRIM_RULE } from '../../shared/domain/sessionStatus.ts'
 import { estimateState } from '../../shared/engine/athlete.ts'
 import { shouldTrimQuality, trimQuality } from '../../shared/engine/adapt.ts'
 import {
@@ -28,6 +30,8 @@ import { createLogger } from '../logger.ts'
 import { isTrimmed, toActivity, toPlanSession } from '../serialize.ts'
 import { gatherContextInput, sessionSpec } from './engineInput.ts'
 import { refreshInsightsQuietly, refreshRecentInsights } from './insight.ts'
+import { WRITE_TIMEOUT_MS } from './planEngine.ts'
+import { recordPlanWrite, revisionParts, sessionHash } from './replan.ts'
 
 /** How far back the nightly sweep looks, in days. */
 const SWEEP_DAYS = 7
@@ -77,6 +81,7 @@ async function trimNextQuality(
   userId: string,
   row: PlanSessionRow,
   assessment: ExecutionFindings,
+  today: string,
 ): Promise<void> {
   if (!isQualityKind(row.kind as PlanSession['kind'])) return
   if (assessment.flags.includes('pain') || assessment.flags.includes('focal-bone-pain')) return
@@ -101,14 +106,13 @@ async function trimNextQuality(
         !s.execution.flags.includes('focal-bone-pain'),
     )
   const scores = done.map((s) => s.execution!.effort.score as number)
-  const upcoming = (
-    await prisma.planSession.findMany({
-      where: { planId: row.planId, date: { gt: row.date }, status: 'planned' },
-      orderBy: [{ date: 'asc' }, { order: 'asc' }],
-    })
-  ).map(toPlanSession)
-  const next = upcoming.find((s) => isQualityKind(s.kind))
-  if (!next) return
+  const upcoming = await prisma.planSession.findMany({
+    where: { planId: row.planId, date: { gt: row.date }, status: 'planned' },
+    orderBy: [{ date: 'asc' }, { order: 'asc' }],
+  })
+  const nextRow = upcoming.find((s) => isQualityKind(s.kind as PlanSession['kind']))
+  if (!nextRow) return
+  const next = toPlanSession(nextRow)
   // A trimmed session keeps its trim flag when it is run and its status becomes completed.
   const trimsThisWeek = await prisma.planSession.count({
     where: { planId: row.planId, weekStart: next.weekStart, trimmed: true },
@@ -118,22 +122,57 @@ async function trimNextQuality(
     sessionSpec(next),
     'The last quality session felt harder than expected, so this one is shorter.',
   )
-  await prisma.planSession.update({
-    where: { id: next.id, plan: { userId } },
-    data: {
-      status: 'downgraded',
-      durationMin: trimmed.durationMin,
-      distanceM: trimmed.distanceM,
-      gainM: trimmed.gainM,
-      structure: JSON.stringify(trimmed.structure),
-      target: JSON.stringify(trimmed.target),
-      purpose: trimmed.purpose,
-      rules: JSON.stringify(trimmed.rules),
-      trimmed: isTrimmed(trimmed.rules),
-      flags: JSON.stringify(trimmed.flags),
-      original: JSON.stringify(sessionSpec(next)),
+  // The trim is a revision of its own (ADR 0007, addendum 2026-11-24), written with the row, so the
+  // log says what changed the session and an undo of the trim gives it back; without it an earlier
+  // revision that wrote the row read it as edited since, with nothing that could undo the edit.
+  await prisma.$transaction(
+    async (tx) => {
+      // The row is read again: a session edited, linked or trimmed since the read above stays as it is.
+      const before = await tx.planSession.findFirst({
+        where: { id: nextRow.id, plan: { userId }, status: 'planned' },
+      })
+      if (before === null || sessionHash(before) !== sessionHash(nextRow)) return
+      const after = await tx.planSession.update({
+        where: { id: before.id, plan: { userId } },
+        data: {
+          status: 'downgraded',
+          durationMin: trimmed.durationMin,
+          distanceM: trimmed.distanceM,
+          gainM: trimmed.gainM,
+          structure: JSON.stringify(trimmed.structure),
+          target: JSON.stringify(trimmed.target),
+          purpose: trimmed.purpose,
+          rules: JSON.stringify(trimmed.rules),
+          trimmed: isTrimmed(trimmed.rules),
+          flags: JSON.stringify(trimmed.flags),
+          original: JSON.stringify(sessionSpec(next)),
+        },
+      })
+      const { diff, undo } = revisionParts({
+        sessions: { created: [], deleted: [], updated: [{ id: after.id, before, after }] },
+      })
+      await recordPlanWrite(tx, {
+        planId: row.planId,
+        userId,
+        today,
+        reason: 'trim',
+        summary: trimSummary(next.title, next.date, next.durationMin, trimmed.durationMin),
+        changes: [
+          {
+            weekStart: next.weekStart,
+            field: 'session.durationMin',
+            from: next.durationMin,
+            to: trimmed.durationMin,
+            rules: [TRIM_RULE],
+          },
+        ],
+        diff,
+        undo,
+        auto: true,
+      })
     },
-  })
+    { timeout: WRITE_TIMEOUT_MS },
+  )
 }
 
 /**
@@ -181,7 +220,7 @@ async function assessRow(
   // already called for a trim does not trim again when it is repeated.
   const level = trimLevel(assessment)
   if (level > 0 && level > trimLevel(previous))
-    await trimNextQuality(deps, userId, updated, assessment)
+    await trimNextQuality(deps, userId, updated, assessment, ctx.input.today)
   return updated
 }
 

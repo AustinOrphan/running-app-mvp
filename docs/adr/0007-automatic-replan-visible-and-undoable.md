@@ -148,3 +148,21 @@ was planned at, at no more than the minutes run plus the minutes the window took
 are then the weeks of the plan without it. This reverses, for windows under 7 days only, the choice of
 2026-10-31 (RF2, rule J9) that the weeks after a window step from the last week run; a hold of 7 days or
 more keeps the J7 share. The minutes inside the window are not added back to any day or week.
+
+## Addendum 2026-11-24
+
+The trim of the next quality session after a much harder run (design 4.3, `trimNextQuality` in
+`server/services/execution.ts`) is a revision with reason `trim`, written by `recordPlanWrite` in the
+transaction of the row it changes, with `auto` set. It had been a bare row update, so an earlier
+revision that wrote the same session read it as edited since (check 3) and nothing could give the
+row back. The trim now has its own diff and undo payload; undoing it restores the row, and the
+earlier revision is then undoable again.
+
+- **Fact:** the refusal was reproduced 2026-11-24 in `tests/api/execution.test.ts` (an earlier
+  revision writes the session, a trim follows, the earlier revision is listed as not undoable and no
+  revision names the trim).
+- **Opinion:** recording the trim is better than reading a trimmed row as the engine's in the undo
+  check. That reading would let the undo of the earlier revision overwrite the trim silently, with
+  the evidence that called for it still standing, and it would add a second kind of row to the hash
+  check; a revision keeps the one rule (a row changed since blocks the undo) and gives the runner
+  the way out.
