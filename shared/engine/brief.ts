@@ -137,22 +137,31 @@ export function isKeyKind(kind: SessionKind): boolean {
 }
 
 /**
- * The next key session from `from`: the first session still to be run (`isToRun`, the predicate
- * every surface asks) of a key kind within `days` days, today included. Ties on a day go by the
- * plan's order. Null when the week is easy running.
+ * The key sessions from `from`: every session still to be run (`isToRun`, the predicate every
+ * surface asks) of a key kind within `days` days, today included, in date order. Ties on a day go by
+ * the plan's order. Empty when the week is easy running.
  */
-export function pickKeySession<S extends SessionRow>(
+export function pickKeySessions<S extends SessionRow>(
   sessions: readonly S[],
   from: string,
   days: number = KEY_LOOKAHEAD_DAYS,
-): S | null {
+): S[] {
   const to = addDays(from, days - 1)
   const key = sessions.filter(
     (s) =>
       s.date >= from && s.date <= to && isKeyKind(s.kind) && isToRun(s.status as PlanSessionStatus),
   )
   key.sort((a, b) => a.date.localeCompare(b.date) || a.order - b.order || a.id.localeCompare(b.id))
-  return key[0] ?? null
+  return key
+}
+
+/** The next key session from `from`: the first of `pickKeySessions`, null when there is none. */
+export function pickKeySession<S extends SessionRow>(
+  sessions: readonly S[],
+  from: string,
+  days: number = KEY_LOOKAHEAD_DAYS,
+): S | null {
+  return pickKeySessions(sessions, from, days)[0] ?? null
 }
 
 /**
@@ -629,7 +638,12 @@ function noticedFacts(args: BriefArgs): InputFact[] {
 /** The facts of the brief that opens the week of `args.weekStart`. */
 export function buildBriefFacts(args: BriefArgs): BriefFacts {
   const last = addDays(args.weekStart, -7)
-  const session = pickKeySession(args.input.existing?.sessions ?? [], args.asOf)
+  const [session, ...later] = pickKeySessions(args.input.existing?.sessions ?? [], args.asOf)
+  const recentPace = recentPaceSecPerKm({
+    activities: args.input.activities,
+    state: args.state,
+    zones: args.zones,
+  })
   return {
     weekStart: args.weekStart,
     asOf: args.asOf,
@@ -641,18 +655,18 @@ export function buildBriefFacts(args: BriefArgs): BriefFacts {
     changes: changesOf(args.revision),
     noticed: noticedFacts(args),
     keySession:
-      session === null
+      session === undefined
         ? null
-        : keySessionFacts(
-            session,
-            args.zones,
-            args.isHot(session),
-            recentPaceSecPerKm({
-              activities: args.input.activities,
-              state: args.state,
-              zones: args.zones,
-            }),
-          ),
+        : keySessionFacts(session, args.zones, args.isHot(session), recentPace),
+    // What a later day of the week names once the first has passed: the date, kind and estimate.
+    laterKeySessions: later.map((s) => ({
+      date: s.date,
+      kind: s.kind,
+      distanceEstimate: estimateDistance(s, {
+        zones: args.zones,
+        recentPaceSecPerKm: recentPace,
+      }),
+    })),
     countdown: countdownOf(args.goal, args.asOf),
     prediction: predictionOf(args),
   }
