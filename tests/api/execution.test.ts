@@ -498,7 +498,8 @@ describe('trimming the next quality session', () => {
     expect(trim!.diff!.sessions).toEqual([
       expect.objectContaining({ sessionId: upcoming.id, change: 'changed' }),
     ])
-    // The revision before it reads the row as changed since, and says which revision to undo.
+    // The revision before it reads the row as changed since, so its undo is refused until the
+    // trim is undone.
     expect(list.find((r) => r.id === earlier.id)!.undo.available).toBe(false)
 
     force.checklistOk = true
