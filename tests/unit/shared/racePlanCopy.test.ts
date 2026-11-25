@@ -54,18 +54,18 @@ function goal(overrides: Partial<GoalModel> = {}): GoalModel {
   }
 }
 
-function run(n: number): FuelRunInput {
+function run(n: number, hours = 3, gPerH = 125): FuelRunInput {
   const base = { name: 'Gel', sodiumMg: null, kcal: null, servings: 1 }
   return {
     activityId: `a${String(n)}`,
     date: addDays('2026-03-02', n * 7),
     startTime: null,
-    elapsedSec: 3 * HOUR,
+    elapsedSec: hours * HOUR,
     weather: { tempC: 12, humidityPct: 60, windKph: 5 },
     sessionFlags: null,
     log: {
       skipped: false,
-      items: [{ ...base, carbsG: 375, multiCarb: true }],
+      items: [{ ...base, carbsG: gPerH * hours, multiCarb: true }],
       gut: 0,
       nausea: null,
       hotOverride: null,
@@ -110,6 +110,15 @@ const PLANS: Array<[string, RacePlan]> = [
   ],
   ['floor only', racePlanFor(input({ ladder: ladderOf([]) }))],
   ['no darkness', racePlanFor(input({ goal: goal({ crossesDarkness: false }) }))],
+  [
+    'duration floor, only short runs tolerated',
+    racePlanFor(input({ ladder: ladderOf([run(0, 2), run(1, 2)]) })),
+  ],
+  [
+    'duration floor, a lower rung tolerated on a long run',
+    // 70 g/h was tolerated on a 2 h run only; the 60 g/h rung on a 4 h run, which eats too little for 70
+    racePlanFor(input({ ladder: ladderOf([run(0, 3, 36), run(1, 4, 62), run(2, 2, 76)]) })),
+  ],
   [
     'own climbing moved the time',
     racePlanFor(
@@ -455,6 +464,68 @@ describe('fuel and fluid words', () => {
     expect(floor.certainty).toBeNull()
     // the few-hours label belongs to a tolerated rate; the floor is the tested range
     expect(floor.fewHours).toBeNull()
+  })
+
+  it('keeps the tolerated words for a runner whose only tolerated rung is the floor, as before the duration floor', () => {
+    const plan = racePlanFor(input({ ladder: ladderOf([run(0, 3, 36)]) }))
+    expect(plan.fuel).toMatchObject({ basis: 'tolerated', rungIndex: 0, durationFloor: null })
+    const fuel = describeRacePlan(plan, 'km').fuel
+    expect(fuel.basis).toBe('This is the highest rate your own runs tolerated.')
+    expect(fuel.durationNote).toBeNull()
+    expect(fuel.fewHours).toMatch(/few hours/)
+  })
+
+  it('says, for a runner whose only tolerated rung came from short runs, what was tolerated and on what', () => {
+    const plan = PLANS.find(([name]) => name.startsWith('duration floor, only'))![1]
+    expect(plan.fuel).toMatchObject({ basis: 'floor', rungIndex: 0 })
+    expect(plan.fuel.durationFloor).not.toBeNull()
+    const fuel = describeRacePlan(plan, 'km').fuel
+    expect(fuel.rate).toBe('Carbohydrate: 30 to 50 g/h.')
+    expect(fuel.basis).toBe(
+      'No rate above the floor was tolerated on a run of 3 h or longer, so the floor is the rate.',
+    )
+    expect(fuel.basis).not.toMatch(/has not tolerated/)
+    expect(fuel.durationNote).toBe(
+      'A higher rate, 60 g/h, was tolerated, but only on shorter runs. The race rate counts a rate tolerated on a run of 3 h or longer.',
+    )
+    // the few-hours label and the certainty label belong to a tolerated rate; this one is the floor
+    expect(fuel.fewHours).toBeNull()
+    expect(fuel.certainty).toBeNull()
+    expect(fuel.multiCarb).toBeNull()
+    // the totals run at the floor rate
+    expect(fuel.total).toMatch(/^About 930 to 1550 g/)
+  })
+
+  it('words a lower tolerated rung that a long run carried, and names the higher rung held back', () => {
+    const plan = PLANS.find(([name]) => name.startsWith('duration floor, a lower'))![1]
+    expect(plan.fuel).toMatchObject({ basis: 'tolerated', gPerH: 60 })
+    const fuel = describeRacePlan(plan, 'km').fuel
+    expect(fuel.basis).toBe(
+      'This is the highest rate your own runs tolerated on a run of 3 h or longer.',
+    )
+    expect(fuel.durationNote).toMatch(
+      /^A higher rate, 70 g\/h, was tolerated, but only on shorter runs\./,
+    )
+    expect(fuel.certainty).toMatch(/Low certainty/)
+    expect(fuel.fewHours).toMatch(/few hours/)
+  })
+
+  it('has no duration note when the floor did not bind, in any other plan', () => {
+    for (const [name, plan] of PLANS) {
+      if (name.startsWith('duration floor')) continue
+      expect(plan.fuel.durationFloor, name).toBeNull()
+      expect(describeRacePlan(plan, 'km').fuel.durationNote, name).toBeNull()
+    }
+  })
+
+  it('never words the floor as a minimum, a miss or a count of what is left', () => {
+    for (const [name, plan] of PLANS) {
+      const fuel = describeRacePlan(plan, 'km').fuel
+      const text = [fuel.basis, fuel.durationNote ?? ''].join(' ')
+      expect(text, name).not.toMatch(
+        /\b(must|minimum|required|short of|only \d|still need|more runs)\b/i,
+      )
+    }
   })
 
   it('carries the low-certainty label above the floor and the clinician line with a gut condition', () => {
