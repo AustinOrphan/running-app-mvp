@@ -180,6 +180,26 @@ describe('GET /api/race/plan: access and shape', () => {
     expect(plan?.heat.state).toBe('failed')
   })
 
+  test('follows a failure and its clearing without a data version change (RH1)', async () => {
+    const user = await newUser()
+    const goal = await newGoal(user)
+    const key = climateKeyFor(goal, { lat: null, lng: null, use: false })
+    if (key === null) throw new Error('the goal has no place')
+    expect((await planOf(user)).plan?.heat.state).toBe('unread')
+    const version = await dataVersionKey(ctx.prisma)
+
+    // `ClimateFailure` is not state: the memo must follow it through its stamp
+    await ctx.prisma.climateFailure.create({
+      data: { ...key, failedAt: new Date(), lastError: 'Open-Meteo request failed: no answer.' },
+    })
+    expect(await dataVersionKey(ctx.prisma)).toEqual(version)
+    expect((await planOf(user)).plan?.heat.state).toBe('failed')
+
+    await ctx.prisma.climateFailure.deleteMany()
+    expect(await dataVersionKey(ctx.prisma)).toEqual(version)
+    expect((await planOf(user)).plan?.heat.state).toBe('unread')
+  })
+
   test('says that no place is set when the goal has none and no home place is in use (RH1)', async () => {
     const user = await newUser()
     const goal = await newGoal(user)

@@ -19,6 +19,7 @@ import type { SnapshotDeps } from './athleteState.ts'
 import { loadFuelState } from './fuel.ts'
 import { listRaceCheckpoints } from './raceCheckpoints.ts'
 import { loadRaceHeat } from './raceHeat.ts'
+import { climateFailureStamp } from './weatherCache.ts'
 
 export type RaceDeps = SnapshotDeps
 
@@ -30,12 +31,14 @@ export type RaceDeps = SnapshotDeps
  * shows its empty state. Derived on read and stored nowhere; computed once per data version and
  * day; the result is deep-frozen.
  */
-export function loadRacePlan(
+export async function loadRacePlan(
   deps: RaceDeps,
   args: { userId: string; today: string },
 ): Promise<RacePlanView> {
   const { userId, today } = args
-  return memoByVersion(deps, { userId, today, name: 'race.plan' }, () =>
+  // The race heat notice reads `ClimateFailure`, which is not state: its stamp is in the memo name.
+  const stamp = await climateFailureStamp(deps.prisma)
+  return memoByVersion(deps, { userId, today, name: `race.plan:${stamp}` }, () =>
     buildRacePlan(deps, userId, today),
   )
 }

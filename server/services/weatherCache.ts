@@ -146,7 +146,10 @@ function ageMs(at: Date, now: Date): number {
   return now.getTime() - at.getTime()
 }
 
-/** True while the last attempt on a row failed less than `BACKOFF_MS` ago (success clears it). */
+/**
+ * True while the last attempt on a row failed less than `BACKOFF_MS` ago (success clears it). The
+ * row is a `ForecastCache` row or a `ClimateFailure` row.
+ */
 function backedOff(row: { failedAt: Date | null } | null, now: Date): boolean {
   return row?.failedAt != null && ageMs(row.failedAt, now) < BACKOFF_MS
 }
@@ -369,6 +372,26 @@ export async function forecastStamp(
   return row?.fetchedAt && isUsable(row.fetchedAt, now) ? row.fetchedAt.toISOString() : NO_FORECAST
 }
 
+/** What `climateFailureStamp` is while no climate cell holds a failure. */
+export const NO_CLIMATE_FAILURE = 'none'
+
+/**
+ * What a memoised value or a deliverable that reads `climateFailed` adds to its change key or memo
+ * name, as `forecastStamp` does for `ForecastCache`. `ClimateFailure` is not state, so a failed
+ * read or a success that clears it leaves the data version alone; this stamp is the count of the
+ * failure rows and the newest failure time, so it moves on every failure and every clear. It
+ * covers every cell, not only the runner's: a failure is rare and the cost is one rebuilt memo.
+ */
+export async function climateFailureStamp(prisma: PrismaClient): Promise<string> {
+  const { _count, _max } = await prisma.climateFailure.aggregate({
+    _count: { _all: true },
+    _max: { failedAt: true },
+  })
+  return _count._all === 0
+    ? NO_CLIMATE_FAILURE
+    : `${_count._all}@${_max.failedAt?.toISOString() ?? ''}`
+}
+
 /**
  * `GET /api/weather/forecast`: the cached hours with their age; null without a home. A stale cell
  * answers at once and is refreshed in the background. A cell that was never filled waits for one
@@ -589,10 +612,12 @@ export async function readClimate(
 }
 
 /**
- * Whether the goal's race climate cell was read and gave nothing: its last fetch failed (`failedAt`
- * stays set until a fetch succeeds, and the job tries again after `BACKOFF_MS`), or it is complete
- * with no value. False without a place, without a row and for a cell that holds a value. Never
- * fetches. Read by the RH1 notice to tell a failed read from one not made yet.
+ * Whether the goal's race climate cell was read and gave nothing: its last fetch failed (a
+ * `ClimateFailure` row stays until a fetch succeeds, and the job tries again after `BACKOFF_MS`),
+ * or it is complete with no value. False without a place, without a row and for a cell that holds
+ * a value. Never fetches. Read by the RH1 notice to tell a failed read from one not made yet.
+ * `ClimateFailure` is not state, so a memo or an ETag that holds the answer adds
+ * `climateFailureStamp` to its name or key.
  */
 export async function climateFailed(
   prisma: PrismaClient,

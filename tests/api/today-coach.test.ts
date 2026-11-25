@@ -1511,10 +1511,11 @@ describe('GET /api/today: the validator', () => {
     // the runs without a connection), the publications' stamp (E1: the notes and the watch line
     // read tables the data version does not cover: the rows by state, the channel's two switches
     // and the sends still inside the 15 minutes before "On your watch") and the brief's (E4: the
-    // current week's row).
+    // current week's row) and the climate failure stamp (the race slots read `ClimateFailure`).
     expect(log.models.sort()).toEqual(
       [
         'athleteProfile.findUnique',
+        'climateFailure.aggregate',
         'deliveryChannel.findUnique',
         'forecastCache.findUnique',
         'integration.findMany',
@@ -1567,9 +1568,14 @@ describe('GET /api/today: cost', () => {
     // the watch slot's read of the channel (today has a run) and the note about tomorrow's run
     // (which has a session here), and E4's two reads of the current week's brief row (the page
     // tag's stamp, and the slot, which reads the row and never composes one): nothing else.
+    // The climate failure stamp is read three times: the page tag and the memo name of the race
+    // plan, once for each of the two race slots.
     expect(warm.models.sort()).toEqual(
       [
         'athleteProfile.findUnique',
+        'climateFailure.aggregate',
+        'climateFailure.aggregate',
+        'climateFailure.aggregate',
         'deliveryChannel.findUnique',
         'deliveryChannel.findUnique',
         'forecastCache.findUnique',
@@ -1607,8 +1613,9 @@ describe('GET /api/today: cost', () => {
     // memo once for each of the two fuel slots, the race course's memo, and the race plan's memo once
     // for each of the two race slots, `race` and `roadRace`, which answer null for a goal that is
     // neither an ultra nor a road goal without a query of their own).
-    expect(coldTotal).toBe(36)
-    expect(warm.models).toHaveLength(17)
+    // The failure stamp (`climateFailureStamp`) adds three reads to each: cold 39, warm 20.
+    expect(coldTotal).toBe(39)
+    expect(warm.models).toHaveLength(20)
     expect(warm.raw).toBe(7)
   })
 

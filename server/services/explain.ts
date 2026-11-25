@@ -32,7 +32,7 @@ import {
 } from './athleteState.ts'
 import { explainBrief } from './brief.ts'
 import { inputFromContext, loadForecast } from './engineInput.ts'
-import { forecastStamp } from './weatherCache.ts'
+import { climateFailureStamp, forecastStamp } from './weatherCache.ts'
 import { explainActivity } from './insight.ts'
 import { executionRecordsByWeek } from './planEngine.ts'
 import { loadRaceHeat } from './raceHeat.ts'
@@ -114,7 +114,8 @@ export async function explainView(
   const memo = { userId, today }
   // The weekly decision reads the cached forecast (the first hot days, rule J5), and `ForecastCache`
   // is not state, so the forecast's stamp goes into the names of the memos that hold it.
-  const stamp = await forecastStamp(deps.prisma, userId)
+  // The race heat notice reads `ClimateFailure`, also not state, so its stamp joins the forecast's.
+  const stamp = `${await forecastStamp(deps.prisma, userId)}:${await climateFailureStamp(deps.prisma)}`
 
   return memoByVersion(
     deps,

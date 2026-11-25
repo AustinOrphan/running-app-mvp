@@ -12,16 +12,19 @@ import {
   type SnapshotDeps,
 } from './athleteState.ts'
 import { loadRaceHeat } from './raceHeat.ts'
+import { climateFailureStamp } from './weatherCache.ts'
 
 const MEMO = 'plan-inputs.view'
 
 /** The counts of one runner's data as of `today`. */
-export function loadPlanInputs(
+export async function loadPlanInputs(
   deps: SnapshotDeps,
   args: { userId: string; today: string },
 ): Promise<PlanInputsView> {
   const { userId, today } = args
-  return memoByVersion(deps, { userId, today, name: MEMO }, async () => {
+  // The race heat notice reads `ClimateFailure`, which is not state: its stamp is in the memo name.
+  const stamp = await climateFailureStamp(deps.prisma)
+  return memoByVersion(deps, { userId, today, name: `${MEMO}:${stamp}` }, async () => {
     const context = await loadAthleteContext(deps, { userId, today })
     const runIds = context.activities
       .filter((a) => (a.type === 'run' || a.type === 'race') && !isDuplicate(a))
