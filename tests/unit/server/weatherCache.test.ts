@@ -14,6 +14,7 @@ import {
   BACKOFF_MS,
   cachedForecast,
   CLIMATE_REFRESH_MS,
+  climateFailureStamp,
   climateKeyFor,
   type ClimateGoal,
   ensureClimate,
@@ -23,6 +24,7 @@ import {
   forecastCellOf,
   forecastStamp,
   getForecastView,
+  NO_CLIMATE_FAILURE,
   NO_FORECAST,
   readClimate,
   refreshWeatherCaches as refreshWeatherCachesOn,
@@ -441,6 +443,29 @@ describe('the home forecast', () => {
 // forecastStamp and the data version
 // ---------------------------------------------------------------------------------------------
 
+describe('climateFailureStamp', () => {
+  test('moves when one cell is cleared and another, with an older failedAt, is recorded', async () => {
+    const HOUR_MS = 3_600_000
+    expect(await climateFailureStamp(prisma)).toBe(NO_CLIMATE_FAILURE)
+    const cell = { lngE2: 0, monthDay: '06-12', startHour: 8, windowHours: 6 }
+    await prisma.climateFailure.create({
+      data: { ...cell, latE2: 1, failedAt: later(HOUR_MS), updatedAt: later(2 * HOUR_MS) },
+    })
+    const before = await climateFailureStamp(prisma)
+    expect(before).not.toBe(NO_CLIMATE_FAILURE)
+
+    // Same count and an older `failedAt` than the cleared row: only `updatedAt` tells them apart.
+    await prisma.climateFailure.deleteMany({ where: { latE2: 1 } })
+    await prisma.climateFailure.create({
+      data: { ...cell, latE2: 2, failedAt: NOW, updatedAt: later(3 * HOUR_MS) },
+    })
+    expect(await climateFailureStamp(prisma)).not.toBe(before)
+
+    await prisma.climateFailure.deleteMany()
+    expect(await climateFailureStamp(prisma)).toBe(NO_CLIMATE_FAILURE)
+  })
+})
+
 describe('forecastStamp', () => {
   test('is the fetch time of the home cell, and none without a usable forecast', async () => {
     const user = await seedUser({ lat: 20.5, lng: -30.12 })
@@ -484,6 +509,43 @@ describe('forecastStamp', () => {
     expect(await prisma.climateCache.count()).toBe(1)
     expect((await dataVersionKey(prisma)).n).toBeGreaterThan(before.n)
   })
+
+  test('a failed climate refresh leaves the data version alone, and so does a repeat of it', async () => {
+    const user = await seedUser()
+    await seedGoal(user.id)
+    deps.fetch = fakeFetch({ [`GET ${ARCHIVE}`]: archiveRoute([], 503) })
+    const before = await dataVersionKey(prisma)
+
+    // Nothing was read: only the back-off is written, and that table is not state.
+    expect(await refreshWeatherCaches(deps, user.id, { now: NOW })).toMatchObject({ failed: 1 })
+    expect(await prisma.climateFailure.count()).toBe(1)
+    expect(await prisma.climateCache.count()).toBe(0)
+    expect(await dataVersionKey(prisma)).toEqual(before)
+
+    // The retry after the back-off fails again with the same result: still no state write.
+    await refreshWeatherCaches(deps, user.id, { now: later(BACKOFF_MS) })
+    expect(await dataVersionKey(prisma)).toEqual(before)
+  })
+
+  test('a failed refresh over a complete value writes no state', async () => {
+    const user = await seedUser()
+    await seedGoal(user.id)
+    deps.fetch = fakeFetch({ [`GET ${ARCHIVE}`]: archiveRoute([]) })
+    await refreshWeatherCaches(deps, user.id, { now: NOW })
+
+    const route = archiveRoute([])
+    deps.fetch = fakeFetch({
+      [`GET ${ARCHIVE}`]: (req) =>
+        new URL(req.url).searchParams.get('start_date')!.startsWith('2024')
+          ? new Response('busy', { status: 500 })
+          : route(req),
+    })
+    const before = await dataVersionKey(prisma)
+    expect(
+      await refreshWeatherCaches(deps, user.id, { now: later(CLIMATE_REFRESH_MS) }),
+    ).toMatchObject({ failed: 1 })
+    expect(await dataVersionKey(prisma)).toEqual(before)
+  })
 })
 
 // ---------------------------------------------------------------------------------------------
@@ -523,7 +585,6 @@ describe('the race climate', () => {
       yearsRead: 3,
       complete: true,
       fetchedAt: NOW,
-      failedAt: null,
     })
     // Only the 07:00 and 08:00 hours count.
     expect(row.wbgtC).toBe(expectedWbgt(7, 9))
@@ -640,9 +701,9 @@ describe('the race climate', () => {
       yearsRead: 2,
       samples: 2 * 3 * 2,
       complete: false,
-      failedAt: NOW,
       wbgtC: expectedWbgt(7, 9),
     })
+    expect(await prisma.climateFailure.findFirstOrThrow()).toMatchObject({ failedAt: NOW })
     expect(calls).toHaveLength(3)
 
     // Held by the back-off: no request, still reported.
@@ -650,8 +711,17 @@ describe('the race climate', () => {
     expect(held).toMatchObject({ refreshed: 0, failed: 1 })
     expect(calls).toHaveLength(3)
 
+    // The same partial read after the back-off stores nothing new, so the version stays.
+    const before = await dataVersionKey(prisma)
+    await refreshWeatherCaches(deps, user.id, { now: later(BACKOFF_MS) })
+    expect(calls).toHaveLength(6)
+    expect(await prisma.climateFailure.findFirstOrThrow()).toMatchObject({
+      failedAt: later(BACKOFF_MS),
+    })
+    expect(await dataVersionKey(prisma)).toEqual(before)
+
     failYear = null
-    const retry = later(BACKOFF_MS)
+    const retry = later(2 * BACKOFF_MS)
     expect(await refreshWeatherCaches(deps, user.id, { now: retry })).toMatchObject({
       refreshed: 1,
       failed: 0,
@@ -660,9 +730,9 @@ describe('the race climate', () => {
       yearsRead: 3,
       complete: true,
       fetchedAt: retry,
-      failedAt: null,
-      lastError: null,
     })
+    // A success clears the back-off.
+    expect(await prisma.climateFailure.count()).toBe(0)
   })
 
   test('a failed read keeps an earlier complete value', async () => {
@@ -687,8 +757,8 @@ describe('the race climate', () => {
       yearsRead: 3,
       complete: true,
       fetchedAt: NOW,
-      failedAt: due,
     })
+    expect(await prisma.climateFailure.findFirstOrThrow()).toMatchObject({ failedAt: due })
   })
 
   test('a first read that fails entirely stores no value and reads as no climate', async () => {
@@ -696,13 +766,8 @@ describe('the race climate', () => {
     const goal = await seedGoal(user.id)
     deps.fetch = fakeFetch({ [`GET ${ARCHIVE}`]: archiveRoute([], 503) })
     await refreshWeatherCaches(deps, user.id, { now: NOW })
-    expect(await prisma.climateCache.findFirstOrThrow()).toMatchObject({
-      wbgtC: null,
-      yearsRead: 0,
-      complete: false,
-      fetchedAt: null,
-      failedAt: NOW,
-    })
+    expect(await prisma.climateCache.count()).toBe(0)
+    expect(await prisma.climateFailure.findFirstOrThrow()).toMatchObject({ failedAt: NOW })
     expect(await readClimate(prisma, goal, { lat: null, lng: null, use: false })).toBeNull()
   })
 
@@ -933,8 +998,9 @@ describe('warmWeatherCaches', () => {
     await settleWeatherCache()
 
     expect(await prisma.forecastCache.count()).toBe(1)
-    expect(await prisma.climateCache.count()).toBe(1)
-    expect((await prisma.climateCache.findFirstOrThrow()).complete).toBe(false)
+    // The archive failed: nothing was read, so only the back-off is stored.
+    expect(await prisma.climateCache.count()).toBe(0)
+    expect(await prisma.climateFailure.count()).toBe(1)
   })
 })
 

@@ -62,7 +62,7 @@ import { inputFromContext, loadForecast, sessionSpec } from './engineInput.ts'
 import { loadRaceCourse } from './racePlan.ts'
 import { jobNotesStamp, sourceNotesStamp, todayHealth } from './todayHealth.ts'
 import { buildSlots } from './todaySlots.ts'
-import { forecastStamp } from './weatherCache.ts'
+import { climateFailureStamp, forecastStamp } from './weatherCache.ts'
 
 /** The message of the 400 for a `?date=` outside today and the days ahead the page may preview. */
 export const TODAY_RANGE_MESSAGE = 'Use today or one of the next two days.'
@@ -134,9 +134,11 @@ export async function todayKey(
   args: { userId: string; today: string; tz: string; date: string },
 ): Promise<string> {
   const { prisma } = deps
-  const [version, forecast, others] = await Promise.all([
+  const [version, forecast, climate, others] = await Promise.all([
     dataVersionKey(prisma),
     forecastStamp(prisma, args.userId),
+    // The race slots read the race plan's heat notice, which reads `ClimateFailure` (not state).
+    climateFailureStamp(prisma),
     Promise.all(
       stamps.map(async (stamp) =>
         stamp({ deps, userId: args.userId, today: args.today, tz: args.tz }),
@@ -145,7 +147,9 @@ export async function todayKey(
   ])
   // The payload carries `tz`, so the tag does too: a zone change that leaves the date alone
   // still changes the body.
-  return [athleteKey(version, args.today), args.tz, args.date, forecast, ...others].join('~')
+  return [athleteKey(version, args.today), args.tz, args.date, forecast, climate, ...others].join(
+    '~',
+  )
 }
 
 // ---------------------------------------------------------------------------------------------

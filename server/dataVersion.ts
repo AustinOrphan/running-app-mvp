@@ -83,6 +83,11 @@ export const NON_STATE_MODELS = [
   // Written on a read path (a stale or empty forecast is refreshed there) and read by no snapshot
   // or memo; a deliverable that depends on it composes `forecastStamp` into its change key.
   'ForecastCache',
+  // The last failed read of a race climate cell, and the start of its 15-minute back-off. Written
+  // by the weather job on every failure and read only by that job, `ensureClimate` and
+  // `climateFailed`, straight from the table. As `ClimateCache` columns, each failure raised the
+  // version and dropped every memo. `server/services/weatherCache.ts` is its only writer.
+  'ClimateFailure',
   // What stood out on a run. Derived from state, written on a read path (the first read of a run
   // computes it) and by the pipeline after a store, and read by no snapshot, memo or deliverable:
   // Explain reads it straight from the table. As state, each lazy write would drop the snapshot it

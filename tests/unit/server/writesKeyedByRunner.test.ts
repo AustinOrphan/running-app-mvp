@@ -30,7 +30,7 @@ const OWNED_THROUGH_PARENT = [
   'ActivityInsight',
 ]
 /** Models that hold no runner's data: the user row itself (keyed by its own id) and shared caches. */
-const NOT_OWNED = ['User', 'ForecastCache', 'ClimateCache']
+const NOT_OWNED = ['User', 'ForecastCache', 'ClimateCache', 'ClimateFailure']
 
 /**
  * The justified exceptions: `file`, the Prisma delegate and the operation, how many such calls the

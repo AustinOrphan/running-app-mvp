@@ -50,6 +50,7 @@ beforeEach(async () => {
   fake = fakeIntervals()
   await ctx.prisma.user.deleteMany()
   await ctx.prisma.climateCache.deleteMany()
+  await ctx.prisma.climateFailure.deleteMany()
 })
 
 afterEach(() => {

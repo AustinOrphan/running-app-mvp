@@ -68,11 +68,12 @@ export const slotProviders: { [K in SlotName]: SlotProvider<K> } = {
   // The offer to set up strength reads the plan and the setup state: the same data version covers it.
   strengthSetup: ({ deps, userId, today, context }) =>
     todayStrengthSetupSlot(deps, { userId, today, context }),
-  // The race plan reads state only (the snapshot, the fuel ladder, the cached race climate, which
-  // is a state table), so the data version in the page's ETag covers it: no stamp of its own.
+  // The race plan reads the snapshot, the fuel ladder, the cached race climate (a state table) and
+  // the climate failure rows (not state): the data version and `climateFailureStamp`, both in the
+  // page's ETag (`todayKey`), cover it, so the slot registers no stamp of its own.
   race: ({ deps, userId, date, today }) => todayRaceSlot(deps, { userId, today, date }),
   // The road plan (rule H15, ADR 0023) is the `road` field of the same memo: the same data version
-  // covers it.
+  // covers it (the page tag, as for `race`).
   roadRace: ({ deps, userId, date, today }) => todayRoadRaceSlot(deps, { userId, today, date }),
 }
 

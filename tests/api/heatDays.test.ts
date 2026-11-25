@@ -27,6 +27,7 @@ beforeAll(async () => {
 afterEach(async () => {
   expectNoRefusedFetches(ctx)
   await ctx.prisma.climateCache.deleteMany()
+  await ctx.prisma.climateFailure.deleteMany()
 })
 
 afterAll(async () => {
