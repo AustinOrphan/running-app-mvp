@@ -78,21 +78,6 @@ export const hUltra = {
         note: 'Default: no study sets this number. It binds only for races expected under 10 h (for example a 50K goal).',
       },
     ),
-    raceSimulationMaxHours: param(
-      'h2.raceSimulationMaxHours',
-      8,
-      'D',
-      'H2',
-      [
-        'outside-2023-strava-western-states',
-        'outside-2023-strava-utmb',
-        'outside-2015-orton-koop-100-miles',
-      ],
-      {
-        unit: 'h',
-        note: 'Default: design intent for one race simulation of up to this length, within G-1 (an entered tune-up race could serve). Not read by any code yet, so the plan and the app do not offer the simulation.',
-      },
-    ),
   },
   h3: {
     b2bMinGapWeeks: param(
