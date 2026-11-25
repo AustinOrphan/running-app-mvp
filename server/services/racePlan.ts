@@ -1,8 +1,9 @@
 // The race plan of the goal (rule H14, ADR 0018): the pure `racePlanFor` fed from the athlete
 // snapshot, the replayed fuel ladder and the cached race climate, memoised by data version and day.
 // Nothing here writes, waits or reads the network: the race WBGT is the climate normal in
-// `ClimateCache` (a state table), so the plan reads no forecast and its change key is the data
-// version and the day (`athleteKey`).
+// `ClimateCache` (a state table; its failure bookkeeping, `ClimateFailure`, is not), so the plan
+// reads no forecast and its change key is the data version, the day (`athleteKey`) and
+// `climateFailureStamp`.
 import { daysBetween } from '../../shared/dates.ts'
 import { courseSilhouettePoints } from '../../shared/domain/courseSilhouette.ts'
 import { racePlanFor, summaryOf } from '../../shared/engine/racePlan.ts'
@@ -19,6 +20,7 @@ import type { SnapshotDeps } from './athleteState.ts'
 import { loadFuelState } from './fuel.ts'
 import { listRaceCheckpoints } from './raceCheckpoints.ts'
 import { loadRaceHeat } from './raceHeat.ts'
+import { climateFailureStamp } from './weatherCache.ts'
 
 export type RaceDeps = SnapshotDeps
 
@@ -30,12 +32,15 @@ export type RaceDeps = SnapshotDeps
  * shows its empty state. Derived on read and stored nowhere; computed once per data version and
  * day; the result is deep-frozen.
  */
-export function loadRacePlan(
+export async function loadRacePlan(
   deps: RaceDeps,
-  args: { userId: string; today: string },
+  args: { userId: string; today: string; climateStamp?: string },
 ): Promise<RacePlanView> {
   const { userId, today } = args
-  return memoByVersion(deps, { userId, today, name: 'race.plan' }, () =>
+  // The race heat notice reads `ClimateFailure`, which is not state: its stamp is in the memo name
+  // (a caller that has read it for the page tag passes it in).
+  const stamp = args.climateStamp ?? (await climateFailureStamp(deps.prisma))
+  return memoByVersion(deps, { userId, today, name: `race.plan:${stamp}` }, () =>
     buildRacePlan(deps, userId, today),
   )
 }
@@ -130,7 +135,8 @@ async function buildRacePlan(deps: RaceDeps, userId: string, today: string): Pro
 /**
  * The Today slot `race`: the race-week card and the race-day block for the viewed day, cut from the
  * plan, or null outside race week, for a goal that is not an ultra and once the race is over. It
- * reads state only (the plan's own memo), so the data version in the page's ETag covers it.
+ * reads the plan's own memo, which the data version and the climate failure stamp in the page's
+ * ETag cover.
  */
 export async function todayRaceSlot(
   deps: RaceDeps,
@@ -143,7 +149,7 @@ export async function todayRaceSlot(
 /**
  * The Today slot `roadRace`: the road plan's race-week card and race-day block for the viewed day,
  * or null outside race week, for a 10 km, an ultra and once the race is over. The same memo as
- * `todayRaceSlot`, so the same data version covers it.
+ * `todayRaceSlot`, so the same page tag covers it.
  */
 export async function todayRoadRaceSlot(
   deps: RaceDeps,

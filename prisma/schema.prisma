@@ -609,6 +609,7 @@ model ForecastCache {
 // length (state: the snapshot's prediction reads it, so a refresh must drop a memoised prediction).
 // `wbgtC` is the mean over the last three archive years; `complete` is false while a year could not
 // be read, and an incomplete row, or one older than 30 days, is read again with its old value kept.
+// The failure bookkeeping is `ClimateFailure`, so a failed refresh writes nothing here.
 model ClimateCache {
   id          String    @id @default(cuid())
   latE2       Int
@@ -621,8 +622,24 @@ model ClimateCache {
   yearsRead   Int       @default(0)
   complete    Boolean   @default(false)
   fetchedAt   DateTime?
-  failedAt    DateTime?
+
+  @@unique([latE2, lngE2, monthDay, startHour, windowHours])
+}
+
+// The last failed attempt to read one `ClimateCache` cell (non-state): `failedAt` starts the
+// 15-minute back-off and a success deletes the row. It is not state because nothing cached reads
+// it and the weather job writes it on every failure; on `ClimateCache` each failure raised the
+// data version and dropped every memo. The key is the same cell key, without a foreign key.
+model ClimateFailure {
+  id          String   @id @default(cuid())
+  latE2       Int
+  lngE2       Int
+  monthDay    String // 'MM-DD'
+  startHour   Int
+  windowHours Int
+  failedAt    DateTime
   lastError   String?
+  updatedAt   DateTime @updatedAt // the time of the write, read by `climateFailureStamp`
 
   @@unique([latE2, lngE2, monthDay, startHour, windowHours])
 }

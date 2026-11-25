@@ -21,6 +21,7 @@ import { parse } from '../errors.ts'
 import { athleteKey } from '../services/athleteState.ts'
 import { raceCheckpointsView, saveRaceCheckpoints } from '../services/raceCheckpoints.ts'
 import { loadRacePlan } from '../services/racePlan.ts'
+import { climateFailureStamp } from '../services/weatherCache.ts'
 
 /** The plan takes no parameters; an unknown one is a mistake worth a 400, not a silent ignore. */
 const noQuery = z.strictObject({})
@@ -84,8 +85,9 @@ function etag(key: string): string {
 
 /**
  * GET /api/race/plan: `{ plan, reason }`. The plan reads no forecast (the race climate is a cached
- * normal), so the tag needs the data version and the day only, and a request that sends the current
- * tag is answered 304 before the plan is built.
+ * normal), so the tag is the data version, the day and `climateFailureStamp` (`ClimateFailure` is
+ * not state and the heat notice reads it), and a request that sends the current tag is answered 304
+ * before the plan is built.
  */
 export function raceRouter(deps: Deps): Router {
   const router = Router()
@@ -95,12 +97,13 @@ export function raceRouter(deps: Deps): Router {
     const { today } = req.runnerDay
     res.vary('Cookie')
     res.set('Cache-Control', 'private, no-cache')
-    res.set('ETag', etag(athleteKey(await dataVersionKey(deps.prisma), today)))
+    const climateStamp = await climateFailureStamp(deps.prisma)
+    res.set('ETag', etag(`${athleteKey(await dataVersionKey(deps.prisma), today)}~${climateStamp}`))
     if (req.fresh) {
       res.status(304).end()
       return
     }
-    res.json(await loadRacePlan(deps, { userId: req.userId, today }))
+    res.json(await loadRacePlan(deps, { userId: req.userId, today, climateStamp }))
   })
 
   router.get('/checkpoints', async (req, res) => {

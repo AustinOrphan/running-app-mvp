@@ -92,6 +92,7 @@ async function todayOf(user: TestUser, query = ''): Promise<TodayView> {
 
 afterEach(async () => {
   await ctx.prisma.climateCache.deleteMany()
+  await ctx.prisma.climateFailure.deleteMany()
 })
 
 describe('GET /api/race/plan: access and shape', () => {
@@ -171,12 +172,32 @@ describe('GET /api/race/plan: access and shape', () => {
     const goal = await newGoal(user)
     const key = climateKeyFor(goal, { lat: null, lng: null, use: false })
     if (key === null) throw new Error('the goal has no place')
-    await ctx.prisma.climateCache.create({
+    await ctx.prisma.climateFailure.create({
       data: { ...key, failedAt: new Date(), lastError: 'Open-Meteo request failed: no answer.' },
     })
     const { plan } = await planOf(user)
     expect(plan?.notices).toContain('no-climate')
     expect(plan?.heat.state).toBe('failed')
+  })
+
+  test('follows a failure and its clearing without a data version change (RH1)', async () => {
+    const user = await newUser()
+    const goal = await newGoal(user)
+    const key = climateKeyFor(goal, { lat: null, lng: null, use: false })
+    if (key === null) throw new Error('the goal has no place')
+    expect((await planOf(user)).plan?.heat.state).toBe('unread')
+    const version = await dataVersionKey(ctx.prisma)
+
+    // `ClimateFailure` is not state: the memo must follow it through its stamp
+    await ctx.prisma.climateFailure.create({
+      data: { ...key, failedAt: new Date(), lastError: 'Open-Meteo request failed: no answer.' },
+    })
+    expect(await dataVersionKey(ctx.prisma)).toEqual(version)
+    expect((await planOf(user)).plan?.heat.state).toBe('failed')
+
+    await ctx.prisma.climateFailure.deleteMany()
+    expect(await dataVersionKey(ctx.prisma)).toEqual(version)
+    expect((await planOf(user)).plan?.heat.state).toBe('unread')
   })
 
   test('says that no place is set when the goal has none and no home place is in use (RH1)', async () => {
@@ -215,6 +236,30 @@ describe('GET /api/race/plan: the change key', () => {
     expect(first.headers['vary']).toMatch(/Cookie/)
     const again = await client(ctx, user).get('/api/race/plan').set('If-None-Match', tag)
     expect(again.status).toBe(304)
+  })
+
+  test('changes with a climate failure and with its clearing, the data version alone', async () => {
+    const user = await newUser()
+    const goal = await newGoal(user)
+    const key = climateKeyFor(goal, { lat: null, lng: null, use: false })
+    if (key === null) throw new Error('the goal has no place')
+    const first = await client(ctx, user).get('/api/race/plan')
+    const tag = first.headers['etag'] as string
+    expect((first.body as RacePlanView).plan?.heat.state).toBe('unread')
+
+    await ctx.prisma.climateFailure.create({
+      data: { ...key, failedAt: new Date(), lastError: 'Open-Meteo request failed: no answer.' },
+    })
+    const failed = await client(ctx, user).get('/api/race/plan').set('If-None-Match', tag)
+    expect(failed.status).toBe(200)
+    expect((failed.body as RacePlanView).plan?.heat.state).toBe('failed')
+    const failedTag = failed.headers['etag'] as string
+    expect(failedTag).not.toBe(tag)
+
+    await ctx.prisma.climateFailure.deleteMany()
+    const cleared = await client(ctx, user).get('/api/race/plan').set('If-None-Match', failedTag)
+    expect(cleared.status).toBe(200)
+    expect((cleared.body as RacePlanView).plan?.heat.state).toBe('unread')
   })
 
   test('changes with the data: a tolerated run moves the fuel rate on the next read', async () => {
