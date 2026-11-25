@@ -13,6 +13,7 @@ import {
   isKeyKind,
   keySessionFacts,
   pickKeySession,
+  pickKeySessions,
 } from '../../../shared/engine/brief.ts'
 import { P } from '../../../shared/engine/params/index.ts'
 import { resolveTargets } from '../../../shared/engine/targets.ts'
@@ -749,6 +750,39 @@ describe('the key session', () => {
   })
 })
 
+describe('the key sessions after the first', () => {
+  const sessions = plan(2).sessions
+
+  test('are stored, slim and in order, so a later day can still name the next one', () => {
+    const facts = buildBriefFacts(briefArgs({}))
+    const keys = pickKeySessions(sessions, MONDAY)
+    expect(keys.length).toBeGreaterThan(1)
+    expect(facts.keySession?.sessionId).toBe(keys[0]!.id)
+    expect(facts.laterKeySessions?.map((k) => [k.date, k.kind])).toEqual(
+      keys.slice(1).map((s) => [s.date, s.kind]),
+    )
+    for (const later of facts.laterKeySessions ?? []) {
+      expect(Object.keys(later).sort()).toEqual(['date', 'distanceEstimate', 'kind'])
+    }
+    expect(JSON.parse(JSON.stringify(facts))).toStrictEqual(facts)
+  })
+
+  test('are empty when the week holds one key session, and absent with none', () => {
+    const one = pickKeySessions(sessions, MONDAY)[0]!
+    const only = [one, ...sessions.filter((s) => !isKeyKind(s.kind))]
+    const facts = buildBriefFacts(
+      briefArgs({}, { existing: { weeks: plan(2).weeks, sessions: only } }),
+    )
+    expect(facts.laterKeySessions).toEqual([])
+    const easy = sessions.filter((s) => !isKeyKind(s.kind))
+    const none = buildBriefFacts(
+      briefArgs({}, { existing: { weeks: plan(2).weeks, sessions: easy } }),
+    )
+    expect(none.keySession).toBeNull()
+    expect(none.laterKeySessions).toEqual([])
+  })
+})
+
 describe('the countdown and the prediction', () => {
   test('count the days to the goal race, and say nothing once it is over', () => {
     expect(buildBriefFacts(briefArgs({})).countdown).toEqual({
@@ -795,6 +829,7 @@ describe('the facts of a week', () => {
         'decision',
         'keySession',
         'lastWeek',
+        'laterKeySessions',
         'noticed',
         'prediction',
         'replan',

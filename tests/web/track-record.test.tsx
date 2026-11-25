@@ -581,6 +581,20 @@ describe('The result sheet', () => {
     expect(screen.queryByRole('button', { name: RECORD_BUTTON })).toBeNull()
   })
 
+  test('a two-part finish time on a half marathon reads as hours and minutes', async () => {
+    const user = userEvent.setup()
+    const state = world()
+    const { calls } = mockApi(routes(state, putResult(state)))
+    renderPage()
+
+    const dialog = await openSheet(user, RECORD_BUTTON)
+    await user.type(within(dialog).getByLabelText('Finish time (h:mm:ss)'), '1:45')
+    expect(within(dialog).getByText(/Read as 1 h 45 min\./)).toBeInTheDocument()
+    await user.click(within(dialog).getByRole('button', { name: 'Save result' }))
+    await screen.findByText(/Result saved\./)
+    expect(putBodies(calls)[0]?.body).toMatchObject({ outcome: 'finished', timeSec: 6300 })
+  })
+
   test('the closing toast counts one prediction in the singular', async () => {
     const user = userEvent.setup()
     const state = world()

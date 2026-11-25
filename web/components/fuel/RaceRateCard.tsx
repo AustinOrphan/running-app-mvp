@@ -9,7 +9,7 @@ export interface RaceRateCardProps {
 }
 
 /**
- * How long the race rate has held, as two facts from the log (rule H7, FT1): the longest run on
+ * How long the highest tolerated rate (before the H7 duration floor) has held, as two facts from the log (rule H7, FT1): the longest run on
  * which it was tolerated and the latest day 2 of a back-to-back on which it was. Facts only: no
  * target, no verdict, and a plain "none logged yet" when nothing qualifies. The ladder, the plan,
  * the watch and the race plan do not read it.

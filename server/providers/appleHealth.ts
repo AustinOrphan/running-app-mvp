@@ -12,6 +12,7 @@ import {
 } from '../../shared/importers/appleHealth.ts'
 import type { ParsedActivity, WellnessInput } from '../../shared/types.ts'
 import { parse } from '../errors.ts'
+import { parsedActivitySchema, wellnessInputSchema } from '../parsedSchemas.ts'
 import type { PushProvider } from './types.ts'
 
 /**
@@ -315,12 +316,20 @@ export const appleHealthPush: PushProvider = {
   parsePush(body, ctx) {
     const { data } = parse(bodySchema, body)
     const ignored: Record<string, number> = {}
-    const wellness = mapMetrics(data.metrics, ctx.timezone, ignored)
+    // The parsed import's range checks (`server/parsedSchemas.ts`) apply to what the push maps; a
+    // day or a workout outside them is dropped and counted, never stored.
+    const wellness = mapMetrics(data.metrics, ctx.timezone, ignored).filter((row) => {
+      if (wellnessInputSchema.safeParse(row).success) return true
+      ignored['wellness:out-of-range'] = (ignored['wellness:out-of-range'] ?? 0) + 1
+      return false
+    })
     const activities: ParsedActivity[] = []
     for (const workout of data.workouts) {
       const mapped = isRecord(workout) ? mapWorkout(workout, ctx.timezone) : null
-      if (mapped) activities.push(mapped)
-      else ignored['workout:unreadable'] = (ignored['workout:unreadable'] ?? 0) + 1
+      if (!mapped) ignored['workout:unreadable'] = (ignored['workout:unreadable'] ?? 0) + 1
+      else if (!parsedActivitySchema.safeParse(mapped).success)
+        ignored['workout:out-of-range'] = (ignored['workout:out-of-range'] ?? 0) + 1
+      else activities.push(mapped)
     }
     return { activities, wellness, ignored }
   },

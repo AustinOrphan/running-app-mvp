@@ -15,7 +15,7 @@ import { replayLadder } from '../../shared/engine/fuel.ts'
 import { racePlanFor, summaryOf } from '../../shared/engine/racePlan.ts'
 import type { RacePlan, RacePlanInput } from '../../shared/engine/racePlan.ts'
 import type { CheckpointInput } from '../../shared/engine/raceSplits.ts'
-import type { GoalModel } from '../../shared/engine/types.ts'
+import type { FuelRunInput, GoalModel } from '../../shared/engine/types.ts'
 import type { PlanSession, RaceCheckpointsView, UserSettings } from '../../shared/types.ts'
 import { keys } from '../../web/api/client.ts'
 import { RaceSessionSection } from '../../web/components/race/RaceSessionSection.tsx'
@@ -70,6 +70,7 @@ function planWith(
   supportLevel: 'aided' | 'self' = 'aided',
   checkpoints: CheckpointInput[] = [],
   history?: RacePlanInput['history'],
+  runs: FuelRunInput[] = [],
 ): RacePlan {
   return JSON.parse(
     JSON.stringify(
@@ -80,7 +81,7 @@ function planWith(
         z1CeilingBpm: 142,
         ladder: replayLadder({
           settings: { optIn90: true, optInAdvanced: true, giDisease: false },
-          runs: [],
+          runs,
           gutTrainingWeeks: [],
         }),
         weightKg: 70,
@@ -332,6 +333,87 @@ describe('RacePage', () => {
     renderWithProviders(<RacePage />, { route: '/race' })
     const link = await screen.findByRole('link', { name: 'Open the fuel lab' })
     expect(link).toHaveAttribute('href', '/fuel')
+  })
+
+  /** Two runs of `hours`, each eating well above its rung: 60 g/h is tolerated, the third is in trial. */
+  const twoRuns = (hours: number, gPerH = 125): FuelRunInput[] =>
+    [0, 1].map((n) => ({
+      activityId: `a${String(n)}`,
+      date: addDays('2026-01-05', n * 7),
+      startTime: null,
+      elapsedSec: hours * HOUR,
+      weather: { tempC: 12, humidityPct: 60, windKph: 5 },
+      sessionFlags: null,
+      log: {
+        skipped: false,
+        items: [
+          {
+            name: 'Gel',
+            carbsG: gPerH * hours,
+            sodiumMg: null,
+            kcal: null,
+            servings: 1,
+            multiCarb: true,
+          },
+        ],
+        gut: 0,
+        nausea: null,
+        hotOverride: null,
+      },
+    }))
+
+  test('says what the duration floor held back, for a rung tolerated only on runs of 2 h', async () => {
+    const plan = planWith({}, 'aided', [], undefined, twoRuns(2))
+    expect(plan.fuel).toMatchObject({ rungIndex: 0, basis: 'floor' })
+    mockApi({
+      'GET /api/race/plan': () => ({ plan, reason: null }),
+      'GET /api/settings': () => SETTINGS,
+    })
+    const { container } = renderWithProviders(<RacePage />, { route: '/race' })
+    const text = describeRacePlan(plan, 'km').fuel
+    expect(await screen.findByText(text.rate)).toBeInTheDocument()
+    expect(screen.getByText(text.basis)).toBeInTheDocument()
+    expect(text.durationNote).toMatch(
+      /^A higher rate, 60 g\/h, was tolerated, but only on shorter runs\./,
+    )
+    expect(screen.getByText(text.durationNote as string)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Open the fuel lab' })).toHaveAttribute('href', '/fuel')
+    expect(container.textContent).not.toMatch(/has not tolerated a higher rate/)
+    expectCleanCopy(container)
+  })
+
+  test('keeps the Fuel lab link beside a lower rung that a long run carried', async () => {
+    const plan = planWith({}, 'aided', [], undefined, [
+      // 62 g/h reaches 60 g/h and not 70 g/h, so the 4 h runs carry 60 g/h only
+      ...twoRuns(4, 62),
+      { ...twoRuns(2)[0]!, activityId: 'a2', date: addDays('2026-01-05', 14) },
+    ])
+    expect(plan.fuel).toMatchObject({ rungIndex: 1, basis: 'tolerated' })
+    expect(plan.fuel.durationFloor).not.toBeNull()
+    mockApi({
+      'GET /api/race/plan': () => ({ plan, reason: null }),
+      'GET /api/settings': () => SETTINGS,
+    })
+    renderWithProviders(<RacePage />, { route: '/race' })
+    const text = describeRacePlan(plan, 'km').fuel
+    expect(await screen.findByText(text.basis)).toBeInTheDocument()
+    expect(screen.getByText(text.durationNote as string)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Open the fuel lab' })).toBeInTheDocument()
+  })
+
+  test('shows a plan kept on the device before the floor existed, with no duration line', async () => {
+    const kept = planWith({}, 'aided', [], undefined, twoRuns(3))
+    const { durationFloor: _dropped, ...fuel } = kept.fuel
+    const plan: RacePlan = { ...kept, fuel }
+    mockApi({
+      'GET /api/race/plan': () => ({ plan, reason: null }),
+      'GET /api/settings': () => SETTINGS,
+    })
+    renderWithProviders(<RacePage />, { route: '/race' })
+    const text = describeRacePlan(plan, 'km').fuel
+    expect(text.durationNote).toBeNull()
+    expect(await screen.findByText(text.basis)).toBeInTheDocument()
+    expect(screen.queryByText(/was tolerated, but only on shorter runs/)).toBeNull()
   })
 
   test.each([

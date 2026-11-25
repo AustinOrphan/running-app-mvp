@@ -24,6 +24,7 @@ export function RaceFuelBlock({ text, stronger, full, floor }: RaceFuelBlockProp
     <>
       <p className={styles.text}>{text.rate}</p>
       <p className={styles.note}>{text.basis}</p>
+      {text.durationNote === null ? null : <p className={styles.note}>{text.durationNote}</p>}
       {text.certainty === null ? null : <p className={styles.note}>{text.certainty}</p>}
       {text.multiCarb === null ? null : <p className={styles.note}>{text.multiCarb}</p>}
       {text.fewHours === null ? null : <p className={styles.note}>{text.fewHours}</p>}
@@ -32,7 +33,7 @@ export function RaceFuelBlock({ text, stronger, full, floor }: RaceFuelBlockProp
       {full && text.carry !== null ? <p className={styles.note}>{text.carry}</p> : null}
       {text.aid === null ? null : <p className={styles.note}>{text.aid}</p>}
       <p className={styles.note}>{text.fluid}</p>
-      {floor ? (
+      {floor || text.durationNote !== null ? (
         <Link to="/fuel" className={styles.link}>
           {text.labLink}
         </Link>

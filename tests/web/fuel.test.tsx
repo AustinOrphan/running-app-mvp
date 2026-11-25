@@ -1223,7 +1223,7 @@ describe('the Fuel lab page: sections and layout', () => {
       lab.next?.text.heading,
       'Fuel log',
       'Tier ladder',
-      'Race rate so far',
+      'Highest tolerated rate so far',
       'History',
       'Products',
       'Gut training',
@@ -1246,15 +1246,19 @@ describe('the Fuel lab page: sections and layout', () => {
       loggedRun(11, { servings: 8, gut: 0 }),
     ]
     renderLab(fullLab({ ...makeLab(runs), next: null, block: BLOCK }))
-    const card = await region('Race rate so far')
-    expect(card).toHaveTextContent(/Measured at the race rate of 60 g\/h\./)
+    const card = await region('Highest tolerated rate so far')
+    expect(card).toHaveTextContent(/Measured at the highest tolerated rate, 60 g\/h\./)
+    // the Race page may state a lower rate (duration floor, rule H7), so the card never calls this the race rate
+    expect(card).not.toHaveTextContent(/race rate/i)
     expect(
       within(card).getByText(
-        /^Longest run with the race rate held: 5 h 10 min, Tue 10 Mar 2026\.$/,
+        /^Longest run with the highest tolerated rate held: 5 h 10 min, Tue 10 Mar 2026\.$/,
       ),
     ).toBeVisible()
     expect(
-      within(card).getByText('Second day of a back-to-back at the race rate: Wed 11 Mar 2026.'),
+      within(card).getByText(
+        'Second day of a back-to-back at the highest tolerated rate: Wed 11 Mar 2026.',
+      ),
     ).toBeVisible()
     expectCleanCopy(card)
   })
@@ -1272,15 +1276,15 @@ describe('the Fuel lab page: sections and layout', () => {
       { ...loggedRun(4, { servings: 8, gut: 0 }), date: '2025-12-06', weather: HOT },
     ]
     renderLab(fullLab({ ...makeLab(runs), next: null, block: BLOCK }))
-    const card = await region('Race rate so far')
+    const card = await region('Highest tolerated rate so far')
     expect(
       within(card).getByText(
-        'Longest run with the race rate held: 5 h, Fri 5 Dec 2025, on a hot day.',
+        'Longest run with the highest tolerated rate held: 5 h, Fri 5 Dec 2025, on a hot day.',
       ),
     ).toBeVisible()
     expect(
       within(card).getByText(
-        'Second day of a back-to-back at the race rate: Sat 6 Dec 2025, on a hot day.',
+        'Second day of a back-to-back at the highest tolerated rate: Sat 6 Dec 2025, on a hot day.',
       ),
     ).toBeVisible()
     expectCleanCopy(card)
@@ -1299,24 +1303,30 @@ describe('the Fuel lab page: sections and layout', () => {
         units: 'mi',
       },
     )
-    const card = await region('Race rate so far')
-    expect(card).toHaveTextContent(/Measured at the race rate of 30 to 50 g\/h\./)
+    const card = await region('Highest tolerated rate so far')
+    expect(card).toHaveTextContent(/Measured at the highest tolerated rate, 30 to 50 g\/h\./)
     expect(
-      within(card).getByText('Longest run with the race rate held: 3 h, Sun 1 Mar 2026.'),
+      within(card).getByText(
+        'Longest run with the highest tolerated rate held: 3 h, Sun 1 Mar 2026.',
+      ),
     ).toBeVisible()
     expect(
-      within(card).getByText('Second day of a back-to-back at the race rate: none logged yet.'),
+      within(card).getByText(
+        'Second day of a back-to-back at the highest tolerated rate: none logged yet.',
+      ),
     ).toBeVisible()
   })
 
   test('says plainly that nothing qualifies yet', async () => {
     renderLab(freshLab())
-    const card = await region('Race rate so far')
+    const card = await region('Highest tolerated rate so far')
     expect(
-      within(card).getByText('Longest run with the race rate held: none logged yet.'),
+      within(card).getByText('Longest run with the highest tolerated rate held: none logged yet.'),
     ).toBeVisible()
     expect(
-      within(card).getByText('Second day of a back-to-back at the race rate: none logged yet.'),
+      within(card).getByText(
+        'Second day of a back-to-back at the highest tolerated rate: none logged yet.',
+      ),
     ).toBeVisible()
   })
 
@@ -1327,7 +1337,7 @@ describe('the Fuel lab page: sections and layout', () => {
       await section(/^Fuel target:/),
       await section('Fuel log'),
       await section('Tier ladder'),
-      await section('Race rate so far'),
+      await section('Highest tolerated rate so far'),
       await section('History'),
     ]
     const right = [

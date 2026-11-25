@@ -12,10 +12,12 @@ import type {
 import type {
   ParsedActivity,
   PlanRevision,
+  PlanRevisionView,
   PlanWithSessions,
   TodayView,
   ZoneProposalView,
 } from '../../shared/types.ts'
+import { recordPlanWrite, revisionParts } from '../../server/services/replan.ts'
 import {
   dueSlot,
   MATCHING_SLOT,
@@ -39,6 +41,20 @@ import {
   seedUser,
   type TestCtx,
 } from './helpers.ts'
+
+// The hand-made plans of this file do not pass the quality checklist; the one test of an undo makes
+// the checklist the undo runs pass, so that it tests the writes and not the policy.
+const force = vi.hoisted(() => ({ checklistOk: false }))
+vi.mock('../../shared/engine/index.ts', async (importOriginal) => {
+  const real = await importOriginal<typeof import('../../shared/engine/index.ts')>()
+  return {
+    ...real,
+    runChecklist: (...args: Parameters<typeof real.runChecklist>) => {
+      const results = real.runChecklist(...args)
+      return force.checklistOk ? results.map((item) => ({ ...item, ok: true })) : results
+    },
+  }
+})
 
 // The file parser's summary is a separate task; this stand-in keeps the store test independent.
 vi.mock('../../shared/importers/files/summarize.ts', () => ({
@@ -427,6 +443,78 @@ describe('trimming the next quality session', () => {
       where: { id: { in: [rows[1]!.id, rows[2]!.id] } },
     })
     expect(again.map((r) => r.status).sort()).toEqual(['downgraded', 'planned'])
+  })
+
+  // STATUS 37: the trim changed the row of an earlier revision outside any revision, so that
+  // revision read as edited since and nothing could give the row back.
+  test('a trim is a revision of its own, and undoing it frees the revision before it', async () => {
+    const { u, plan, rows } = await planWith('trim-revision@example.com', [
+      { date: addDays(today, -1), kind: 'threshold', min: 50, structure: WORK },
+      { date: addDays(today, 2), kind: 'threshold', min: 50, structure: WORK },
+    ])
+    const upcoming = rows[1]!
+    // An earlier revision (a weekly update) wrote the upcoming session.
+    const redrawn = await ctx.prisma.planSession.update({
+      where: { id: upcoming.id },
+      data: { durationMin: 52 },
+    })
+    const earlier = await recordPlanWrite(ctx.prisma, {
+      planId: plan.id,
+      userId: u.id,
+      today,
+      reason: 'weekly',
+      summary: 'Synthetic weekly update.',
+      changes: [],
+      auto: true,
+      ...revisionParts({
+        sessions: {
+          created: [],
+          deleted: [],
+          updated: [{ id: upcoming.id, before: upcoming, after: redrawn }],
+        },
+      }),
+    })
+    const api = client(ctx, u)
+    const states = async () => {
+      const res = await api.get('/api/plan/revisions').send()
+      expect(res.status, JSON.stringify(res.body)).toBe(200)
+      return res.body as PlanRevisionView[]
+    }
+    expect((await states()).find((r) => r.id === earlier.id)!.undo.available).toBe(true)
+
+    const run = await addRun(u.id, addDays(today, -1), { durationSec: 50 * 60, rpe: 10, feel: 2 })
+    await runExecutionForActivity(
+      { prisma: ctx.prisma, config: ctx.config },
+      { userId: u.id, activityId: run.id },
+    )
+    const trimmed = await ctx.prisma.planSession.findUniqueOrThrow({ where: { id: upcoming.id } })
+    expect(trimmed.status).toBe('downgraded')
+
+    // The trim is on the log, written by the engine, with what it did to the session.
+    const list = await states()
+    const trim = list.find((r) => r.reason === 'trim')
+    expect(trim).toMatchObject({ auto: true, undo: { available: true, reasons: [] } })
+    expect(trim!.summary).toContain(`${trimmed.durationMin} min`)
+    expect(trim!.diff!.sessions).toEqual([
+      expect.objectContaining({ sessionId: upcoming.id, change: 'changed' }),
+    ])
+    // The revision before it reads the row as changed since, so its undo is refused until the
+    // trim is undone.
+    expect(list.find((r) => r.id === earlier.id)!.undo.available).toBe(false)
+
+    force.checklistOk = true
+    const undone = await api.post(`/api/plan/revisions/${trim!.id}/undo`).send({})
+    force.checklistOk = false
+    expect(undone.status, JSON.stringify(undone.body)).toBe(200)
+    const restored = await ctx.prisma.planSession.findUniqueOrThrow({ where: { id: upcoming.id } })
+    expect(restored).toMatchObject({
+      status: 'planned',
+      durationMin: 52,
+      purpose: redrawn.purpose,
+      original: null,
+      trimmed: false,
+    })
+    expect((await states()).find((r) => r.id === earlier.id)!.undo.available).toBe(true)
   })
 
   test('pain keeps the next session as planned', async () => {

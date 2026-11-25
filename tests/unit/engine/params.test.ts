@@ -289,7 +289,16 @@ describe('parameter registry', () => {
       ['h7.hotDayAirTempC', 25, 'D', 'H7'],
       ['h7.gutBlockSessionsPerWeek', 3, 'D', 'H7'],
     ])
-    expect(paramsForRule('H7')).toHaveLength(22)
+    expect(paramsForRule('H7')).toHaveLength(24)
+    // the duration floor of the race rate: two grade D defaults that sit on the counted length
+    expect(
+      [h7.raceRateRunShare, h7.raceRateRunCapMin].map((p) => [p.id, p.value, p.grade, p.rule]),
+    ).toEqual([
+      ['h7.raceRateRunShare', 0.5, 'D', 'H7'],
+      ['h7.raceRateRunCapMin', 180, 'D', 'H7'],
+    ])
+    for (const p of [h7.raceRateRunShare, h7.raceRateRunCapMin]) expect(p.note).toMatch(/^Default:/)
+    expect(h7.raceRateRunCapMin.value).toBeGreaterThanOrEqual(h7.logMinDurationMin.value)
     // the 2 h threshold is the one value taken from a study; the rest are labelled defaults
     expect(h7.logMinDurationMin.evidence).toEqual(['costa-2017-eigs-sr'])
     for (const p of [h7.hotDayWbgtC, h7.hotDayAirTempC]) {

@@ -862,7 +862,13 @@ describe('GET /api/today: the brief slot', () => {
     const keyOn = (date: string) =>
       ctx.prisma.weeklyBrief.update({
         where: { id: row.id },
-        data: { facts: JSON.stringify({ ...facts, keySession: { ...facts.keySession!, date } }) },
+        data: {
+          facts: JSON.stringify({
+            ...facts,
+            keySession: { ...facts.keySession!, date },
+            laterKeySessions: [],
+          }),
+        },
       })
     // Thursday noon: the brief of the Monday still describes the week
     const thursday = addDays(monday, 3)
@@ -880,6 +886,59 @@ describe('GET /api/today: the brief slot', () => {
     expect(await nextKey()).toEqual({ date: thursday, kind, distanceEstimate })
     await keyOn(addDays(thursday, 1))
     expect(await nextKey()).toEqual({ date: addDays(thursday, 1), kind, distanceEstimate })
+  })
+
+  test('names the next key session still to come once the first has passed, and none after the last', async () => {
+    const r = await updated(email())
+    const row = (await briefOf(r.u.id))!
+    const facts = readFacts(row.facts)!
+    const first = facts.keySession!
+    // the weekly update stores the key sessions after the first beside it
+    const laterOnes = facts.laterKeySessions ?? []
+    expect(laterOnes.length).toBeGreaterThan(0)
+    const [later] = laterOnes
+    expect(later!.date > first.date).toBe(true)
+    const nextKey = async () => {
+      const [item] = await listed(r)
+      expect(slotOf(await today(r))).toEqual(item)
+      return item!.nextKey
+    }
+    const lastDay = laterOnes.reduce((d, k) => (k.date > d ? k.date : d), first.date)
+    // the day after the first key session: the next one still to come is named
+    const afterFirst = addDays(first.date, 1)
+    const nextOne = laterOnes.find((k) => k.date >= afterFirst)!
+    vi.setSystemTime(new Date(`${afterFirst}T12:00:00`))
+    expect(await nextKey()).toEqual({
+      date: nextOne.date,
+      kind: nextOne.kind,
+      distanceEstimate: nextOne.distanceEstimate ?? null,
+    })
+    // the day after the last one of the week: none
+    vi.setSystemTime(new Date(`${addDays(lastDay, 1)}T12:00:00`))
+    expect(await nextKey()).toBeNull()
+  })
+
+  test('skips a later key session whose day has also passed', async () => {
+    const r = await updated(email())
+    const row = (await briefOf(r.u.id))!
+    const facts = readFacts(row.facts)!
+    const kind = facts.keySession!.kind
+    const slim = (date: string) => ({ date, kind: 'long' as const, distanceEstimate: null })
+    const thursday = addDays(monday, 3)
+    await ctx.prisma.weeklyBrief.update({
+      where: { id: row.id },
+      data: {
+        facts: JSON.stringify({
+          ...facts,
+          keySession: { ...facts.keySession!, date: addDays(monday, 1), kind },
+          laterKeySessions: [slim(addDays(monday, 2)), slim(thursday), slim(addDays(monday, 5))],
+        }),
+      },
+    })
+    vi.setSystemTime(new Date(2026, 9, 22, 12))
+    const [item] = await listed(r)
+    expect(item!.nextKey).toEqual({ date: thursday, kind: 'long', distanceEstimate: null })
+    expect(slotOf(await today(r))).toEqual(item)
   })
 })
 

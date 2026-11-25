@@ -146,3 +146,18 @@ stays.
   the race plan through `raceFuelFor`, so a floor changes plan output and, as a Param change, needs
   a `PARAMS_VERSION` bump and a `plan:report` delta (the `research-update` skill, 2026-11-13). It is
   left as a separate decision.
+
+## Addendum: the duration floor on the race rate (2026-11-24)
+
+The separate decision above is made: the race rate takes the highest rung that was tolerated on a
+run of at least `raceRateRunSec` (rule H7, "Duration floor on the race rate"), owner decision
+2026-11-23, "Race-day gaps (Recommended)". The required length is `h7.raceRateRunShare` (0.5) of the
+expected race time, never under `h7.logMinDurationMin` and never over `h7.raceRateRunCapMin` (180
+min); both are grade D defaults. The decision does not reopen the ladder: its movement, targets and
+the Fuel lab's hold card are unchanged, and the floor only lowers the race rate (rule G6).
+
+- Cap 180 min, not 150 or 240. For (**Opinion**): every 100-mile plan in the plan matrix places a
+  run that long. Against (**Fact**): the 50 km plan peaks at 175 min (`plan:report`, 2026-11-23).
+- A cliff to the floor, not a slope. For (**Opinion**): a rate no run of that length showed is not
+  offered. Against (**Opinion**): 30 to 50 g/h can read as a ban on more.
+- One rule for ultra and road races. For (**Preference**): one rule is simpler to state.

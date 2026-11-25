@@ -350,6 +350,33 @@ export const hUltra = {
       unit: 'min',
       note: 'A run of at least this long can be logged and counted toward the ladder (a run of at least h7.gutTrainingSessionMinMin counts in a gut-training week). The review puts the threshold for significant gut strain at 2 h at about 60% VO2max; the app judges by duration alone.',
     }),
+    raceRateRunShare: param(
+      'h7.raceRateRunShare',
+      0.5,
+      'D',
+      'H7',
+      [
+        'costa-2017-eigs-sr',
+        'costa-2025-sda-ussf-gi-position',
+        'miall-2018-gut-challenge',
+        'king-2022-high-cho-gut-training',
+      ],
+      {
+        unit: 'fraction of expected race duration',
+        note: 'Default: a rung counts toward the race rate (H14) only when it was tolerated on a run at least this share of the expected race time (never under h7.logMinDurationMin, never over h7.raceRateRunCapMin). The floor only lowers the rate. No study tests tolerance of a carbohydrate rate against run length: the sources say that gut strain grows with duration and that a rate tolerated in short sessions was challenged in longer ones, not how long a run must be for a rate to carry over to a race.',
+      },
+    ),
+    raceRateRunCapMin: param(
+      'h7.raceRateRunCapMin',
+      180,
+      'D',
+      'H7',
+      ['costa-2017-eigs-sr', 'stuempfle-2015-gi-distress-wser'],
+      {
+        unit: 'min',
+        note: 'Default: the longest run a race rate can be asked to have been tolerated on, so a race of a day or more is not held to a run no plan draws. It sits above the 2 h threshold of the review and under the longest fuel-practice runs the ultra plan itself places for a 100-mile goal. No study sets it; a cross-sectional report of a 161 km race ties nausea to the hardest part of the race and cannot say what length of run predicts it.',
+      },
+    ),
     rungReachFraction: param('h7.rungReachFraction', 0.9, 'D', 'H7', [], {
       unit: 'fraction',
       note: 'Default: a run reaches a rung when its carbohydrate rate over elapsed time is at least this fraction of the rung, which allows for a gel taken a few minutes late. No study sets a tolerance.',
