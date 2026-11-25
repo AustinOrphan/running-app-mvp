@@ -144,6 +144,7 @@ describe('GET /api/plan-inputs', () => {
 
     afterEach(async () => {
       await ctx.prisma.climateCache.deleteMany()
+      await ctx.prisma.climateFailure.deleteMany()
     })
 
     test('a goal with no place and no home place says so: no place set, nothing used', async () => {
@@ -171,13 +172,13 @@ describe('GET /api/plan-inputs', () => {
       const goal = await goalFor(user, { place: true })
       const key = climateKeyFor(goal, { lat: null, lng: null, use: false })
       if (key === null) throw new Error('the goal has no place')
-      const row = await ctx.prisma.climateCache.create({
+      await ctx.prisma.climateFailure.create({
         data: { ...key, failedAt: new Date(), lastError: 'Open-Meteo request failed: no answer.' },
       })
       expect((await viewOf(user)).raceHeat).toMatchObject({ using: 'race', state: 'failed' })
-      await ctx.prisma.climateCache.update({
-        where: { id: row.id },
-        data: { failedAt: null, lastError: null, complete: true, wbgtC: null },
+      await ctx.prisma.climateFailure.deleteMany()
+      const row = await ctx.prisma.climateCache.create({
+        data: { ...key, complete: true, wbgtC: null },
       })
       expect((await viewOf(user)).raceHeat).toMatchObject({ state: 'failed' })
       // a later success clears it

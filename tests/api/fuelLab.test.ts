@@ -78,6 +78,7 @@ afterEach(async () => {
   vi.setSystemTime(NOON)
   await ctx.prisma.forecastCache.deleteMany()
   await ctx.prisma.climateCache.deleteMany()
+  await ctx.prisma.climateFailure.deleteMany()
   expectNoRefusedFetches(ctx)
 })
 

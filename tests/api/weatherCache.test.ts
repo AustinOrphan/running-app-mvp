@@ -49,6 +49,7 @@ afterEach(async () => {
   vi.unstubAllGlobals()
   vi.setSystemTime(NOW)
   await ctx.prisma.climateCache.deleteMany()
+  await ctx.prisma.climateFailure.deleteMany()
   await ctx.prisma.forecastCache.deleteMany()
   // The job serves every user, so each test starts with only its own runner.
   await ctx.prisma.user.deleteMany()
@@ -231,6 +232,7 @@ describe('request paths read the cache and never fetch', () => {
 
     // The caches are empty again and every fetch, injected or global, fails and is counted.
     await ctx.prisma.climateCache.deleteMany()
+    await ctx.prisma.climateFailure.deleteMany()
     await ctx.prisma.forecastCache.deleteMany()
     const { fetchFn, calls } = silent()
     ctx.fetch = fetchFn

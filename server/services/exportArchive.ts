@@ -625,6 +625,7 @@ export const EXCLUDED_MODELS: Readonly<Record<string, string>> = {
   WristPublication: 'The publisher’s queue for the watch; rebuilt from the plan.',
   ForecastCache: 'Shared weather cache, not owned by a runner.',
   ClimateCache: 'Shared climate cache, not owned by a runner.',
+  ClimateFailure: 'The weather job’s back-off for a shared climate cell, not owned by a runner.',
   MapWay: 'OpenStreetMap’s data (ODbL), kept as a convenience; download the area again to get it.',
 }
 

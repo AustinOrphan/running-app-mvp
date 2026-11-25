@@ -64,6 +64,7 @@ const OWNED: ReadonlyArray<readonly [string, (db: Reader, userId: string) => Pro
 export const UNOWNED_MODELS: Readonly<Record<string, string>> = {
   ForecastCache: 'shared cache keyed by a 0.1 degree cell; no user column',
   ClimateCache: 'shared cache keyed by a 0.01 degree race cell; no user column',
+  ClimateFailure: 'back-off of a shared climate cell; no user column',
 }
 
 /** The names of the tables `countUserRows` reports, for the completeness test. */

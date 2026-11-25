@@ -131,7 +131,7 @@ describe('which models resetData clears', () => {
         expected.push(table)
       }
     }
-    expect(expected).toEqual(['ClimateCache', 'ForecastCache'])
+    expect(expected).toEqual(['ClimateCache', 'ClimateFailure', 'ForecastCache'])
     expect(
       sharedModels(schemaModels())
         .map((model) => model.name)

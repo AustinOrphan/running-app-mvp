@@ -63,6 +63,7 @@ afterEach(async () => {
   vi.unstubAllGlobals()
   vi.setSystemTime(new Date(2026, 9, 21, 12))
   await ctx.prisma.climateCache.deleteMany()
+  await ctx.prisma.climateFailure.deleteMany()
   await ctx.prisma.forecastCache.deleteMany()
   expectNoRefusedFetches(ctx)
 })

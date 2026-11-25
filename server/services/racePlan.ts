@@ -1,7 +1,7 @@
 // The race plan of the goal (rule H14, ADR 0018): the pure `racePlanFor` fed from the athlete
 // snapshot, the replayed fuel ladder and the cached race climate, memoised by data version and day.
 // Nothing here writes, waits or reads the network: the race WBGT is the climate normal in
-// `ClimateCache` (a state table), so the plan reads no forecast and its change key is the data
+// `ClimateCache` (a state table; its failure bookkeeping is not), so the plan reads no forecast and its change key is the data
 // version and the day (`athleteKey`).
 import { daysBetween } from '../../shared/dates.ts'
 import { courseSilhouettePoints } from '../../shared/domain/courseSilhouette.ts'

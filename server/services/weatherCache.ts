@@ -427,8 +427,14 @@ interface ClimateRow {
   wbgtC: number | null
   complete: boolean
   fetchedAt: Date | null
-  failedAt: Date | null
-  lastError: string | null
+}
+
+/**
+ * The last failed attempt on a climate cell, or null. It lives in `ClimateFailure` (non-state), not
+ * on `ClimateCache`: a failed refresh then writes no state model and leaves the data version alone.
+ */
+function climateFailureOf(prisma: PrismaClient, key: ClimateKey) {
+  return prisma.climateFailure.findUnique({ where: climateWhere(key) })
 }
 
 /** Whether a race climate should be fetched: never read, incomplete, or older than 30 days. */
@@ -528,33 +534,40 @@ function refreshClimate(
       fetchedAt: now,
     }
     if (firstError === null) {
-      const data = { ...read, complete: true, failedAt: null, lastError: null }
+      const data = { ...read, complete: true }
       await prisma.climateCache.upsert({
         where: climateWhere(key),
         create: { ...key, ...data },
         update: data,
       })
+      await prisma.climateFailure.deleteMany({ where: key })
       return
     }
 
     const lastError = safeMessage(firstError)
     const existing = await prisma.climateCache.findUnique({ where: climateWhere(key) })
-    if (existing?.complete === true || yearsRead === 0) {
-      // Old data is kept: a complete value is better than a partial one, and nothing was read.
-      await prisma.climateCache.upsert({
-        where: climateWhere(key),
-        create: { ...key, failedAt: now, lastError },
-        update: { failedAt: now, lastError },
-      })
-    } else {
-      // Nothing better is stored, so the years that did answer stand until the rest follow.
-      const data = { ...read, complete: false, failedAt: now, lastError }
+    // Old data is kept when a complete value exists (better than a partial one) or nothing was
+    // read. Otherwise the years that did answer stand until the rest follow; the write is skipped
+    // when it would store what the row already holds, so a repeated failure writes no state.
+    const keepOld = existing?.complete === true || yearsRead === 0
+    const sameRead =
+      existing !== null &&
+      existing.wbgtC === read.wbgtC &&
+      existing.samples === read.samples &&
+      existing.yearsRead === read.yearsRead
+    if (!keepOld && !sameRead) {
+      const data = { ...read, complete: false }
       await prisma.climateCache.upsert({
         where: climateWhere(key),
         create: { ...key, ...data },
         update: data,
       })
     }
+    await prisma.climateFailure.upsert({
+      where: climateWhere(key),
+      create: { ...key, failedAt: now, lastError },
+      update: { failedAt: now, lastError },
+    })
     throw new Error(lastError)
   })
 }
@@ -589,8 +602,8 @@ export async function climateFailed(
   const key = climateKeyFor(goal, home)
   if (key === null) return false
   const row = await prisma.climateCache.findUnique({ where: climateWhere(key) })
-  if (row === null || row.wbgtC != null) return false
-  return row.failedAt !== null || row.complete
+  if (row?.wbgtC != null) return false
+  return (await climateFailureOf(prisma, key)) !== null || row?.complete === true
 }
 
 /**
@@ -621,7 +634,7 @@ export async function ensureClimate(
   })
   if (key === null) return
   const row = await prisma.climateCache.findUnique({ where: climateWhere(key) })
-  if (!climateDue(row, now) || backedOff(row, now)) return
+  if (!climateDue(row, now) || backedOff(await climateFailureOf(prisma, key), now)) return
   const attempt = refreshClimate(prisma, fetchOf(deps), key, now)
   inBackground(attempt)
   if (row?.wbgtC != null) return
@@ -712,8 +725,9 @@ export async function refreshWeatherCaches(
     seen.add(id)
     const row = await prisma.climateCache.findUnique({ where: climateWhere(key) })
     if (!climateDue(row, now)) continue
-    if (backedOff(row, now)) {
-      fail(row?.lastError ?? 'The race climate could not be read.')
+    const failure = await climateFailureOf(prisma, key)
+    if (backedOff(failure, now)) {
+      fail(failure?.lastError ?? 'The race climate could not be read.')
       continue
     }
     try {
@@ -728,8 +742,8 @@ export async function refreshWeatherCaches(
 
 /**
  * After a write that changes a home or race place, date, start time or distance: fills the cells
- * the new values need, without making the request wait. A failure stays on the cache row, where
- * the weather job's back-off finds it.
+ * the new values need, without making the request wait. A failure stays in `ClimateFailure`
+ * (or on the forecast row), where the weather job's back-off finds it.
  */
 export function warmWeatherCaches(deps: Deps, userId: string, today: string): void {
   inBackground(refreshWeatherCaches(deps, userId, { today }))

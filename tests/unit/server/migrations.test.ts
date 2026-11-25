@@ -2123,6 +2123,79 @@ function verifyWellnessInBed(db: DatabaseSync, before: Snapshot): void {
   expect(rowsOf(db, 'SELECT "inBedSec" FROM "WellnessDay"')).toEqual([{ inBedSec: 28_800 }])
 }
 
+/** The previous release's race climate cells: one read and failed since, one read, one only failed. */
+function seedClimateRelease(db: DatabaseSync): void {
+  const cell = { latE2: 4012, lngE2: -10523, monthDay: '06-26', startHour: 7, windowHours: 2 }
+  insert(db, 'ClimateCache', {
+    id: 'c1',
+    ...cell,
+    wbgtC: 18.4,
+    samples: 12,
+    yearsRead: 3,
+    complete: 1,
+    fetchedAt: STAMP,
+    failedAt: STAMP,
+    lastError: 'Open-Meteo request failed: HTTP 503.',
+  })
+  insert(db, 'ClimateCache', {
+    id: 'c2',
+    ...cell,
+    monthDay: '06-27',
+    wbgtC: 17.1,
+    samples: 12,
+    yearsRead: 3,
+    complete: 1,
+    fetchedAt: STAMP,
+  })
+  insert(db, 'ClimateCache', {
+    id: 'c3',
+    ...cell,
+    monthDay: '06-28',
+    failedAt: STAMP,
+    lastError: 'Open-Meteo request failed: no answer.',
+  })
+}
+
+function verifyClimateFailure(db: DatabaseSync, before: Snapshot): void {
+  // The two failure columns leave the cache, so its rows are compared without them.
+  const kept: Snapshot = new Map(before)
+  kept.set(
+    'ClimateCache',
+    before.get('ClimateCache')!.map(({ failedAt: _at, lastError: _error, ...rest }) => rest),
+  )
+  expectNothingLost(kept, db)
+  expectConsistent(db)
+  // Every cell keeps its value; the columns of the failure are gone from the cache.
+  const cache = rowsOf(db, 'SELECT * FROM "ClimateCache" ORDER BY id')
+  expect(cache.map((r) => r.id)).toEqual(['c1', 'c2', 'c3'])
+  expect(cache[0]).toMatchObject({ wbgtC: 18.4, samples: 12, yearsRead: 3, complete: 1 })
+  expect(Object.keys(cache[0]!)).not.toContain('failedAt')
+  expect(Object.keys(cache[0]!)).not.toContain('lastError')
+  // The back-off of the two cells that had failed moves over; the cell that never failed has none.
+  expect(rowsOf(db, 'SELECT id, failedAt, lastError FROM "ClimateFailure" ORDER BY id')).toEqual([
+    { id: 'c1', failedAt: STAMP, lastError: 'Open-Meteo request failed: HTTP 503.' },
+    { id: 'c3', failedAt: STAMP, lastError: 'Open-Meteo request failed: no answer.' },
+  ])
+  expectIndex(
+    db,
+    'ClimateFailure',
+    ['latE2', 'lngE2', 'monthDay', 'startHour', 'windowHours'],
+    true,
+  )
+  // The failure table is keyed by cell, so a second row for a cell is refused.
+  expect(() => {
+    insert(db, 'ClimateFailure', {
+      id: 'f9',
+      latE2: 4012,
+      lngE2: -10523,
+      monthDay: '06-26',
+      startHour: 7,
+      windowHours: 2,
+      failedAt: STAMP,
+    })
+  }).toThrow(/UNIQUE/)
+}
+
 function seedMergedByHandRelease(db: DatabaseSync): void {
   insert(db, 'User', {
     id: 'u1',
@@ -2506,6 +2579,11 @@ const CASES: FixtureCase[] = [
     migration: 'activity_merged_by_hand',
     seed: seedMergedByHandRelease,
     verify: verifyMergedByHand,
+  },
+  {
+    migration: 'climate_failure',
+    seed: seedClimateRelease,
+    verify: verifyClimateFailure,
   },
 ]
 

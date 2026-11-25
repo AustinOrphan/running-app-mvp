@@ -92,6 +92,7 @@ async function todayOf(user: TestUser, query = ''): Promise<TodayView> {
 
 afterEach(async () => {
   await ctx.prisma.climateCache.deleteMany()
+  await ctx.prisma.climateFailure.deleteMany()
 })
 
 describe('GET /api/race/plan: access and shape', () => {
@@ -171,7 +172,7 @@ describe('GET /api/race/plan: access and shape', () => {
     const goal = await newGoal(user)
     const key = climateKeyFor(goal, { lat: null, lng: null, use: false })
     if (key === null) throw new Error('the goal has no place')
-    await ctx.prisma.climateCache.create({
+    await ctx.prisma.climateFailure.create({
       data: { ...key, failedAt: new Date(), lastError: 'Open-Meteo request failed: no answer.' },
     })
     const { plan } = await planOf(user)
