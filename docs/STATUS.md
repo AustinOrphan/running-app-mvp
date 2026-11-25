@@ -3,7 +3,7 @@
 Current state only; rewritten at every boundary. History lives in `git log`, the specs and
 plans under `docs/superpowers/`, the research corpus under `research/` and `docs/adr/`.
 
-Last update: 2026-11-22.
+Last update: 2026-11-25.
 
 ## Waiting on the owner (2026-11-22)
 
@@ -15,8 +15,9 @@ Each item names the default that holds until the owner answers.
    jobs stop when it sleeps, plus same-disk daily copies only.
 2. **Enter the spring race and set the places.** Enter the spring race as a B or C goal (#731),
    and set the home place and the race place (place search, #756 and #757) so race heat, the
-   cooling line and the night-run counts work. Default: no spring race in the plan, and no race
-   heat or night counts.
+   cooling line and the night-run counts work. The entered race also serves as H2's rehearsal,
+   since the plan builds no race simulation (#827). Default: no spring race in the plan, no race
+   heat or night counts, and no rehearsal run.
 3. **Device checks on the watch and phone.** Check the FIT files on the watch, one live
    intervals.icu publish, a calendar app on the webcal link and the Garmin model for the help text
    (Q6). Also check the fuel-cue test on the wrist (kit sent outside the repository), the minus
@@ -66,7 +67,7 @@ Each item names the default that holds until the owner answers.
 
 ## Where things stand
 
-- `main` is at 21cef333 (#818), 2026-11-22. `PARAMS_VERSION` is `2026-11-22.1`
+- `main` is at 20b24cdc (#827), 2026-11-25. `PARAMS_VERSION` is `2026-11-24.2`
   (`shared/engine/params/index.ts:24`). The research corpus holds 469 records in
   `research/papers`.
 - The app version is 2.0.0-beta.1 (`package.json:3`, #793). The latest release tag is `v1.0.0`,
@@ -92,6 +93,16 @@ Each item names the default that holds until the owner answers.
   (#812); the taper reference and the planned minutes of a short-placed week are kept (#814, #815);
   windows under 7 days leave the later loading weeks unchanged (#817); a held week trims its quality
   session once (#818). The PRs hold the detail.
+- #819 to #828 merged 2026-11-23 to 2026-11-25: the status update (#819), the OAuth callback's
+  `code` and `state` kept out of the access log (#820), a fixed clock in the energy-availability
+  test (#821), the engine's quality-session trim recorded as a plan revision (#822), the brief
+  naming the next key session still to come (#823), a two-part goal time read as h:mm from half
+  marathon up (#824), the Apple Health push running the import's range checks (#825), the climate
+  failure bookkeeping moved to the non-state `ClimateFailure` with its stamp in the memo names and
+  ETags (#826), H2 planning no race simulation (#827, owner decision 2026-11-24;
+  `h2.raceSimulationMaxHours` deleted) and a duration floor on the race fuel rate (#828, rule
+  H7). The Dependabot minor group (#816) moved the Playwright image to 1.65.1. The PRs hold the
+  detail.
 - Timers left in the scheduler: sync hourly, folder every 5 minutes, weather every 10 minutes,
   predictions every 6 hours, plus the daily slots (`server/jobs/scheduler.ts:1119-1229`).
 - Off-host backup bound in code: 29 snapshots (`server/services/backup.ts:57`). The restic job is
@@ -111,84 +122,75 @@ Ranked by weight for the first 100-mile build toward the goal race, then for bet
    intervals.icu publish (sport-settings field names, percent-pace steps, the 40 bpm floor,
    `external_id` and date change by PUT); a calendar app on the webcal link; which Garmin model
    the help text names (Q6). Until then "On your watch" is an inference.
-4. **Race simulation opt-in (H2) is not built.** The opt-in 8 h simulation, no later than 3 weeks
-   before race day, is design intent. `h2.raceSimulationMaxHours`
-   (`shared/engine/params/h-ultra.ts:81`) has no reader; only the longest-run caps of H2 are read
-   (`shared/engine/goal.ts:367-368`). It must exist at least 3 weeks before the goal race to be
-   used.
-5. **Race fuel rate has no duration floor.** `raceFuelFor` (`shared/engine/fuel.ts:546`) takes the
-   tolerated rung of the ladder whatever the length of the runs that showed it, so a 2 h run
-   counts like a 6 h run. A floor that can only lower the rate was proposed on 2026-11-12 and left
-   out because it changes plan output (`PARAMS_VERSION` bump, `plan:report` delta).
-6. **Blank page after tapping Done on Today.** Seen once (iOS Safari PWA, 2026-11-11), no known
+4. **Blank page after tapping Done on Today.** Seen once (iOS Safari PWA, 2026-11-11), no known
    cause, not reproduced in headless Chromium. Error boundaries (#705), window error reports
    (#713) and the feedback note (#714) capture the next occurrence. No recurrence is recorded.
-7. **After a held restart, the generic paused path draws the next weeks low.** A week the weekly
+5. **After a held restart, the generic paused path draws the next weeks low.** A week the weekly
    decision holds under the 3 x N floor stays a restart, and the weeks after it step from the
    floor: marathon, 2026-12-21, draws 41, 30, 45, 49, 53
    (`tests/unit/engine/held-week-restart.test.ts:33-41`, pinned as the engine draws it, not as a
    target). The cause is not traced; the code that continues a paused sequence after a restart is
    `replanAnchor` (`shared/engine/macro.ts:419-484`) and `anchored` with `haveWork`
    (`macro.ts:1342-1369`).
-8. **The planner and the guards read a guard-emptied week differently.** `generate` enters a week
+6. **The planner and the guards read a guard-emptied week differently.** `generate` enters a week
    in the ramp baselines at the minutes it holds, zero included (`shared/engine/index.ts:1480`).
    The guards leave a week they emptied out of the baseline, so the weeks after it are measured
    from an earlier week (`shared/engine/guards.ts:296-301`, changed in #810). The two readers can
    disagree about the week after an emptied one. No committed case separates them.
-9. **A strength-only week counts as 0 in the checklist and is skipped in the guards.**
+7. **A strength-only week counts as 0 in the checklist and is skipped in the guards.**
    `draftRamp` lists every week that holds any session, strength included
    (`shared/engine/checklist.ts:169`), and a week with no run totals 0 there, while `rampWeek`
    returns at a total of 0 and leaves the week out (`shared/engine/guards.ts:329-334`). A week of
    only a strength session is a zero baseline for the checklist and no baseline for the guards.
    Not reproduced by a committed test.
-10. **The first week back shows the J9 figure, then G-1 cuts it once the return runs exist.** After a
-    hold the first full week is drawn at the hold's restart share while the 30-day reference is empty;
-    at its own Monday the short runs of the return week are the only runs in the reference, and the
-    G-1 session-spike limit (`days * longCap`, `shared/engine/macro.ts:1499`) cuts it: hot-race,
-    28-day niggle from 2026-11-14, 189 at the re-plans through 12-07 and 120 at 12-14; trail-50k,
-    niggle of 28 days from 2026-11-21, 224 then 120 (measured in #808). Lifting it means exempting a
-    restart week from G-1 or placing the return week's runs differently, a change to a safety rule.
-11. **G-1 can cap every run of a week, beyond the long run.** #807 measures the long run's distance
-    limit once (`longRunMinWithin`, `shared/engine/macro.ts:1417-1419`), so the stated long run is
-    the one placed, and `tests/unit/engine/g1-week-cap-sweep.test.ts:24` pins the 11 weeks after a
-    part week. Later weeks, and runs that are not the long run, still drift from their stated target
-    where G-1 holds every run of a week at one cap (`macro.ts:1499`), and three equal runs at the cap
-    stay legal (D7). Seen on a real history before #807; no committed case beyond 11 weeks.
-12. **The rebuild after a long hold at a fraction under 1 is slow.** The weeks after the full week
+8. **The first week back shows the J9 figure, then G-1 cuts it once the return runs exist.** After a
+   hold the first full week is drawn at the hold's restart share while the 30-day reference is empty;
+   at its own Monday the short runs of the return week are the only runs in the reference, and the
+   G-1 session-spike limit (`days * longCap`, `shared/engine/macro.ts:1499`) cuts it: hot-race,
+   28-day niggle from 2026-11-14, 189 at the re-plans through 12-07 and 120 at 12-14; trail-50k,
+   niggle of 28 days from 2026-11-21, 224 then 120 (measured in #808). Lifting it means exempting a
+   restart week from G-1 or placing the return week's runs differently, a change to a safety rule.
+9. **G-1 can cap every run of a week, beyond the long run.** #807 measures the long run's distance
+   limit once (`longRunMinWithin`, `shared/engine/macro.ts:1417-1419`), so the stated long run is
+   the one placed, and `tests/unit/engine/g1-week-cap-sweep.test.ts:24` pins the 11 weeks after a
+   part week. Later weeks, and runs that are not the long run, still drift from their stated target
+   where G-1 holds every run of a week at one cap (`macro.ts:1499`), and three equal runs at the cap
+   stay legal (D7). Seen on a real history before #807; no committed case beyond 11 weeks.
+10. **The rebuild after a long hold at a fraction under 1 is slow.** The weeks after the full week
     of such a hold are bound by the ramp (the ceiling weeks, `shared/engine/index.ts:626-632`; the
     g-8 rebuild zone, `shared/engine/limits.ts:540-546`), and the plan reaches the pre-hold figure
     late. No committed case and not traced to one of the two.
-13. **A window of 3 days or more whose days are past, re-planned on the Thursday, still leaves the
+11. **A window of 3 days or more whose days are past, re-planned on the Thursday, still leaves the
     next weeks below the no-window plan.** #817's known limit: the half-marathon chain re-planned on
     the Thursday after a Monday to Wednesday window draws 213, 234 and 175 minutes against 259, 270
     and 202, the figures main drew before. The runs missed inside the window stand in the G-1
     reference and the run record. Pinned in
     `tests/unit/engine/short-window-later-weeks-sweep.test.ts:155-182`; no claim of rule.
-14. **A week where a window holds or caps a day, under a hold, can still take the trim twice.** #818
+12. **A week where a window holds or caps a day, under a hold, can still take the trim twice.** #818
     makes a window a bound on a week only when it holds or caps a day (`windowTakesMinutes`,
     `shared/engine/index.ts:2055`). Where it does, the bound is the minutes placed and the hold trim
     (`holdTrimmed`) takes its minutes from that bound again at the next re-plan. In the 2,133-step
     differential, 18 steps have such a week (3 of them with sessions placed below the figure) and
     none breaks the week-target fixed point. The count is from #818's review, not rerun in the
     repository.
-15. **A replay of a real history, from before #817, raised many later weeks above the Monday plan on
+13. **A replay of a real history, from before #817, raised many later weeks above the Monday plan on
     a mid-week re-plan.** #812 found later weeks above the Monday plan on main and on its branch
     alike (a path that predates it, F-a1 to F-a3). #817 changes that path (window-free weeks) and the
     replay was not repeated on #817 or #818 (counts only, nothing kept in the repository).
-16. **The six F-a items of #812.** F-a1: start-path ladders still raise on a re-plan (needs an E6
+14. **The six F-a items of #812.** F-a1: start-path ladders still raise on a re-plan (needs an E6
     decision). F-a2: the returning runner's J7 return week. F-a3: the recovery-cadence shift of
     sparse-100-mile. F-a4: the `replanChain` hole in `tests/unit/engine/replan-steps.ts` (closed for
     the first re-plan; later re-plans run the week before them as before). F-a5: taper and race-week
     residuals (a few minutes short in a later week on the hot-race Thursday and after). F-a6: fixtures
     that log runs with no elevation. One path is untested: a run logged today that matches no planned
     session, while today's planned run is still in `plannedOn`, could add a day.
-17. **The `g2.ceilingLookbackWeeks` note names one of its readers.** The Param note
+15. **The `g2.ceilingLookbackWeeks` note names one of its readers.** The Param note
     (`shared/engine/params/g-limits.ts:160-163`) describes the 2-week ceiling's look-back
     (`shared/engine/limits.ts:768`). #811 adds a second reader, the weeks after a hold that a window
     may hold under their target (`shared/engine/index.ts:626-632`), and #817 a third, the read-back
     of the weeks a short window took days from (`limits.ts:431`). The six-week reach is a design
     default for the new uses, not a measured value.
-18. **Entered B and C races: narrowed check, no browser check.** After an entered race's day the
+16. **Entered B and C races: narrowed check, no browser check.** After an entered race's day the
     minutes check of a re-plan is narrowed. The Plan page with an entered race was not checked in
     a browser, and an A-priority goal other than the plan's own is not read (#731). The
     12-athlete probe found no failure; no e2e spec covers an entered race on the Plan page.
@@ -199,61 +201,71 @@ Ranked by weight for the first 100-mile build toward the goal race, then for bet
     starts a fresh strength block during the build. Strength stays at 0 through the window
     (`postRace.ts:664`). The first-finish modifier applies to a runner with no race history. The
     new-plan trigger uses the D1 class while G-1 uses the literal 42,195 m.
-19. **Strength logging is not checked on a phone in a gym.** No real strength session has been
+17. **Strength logging is not checked on a phone in a gym.** No real strength session has been
     logged on the owner's phone, online or offline. `tests/e2e/17-offline.spec.ts` cuts the connection in a
     desktop browser only.
-20. **Beta tag.** `package.json:3` is `2.0.0-beta.1` but the latest release tag is `v1.0.0`; see
+18. **Beta tag.** `package.json:3` is `2.0.0-beta.1` but the latest release tag is `v1.0.0`; see
     owner item 4. The app shows the `package.json` version (`server/version.ts`,
     `web/versionDefine.ts`); the tag marks the release notes and the rollback point. Later betas
     count up with each tester-facing update.
-21. **Strava start point and policy questions.** `server/providers/strava.ts:361,380-381` reads
+19. **Strava start point and policy questions.** `server/providers/strava.ts:361,380-381` reads
     `start_latlng` and stores it coarsened (`coarse()`) as `startLat` and `startLng`; Policy 5.7
     restricts storing location; see owner item 6 for the choices.
-22. **Invited-account flow not tried on a phone over HTTPS.** Create-user, the temporary password
+20. **Invited-account flow not tried on a phone over HTTPS.** Create-user, the temporary password
     and the PW1 gate `auth.password-change-required` (`server/auth/middleware.ts:62`) were tried
     in Chromium only (`tests/e2e/38-invited-account.spec.ts`), with no phone, HTTPS or proxy. Anyone who knows an email can lock that account out of sign-in
     for 15 minutes (10 failures), and behind a proxy the per-address budgets are shared by every
     runner (`server/auth/rateLimit.ts`); open, and relevant to beta readiness.
-23. **delete-user leaves data in backups, free pages and published events.** The user's rows stay
+21. **delete-user leaves data in backups, free pages and published events.** The user's rows stay
     in the daily copies until pruned (`server/services/backup.ts`), and pre-migrate and
     pre-restore copies are removed after 29 days, except the newest 3 of each kind, which stay
     whatever their age (`KEEP_PRE_MIGRATE_DAYS`, `KEEP_PRE_MIGRATE_MIN`, `backup.ts:49-50`), so
     those 3 can hold a deleted account's rows indefinitely. They also stay in the
     live file's free pages until VACUUM, and in intervals.icu calendar events the publisher wrote
     (#711). The README data notice states the bound.
-24. **A failed climate refresh bumps the data version.** `ClimateCache` is a state model
-    (`server/dataVersion.ts:47`) and a failed refresh writes `failedAt` and `lastError` to it
-    (`server/services/weatherCache.ts:544-548`), so every failure drops every memo. Moving those
-    columns off the state table needs a schema change. `ForecastCache` is non-state, so its
-    failure write is harmless.
-25. **The brief says "no key session this week" after the first key session has passed,** even
-    when a later one remains (`shared/copy/briefTemplates.ts:248-252`). The line also draws
-    nothing offline, and Open the brief can clip in the two-line clamp.
-26. **Goals reads "1:45" as minutes and seconds.** `parseTime`
-    (`web/components/goalFormat.ts:28-32`) reads "m:ss" for two parts, so "1:45" is 105 s. Only
-    h:mm:ss reads as hours.
-27. **The Apple Health push skips the import's range checks.** `server/providers/appleHealth.ts:34`
-    checks only that a number is finite, while the parsed import applies range checks. Not compared
-    field by field; check whether a later write validates before fixing.
-28. **Watch rating is not refreshed after the first ask.** A run's intervals.icu rating
+22. **The brief line has two open faults.** The line draws nothing offline, and "Open the brief"
+    can clip in the two-line clamp. Neither has been reproduced. (The "no key session this week"
+    wording after the first key session passed was fixed in #823; the line now names the next one
+    still to come.)
+23. **Only the Apple Health push runs the import's range checks.** It runs the zod schemas of the
+    parsed import (`parsedActivitySchema`, `wellnessInputSchema`, `server/parsedSchemas.ts:49,74`;
+    `server/providers/appleHealth.ts:322-331`, #825). The intervals.icu, Garmin and Strava
+    providers do not import them (`server/parsedSchemas.ts` is imported only by
+    `server/routes/imports.ts` and the Apple Health provider), and `storeParsed` and `storeWellness`
+    round and store what they are given.
+24. **The Apple Health push drops a whole wellness day when any field is out of range,** as the
+    import does, rather than nulling the one field (`server/providers/appleHealth.ts:322-323`,
+    #825). The count is in the `ignored` map of the push answer (`wellness:out-of-range`), without
+    the field. A choice, not a defect; one bad field costs the day's other readings.
+25. **Watch rating is not refreshed after the first ask.** A run's intervals.icu rating
     is read at import and asked once more at the next hourly sync (`runWatchRatingPass`,
     `server/jobs/scheduler.ts:315-325`; `createdBefore` is the start of the sync before the tail),
     then never, so a later change in
     intervals.icu is not picked up. A stored standout and the execution assessments are not
     recomputed when the spread check first passes. The three spread thresholds are defaults.
-29. **The track-record memo reads non-state `PredictionLog`.** `server/services/trackRecord.ts:31,41`
-    reads it (non-state, `server/dataVersion.ts:79`), so the memo is sound only while no
-    prediction is logged after a result is recorded. `PredictionLog` moves to `STATE_MODELS` in
-    the PR where the engine or the snapshot first reads it.
-30. **A kept raised week target carries no progression warning.** The checklist
+26. **The track-record memo reads non-state `PredictionLog`.** `server/services/trackRecord.ts:31,41`
+    reads it (non-state, `server/dataVersion.ts:79`). Checked on main 2026-11-24: the staleness
+    did not reproduce. The invariant that keeps the memo sound is that a goal with a `RaceResult`
+    takes no new log row (`recordPrediction` returns `skipped` through `takesPredictions`,
+    `server/services/predictionLog.ts:47-56,100`), and the result save and delete write
+    `RaceResult` and `PredictionLog.actualSec` in one transaction (`saveRaceResult`,
+    `server/services/raceResults.ts:136`; `deleteRaceResult`, `raceResults.ts:194`; both through
+    `syncActuals`). Optional hardening: `ensureWeeklyPrediction`
+    (`predictionLog.ts:139-155`) calls `recordPrediction` on the plain client, not in a
+    transaction, so a result saved in the sub-millisecond race between its last
+    `takesPredictions` check (`predictionLog.ts:100`) and the log write could still leave a row
+    that no `syncActuals` scored; running it in a transaction closes the race.
+    `PredictionLog` moves to `STATE_MODELS` in the PR where the engine or the snapshot first reads
+    it.
+27. **A kept raised week target carries no progression warning.** The checklist
     (`shared/engine/checklist.ts:227`) is built from the engine draft and never sees the kept
     figure (`targetKept`, `server/services/replan.ts:136-178`). The diff and the Plan page do show
     the figure. Applies only when the runner raises a week by hand.
-31. **A5 low-frequency flag at a high start level.** `lowFrequencyOf`
+28. **A5 low-frequency flag at a high start level.** `lowFrequencyOf`
     (`shared/engine/athlete.ts:564`) arms at a start level over 60 min with fewer than two runs a
     week. It keeps the 2:1 cadence and the time step (`shared/engine/limits.ts:322`) and, since
     #579, no longer holds the load setting. The other options of the proposal stay open.
-32. **Simulator fixed point and pinned preset cases.** A re-plan with nothing new returns the stored
+29. **Simulator fixed point and pinned preset cases.** A re-plan with nothing new returns the stored
     plan at the week-target level in all 2,133 steps of the sim-athlete differential (seed offsets
     0, 1000 and 2000, three levels, twelve athletes, from the run for #818, outside the committed
     tests; 0 breaks as of #818). A stricter deep-equal check
@@ -269,39 +281,50 @@ Ranked by weight for the first 100-mile build toward the goal race, then for bet
     week as the G-2 baseline, so some sweep minima are report artefacts. The three half-marathon
     cases with a 21-day hold are closed (#808; `STILL_PINNED` is empty,
     `tests/unit/engine/disruption-integration.test.ts:1217`).
-33. **Compact banner, fold and 125% text layout.** The compact disruption banner's buttons are
+30. **Compact banner, fold and 125% text layout.** The compact disruption banner's buttons are
     26 px tall, below common touch-target guidance, and every action previews first (owner item
     11). The
     rest-window offer may be read twice in browse mode. Today may scroll sideways at 125% text
     from the hidden chart table. With three readiness signals, Done falls past the 788 px fold at
     390x844 and behind the tab bar at 360x740, and the fold assertions do not subtract the tab
     bar. None of this is verified in a browser on main.
-34. **The Today preview payload arms no rollover timer.** `useServerToday`
+31. **The Today preview payload arms no rollover timer.** `useServerToday`
     (`web/api/today.ts:78-102`) arms none for a preview payload, so a preview that becomes today's
     copy waits for the next focus or reconnect. Explain offline still waits out its retries. The
     sync-paused and weekly-update health notes in kept Today copy may be stale.
-35. **Revision and fuel form gaps.** State-driven updates show no per-session Why in
+32. **Revision and fuel form gaps.** State-driven updates show no per-session Why in
     `RevisionDiff`. The undo-reason copy differs from the examples in spec 8.6. The fuel "opens
     after" hint can understate what the server allows, and focus drops to the page after a fuel
     settings save. A fuel-log item whose product was edited loses its product link on the next
     edit. An undo after a `PARAMS_VERSION` bump shows "Drawn under updated plan rules"
     (`shared/copy/revision.ts:629`) although its rows are the restored ones.
-36. **Climb note and eased easy runs.** `climbNote` (`shared/engine/targets.ts:132`) fires on any
+33. **Climb note and eased easy runs.** `climbNote` (`shared/engine/targets.ts:132`) fires on any
     session whose planned gain per hour reaches `h4.climbNoteGainPerHourM`, so it shows on every
     run of a climbing week. `easedSession` (`shared/engine/readiness.ts:791`) spreads the original
     session, so an eased easy run keeps its `gainM`, and it gives one purpose text (readiness
     signals lower than usual) for every easy downgrade. Checked on HEAD 2026-11-20; both hold.
-37. **An engine trim of a future session writes a plan row outside any revision.**
-    `trimNextQuality` (`server/services/execution.ts:75-139`) updates the `PlanSession` row
-    directly, with no `recordPlanWrite`, so a later undo can read the row as an edit and refuse
-    (the refusal names the row; the refusal path itself was not traced). The row does keep the
-    untrimmed session in `original`. Checked on HEAD 2026-11-20.
-38. **`RUN_CAP_MAX_MIN` and the trim predicates.** `RUN_CAP_MAX_MIN = 240`
+34. **`RUN_CAP_MAX_MIN` and the trim predicates.** `RUN_CAP_MAX_MIN = 240`
     (`shared/engine/disruption.ts:31`) is documented as an input bound of the form, not a rule;
     whether the every-number-is-a-Param rule covers it is a judgement call.
     `shared/engine/index.ts:289-293` keeps its own `isTrim` and `isHoldTrimRow` beside
     `isTrimmed()`.
-39. **Small engine gaps for other runners.** Not offered or not built: a declared longest run
+35. **The access-log serializer lives in the calendar router.** `redactFeedToken`
+    (`server/routes/calendar.ts:25`) and `redactedRequest` (`calendar.ts:47`) now also redact the
+    export token and the OAuth callback's `code` and `state` (#820), so they belong in a log module
+    beside `server/logger.ts`. They match the parameter names literally, so a percent-encoded key
+    such as `%63ode` is not redacted; only a hand-built URL from the signed-in runner can send
+    one. Low.
+36. **`execution.ts`, `replan.ts` and `planEngine.ts` import each other in a ring.**
+    `server/services/execution.ts:33-34` imports `planEngine.ts` and `replan.ts`,
+    `replan.ts:98` imports `planEngine.ts` and `planEngine.ts:81,88` imports `execution.ts` and
+    `replan.ts`. #822 added the `execution.ts` to `replan.ts` edge. Every use is inside a function
+    body, so module load order does not matter. Low.
+37. **#824's reading values are defaults chosen without research.** `parseTime`
+    (`web/components/goalFormat.ts:28,30`) reads a two-part entry as h:mm from 21 km
+    (`HOURS_MINUTES_FROM_M`) and, for a shorter distance, when the m:ss reading would exceed 8 m/s
+    (`IMPLAUSIBLE_SPEED_MPS`). The goal sheet and the race result sheet apply the same reading
+    (`GoalsPage`, `RaceResultSheet`), and both show it under the field ("Read as 1 h 45 min.").
+38. **Small engine gaps for other runners.** Not offered or not built: a declared longest run
     (A3; no profile field); n1 walk-jog stages after a bone stress injury (only `n1.bsiReturnDays`
     exists); widening the prediction range during a rest window; moves across weeks
     (`shared/engine/adjust.ts:9`); open-ended windows (`j9.maxWindowDays`); an automatic follow of
@@ -310,7 +333,7 @@ Ranked by weight for the first 100-mile build toward the goal race, then for bet
     reads "not reachable" although the plan still builds. Contrived re-plans with completions that
     have no activity can collapse to zero-minute weeks (19 of 2,310 fuzzed); no real path
     produces that input.
-40. **Low-weight follow-ups.** `useWellness` (`web/api/wellness.ts`) has no consumer. Stats charts
+39. **Low-weight follow-ups.** `useWellness` (`web/api/wellness.ts`) has no consumer. Stats charts
     stop at 12 weeks (`web/pages/StatsPage.tsx:21`). The Warning signs page has no offline test, and the
     feedback clipboard fallback is untried in iOS Safari. The downhill cue shows on the session
     sheet only (`web/components/SessionSheet.tsx:75`), and "heavy" has no metre dose. The own easy ceiling reads
@@ -320,7 +343,7 @@ Ranked by weight for the first 100-mile build toward the goal race, then for bet
     (`tests/e2e/42-axe-scan.spec.ts:68-70`). The survivors of the 2026-11-01 audit are unchecked: E18
     reminders, CI time, nine over-graded Params, Steps on Today, the after-run verdict, the
     sensitivity probe. More providers are unbuilt (Polar, WHOOP, Oura, Google Health).
-41. **Code health and test strength.** `shared/engine/explainInputs.ts` is 4,023 lines. `median`
+40. **Code health and test strength.** `shared/engine/explainInputs.ts` is 4,023 lines. `median`
     is duplicated in at least five engine files. `planEngine.ts` and `replan.ts` import each other
     (uses are inside function bodies). The legacy `PUT /api/plan/sessions/:id` is still mounted
     (`server/routes/plan.ts:420`). `DISRUPTION_COLUMNS` is a hand-kept list defined at
@@ -337,7 +360,7 @@ Ranked by weight for the first 100-mile build toward the goal race, then for bet
     device's day. Readiness and race-decision gates are not yet stored decisions. Research passes R1 to R5 are unchecked. The H2b
     simulator tuning and the Treff readings are open. A sign-out read in flight can still be kept
     after `purgeDeviceData()` (recorded in ADR 0012).
-42. **Accepted limits, no action planned.** The non-production API limit; `computeReplan` does
+41. **Accepted limits, no action planned.** The non-production API limit; `computeReplan` does
     not await `ensureClimate`; the `webcal` scheme; `X-WR-TIMEZONE` in the feed; merge-style undo;
     the 14-day keep of owner edits; the explain weekly-decision query; unbounded lifetime Stats
     totals. The race plan models no late fade, so no end of the arrival range is ranked (#709); it
