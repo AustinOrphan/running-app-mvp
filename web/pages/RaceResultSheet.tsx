@@ -14,6 +14,7 @@ import {
   distanceInputText,
   parseDistance,
   parseTime,
+  twoPartReading,
 } from '../components/goalFormat.ts'
 import { render } from '../../shared/copy/template.ts'
 import {
@@ -165,6 +166,12 @@ export function RaceResultSheet({ goal, result, units, onClose }: RaceResultShee
     if (activity.distanceM !== null) setDistance(distanceState(activity.distanceM, units))
   }
 
+  // The distance a two-part time is read against: the one on the form, else the goal's.
+  const timeDistanceM =
+    distance.text.trim() === ''
+      ? goal.distanceM
+      : (distance.metres ?? parseDistance(distance.text, units))
+
   function refuse(local: Record<string, string>) {
     setErrors(local)
     setFormError(null)
@@ -179,7 +186,7 @@ export function RaceResultSheet({ goal, result, units, onClose }: RaceResultShee
     if (outcome === 'finished') {
       if (time.trim() === '') local.timeSec = resultRefusal('time-required')
       else {
-        timeSec = parseTime(time)
+        timeSec = parseTime(time, timeDistanceM)
         if (timeSec === null) local.timeSec = sheetFieldProblem('time-invalid', units)
       }
     }
@@ -277,7 +284,12 @@ export function RaceResultSheet({ goal, result, units, onClose }: RaceResultShee
         {outcome === 'finished' ? (
           <Field
             label="Finish time (h:mm:ss)"
-            hint={render(T['track-record.sheet.time-hint'], {}, units)}
+            hint={[
+              twoPartReading(time, timeDistanceM),
+              render(T['track-record.sheet.time-hint'], {}, units),
+            ]
+              .filter(Boolean)
+              .join(' ')}
             error={errors.timeSec}
           >
             {(a) => (
