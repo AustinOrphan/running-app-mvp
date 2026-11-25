@@ -1737,10 +1737,20 @@ async function seedPlan(
   return { plan, goal, rows }
 }
 
-/** The runner's profile: a body weight and a birth year, as the first load and the age read them. */
+/**
+ * The runner's profile: a body weight and a birth year, as the first load and the age read them.
+ * The birth year follows the clock so the age stays 38, under `f5.mastersMinAge`, on any date (a
+ * fixed year would reach 40 in 2028 and lengthen the ramp-in).
+ */
 const seedProfile = (user: TestUser, over: Record<string, unknown> = {}) =>
   ctx.prisma.athleteProfile.create({
-    data: { userId: user.id, weightKg: 70, birthYear: 1988, timezone: 'UTC', ...over },
+    data: {
+      userId: user.id,
+      weightKg: 70,
+      birthYear: Number(todayIso().slice(0, 4)) - 38,
+      timezone: 'UTC',
+      ...over,
+    },
   })
 
 const setup = (user: TestUser, body: Record<string, unknown>) =>
@@ -1924,7 +1934,7 @@ describe('the strength state', () => {
     expect(context.weeks.find((w) => w.weekStart === thisMonday)).toMatchObject({ runMin: 0 })
     expect(context.sessions.map((s) => s.id)).toEqual([rows[0]!.id, rows[1]!.id])
     expect(context.athlete).toEqual({
-      age: Number(today.slice(0, 4)) - 1988,
+      age: 38,
       weightKg: 70,
       risk: { priorBsi: false, recentInjury: false },
     })
