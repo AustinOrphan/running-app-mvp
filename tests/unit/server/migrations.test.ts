@@ -2172,9 +2172,22 @@ function verifyClimateFailure(db: DatabaseSync, before: Snapshot): void {
   expect(Object.keys(cache[0]!)).not.toContain('failedAt')
   expect(Object.keys(cache[0]!)).not.toContain('lastError')
   // The back-off of the two cells that had failed moves over; the cell that never failed has none.
-  expect(rowsOf(db, 'SELECT id, failedAt, lastError FROM "ClimateFailure" ORDER BY id')).toEqual([
-    { id: 'c1', failedAt: STAMP, lastError: 'Open-Meteo request failed: HTTP 503.' },
-    { id: 'c3', failedAt: STAMP, lastError: 'Open-Meteo request failed: no answer.' },
+  // `updatedAt` starts at the time of the failure.
+  expect(
+    rowsOf(db, 'SELECT id, failedAt, lastError, updatedAt FROM "ClimateFailure" ORDER BY id'),
+  ).toEqual([
+    {
+      id: 'c1',
+      failedAt: STAMP,
+      lastError: 'Open-Meteo request failed: HTTP 503.',
+      updatedAt: STAMP,
+    },
+    {
+      id: 'c3',
+      failedAt: STAMP,
+      lastError: 'Open-Meteo request failed: no answer.',
+      updatedAt: STAMP,
+    },
   ])
   expectIndex(
     db,
@@ -2192,6 +2205,7 @@ function verifyClimateFailure(db: DatabaseSync, before: Snapshot): void {
       startHour: 7,
       windowHours: 2,
       failedAt: STAMP,
+      updatedAt: STAMP,
     })
   }).toThrow(/UNIQUE/)
 }

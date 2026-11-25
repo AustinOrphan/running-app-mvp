@@ -14,6 +14,7 @@ import {
   BACKOFF_MS,
   cachedForecast,
   CLIMATE_REFRESH_MS,
+  climateFailureStamp,
   climateKeyFor,
   type ClimateGoal,
   ensureClimate,
@@ -23,6 +24,7 @@ import {
   forecastCellOf,
   forecastStamp,
   getForecastView,
+  NO_CLIMATE_FAILURE,
   NO_FORECAST,
   readClimate,
   refreshWeatherCaches as refreshWeatherCachesOn,
@@ -440,6 +442,29 @@ describe('the home forecast', () => {
 // ---------------------------------------------------------------------------------------------
 // forecastStamp and the data version
 // ---------------------------------------------------------------------------------------------
+
+describe('climateFailureStamp', () => {
+  test('moves when one cell is cleared and another, with an older failedAt, is recorded', async () => {
+    const HOUR_MS = 3_600_000
+    expect(await climateFailureStamp(prisma)).toBe(NO_CLIMATE_FAILURE)
+    const cell = { lngE2: 0, monthDay: '06-12', startHour: 8, windowHours: 6 }
+    await prisma.climateFailure.create({
+      data: { ...cell, latE2: 1, failedAt: later(HOUR_MS), updatedAt: later(2 * HOUR_MS) },
+    })
+    const before = await climateFailureStamp(prisma)
+    expect(before).not.toBe(NO_CLIMATE_FAILURE)
+
+    // Same count and an older `failedAt` than the cleared row: only `updatedAt` tells them apart.
+    await prisma.climateFailure.deleteMany({ where: { latE2: 1 } })
+    await prisma.climateFailure.create({
+      data: { ...cell, latE2: 2, failedAt: NOW, updatedAt: later(3 * HOUR_MS) },
+    })
+    expect(await climateFailureStamp(prisma)).not.toBe(before)
+
+    await prisma.climateFailure.deleteMany()
+    expect(await climateFailureStamp(prisma)).toBe(NO_CLIMATE_FAILURE)
+  })
+})
 
 describe('forecastStamp', () => {
   test('is the fetch time of the home cell, and none without a usable forecast', async () => {

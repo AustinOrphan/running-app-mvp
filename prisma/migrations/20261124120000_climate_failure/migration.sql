@@ -13,12 +13,13 @@ CREATE TABLE "ClimateFailure" (
     "startHour" INTEGER NOT NULL,
     "windowHours" INTEGER NOT NULL,
     "failedAt" DATETIME NOT NULL,
-    "lastError" TEXT
+    "lastError" TEXT,
+    "updatedAt" DATETIME NOT NULL
 );
 
 -- CopyFailures
-INSERT INTO "ClimateFailure" ("id", "latE2", "lngE2", "monthDay", "startHour", "windowHours", "failedAt", "lastError")
-SELECT "id", "latE2", "lngE2", "monthDay", "startHour", "windowHours", "failedAt", "lastError"
+INSERT INTO "ClimateFailure" ("id", "latE2", "lngE2", "monthDay", "startHour", "windowHours", "failedAt", "lastError", "updatedAt")
+SELECT "id", "latE2", "lngE2", "monthDay", "startHour", "windowHours", "failedAt", "lastError", "failedAt"
 FROM "ClimateCache" WHERE "failedAt" IS NOT NULL;
 
 -- RedefineTables

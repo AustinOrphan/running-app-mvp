@@ -1,6 +1,6 @@
 // What the plan can see (rule T2): the counts of the data the engine reads for one runner, from the
-// athlete snapshot and nothing else but the ids of the stored streams. Memoised by data version and
-// day; nothing here writes, waits or reads the network.
+// athlete snapshot and nothing else but the ids of the stored streams. Memoised by data version, day
+// and `climateFailureStamp` (the race heat notice reads `ClimateFailure`, not state); nothing here writes, waits or reads the network.
 import { isDuplicate } from '../../shared/engine/load.ts'
 import { planInputs, type PlanInputsView } from '../../shared/domain/planInputs.ts'
 import { PROVIDERS } from '../providers/registry.ts'
@@ -19,11 +19,12 @@ const MEMO = 'plan-inputs.view'
 /** The counts of one runner's data as of `today`. */
 export async function loadPlanInputs(
   deps: SnapshotDeps,
-  args: { userId: string; today: string },
+  args: { userId: string; today: string; climateStamp?: string },
 ): Promise<PlanInputsView> {
   const { userId, today } = args
-  // The race heat notice reads `ClimateFailure`, which is not state: its stamp is in the memo name.
-  const stamp = await climateFailureStamp(deps.prisma)
+  // The race heat notice reads `ClimateFailure`, which is not state: its stamp is in the memo name
+  // (a caller that has read it for the page tag passes it in).
+  const stamp = args.climateStamp ?? (await climateFailureStamp(deps.prisma))
   return memoByVersion(deps, { userId, today, name: `${MEMO}:${stamp}` }, async () => {
     const context = await loadAthleteContext(deps, { userId, today })
     const runIds = context.activities

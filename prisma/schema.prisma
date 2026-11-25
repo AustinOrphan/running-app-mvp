@@ -639,6 +639,7 @@ model ClimateFailure {
   windowHours Int
   failedAt    DateTime
   lastError   String?
+  updatedAt   DateTime @updatedAt // the time of the write, read by `climateFailureStamp`
 
   @@unique([latE2, lngE2, monthDay, startHour, windowHours])
 }

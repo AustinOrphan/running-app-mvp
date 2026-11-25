@@ -379,17 +379,19 @@ export const NO_CLIMATE_FAILURE = 'none'
  * What a memoised value or a deliverable that reads `climateFailed` adds to its change key or memo
  * name, as `forecastStamp` does for `ForecastCache`. `ClimateFailure` is not state, so a failed
  * read or a success that clears it leaves the data version alone; this stamp is the count of the
- * failure rows and the newest failure time, so it moves on every failure and every clear. It
- * covers every cell, not only the runner's: a failure is rare and the cost is one rebuilt memo.
+ * failure rows and the newest write time (`updatedAt`, not `failedAt`: a clear of one cell and a
+ * failure of another keep the count, and the new row is the newest write whatever its `failedAt`),
+ * so it moves on every failure and every clear. It covers every cell, not only the runner's: a
+ * failure is rare and the cost is one rebuilt memo.
  */
 export async function climateFailureStamp(prisma: PrismaClient): Promise<string> {
   const { _count, _max } = await prisma.climateFailure.aggregate({
     _count: { _all: true },
-    _max: { failedAt: true },
+    _max: { updatedAt: true },
   })
   return _count._all === 0
     ? NO_CLIMATE_FAILURE
-    : `${_count._all}@${_max.failedAt?.toISOString() ?? ''}`
+    : `${_count._all}@${_max.updatedAt?.toISOString() ?? ''}`
 }
 
 /**

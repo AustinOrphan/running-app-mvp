@@ -238,6 +238,30 @@ describe('GET /api/race/plan: the change key', () => {
     expect(again.status).toBe(304)
   })
 
+  test('changes with a climate failure and with its clearing, the data version alone', async () => {
+    const user = await newUser()
+    const goal = await newGoal(user)
+    const key = climateKeyFor(goal, { lat: null, lng: null, use: false })
+    if (key === null) throw new Error('the goal has no place')
+    const first = await client(ctx, user).get('/api/race/plan')
+    const tag = first.headers['etag'] as string
+    expect((first.body as RacePlanView).plan?.heat.state).toBe('unread')
+
+    await ctx.prisma.climateFailure.create({
+      data: { ...key, failedAt: new Date(), lastError: 'Open-Meteo request failed: no answer.' },
+    })
+    const failed = await client(ctx, user).get('/api/race/plan').set('If-None-Match', tag)
+    expect(failed.status).toBe(200)
+    expect((failed.body as RacePlanView).plan?.heat.state).toBe('failed')
+    const failedTag = failed.headers['etag'] as string
+    expect(failedTag).not.toBe(tag)
+
+    await ctx.prisma.climateFailure.deleteMany()
+    const cleared = await client(ctx, user).get('/api/race/plan').set('If-None-Match', failedTag)
+    expect(cleared.status).toBe(200)
+    expect((cleared.body as RacePlanView).plan?.heat.state).toBe('unread')
+  })
+
   test('changes with the data: a tolerated run moves the fuel rate on the next read', async () => {
     const user = await newUser()
     await newGoal(user)

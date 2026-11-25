@@ -147,6 +147,31 @@ describe('GET /api/plan-inputs', () => {
       await ctx.prisma.climateFailure.deleteMany()
     })
 
+    test('the tag follows a climate failure and its clearing, the data version alone', async () => {
+      const user = await newUser()
+      const goal = await goalFor(user, { place: true })
+      const key = climateKeyFor(goal, { lat: null, lng: null, use: false })
+      if (key === null) throw new Error('the goal has no place')
+      const first = await client(ctx, user).get('/api/plan-inputs')
+      const tag = first.headers['etag'] as string
+      expect((first.body as PlanInputsView).raceHeat?.state).toBe('unread')
+
+      await ctx.prisma.climateFailure.create({
+        data: { ...key, failedAt: new Date(), lastError: 'Open-Meteo request failed: no answer.' },
+      })
+      const failed = await client(ctx, user).get('/api/plan-inputs').set('If-None-Match', tag)
+      expect(failed.status).toBe(200)
+      expect((failed.body as PlanInputsView).raceHeat?.state).toBe('failed')
+      const failedTag = failed.headers['etag'] as string
+
+      await ctx.prisma.climateFailure.deleteMany()
+      const cleared = await client(ctx, user)
+        .get('/api/plan-inputs')
+        .set('If-None-Match', failedTag)
+      expect(cleared.status).toBe(200)
+      expect((cleared.body as PlanInputsView).raceHeat?.state).toBe('unread')
+    })
+
     test('a goal with no place and no home place says so: no place set, nothing used', async () => {
       const user = await newUser()
       await goalFor(user)
