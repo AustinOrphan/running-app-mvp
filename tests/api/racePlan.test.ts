@@ -303,6 +303,98 @@ describe('GET /api/race/plan: the change key', () => {
     expect(after?.fuel.rungIndex).toBeGreaterThan(0)
   })
 
+  test('holds back a rung tolerated only on runs of 2 h, on the page and in the Today slot alike (H7 floor)', async () => {
+    const user = await newUser()
+    await newGoal(user, { daysAhead: 2 })
+    const product = await client(ctx, user).post('/api/fuel/products').send({
+      name: 'Synthetic gel',
+      kind: 'gel',
+      servingLabel: '1 gel',
+      carbsG: 40,
+      sodiumMg: 100,
+      kcal: 160,
+      multiCarb: true,
+    })
+    expect(product.status).toBe(201)
+    for (const offset of [10, 9]) {
+      const run = await ctx.prisma.activity.create({
+        data: {
+          userId: user.id,
+          date: addDays(today, -offset),
+          type: 'run',
+          durationSec: 2 * HOUR,
+          distanceM: 20_000,
+          source: 'manual',
+        },
+      })
+      const put = await client(ctx, user)
+        .put(`/api/fuel/logs/${run.id}`)
+        .send({ items: [{ productId: (product.body as { id: string }).id, servings: 5 }], gut: 0 })
+      expect(put.status, JSON.stringify(put.body)).toBe(200)
+    }
+    const lab = (await client(ctx, user).get('/api/fuel')).body as {
+      ladder: { toleratedIndex: number }
+    }
+    expect(lab.ladder.toleratedIndex).toBeGreaterThan(0)
+
+    const { plan } = await planOf(user)
+    expect(plan?.fuel).toMatchObject({ rungIndex: 0, basis: 'floor' })
+    expect(plan?.fuel.durationFloor).toMatchObject({
+      requiredSec: P.h7.raceRateRunCapMin.value * 60,
+      longestSec: 2 * HOUR,
+    })
+    const slot = (await todayOf(user)).coach.slots.race
+    expect(slot?.fuel).toEqual(plan?.fuel)
+  })
+
+  test('credits a tolerated 4 h logged run below the ladder target, on the page and in the Today slot alike (H7 floor)', async () => {
+    const user = await newUser()
+    await newGoal(user, { daysAhead: 2 })
+    const product = await client(ctx, user).post('/api/fuel/products').send({
+      name: 'Synthetic gel',
+      kind: 'gel',
+      servingLabel: '1 gel',
+      carbsG: 40,
+      sodiumMg: 100,
+      kcal: 160,
+      multiCarb: true,
+    })
+    expect(product.status).toBe(201)
+    // two 2 h runs at 100 g/h tolerate 60 g/h and put the target at 70 g/h; the 4 h run at 60 g/h
+    // reaches 60 g/h and not 70 g/h (0.9 of it), so it is below the target and counts for 60 g/h only
+    const logged = [
+      { offset: 12, hours: 2, servings: 5 },
+      { offset: 11, hours: 2, servings: 5 },
+      { offset: 10, hours: 4, servings: 6 },
+    ]
+    for (const { offset, hours, servings } of logged) {
+      const run = await ctx.prisma.activity.create({
+        data: {
+          userId: user.id,
+          date: addDays(today, -offset),
+          type: 'run',
+          durationSec: hours * HOUR,
+          distanceM: hours * 10_000,
+          source: 'manual',
+        },
+      })
+      const put = await client(ctx, user)
+        .put(`/api/fuel/logs/${run.id}`)
+        .send({ items: [{ productId: (product.body as { id: string }).id, servings }], gut: 0 })
+      expect(put.status, JSON.stringify(put.body)).toBe(200)
+    }
+    const lab = (await client(ctx, user).get('/api/fuel')).body as {
+      ladder: { toleratedIndex: number }
+    }
+    expect(lab.ladder.toleratedIndex).toBe(1)
+
+    const { plan } = await planOf(user)
+    expect(plan?.fuel).toMatchObject({ rungIndex: 1, gPerH: 60, basis: 'tolerated' })
+    expect(plan?.fuel.durationFloor).toBeNull()
+    const slot = (await todayOf(user)).coach.slots.race
+    expect(slot?.fuel).toEqual(plan?.fuel)
+  })
+
   test('follows the goal: a new place or date is read on the next request', async () => {
     const user = await newUser()
     const goal = await newGoal(user, { daysAhead: 3 })

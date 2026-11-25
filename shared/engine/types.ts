@@ -1013,6 +1013,13 @@ export type RungState =
 
 export interface FuelRungView extends FuelRung {
   state: RungState
+  /**
+   * The elapsed seconds of the longest run that counts at this rung (`countReason`, whatever the
+   * target was) and is scored below `h7.gutStopScore` on a day that was not hot; null when there was
+   * none, and null above the tolerated rung. The race rate reads it (`raceFuelFor`, the duration
+   * floor of rule H7); nothing else does.
+   */
+  toleratedSec: number | null
 }
 
 /** Why a logged run did or did not count toward the ladder. */
@@ -1081,7 +1088,7 @@ export interface LadderResult {
   steps: LadderStep[]
 }
 
-/** One run on which the race rung was tolerated. */
+/** One run on which the highest tolerated rung was tolerated. */
 export interface RaceRateRun {
   activityId: string
   date: string
@@ -1091,14 +1098,14 @@ export interface RaceRateRun {
   hot: boolean
 }
 
-/** Where the race rate has held, as plain facts; display only, and nothing in a plan reads it. */
+/** Where the highest tolerated rate has held, as plain facts; display only, and nothing in a plan reads it. */
 export interface RaceRateHold {
-  /** The rate of the race rung (`raceFuelFor`), which the facts below are measured against. */
+  /** The highest tolerated rung (before the H7 duration floor), which the facts below are measured against. */
   rate: RungRate
-  /** The longest tolerated run at the race rung; the earliest of equal lengths. Null when none. */
+  /** The longest tolerated run at that rung; the earliest of equal lengths. Null when none. */
   longest: RaceRateRun | null
   /**
-   * The latest run that was tolerated at the race rung on the day after another counted run at
+   * The latest run that was tolerated at that rung on the day after another counted run at
    * that rung (two runs on consecutive local days). Null when none.
    */
   dayTwo: RaceRateRun | null

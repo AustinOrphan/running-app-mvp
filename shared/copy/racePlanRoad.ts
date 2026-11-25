@@ -165,7 +165,7 @@ export const RACE_PLAN_ROAD_TEMPLATES = {
     'A finish target. The race plan shows a range, never a target.',
   ),
   'race.plan.road.not-in.hold': tpl(
-    'How long the race rate has held on training runs. The fuel lab shows that.',
+    'How long the highest tolerated rate has held on training runs. The fuel lab shows that.',
   ),
 } satisfies Record<string, Template>
 
