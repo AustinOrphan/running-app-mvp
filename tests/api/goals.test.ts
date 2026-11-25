@@ -421,6 +421,18 @@ describe('race descriptors', () => {
 const today = todayIso()
 const thisMonday = mondayOf(today)
 
+/** The local wall-clock time `hour` o'clock on a `YYYY-MM-DD` day. */
+function localAt(day: string, hour: number): Date {
+  const [year, month, date] = day.split('-').map(Number) as [number, number, number]
+  return new Date(year, month - 1, date, hour)
+}
+
+/**
+ * Wednesday noon of the week the fixtures are built around. The history, the plan and the goal
+ * dates follow the real clock, so a clock pinned to a fixed date would drift away from them.
+ */
+const wednesdayNoon = localAt(addDays(thisMonday, 2), 12)
+
 afterEach(async () => {
   vi.mocked(replanActivePlan).mockClear()
   // The background climate refresh of a goal with a race place ends before the guard is read.
@@ -517,14 +529,14 @@ describe('PUT /api/goals/:id and the weekly update', () => {
     const runner = await runnerWithPlan()
     await ctx.prisma.plan.update({
       where: { id: runner.plan.id },
-      data: { createdAt: new Date(2026, 9, 5) },
+      data: { createdAt: localAt(addDays(thisMonday, -14), 0) },
     })
     return runner
   }
 
   async function putOnWednesday(who: TestUser, goalId: string, body: Record<string, unknown>) {
     vi.useFakeTimers({ toFake: ['Date'] })
-    vi.setSystemTime(new Date(2026, 9, 21, 12))
+    vi.setSystemTime(wednesdayNoon)
     try {
       return await client(ctx, who).put(`/api/goals/${goalId}`).send(body)
     } finally {
@@ -547,7 +559,7 @@ describe('PUT /api/goals/:id and the weekly update', () => {
         planId: plan.id,
         reason: 'weekly',
         summary: 'Synthetic.',
-        createdAt: new Date(2026, 9, 20, 9),
+        createdAt: localAt(addDays(thisMonday, 1), 9),
       },
     })
     const res = await putOnWednesday(who, half.id, { targetDate: addDays(half.targetDate, 7) })
@@ -850,10 +862,10 @@ describe('POST /api/plan/archived/:id/restore', () => {
     // The restored plan is older than this week's Monday slot and the week has no weekly revision.
     await ctx.prisma.plan.update({
       where: { id: plan.id },
-      data: { createdAt: new Date(2026, 9, 5) },
+      data: { createdAt: localAt(addDays(thisMonday, -14), 0) },
     })
     vi.useFakeTimers({ toFake: ['Date'] })
-    vi.setSystemTime(new Date(2026, 9, 21, 12))
+    vi.setSystemTime(wednesdayNoon)
     try {
       expect((await restore(who, plan.id)).status).toBe(200)
     } finally {

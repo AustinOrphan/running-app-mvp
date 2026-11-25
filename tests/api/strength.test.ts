@@ -825,7 +825,9 @@ describe('PUT /api/strength/logs/:logId, validation', () => {
     ],
     ['a date that has not come', { date: day(1) }, ['date']],
     ['a date a year and a day back', { date: day(-366) }, ['date']],
-    ['a date that is not real', { date: '2026-02-30' }, ['date']],
+    // Day 32 of a month 45 days back: not real, and inside the allowed window whatever today is,
+    // so only the calendar check refuses it.
+    ['a date that is not real', { date: `${day(-45).slice(0, 8)}32` }, ['date']],
     ['no minutes', { durationMin: 0 }, ['durationMin']],
     ['more than 300 minutes', { durationMin: 301 }, ['durationMin']],
     ['minutes with a fraction', { durationMin: 40.5 }, ['durationMin']],
