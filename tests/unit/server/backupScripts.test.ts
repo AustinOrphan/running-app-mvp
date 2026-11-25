@@ -100,8 +100,15 @@ describe('npm run backup', () => {
     const { status, err } = await run(backupCommand, ['--before-migrate'])
     expect(status).toBe(0)
     expect(err).toContain('Warning: could not remove 1: pre-migrate-20250101T020000Z.db')
-    // The new copy was made.
-    expect(backups().filter((name) => name.startsWith('pre-migrate-2026'))).toHaveLength(1)
+    // The new copy was made: the only pre-migrate file the test did not create.
+    const seeded = new Set(
+      ['20250101T020000Z', '20250102T020000Z', '20250103T020000Z', '20250104T020000Z'].map(
+        (stamp) => `pre-migrate-${stamp}.db`,
+      ),
+    )
+    expect(
+      backups().filter((name) => name.startsWith('pre-migrate-') && !seeded.has(name)),
+    ).toHaveLength(1)
   })
 
   test('--before-migrate copies nothing when there is no database yet', async () => {
