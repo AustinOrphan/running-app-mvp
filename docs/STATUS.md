@@ -93,7 +93,7 @@ Each item names the default that holds until the owner answers.
   (#812); the taper reference and the planned minutes of a short-placed week are kept (#814, #815);
   windows under 7 days leave the later loading weeks unchanged (#817); a held week trims its quality
   session once (#818). The PRs hold the detail.
-- #819 to #828 merged 2026-11-23 to 2026-11-25: the status update (#819), the OAuth callback's
+- #819 to #828 merged 2026-11-22 to 2026-11-25: the status update (#819), the OAuth callback's
   `code` and `state` kept out of the access log (#820), a fixed clock in the energy-availability
   test (#821), the engine's quality-session trim recorded as a plan revision (#822), the brief
   naming the next key session still to come (#823), a two-part goal time read as h:mm from half
@@ -233,8 +233,9 @@ Ranked by weight for the first 100-mile build toward the goal race, then for bet
     providers do not import them (`server/parsedSchemas.ts` is imported only by
     `server/routes/imports.ts` and the Apple Health provider), and `storeParsed` and `storeWellness`
     round and store what they are given.
-24. **The Apple Health push drops a whole wellness day when any field is out of range,** as the
-    import does, rather than nulling the one field (`server/providers/appleHealth.ts:322-323`,
+24. **The Apple Health push drops a whole wellness day when any field is out of range,**
+    rather than nulling the one field, while the import refuses the whole upload with a 400
+    (`server/providers/appleHealth.ts:322-323`,
     #825). The count is in the `ignored` map of the push answer (`wellness:out-of-range`), without
     the field. A choice, not a defect; one bad field costs the day's other readings.
 25. **Watch rating is not refreshed after the first ask.** A run's intervals.icu rating
@@ -297,7 +298,7 @@ Ranked by weight for the first 100-mile build toward the goal race, then for bet
     after" hint can understate what the server allows, and focus drops to the page after a fuel
     settings save. A fuel-log item whose product was edited loses its product link on the next
     edit. An undo after a `PARAMS_VERSION` bump shows "Drawn under updated plan rules"
-    (`shared/copy/revision.ts:629`) although its rows are the restored ones.
+    (`shared/copy/revision.ts:635`) although its rows are the restored ones.
 33. **Climb note and eased easy runs.** `climbNote` (`shared/engine/targets.ts:132`) fires on any
     session whose planned gain per hour reaches `h4.climbNoteGainPerHourM`, so it shows on every
     run of a climbing week. `easedSession` (`shared/engine/readiness.ts:791`) spreads the original
