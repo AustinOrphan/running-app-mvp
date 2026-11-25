@@ -219,6 +219,50 @@ describe('appleHealthPush.parsePush: workouts', () => {
   })
 })
 
+describe('appleHealthPush.parsePush: range checks of the parsed import', () => {
+  const metric = (name: string, units: string, qty: number) => ({
+    data: {
+      metrics: [{ name, units, data: [{ date: '2026-03-04 06:00:00 -0500', qty }] }],
+    },
+  })
+
+  it.each([
+    ['resting_heart_rate', 'count/min', 200],
+    ['resting_heart_rate', 'count/min', 10],
+    ['weight_body_mass', 'kg', 900],
+    ['vo2_max', 'ml/(kg*min)', 250],
+    ['heart_rate_variability', 'ms', 9000],
+  ])('drops a %s day of %f out of the import bounds and counts it', (name, units, qty) => {
+    const out = appleHealthPush.parsePush(metric(name, units, qty), ctx)
+    expect(out.wellness).toEqual([])
+    expect(out.ignored).toEqual({ 'wellness:out-of-range': 1 })
+  })
+
+  it('keeps a day inside the bounds', () => {
+    const out = appleHealthPush.parsePush(metric('resting_heart_rate', 'count/min', 52), ctx)
+    expect(out.wellness).toHaveLength(1)
+    expect(out.ignored).toEqual({})
+  })
+
+  it('drops a workout whose figures fall outside the import bounds and keeps the others', () => {
+    const body = workoutPayload('Outdoor Run', { avgHeartRate: { qty: 999, units: 'count/min' } })
+    body.data.workouts.push(workoutPayload('Outdoor Run').data.workouts[0] as never)
+    const out = appleHealthPush.parsePush(body, ctx)
+    expect(out.activities).toHaveLength(1)
+    expect(out.activities[0]?.avgHr).toBeNull()
+    expect(out.ignored).toEqual({ 'workout:out-of-range': 1 })
+  })
+
+  it('drops a workout with an impossible distance', () => {
+    const out = appleHealthPush.parsePush(
+      workoutPayload('Outdoor Run', { distance: { qty: 5000, units: 'km' } }),
+      ctx,
+    )
+    expect(out.activities).toEqual([])
+    expect(out.ignored).toEqual({ 'workout:out-of-range': 1 })
+  })
+})
+
 describe('appleHealthPush.parsePush: input', () => {
   it('accepts an empty export', () => {
     expect(appleHealthPush.parsePush({ data: {} }, ctx)).toEqual({
