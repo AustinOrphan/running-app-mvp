@@ -44,6 +44,7 @@ import {
   parseDistance,
   parseMetres,
   parseTime,
+  twoPartReading,
 } from '../components/goalFormat.ts'
 import {
   RESTORE_BUTTON_LABEL,
@@ -245,7 +246,7 @@ function GoalSheet({ goal, units, onClose }: GoalFormProps) {
           local.targetTimeSec = 'Enter a target time like 1:45:30, or choose a finish goal.'
         }
       } else {
-        targetTimeSec = parseTime(targetTime)
+        targetTimeSec = parseTime(targetTime, shownDistance)
         if (targetTimeSec === null) local.targetTimeSec = 'Enter a time like 1:45:30.'
       }
     }
@@ -403,7 +404,12 @@ function GoalSheet({ goal, units, onClose }: GoalFormProps) {
         {goalType === 'time' ? (
           <Field
             label="Target time (h:mm:ss)"
-            hint="A sketch to plan against, not a minimum."
+            hint={[
+              twoPartReading(targetTime, shownDistance),
+              'A sketch to plan against, not a minimum.',
+            ]
+              .filter(Boolean)
+              .join(' ')}
             error={errors.targetTimeSec}
           >
             {(a) => (

@@ -113,6 +113,7 @@ describe('reason labels and the New marker', () => {
     'method-change': 'Plan shape changed',
     'raise-to-match': 'Raised to match',
     'races-changed': 'Entered races changed',
+    trim: 'Quality session shortened',
   }
 
   it.each(Object.entries(LABELS))('labels %s as "%s"', (reason, label) => {

@@ -452,7 +452,9 @@ and CodeQL's `analyze` (not strict, no force push, not enforced for admins). The
   nothing), `applyReplan` and `recordPlanWrite` in `server/services/replan.ts` (ADR 0007);
   `replanActivePlan` wraps the first two. Nothing else creates a revision (a test scans `server/`),
   and each revision stores a `PlanDiff` and an `UndoPayload` built from the rows actually written.
-  Summaries are templates in `shared/copy/revision.ts`.
+  Summaries are templates in `shared/copy/revision.ts`. The trim of the next quality session after a
+  much harder run (`trimNextQuality`, `server/services/execution.ts`) is one too: reason `trim`, `auto`,
+  written in the transaction of the row it shortens.
 - Week and statistics code reads `ActivityCore` rows (`loadActivityCores`, seven columns, the last one the elevation gain), from
   `activityLoadStart(first week)` to the last Sunday, never every whole activity. A loop over weeks
   reads the database once for all of them (`executionRecordsByWeek`).
